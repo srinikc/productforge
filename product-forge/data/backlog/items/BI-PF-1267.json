@@ -90,7 +90,7 @@
   ],
   "affected_files": [
     "core/contracts.py",
-    "go/pfcore/contracts.go",
+    "go/pfcore/pfcore.go",
     "test-framework/tests/pipeline/test_contracts.py"
   ],
   "approach": "- Parity test (mirrors test_contracts.py pattern); contract test pins events.py public symbols.",
@@ -104,10 +104,10 @@
       "existing_path": [
         "canonical contract surface + JSON Schema + validate/canonical -> core/contracts.py (_SPECS/CONTRACTS)",
         "wire envelope + handle_wire -> core/contracts.py:347-404",
-        "Go contract parity surface -> go/pfcore/contracts.go (canonical); go/contract/contract.go and pfcore.contractShapes are read-only legacy",
         "parity test -> test-framework/tests/pipeline/test_contracts.py",
         "Go invocation seam -> core/go_host.py",
-        "consumers of contracts -> core/bom.py:195,198; core/go_host.py"
+        "consumers of contracts -> core/bom.py:195,198; core/go_host.py",
+        "Go contract parity surface -> go/pfcore/pfcore.go contractShapes (canonical, reuse; no new file)"
       ],
       "assumptions": [
         "B1 adding contracts is additive; existing consumers (bom.py, go_host) unaffected",
@@ -128,40 +128,34 @@
     },
     "impact_review": [
       {
-        "claim": "New Go contract mirror",
+        "claim": "Reuse existing Python contract owner",
         "verdict": "aligned",
-        "evidence": "go/pfcore/contracts.go (BI-PF-1267)",
-        "recommendation": "implement under go/ and parity-test"
+        "evidence": "core/contracts.py",
+        "recommendation": "edit only; no new Python module"
       },
       {
-        "claim": "Python shipped-surface change",
+        "claim": "Reuse existing Go contract mirror",
         "verdict": "aligned",
-        "evidence": "core/contracts.py edit only",
-        "recommendation": "no new Python module"
+        "evidence": "go/pfcore/pfcore.go contractShapes",
+        "recommendation": "edit only; no new Go file"
       },
       {
-        "claim": "No new Python module in shipped roots",
+        "claim": "No runtime API route change",
+        "verdict": "aligned",
+        "evidence": "contract tests only",
+        "recommendation": "no API"
+      },
+      {
+        "claim": "No new shipped Python module",
         "verdict": "aligned",
         "evidence": "config/language-rule.json",
         "recommendation": "edit-only"
       },
       {
-        "claim": "No runtime API route change",
+        "claim": "Language rule",
         "verdict": "aligned",
-        "evidence": "contract shapes only",
-        "recommendation": "no API route in 1267"
-      },
-      {
-        "claim": "Webhook secret handling",
-        "verdict": "aligned",
-        "evidence": "WEBHOOK_HMAC_KEY_REF secret reference",
-        "recommendation": "fail closed at startup"
-      },
-      {
-        "claim": "Go/Python parity",
-        "verdict": "aligned",
-        "evidence": "test-framework/tests/pipeline/test_contracts.py",
-        "recommendation": "parity tests block CI"
+        "evidence": "existing Go owner extended; Python edit only",
+        "recommendation": "no new .py under shipped roots"
       }
     ],
     "reviewed_by": "architect",
@@ -277,15 +271,15 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-11-14T12:08:38.925854",
+  "updated_at": "2026-11-14T13:22:08.188449",
   "score": 0.83,
-  "_note": "Design minors fixed; prior findings dispositioned ACTIONED for Gate 1.",
+  "_note": "Reuse existing core/contracts.py + go/pfcore/pfcore.go; no new Go contract file. Real gaps: unknown-field/seq/parity/HMAC.",
   "api_impact": {
     "needs_api": false,
     "reason": "Shared contract shapes only; no runtime API route change."
   },
   "design_pack": {
-    "version": 1,
+    "version": 2,
     "requirements": [
       "Go and Python required-field/shape parity tests pass; existing test_api_events stays green."
     ],
@@ -306,10 +300,8 @@
       ],
       "files": [
         "core/contracts.py",
-        "go/pfcore/contracts.go",
-        "test-framework/tests/pipeline/test_contracts.py",
-        "legacy/read-only: go/contract/contract.go",
-        "legacy/read-only: go/pfcore/pfcore.go contractShapes"
+        "go/pfcore/pfcore.go",
+        "test-framework/tests/pipeline/test_contracts.py"
       ],
       "config": [
         "WEBHOOK_HMAC_KEY_REF is a secret reference (never the key); required and fail-closed at startup when webhook delivery is enabled."
@@ -355,58 +347,16 @@
       {
         "ac": "AC-1",
         "tests": [
-          "test_envelope_required_fields_parity",
-          "test_seq_contract_parity",
-          "test_unknown_fields_rejected"
-        ],
-        "evidence": [
-          "core/contracts.py",
-          "go/pfcore/contracts.go",
-          "test-framework/tests/pipeline/test_contracts.py"
-        ]
-      },
-      {
-        "ac": "AC-1",
-        "tests": [
-          "test_subscription_shape_parity",
-          "test_alert_rule_shape_parity",
-          "test_webhook_payload_header_parity"
-        ],
-        "evidence": [
-          "core/contracts.py",
-          "go/pfcore/contracts.go",
-          "test-framework/tests/pipeline/test_contracts.py"
-        ]
-      },
-      {
-        "ac": "AC-1",
-        "tests": [
+          "test_contracts_unknown_field_parity",
+          "test_contracts_seq_parity",
+          "test_contracts_subscription_alert_webhook_parity",
           "test_webhook_hmac_constant_time",
-          "test_webhook_idempotency_header"
-        ],
-        "evidence": [
-          "core/contracts.py",
-          "go/pfcore/contracts.go",
-          "test-framework/tests/pipeline/test_contracts.py"
-        ]
-      },
-      {
-        "ac": "AC-1",
-        "tests": [
-          "test_cursor_ordering_contract"
-        ],
-        "evidence": [
-          "core/contracts.py",
-          "go/pfcore/contracts.go",
-          "test-framework/tests/pipeline/test_contracts.py"
-        ]
-      },
-      {
-        "ac": "AC-1",
-        "tests": [
           "test_api_events"
         ],
         "evidence": [
+          "core/contracts.py",
+          "go/pfcore/pfcore.go",
+          "test-framework/tests/pipeline/test_contracts.py",
           "test-framework/tests/pipeline/test_api_events.py"
         ]
       }
@@ -425,7 +375,9 @@
       "WEBHOOK_HMAC_KEY_REF is a secret reference, never the key; webhook-enabled startup fails closed when missing.",
       "BI-PF-1267 guarantees event_id and idempotency header shape; runtime dedupe belongs to BI-PF-1270.",
       "Python/Go parity tests must cover missing/invalid seq, cursor ordering, unknown version, and signature verification.",
-      "Go contract surface: go/pfcore/contracts.go is canonical for parity; go/contract/contract.go and pfcore.contractShapes are legacy, not extended."
+      "Go contract surface: go/pfcore/contracts.go is canonical for parity; go/contract/contract.go and pfcore.contractShapes are legacy, not extended.",
+      "Reuse existing contract owners: Python core/contracts.py and Go go/pfcore/pfcore.go contractShapes are canonical; no new go/pfcore/contracts.go.",
+      "BI-PF-1267 adds strict unknown-field parity, seq/subscription/alert/webhook parity tests, and constant-time webhook HMAC verification."
     ],
     "guardrails": [
       "No breaking envelope field removal.",

@@ -170,3 +170,38 @@ def test_go_host_and_python_core_exchange(tmp_path):
     ping = _go_call(host, contracts.wire_request("ping", id="p-1"))
     assert ping["result"]["version"] == contracts.WIRE_VERSION
     assert ping["result"]["host"] == "go"
+
+# BI-PF-1267 strict eventing contracts
+def test_eventing_unknown_top_level_field_is_rejected():
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00", "seq": 1, "unexpected": "x"}
+    assert contracts.validate("event-envelope", env)["valid"] is False
+
+
+def test_eventing_extensions_are_allowed():
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00", "seq": 1,
+           "extensions": {"vendor": {"trace": "x"}}}
+    assert contracts.validate("event-envelope", env)["valid"] is True
+
+
+def test_eventing_seq_is_required():
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00"}
+    assert contracts.validate("event-envelope", env)["valid"] is False
+
+
+def test_webhook_hmac_is_constant_time_and_fail_closed():
+    body = b'{"event_id":"e1"}'
+    sig = contracts.webhook_signature(body, "secret")
+    assert contracts.verify_webhook_signature(body, sig, "secret") is True
+    assert contracts.verify_webhook_signature(body, sig, "wrong") is False
+    assert contracts.verify_webhook_signature(body, "", "secret") is False
+
+
+def test_eventing_header_contract_names():
+    assert contracts.WEBHOOK_SIGNATURE_HEADER == "X-PF-Signature"
+    assert contracts.WEBHOOK_IDEMPOTENCY_HEADER == "X-PF-Idempotency-Key"

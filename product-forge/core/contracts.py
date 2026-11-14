@@ -18,6 +18,8 @@ required-field shape and both are cross-checked by ``test-framework/tests/pipeli
 from __future__ import annotations
 
 import contextlib
+import hashlib
+import hmac
 import json
 import os
 import sys
@@ -236,7 +238,7 @@ _EVENT_ENVELOPE = ContractSpec(
         Field("seq", type="integer", required=True),
         Field("tenant_id"), Field("project_id"), Field("run_id"), Field("stage_id"),
         Field("task_id"), Field("worker_id"), Field("actor"), Field("correlation_id"),
-        Field("causation_id"), Field("payload", type="object"),
+        Field("causation_id"), Field("payload", type="object"), Field("extensions", type="object"),
         # legacy flat fields (back-compat with core/events.py)
         Field("ts"), Field("type"), Field("level"), Field("stage"), Field("agent"),
         Field("trace_id"), Field("span_id"),
@@ -315,6 +317,23 @@ WIRE_CONTRACTS: tuple[str, ...] = (_WIRE_REQUEST.name, _WIRE_RESPONSE.name)
 EVENTING_CONTRACTS: tuple[str, ...] = (
     _EVENT_ENVELOPE.name, _SUBSCRIPTION.name, _ALERT_RULE.name, _WEBHOOK_DELIVERY.name,
 )
+
+WEBHOOK_SIGNATURE_HEADER = "X-PF-Signature"
+WEBHOOK_IDEMPOTENCY_HEADER = "X-PF-Idempotency-Key"
+WEBHOOK_SIGNATURE_ALGORITHM = "sha256"
+
+
+def webhook_signature(body: bytes | str, secret: str) -> str:
+    """HMAC-SHA256 signature over the raw webhook body, prefixed with the algorithm."""
+    raw = body.encode("utf-8") if isinstance(body, str) else bytes(body)
+    digest = hmac.new(str(secret).encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    return f"{WEBHOOK_SIGNATURE_ALGORITHM}={digest}"
+
+
+def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> bool:
+    """Constant-time webhook signature verification (fail closed on empty/mismatch)."""
+    expected = webhook_signature(body, secret)
+    return bool(str(signature or "")) and hmac.compare_digest(expected, str(signature))
 
 
 # ── schema + validation ─────────────────────────────────────────────────────────

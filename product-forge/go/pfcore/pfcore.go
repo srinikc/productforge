@@ -6,6 +6,9 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"runtime"
 	"sort"
@@ -69,6 +72,44 @@ var contractShapes = map[string]contractShape{
 	"webhook-delivery":    {"product-forge/webhook-delivery@1", []string{"schema", "delivery_id", "event_id", "subscription_id", "target_url"}},
 }
 
+// eventContractFields is the strict top-level allowlist for BI-PF-1267 eventing contracts.
+var eventContractFields = map[string][]string{
+	"event-envelope": {"schema", "event_id", "event_type", "event_version", "occurred_at", "seq",
+		"tenant_id", "project_id", "run_id", "stage_id", "task_id", "worker_id", "actor",
+		"correlation_id", "causation_id", "payload", "extensions", "ts", "type", "level",
+		"stage", "agent", "trace_id", "span_id"},
+	"subscription": {"schema", "id", "types", "filter", "transport", "target", "auth_ref",
+		"enabled", "created_by"},
+	"alert-rule": {"schema", "id", "event_type", "severity", "channels", "throttle_window",
+		"escalate", "enabled"},
+	"webhook-delivery": {"schema", "delivery_id", "event_id", "subscription_id", "target_url",
+		"payload", "signature", "idempotency_key", "attempts", "status"},
+}
+
+func containsField(fields []string, name string) bool {
+	for _, f := range fields {
+		if f == name {
+			return true
+		}
+	}
+	return false
+}
+
+// WebhookSignature returns the canonical HMAC-SHA256 header value.
+func WebhookSignature(body []byte, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// VerifyWebhookSignature compares signatures in constant time (fail closed).
+func VerifyWebhookSignature(body []byte, signature, secret string) bool {
+	if signature == "" {
+		return false
+	}
+	return hmac.Equal([]byte(WebhookSignature(body, secret)), []byte(signature))
+}
+
 // ContractNames returns the known contract names (sorted, deterministic describe output).
 func ContractNames() []string {
 	names := make([]string, 0, len(contractShapes))
@@ -112,6 +153,13 @@ func Validate(name string, payload map[string]any) (bool, []string) {
 	if got, present := payload["schema"]; present {
 		if s, isStr := got.(string); isStr && s != shape.schemaConst {
 			errs = append(errs, fmt.Sprintf("schema: must equal %s", shape.schemaConst))
+		}
+	}
+	if allowed, ok := eventContractFields[name]; ok {
+		for field := range payload {
+			if !containsField(allowed, field) {
+				errs = append(errs, field+": unknown field")
+			}
 		}
 	}
 	return len(errs) == 0, errs
