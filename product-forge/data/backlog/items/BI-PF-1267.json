@@ -82,6 +82,17 @@
       "seq": 6,
       "hil_confirmed": true,
       "note": "HIL acknowledged design correction from new go/pfcore/contracts.go to reuse of existing pfcore/contract mirrors; permits the second full design review."
+    },
+    {
+      "at": "2026-11-14T09:27:41.415349+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "9fd5ff8894f1",
+      "findings_digest": "75f8dabc846b",
+      "seq": 7,
+      "note": "Gate 2 re-recorded after final clean review 9fd5ff8894f1.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -185,7 +196,7 @@
     "at": "2026-10-12T23:41:03.472587"
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 1, 'NIT': 0}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 0}"
   ],
   "risks": [
     "Python/Go contract drift",
@@ -198,7 +209,8 @@
   "evidence": [
     "test-framework/tests/pipeline/test_contracts.py",
     "go/pfcore/event_contracts_test.go",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=6fa719d318a6\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Go empty-secret assertion uses a malformed signature `\"sha256=00\"`; it would pass even if the empty-secret guard were removed, since format/length validation alone rejects it. The Python side proves the guard by computing a well-formed empty-key HMAC (`hmac.new(b\"\", ...)`); the Go test does not, so the newly claimed cross-language parity for this case is weaker than the Python evidence.\nNIT:\n  - none\nSUMMARY:\n  - Delta cleanly resolves both prior findings: empty-secret fail-closed now has a Go-side assertion and `hashlib`/`hmac` imports are hoisted to module level.\n  - Only gap is that the new Go assertion does not actually exercise the empty-secret path (well-formed empty-key signature would be needed), leaving security parity for that exact case still effectively Python-proven.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=6fa719d318a6\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Go empty-secret assertion uses a malformed signature `\"sha256=00\"`; it would pass even if the empty-secret guard were removed, since format/length validation alone rejects it. The Python side proves the guard by computing a well-formed empty-key HMAC (`hmac.new(b\"\", ...)`); the Go test does not, so the newly claimed cross-language parity for this case is weaker than the Python evidence.\nNIT:\n  - none\nSUMMARY:\n  - Delta cleanly resolves both prior findings: empty-secret fail-closed now has a Go-side assertion and `hashlib`/`hmac` imports are hoisted to module level.\n  - Only gap is that the new Go assertion does not actually exercise the empty-secret path (well-formed empty-key signature would be needed), leaving security parity for that exact case still effectively Python-proven.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=9fd5ff8894f1\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Delta correctly actioned the prior finding: the Go empty-secret test now computes a well-formed HMAC over the body with an empty key, matching the Python proof and genuinely exercising the fail-closed guard.\n  - Test-only change; language rule, contract parity, and AC-1 evidence are unaffected. Verdict: approve.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -289,9 +301,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-11-14T14:45:39.124557",
+  "updated_at": "2026-11-14T14:57:42.090676",
   "score": 0.83,
-  "_note": "Final Go empty-secret HMAC parity test fixed.",
+  "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
     "needs_api": false,
     "reason": "Shared contract shapes only; no runtime API route change."
@@ -1021,6 +1033,27 @@
         ]
       },
       "evidence": "BI-PF-1267-6fa719d318a6.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "64d5d0027d93156d98a1d44d8664bd2d54129cf2",
+      "review_sha": "9fd5ff8894f1",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T09:24:56.447267+00:00",
+      "review_scope": "delta",
+      "base_sha": "f7f3c12d2b540531d424617114b441198e18516e",
+      "head_sha": "64d5d0027d93156d98a1d44d8664bd2d54129cf2",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta correctly actioned the prior finding: the Go empty-secret test now computes a well-formed HMAC over the body with an empty key, matching the Python proof and genuinely exercising the fail-closed guard.",
+          "Test-only change; language rule, contract parity, and AC-1 evidence are unaffected. Verdict: approve."
+        ]
+      },
+      "evidence": "BI-PF-1267-9fd5ff8894f1.json"
     }
   ],
   "review_dispositions": {
@@ -1501,14 +1534,14 @@
   "verified_by": "hil:user",
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "581c7b2a3a7cb734",
-    "total_time_ms": 16630416,
-    "sum_stage_ms": 1652612,
+    "ac_hash": "0eddd0e3edd9220e",
+    "total_time_ms": 18358855,
+    "sum_stage_ms": 1684693,
     "clock_skew": false,
     "item": "BI-PF-1267",
-    "generated_at": "2026-11-14T08:59:03.053563+00:00",
+    "generated_at": "2026-11-14T09:27:41.995578+00:00",
     "item_revision": 6,
-    "current_stage": "complete",
+    "current_stage": "blocked at precheck",
     "acs": [
       {
         "ac": "AC-1",
@@ -1556,11 +1589,47 @@
         "duration_ms": 0
       },
       "other": {
-        "rows": [],
+        "rows": [
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 271
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 836
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 830
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 218
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 198
+          },
+          {
+            "command": "go-modules",
+            "result": "pass",
+            "duration_ms": 3563
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 7974
+          }
+        ],
         "passed": 0,
         "failed": 0,
         "skipped": 0,
-        "duration_ms": 0
+        "duration_ms": 13890
       }
     },
     "gate_metrics": [
@@ -1693,19 +1762,129 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-14T08:59:17.022527+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-14T08:59:17.031491+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-14T09:14:25.116938+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-14T09:14:25.125274+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-14T09:14:25.139446+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T09:15:10.904672+00:00",
+        "duration_ms": 23192,
+        "input_tokens": 8004,
+        "output_tokens": 496,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T09:24:56.764422+00:00",
+        "duration_ms": 8889,
+        "input_tokens": 7803,
+        "output_tokens": 190,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-14T09:27:29.160313+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-14T09:27:29.169838+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-14T09:27:29.178279+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T09:27:41.527650+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
       }
     ],
     "usage": {
-      "input_tokens": 84543,
-      "output_tokens": 43157,
+      "input_tokens": 100350,
+      "output_tokens": 43843,
       "cached_tokens": 10688,
       "cost_usd": 0.0,
-      "captured": 10,
+      "captured": 12,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-14T04:21:42.672521+00:00",
-    "finished_at": "2026-11-14T08:58:53.089258+00:00",
+    "finished_at": "2026-11-14T09:27:41.527650+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -1739,6 +1918,17 @@
         "seq": 5,
         "note": "HIL approved Gate 2 after AC verification and review dispositions.",
         "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T09:27:41.415349+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "9fd5ff8894f1",
+        "findings_digest": "75f8dabc846b",
+        "seq": 7,
+        "note": "Gate 2 re-recorded after final clean review 9fd5ff8894f1.",
+        "hil_confirmed": true
       }
     ],
     "other_decisions": [
@@ -1755,6 +1945,16 @@
         "seq": 3,
         "hil_confirmed": true,
         "note": "HIL approved the six BI-PF-1267 contract resolutions: unknown fields, seq, HMAC ownership, secret handling, dedupe ownership, parity tests."
+      },
+      {
+        "at": "2026-11-14T09:14:24.994848+00:00",
+        "by": "hil:user",
+        "decision": "MATERIAL_CHANGE",
+        "mode": "design",
+        "scope": "review_budget",
+        "seq": 6,
+        "hil_confirmed": true,
+        "note": "HIL acknowledged design correction from new go/pfcore/contracts.go to reuse of existing pfcore/contract mirrors; permits the second full design review."
       }
     ]
   }
