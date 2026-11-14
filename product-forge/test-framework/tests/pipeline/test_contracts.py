@@ -231,9 +231,11 @@ def test_pfcore_eventing_field_parity(tmp_path):
     for name in contracts.EVENTING_CONTRACTS:
         desc = _go_call(host, contracts.wire_request("describe", name, id="d-" + name))
         assert set(desc["result"]["fields"]) == set(contracts.CONTRACTS[name].field_names()), name
+        assert set(desc["result"]["required"]) == set(contracts.required_fields(name)), name
 
 
 def test_metric_and_empty_secret_contract():
     assert contracts.CONTRACT_METRICS["validation_failures"] == "contract_validation_failures_total"
     assert contracts.CONTRACT_METRIC_LABELS["validation_failures"] == ("code",)
     assert contracts.webhook_signature(b"x", "") == ""
+    assert contracts.verify_webhook_signature(b"x", "sha256=00", "") is False
