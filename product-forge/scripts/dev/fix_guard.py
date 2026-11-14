@@ -69,7 +69,7 @@ def main(argv=None):
                 skipped += 1
                 continue
             bad += [f"{it.get('id')}: {x}" for x in problems(it,c)]
-        print(f"fix-guard: skipped {skipped} closed item(s)")
+        print(f"fix-guard: status=ok skipped_closed={skipped}")
     elif a.item:
         it=backlog.get_epic('product_forge',None,a.item) or {}
         bad += [f"{a.item}: {x}" for x in problems(it,c)]

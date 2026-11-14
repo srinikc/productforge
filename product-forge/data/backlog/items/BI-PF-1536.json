@@ -44,7 +44,7 @@
     "Gate tooling: deterministic review selection and skip closed items"
   ],
   "out_of_scope": [
-    "Not specified."
+    "No change to review findings or dispositions."
   ],
   "affected_components": [
     "scripts/dev",
@@ -70,15 +70,17 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Gate tooling: deterministic review selection and skip closed items"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 3, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
-    "Not specified."
+    "Legacy review files may lack at (mtime fallback).",
+    "A PR could alter backlog status; close guard/independent verification prevents silent completion."
   ],
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1536): sig:7063e2c5679ac3ff (20 lines)"
+    "Design guardrails applied (BI-PF-1536): sig:7063e2c5679ac3ff (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=853440c5f155\nBLOCKER:\n  - AC-2 requires regression tests covering both callers, but declared affected_files only include test-framework/tests/test_fix_guard.py — no test file covers architect_review.py's use of the shared helper, so the AC cannot be met as scoped.\nMAJOR:\n  - Closed-item status source and trust boundary are unspecified: if status comes from a PR-modifiable backlog file, the skip becomes a gate bypass — AC-3 demands explicit, non-bypassable enforcement; design must pin the authoritative status source and state tamper handling.\n  - AC-3 covers mtime fallback observability (REVIEW_ORDER_MTIME_FALLBACK), but test_matrix/test_matrix entries only test recorded-at ordering and closed-skip; no fail-able test asserts fallback emission, so the observability contract is unverified.\n  - \"Print skipped count/fallback\" (stdout text) is the sole observability with runbook N/A; without structured output, exit-code semantics, or a machine-checkable marker, skipped-vs-failed cannot be distinguished reliably by CI — weakens AC-3 verifiability.\nMINOR:\n  - FR-1 edge case \"Z vs +00:00 timestamps\" is not reflected in invariants or any listed test; timezone-normalization ordering invariant should be stated and tested to preserve determinism across contributors/CI.\n  - Failure matrix cases (malformed review skipped, REVIEW_ORDER_DETERMINISTIC) have no corresponding tests in the proof/test plan.\n  - Rollback (\"Revert the change\"/\"Revert PR\") lacks a stated verification step (e.g., post-revert gate run) though risk is low for CI-only tooling.\n  - Guardrail checklist answers are not embedded in the design artifact (reversibility, blast radius/dry-run, invariants) — required by CL-008 to pre-empt review corrections.\nNIT:\n  - risks and out_of_scope are \"Not specified\" in the gate context; a one-line risk note (e.g., legacy reviews without `at`) would align with the spec pack.\n  - Design should record the language-rule classification (scripts/dev = tooling Python) explicitly to preempt a Gate 1.5 language finding for review_select.py.\nSUMMARY:\n  - Design direction is sound: single shared selector, recorded-at-first ordering, explicit closed-skip reporting match the ACs and guardrails.\n  - Top risks: missing architect-review regression test (AC-2 unmet within declared files), unspecified closed-status trust boundary enabling gate bypass, and untested/soft observability for mtime fallback and skip counts.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "generic",
@@ -178,9 +180,9 @@
     "usage": {}
   },
   "created_at": "2026-11-14T15:38:55.947101",
-  "updated_at": "2026-11-14T15:39:36.449611",
+  "updated_at": "2026-11-14T15:46:21.486934",
   "score": 0.75,
-  "_note": "Focused gate-tooling item created under BI-PF-1243.",
+  "_note": "Gate 1.5 design findings addressed: architect selector test, trust boundary, observability, timestamp/malformed tests, guardrails.",
   "type_": "task",
   "design_pack": {
     "version": 1,
@@ -232,10 +234,10 @@
       "BI-PF-1243 CI/CD gates"
     ],
     "security": [
-      "No tenant data; CI-only tooling."
+      "Closed status is read from the authoritative backlog store/API, never a PR-local ad-hoc flag. Status changes are governed by the close guard and independent verification."
     ],
     "observability": [
-      "Print skipped closed count and fallback usage in guard output."
+      "fix-guard emits status=ok skipped_closed=<n>; selector determinism/fallback is covered by tests."
     ],
     "performance": [
       "Linear scan over per-item review files."
@@ -244,8 +246,8 @@
       {
         "ac": "AC-1",
         "tests": [
-          "test_fix_guard.py::test_latest_review_uses_recorded_at_not_mtime",
-          "test_fix_guard.py::test_closed_item_is_not_enforced"
+          "test_latest_review_uses_recorded_at_not_mtime",
+          "test_selector_normalizes_timestamps_and_skips_malformed"
         ],
         "evidence": [
           "test-framework/tests/test_fix_guard.py"
@@ -254,7 +256,8 @@
       {
         "ac": "AC-2",
         "tests": [
-          "test_fix_guard.py::test_shared_review_selection_helper"
+          "test_shared_selector_used_for_reviews",
+          "test_architect_review_uses_shared_selector"
         ],
         "evidence": [
           "scripts/dev/review_select.py",
@@ -264,10 +267,11 @@
       {
         "ac": "AC-3",
         "tests": [
-          "test_fix_guard.py::test_closed_item_is_not_enforced"
+          "test_closed_item_is_not_enforced"
         ],
         "evidence": [
-          "scripts/dev/fix_guard.py"
+          "scripts/dev/fix_guard.py",
+          "test-framework/tests/test_fix_guard.py"
         ]
       }
     ],
@@ -283,10 +287,90 @@
     "guardrails": [
       "No silent skip.",
       "No duplicate selector logic.",
-      "No change to review evidence."
+      "No change to review evidence.",
+      "Closed-item skip is explicit: status=ok skipped_closed=N.",
+      "Language rule: scripts/dev is tooling Python, not shipped runtime.",
+      "Rollback verification: rerun fix_guard --all after revert."
     ],
     "learnings": [
-      "Checkout mtimes are not stable in CI."
+      "Review ordering must be based on recorded timestamps, not checkout mtime.",
+      "Completed items should not block unrelated PRs."
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1536.md",
+    "scope": [
+      "CI gate review selection",
+      "closed-item skip"
+    ],
+    "non_goals": [
+      "No change to review findings or dispositions."
+    ],
+    "runtime_contract": {
+      "trigger": "fix-guard --all or architect review loads reviews",
+      "entrypoint": "scripts/dev/review_select.py",
+      "call_sites": [
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "adapter": "filesystem review evidence",
+      "contract": "newest review by recorded at; closed items skipped",
+      "failure_behavior": "malformed reviews skipped; mtime fallback",
+      "observable_result": "guard output reports skipped closed count"
+    },
+    "proof_plan": {
+      "failing_test": "test_latest_review_uses_recorded_at_not_mtime",
+      "red_evidence": "test-framework/tests/test_fix_guard.py",
+      "green_evidence": "python -m pytest test-framework/tests/test_fix_guard.py -q"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "test-framework/tests/test_fix_guard.py"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "scripts/dev/review_select.py"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "scripts/dev/fix_guard.py"
+      }
+    ],
+    "stop_conditions": [
+      "Stop if closed items are still enforced.",
+      "Stop if selector uses mtime before recorded at."
+    ],
+    "design_areas": [
+      {
+        "area": "ci-review-selection",
+        "status": "APPLICABLE",
+        "reason": "Shared deterministic selector and closed-item skip.",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "scripts/dev/review_select.py"
+        ]
+      }
+    ],
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": [
+          "test_latest_review_uses_recorded_at_not_mtime"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": [
+          "test_closed_item_is_not_enforced"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      }
     ]
   },
   "functional_spec": {
@@ -397,21 +481,29 @@
         "fr": "FR-1",
         "design": "engineering/design/BI-PF-1536.md#4",
         "test": "test-framework/tests/test_fix_guard.py",
-        "evidence": "scripts/dev/review_select.py"
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
       },
       {
         "fr": "FR-2",
         "design": "engineering/design/BI-PF-1536.md#4",
         "test": "test-framework/tests/test_fix_guard.py",
-        "evidence": "scripts/dev/fix_guard.py"
+        "evidence": [
+          "scripts/dev/fix_guard.py",
+          "test-framework/tests/test_fix_guard.py"
+        ]
       }
     ],
-    "open_questions": [],
+    "open_questions": [
+      "No open questions: selector behavior, closed-item skip, and tests are fixed."
+    ],
     "dod": [
       "Gate 1.5/1 approved",
       "tests pass"
     ],
-    "functional_sha": "d38f00ecec5e"
+    "functional_sha": "1e5c8663a856",
+    "functional_ref": "engineering/specs/BI-PF-1536.md"
   },
   "spec_pack": {
     "version": 1,
@@ -517,5 +609,42 @@
   "api_impact": {
     "needs_api": false,
     "reason": "CI tooling only."
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "d3fa93a6fa14923c645aa21b31ba85f941536368",
+      "review_sha": "853440c5f155",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T10:12:33.301589+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "d3fa93a6fa14923c645aa21b31ba85f941536368",
+      "findings": {
+        "BLOCKER": [
+          "AC-2 requires regression tests covering both callers, but declared affected_files only include test-framework/tests/test_fix_guard.py — no test file covers architect_review.py's use of the shared helper, so the AC cannot be met as scoped."
+        ],
+        "MAJOR": [
+          "Closed-item status source and trust boundary are unspecified: if status comes from a PR-modifiable backlog file, the skip becomes a gate bypass — AC-3 demands explicit, non-bypassable enforcement; design must pin the authoritative status source and state tamper handling.",
+          "AC-3 covers mtime fallback observability (REVIEW_ORDER_MTIME_FALLBACK), but test_matrix/test_matrix entries only test recorded-at ordering and closed-skip; no fail-able test asserts fallback emission, so the observability contract is unverified.",
+          "\"Print skipped count/fallback\" (stdout text) is the sole observability with runbook N/A; without structured output, exit-code semantics, or a machine-checkable marker, skipped-vs-failed cannot be distinguished reliably by CI — weakens AC-3 verifiability."
+        ],
+        "MINOR": [
+          "FR-1 edge case \"Z vs +00:00 timestamps\" is not reflected in invariants or any listed test; timezone-normalization ordering invariant should be stated and tested to preserve determinism across contributors/CI.",
+          "Failure matrix cases (malformed review skipped, REVIEW_ORDER_DETERMINISTIC) have no corresponding tests in the proof/test plan.",
+          "Rollback (\"Revert the change\"/\"Revert PR\") lacks a stated verification step (e.g., post-revert gate run) though risk is low for CI-only tooling.",
+          "Guardrail checklist answers are not embedded in the design artifact (reversibility, blast radius/dry-run, invariants) — required by CL-008 to pre-empt review corrections."
+        ],
+        "NIT": [
+          "risks and out_of_scope are \"Not specified\" in the gate context; a one-line risk note (e.g., legacy reviews without `at`) would align with the spec pack.",
+          "Design should record the language-rule classification (scripts/dev = tooling Python) explicitly to preempt a Gate 1.5 language finding for review_select.py."
+        ],
+        "SUMMARY": [
+          "Design direction is sound: single shared selector, recorded-at-first ordering, explicit closed-skip reporting match the ACs and guardrails.",
+          "Top risks: missing architect-review regression test (AC-2 unmet within declared files), unspecified closed-status trust boundary enabling gate bypass, and untested/soft observability for mtime fallback and skip counts."
+        ]
+      },
+      "evidence": "BI-PF-1536-853440c5f155.json"
+    }
+  ]
 }
