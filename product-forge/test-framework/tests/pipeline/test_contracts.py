@@ -238,4 +238,7 @@ def test_metric_and_empty_secret_contract():
     assert contracts.CONTRACT_METRICS["validation_failures"] == "contract_validation_failures_total"
     assert contracts.CONTRACT_METRIC_LABELS["validation_failures"] == ("code",)
     assert contracts.webhook_signature(b"x", "") == ""
-    assert contracts.verify_webhook_signature(b"x", "sha256=00", "") is False
+    import hashlib
+    import hmac
+    empty_key_sig = "sha256=" + hmac.new(b"", b"x", hashlib.sha256).hexdigest()
+    assert contracts.verify_webhook_signature(b"x", empty_key_sig, "") is False
