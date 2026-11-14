@@ -19,6 +19,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import logging
 import os
 import re
 import subprocess
@@ -554,26 +555,13 @@ def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
 
 
 def _latest_review(item_id: str, mode: str, prefer_sha: str = ""):
-    """Prefer the review for the CURRENT design/diff sha; fall back to newest mtime.
-
-    mtime is not stable across checkouts (CI writes files in tree order), so sha selection is the only
-    deterministic choice when a matching artifact exists.
-    """
-    if not EVID.is_dir():
-        return None
-    best, best_m = None, -1.0
-    for fp in EVID.glob(f"{item_id}-*.json"):
-        try:
-            d = json.loads(fp.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if (d.get("mode") or "diff") != mode:
-            continue
-        if prefer_sha and str(d.get("sha") or "") == prefer_sha:
-            return d
-        if fp.stat().st_mtime > best_m:
-            best, best_m = d, fp.stat().st_mtime
-    return best
+    """Prefer the current review sha; otherwise newest by recorded `at`."""
+    from review_select import latest_review
+    meta = {}
+    found = latest_review(EVID, item_id, mode, prefer_sha, meta=meta)
+    if meta.get("mtime_fallback"):
+        logging.getLogger(__name__).warning("review_order_mtime_fallback item=%s mode=%s", item_id, mode)
+    return found or None
 
 
 def _item_dispositions(item_id: str, mode: str) -> dict:
