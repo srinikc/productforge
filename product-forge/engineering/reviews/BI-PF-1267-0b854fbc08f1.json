@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "0b854fbc08f1",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T08:06:16.159972+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "b283149c21b68624a7b1ec8d4d1ad81cb02a5895",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Unknown-field allowlists are hardcoded independently (Python `ContractSpec` fields vs Go `eventContractFields`) with only static, duplicated fixtures on each side; a field added to one language only passes every added test, so the design failure case \"Python/Go shape mismatch \u2192 parity test fails CI\" (CONTRACT_PARITY_MISMATCH) is not actually enforced for field-set drift.",
+      "Binding design parity coverage is incomplete: open-question resolutions require parity tests for cursor ordering (seq-only) and unknown envelope version \u2014 neither side has them; Python also lacks the subscription/alert-rule/webhook unknown-field tests that Go adds (`test_contracts_subscription_alert_webhook_parity`).",
+      "Go `eventContractFields[\"subscription\"]` (and `alert-rule`) omits `tenant_id`, while the design/guardrails require tenant fields in the subscription contract \u2014 a tenant-scoped subscription accepted by Python would be rejected by Go, an untested cross-language shape break on a security-relevant field.",
+      "Design obliges this item to define the contract metric names/labels (`contract_validation_failures_total{code}`, `contract_parity_test_failures`, owner platform+CI); the diff defines none, leaving BI-PF-1270/1274 without the promised contract."
+    ],
+    "MINOR": [
+      "`WEBHOOK_HMAC_KEY_REF` is not declared in `core/contracts.py`, though spec_pack cites that file as its evidence (startup fail-closed validation is BI-PF-1270's, but the contract name belongs here).",
+      "FR-2 acceptance (\"signature and event_id idempotency headers are present\") is only half-tested: no assertion that `X-PF-Idempotency-Key` equals `event_id`; header constants are checked by tautological equality.",
+      "Go mirror defines no `WEBHOOK_SIGNATURE_HEADER`/`WEBHOOK_IDEMPOTENCY_HEADER` constants, so the header-name contract exists only in Python \u2014 an avoidable parity surface.",
+      "`webhook_signature`/`verify_webhook_signature` accept an empty secret and still produce/verify signatures; fail-closed at the primitive would be cheaper than relying solely on BI-PF-1270 startup checks (CL-013 posture)."
+    ],
+    "NIT": [
+      "Added test names diverge from the design test_matrix names (`test_contracts_unknown_field_parity`, `test_contracts_seq_parity`, `test_contracts_subscription_alert_webhook_parity`), weakening traceability evidence for FR-1/FR-2.",
+      "New file `go/pfcore/event_contracts_test.go` is not in the declared `affected_files`.",
+      "Go `containsField` is a linear scan over a fixed allowlist; a set/map lookup would be idiomatic and O(1) \u2014 negligible at this size."
+    ],
+    "SUMMARY": [
+      "Additive, reversible contract work that stays within the approved file scope and language guardrails, and the added tests plausibly satisfy the literal AC (tests pass), but parity is fixture-based rather than cross-checked, so Python/Go field-set drift can ship green.",
+      "Top risks: missing mandated parity tests (cursor ordering, unknown version, subscription tenant shape), undefined observability/config contract names assigned to this item, and no test proving the idempotency-header/event_id invariant."
+    ]
+  }
+}

@@ -251,6 +251,7 @@ _SUBSCRIPTION = ContractSpec(
     (
         Field("schema", required=True),
         Field("id", required=True),
+        Field("tenant_id", required=True),
         Field("types", type="array"),
         Field("filter", type="object"),
         Field("transport", type="enum", required=True,
@@ -268,6 +269,7 @@ _ALERT_RULE = ContractSpec(
     (
         Field("schema", required=True),
         Field("id"),
+        Field("tenant_id", required=True),
         Field("event_type", required=True),
         Field("severity", type="enum", enum=("low", "medium", "high", "critical")),
         Field("channels", type="array", required=True),
@@ -321,10 +323,17 @@ EVENTING_CONTRACTS: tuple[str, ...] = (
 WEBHOOK_SIGNATURE_HEADER = "X-PF-Signature"
 WEBHOOK_IDEMPOTENCY_HEADER = "X-PF-Idempotency-Key"
 WEBHOOK_SIGNATURE_ALGORITHM = "sha256"
+WEBHOOK_HMAC_KEY_REF = "WEBHOOK_HMAC_KEY_REF"
+CONTRACT_METRICS = {
+    "validation_failures": "contract_validation_failures_total{code}",
+    "parity_failures": "contract_parity_test_failures",
+}
 
 
 def webhook_signature(body: bytes | str, secret: str) -> str:
     """HMAC-SHA256 signature over the raw webhook body, prefixed with the algorithm."""
+    if not str(secret or ""):
+        raise ValueError("webhook secret is required")
     raw = body.encode("utf-8") if isinstance(body, str) else bytes(body)
     digest = hmac.new(str(secret).encode("utf-8"), raw, hashlib.sha256).hexdigest()
     return f"{WEBHOOK_SIGNATURE_ALGORITHM}={digest}"
@@ -332,8 +341,13 @@ def webhook_signature(body: bytes | str, secret: str) -> str:
 
 def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> bool:
     """Constant-time webhook signature verification (fail closed on empty/mismatch)."""
-    expected = webhook_signature(body, secret)
-    return bool(str(signature or "")) and hmac.compare_digest(expected, str(signature))
+    if not str(secret or "") or not str(signature or ""):
+        return False
+    try:
+        expected = webhook_signature(body, secret)
+    except ValueError:
+        return False
+    return hmac.compare_digest(expected, str(signature))
 
 
 # ── schema + validation ─────────────────────────────────────────────────────────

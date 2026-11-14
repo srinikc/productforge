@@ -78,9 +78,9 @@ var eventContractFields = map[string][]string{
 		"tenant_id", "project_id", "run_id", "stage_id", "task_id", "worker_id", "actor",
 		"correlation_id", "causation_id", "payload", "extensions", "ts", "type", "level",
 		"stage", "agent", "trace_id", "span_id"},
-	"subscription": {"schema", "id", "types", "filter", "transport", "target", "auth_ref",
+	"subscription": {"schema", "id", "tenant_id", "types", "filter", "transport", "target", "auth_ref",
 		"enabled", "created_by"},
-	"alert-rule": {"schema", "id", "event_type", "severity", "channels", "throttle_window",
+	"alert-rule": {"schema", "id", "tenant_id", "event_type", "severity", "channels", "throttle_window",
 		"escalate", "enabled"},
 	"webhook-delivery": {"schema", "delivery_id", "event_id", "subscription_id", "target_url",
 		"payload", "signature", "idempotency_key", "attempts", "status"},
@@ -95,8 +95,17 @@ func containsField(fields []string, name string) bool {
 	return false
 }
 
+const (
+	WebhookSignatureHeader   = "X-PF-Signature"
+	WebhookIdempotencyHeader = "X-PF-Idempotency-Key"
+	WebhookHMACKeyRef        = "WEBHOOK_HMAC_KEY_REF"
+)
+
 // WebhookSignature returns the canonical HMAC-SHA256 header value.
 func WebhookSignature(body []byte, secret string) string {
+	if secret == "" {
+		return ""
+	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
@@ -104,10 +113,11 @@ func WebhookSignature(body []byte, secret string) string {
 
 // VerifyWebhookSignature compares signatures in constant time (fail closed).
 func VerifyWebhookSignature(body []byte, signature, secret string) bool {
-	if signature == "" {
+	if signature == "" || secret == "" {
 		return false
 	}
-	return hmac.Equal([]byte(WebhookSignature(body, secret)), []byte(signature))
+	expected := WebhookSignature(body, secret)
+	return expected != "" && hmac.Equal([]byte(expected), []byte(signature))
 }
 
 // ContractNames returns the known contract names (sorted, deterministic describe output).
@@ -231,10 +241,14 @@ func Handle(req WireRequest) WireResponse {
 		if !ok {
 			return response(req, false, "error", nil, "unknown contract: "+req.ContractName)
 		}
-		return response(req, true, "ok", map[string]any{
+		result := map[string]any{
 			"contract": req.ContractName, "required": shape.required,
 			"schema": shape.schemaConst,
-		}, "")
+		}
+		if fields, ok := eventContractFields[req.ContractName]; ok {
+			result["fields"] = fields
+		}
+		return response(req, true, "ok", result, "")
 	case "validate":
 		if _, ok := contractShapes[req.ContractName]; !ok {
 			return response(req, false, "error", nil, "unknown contract: "+req.ContractName)

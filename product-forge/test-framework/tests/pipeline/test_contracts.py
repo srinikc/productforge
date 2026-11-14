@@ -96,9 +96,10 @@ def test_eventing_contracts_present_and_validate():
            "occurred_at": "2026-01-01T00:00:00", "seq": 1}
     assert contracts.validate("event-envelope", env)["valid"]
     assert contracts.validate("subscription", {"schema": "product-forge/subscription@1",
-                                               "id": "s1", "transport": "webhook"})["valid"]
+                                               "id": "s1", "tenant_id": "t1",
+                                               "transport": "webhook"})["valid"]
     assert contracts.validate("alert-rule", {"schema": "product-forge/alert-rule@1",
-                                             "event_type": "run_failed",
+                                             "tenant_id": "t1", "event_type": "run_failed",
                                              "channels": ["email"]})["valid"]
     assert contracts.validate("webhook-delivery", {"schema": "product-forge/webhook-delivery@1",
                                                    "delivery_id": "d1", "event_id": "e1",
@@ -205,3 +206,17 @@ def test_webhook_hmac_is_constant_time_and_fail_closed():
 def test_eventing_header_contract_names():
     assert contracts.WEBHOOK_SIGNATURE_HEADER == "X-PF-Signature"
     assert contracts.WEBHOOK_IDEMPOTENCY_HEADER == "X-PF-Idempotency-Key"
+
+
+def test_eventing_tenant_and_idempotency_contract():
+    assert contracts.validate("subscription", {"schema": "product-forge/subscription@1",
+                                               "id": "s1", "transport": "webhook"})["valid"] is False
+    body = b'{"event_id":"e1"}'
+    sig = contracts.webhook_signature(body, "secret")
+    assert contracts.verify_webhook_signature(body, sig, "secret") is True
+    try:
+        contracts.webhook_signature(body, "")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("empty webhook secret accepted")
