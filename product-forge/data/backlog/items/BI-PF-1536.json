@@ -154,7 +154,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 4, 'NIT': 1}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 0}"
   ],
   "risks": [
     "Legacy review files may lack at and use mtime fallback; malformed files are skipped and covered by tests."
@@ -162,7 +162,8 @@
   "rollback": "Revert the change.",
   "evidence": [
     "test-framework/tests/test_fix_guard.py",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ecea6eb5d02c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).\n  - The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.\n  - Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.\n  - `test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered.\nNIT:\n  - `test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test.\nSUMMARY:\n  - Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.\n  - Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.\n  - Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ecea6eb5d02c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).\n  - The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.\n  - Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.\n  - `test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered.\nNIT:\n  - `test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test.\nSUMMARY:\n  - Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.\n  - Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.\n  - Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=1571cf1b9f27\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Delta introduces `_J = \".\" + \"json\"` and interpolates it into every test filename, an unexplained string indirection that obscures the artifact under test (`.json` review files) and reads as scanner-evasion rather than intent; if a rule required this, cite it in a comment, otherwise use plain literals.\n  - Delta only rewrites test path literals; the prior PENDING NIT (skip-output test does not pin `status=ok` on the same line as `skipped_closed=1`, so a skip-and-still-fail regression passes) remains unaddressed in this change.\nNIT:\n  - none\nSUMMARY:\n  - Delta is a test-only literal refactor; AC-1/2/3 evidence and shared-selector behavior are not broken by it, so no blocker or major.\n  - Main concerns: unexplained `.json`-obfuscation harms maintainability, and the one still-PENDING observability assertion from the prior review is untouched by this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "generic",
@@ -262,7 +263,7 @@
     "usage": {}
   },
   "created_at": "2026-11-14T15:38:55.947101",
-  "updated_at": "2026-11-14T17:28:16.286970",
+  "updated_at": "2026-11-14T17:38:19.245647",
   "score": 0.75,
   "_note": "Gate 0 AC and language rows added.",
   "type_": "task",
@@ -991,6 +992,30 @@
         ]
       },
       "evidence": "BI-PF-1536-ecea6eb5d02c.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "3ffcfe8915f41a9b2bdf6a6054f14c652a0a98d5",
+      "review_sha": "1571cf1b9f27",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T12:08:18.702905+00:00",
+      "review_scope": "delta",
+      "base_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+      "head_sha": "3ffcfe8915f41a9b2bdf6a6054f14c652a0a98d5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta introduces `_J = \".\" + \"json\"` and interpolates it into every test filename, an unexplained string indirection that obscures the artifact under test (`.json` review files) and reads as scanner-evasion rather than intent; if a rule required this, cite it in a comment, otherwise use plain literals.",
+          "Delta only rewrites test path literals; the prior PENDING NIT (skip-output test does not pin `status=ok` on the same line as `skipped_closed=1`, so a skip-and-still-fail regression passes) remains unaddressed in this change."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta is a test-only literal refactor; AC-1/2/3 evidence and shared-selector behavior are not broken by it, so no blocker or major.",
+          "Main concerns: unexplained `.json`-obfuscation harms maintainability, and the one still-PENDING observability assertion from the prior review is untouched by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1536-1571cf1b9f27.json"
     }
   ],
   "review_dispositions": {

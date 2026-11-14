@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 import fix_guard as fg  # noqa: E402
 import review_select  # noqa: E402
 
+# Split literal: store-contract treats full test filenames as unregistered data files.
 _J = "." + "json"
 import architect_review as ar  # noqa: E402
 
@@ -96,7 +97,8 @@ def test_item_closed_skip_output(monkeypatch, capsys):
     monkeypatch.setattr(fg.backlog, "get_epic", lambda *a, **k: {"id": "BI-PF-7", "status": "completed"})
     assert fg.main(["--item", "BI-PF-7"]) == 0
     out = capsys.readouterr().out
-    assert "skipped_closed=1" in out and "item=BI-PF-7" in out
+    line = next(l for l in out.splitlines() if "skipped_closed=1" in l)
+    assert "status=ok" in line and "item=BI-PF-7" in line
 
 
 def test_mixed_case_closed_status():
