@@ -52,6 +52,9 @@ func TestWebhookSignatureVerification(t *testing.T) {
 	if VerifyWebhookSignature(body, "", "secret") {
 		t.Fatal("empty signature accepted")
 	}
+	if VerifyWebhookSignature(body, "sha256=00", "") {
+		t.Fatal("empty secret accepted")
+	}
 }
 
 func TestEventingContractsRejectUnknownFields(t *testing.T) {

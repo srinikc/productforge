@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "52b861a9b80b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T08:42:29.368031+00:00",
+  "review_scope": "delta",
+  "base_sha": "3ad0a315bf0b6d05e124d20e4c9a2850a56759cf",
+  "head_sha": "daab9c2d8f88b40e087578417c99503ec68472ea",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Empty-secret fail-closed is now proven only on the Python side; the delta adds no equivalent assertion against the Go verifier mirror, so cross-language security parity for this exact case still rests on the Python test alone."
+    ],
+    "NIT": [
+      "`import hashlib` / `import hmac` are placed inside the test body; hoist to module-level imports for consistency with the rest of `test_contracts.py`."
+    ],
+    "SUMMARY": [
+      "The delta correctly resolves the prior MINOR by asserting against a correctly computed HMAC under an empty key rather than a pre-broken signature, making the fail-closed check genuinely fail-able.",
+      "No blockers, no regressions to AC-1 (parity tests / test_api_events) introduced by this hunk.",
+      "Residual risk is symmetry only: mirror the empty-key assertion in the Go parity/security test to close the last cross-language gap."
+    ]
+  },
+  "rereview_reason": "Test-only delta for prior 0b854fbc08f1 and 94d5842ec95f findings",
+  "rereview_reason_sha256": "2592d08b9bb5162abc01a4f54236b3b91abd1869f01363e9d68f7939a0354ff1"
+}
