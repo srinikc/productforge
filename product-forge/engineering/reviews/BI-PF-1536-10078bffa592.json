@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "10078bffa592",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-14T10:20:39.666016+00:00",
+  "review_scope": "delta",
+  "base_sha": "d3fa93a6fa14923c645aa21b31ba85f941536368",
+  "head_sha": "124a5736f4feba019388c2b880cbcde918fd660f",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta `risks` (\"A PR could alter backlog status\") and delta `security` (\"never a PR-local ad-hoc flag\") state contradictory tamper models for the same closed-status field, leaving AC-3's non-bypass guarantee ambiguous within this delta.",
+      "`security`/`risks` depend on a \"close guard\" and \"independent verification\" that appear in no `dependencies` or `affected_files` row; the anti-bypass control for AC-3 is asserted but undeclared in the changed scope."
+    ],
+    "MINOR": [
+      "`ac_evidence` for AC-2/AC-3 cites implementation files (`review_select.py`, `fix_guard.py`) while `test_matrix` cites tests for the same ACs; evidence types disagree inside one delta.",
+      "`coverage[FR-1]` lists only `test_latest_review_uses_recorded_at_not_mtime`, but `test_matrix` AC-1 also lists `test_selector_normalizes_timestamps_and_skips_malformed` \u2014 coverage and test_matrix are out of sync.",
+      "Guardrail \"No silent skip\" conflicts with `runtime_contract.failure_behavior` (\"malformed reviews skipped\"): no emitted signal is specified, and a silently dropped malformed newest review can change selection outcome.",
+      "`design_pack.security` asserts a \"backlog store/API\" source while `runtime_contract.adapter` remains filesystem-only; the closed-status source is not anchored to any declared component."
+    ],
+    "NIT": [
+      "`functional_spec.observability` (\"Print skipped count/fallback\") and `design_pack.observability` (\"status=ok skipped_closed=<n>\") phrase the emitted contract differently; single-source the marker format.",
+      "Delta `risks` row 2 restates concerns already carried by the `security` row; merge into one authoritative statement to prevent future drift."
+    ],
+    "SUMMARY": [
+      "Delta adds useful guardrails (language rule, rollback verification, explicit skip marker) but introduces an internal trust-model contradiction between `risks` and `security` and leaves evidence/coverage rows cross-mismatched.",
+      "Top risks: AC-3 non-bypass claim rests on undeclared controls, and ac_evidence/coverage rows do not line up with test_matrix, weakening traceability for AC-1/AC-2.",
+      "Resolve the risks-vs-security contradiction and align evidence rows with tests before Gate 1.5/1 approval."
+    ]
+  },
+  "rereview_reason": "Delta design fixes for prior 853440c5f155 findings",
+  "rereview_reason_sha256": "92b5681c35abd1d88e9d995b2e5745b962bd3207b16fc21a3cdfe3f4d74a3c8d"
+}
