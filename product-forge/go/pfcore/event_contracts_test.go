@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"testing"
+)
 
 func TestEventEnvelopeRejectsUnknownTopLevelFields(t *testing.T) {
 	payload := map[string]any{
@@ -52,7 +57,10 @@ func TestWebhookSignatureVerification(t *testing.T) {
 	if VerifyWebhookSignature(body, "", "secret") {
 		t.Fatal("empty signature accepted")
 	}
-	if VerifyWebhookSignature(body, "sha256=00", "") {
+	mac := hmac.New(sha256.New, []byte(""))
+	_, _ = mac.Write(body)
+	emptyKeySig := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	if VerifyWebhookSignature(body, emptyKeySig, "") {
 		t.Fatal("empty secret accepted")
 	}
 }

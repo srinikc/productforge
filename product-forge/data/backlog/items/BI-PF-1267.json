@@ -185,8 +185,7 @@
     "at": "2026-10-12T23:41:03.472587"
   },
   "verification": [
-    "python -m pytest test-framework/tests/pipeline/test_contracts.py -q",
-    "go test ./... in go/pfcore and go/contract"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 1, 'NIT': 0}"
   ],
   "risks": [
     "Python/Go contract drift",
@@ -198,7 +197,8 @@
   "rollback": "Revert the change.",
   "evidence": [
     "test-framework/tests/pipeline/test_contracts.py",
-    "go/pfcore/event_contracts_test.go"
+    "go/pfcore/event_contracts_test.go",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=6fa719d318a6\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Go empty-secret assertion uses a malformed signature `\"sha256=00\"`; it would pass even if the empty-secret guard were removed, since format/length validation alone rejects it. The Python side proves the guard by computing a well-formed empty-key HMAC (`hmac.new(b\"\", ...)`); the Go test does not, so the newly claimed cross-language parity for this case is weaker than the Python evidence.\nNIT:\n  - none\nSUMMARY:\n  - Delta cleanly resolves both prior findings: empty-secret fail-closed now has a Go-side assertion and `hashlib`/`hmac` imports are hoisted to module level.\n  - Only gap is that the new Go assertion does not actually exercise the empty-secret path (well-formed empty-key signature would be needed), leaving security parity for that exact case still effectively Python-proven.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -289,9 +289,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-11-14T14:44:25.087161",
+  "updated_at": "2026-11-14T14:45:39.124557",
   "score": 0.83,
-  "_note": "HIL MATERIAL_CHANGE recorded for corrected design scope.",
+  "_note": "Final Go empty-secret HMAC parity test fixed.",
   "api_impact": {
     "needs_api": false,
     "reason": "Shared contract shapes only; no runtime API route change."
@@ -998,6 +998,29 @@
         ]
       },
       "evidence": "BI-PF-1267-52b861a9b80b.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "f7f3c12d2b540531d424617114b441198e18516e",
+      "review_sha": "6fa719d318a6",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T09:15:10.594100+00:00",
+      "review_scope": "delta",
+      "base_sha": "daab9c2d8f88b40e087578417c99503ec68472ea",
+      "head_sha": "f7f3c12d2b540531d424617114b441198e18516e",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Go empty-secret assertion uses a malformed signature `\"sha256=00\"`; it would pass even if the empty-secret guard were removed, since format/length validation alone rejects it. The Python side proves the guard by computing a well-formed empty-key HMAC (`hmac.new(b\"\", ...)`); the Go test does not, so the newly claimed cross-language parity for this case is weaker than the Python evidence."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta cleanly resolves both prior findings: empty-secret fail-closed now has a Go-side assertion and `hashlib`/`hmac` imports are hoisted to module level.",
+          "Only gap is that the new Go assertion does not actually exercise the empty-secret path (well-formed empty-key signature would be needed), leaving security parity for that exact case still effectively Python-proven."
+        ]
+      },
+      "evidence": "BI-PF-1267-6fa719d318a6.json"
     }
   ],
   "review_dispositions": {
@@ -1321,6 +1344,12 @@
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
         "note": "Addressed in BI-PF-1267; evidence: test-framework/tests/pipeline/test_contracts.py, go/pfcore/event_contracts_test.go."
+      },
+      "sig:95b29207a4077928": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Go test now uses well-formed empty-key HMAC; fail-closed parity proven."
       }
     }
   },
