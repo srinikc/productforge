@@ -24,11 +24,11 @@ def enforced(item,c):
     return bool(a and b and a>=b)
 def latest_review(iid, meta=None):
     return _latest_review(ROOT/'engineering'/'reviews', iid, 'diff', meta=meta)
-def problems(item,c=None):
+def problems(item,c=None,meta=None):
     c=c or cfg()
     if not enforced(item,c): return []
     rows=item.get('fix_impact')
-    rev=latest_review(str(item.get('id')))
+    rev=latest_review(str(item.get('id')), meta=meta)
     required=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
     if not required:
         return []  # no BLOCKER/MAJOR in the selected review => no fix-impact required
@@ -69,13 +69,14 @@ def main(argv=None):
                 skipped += 1
                 continue
             meta = {}
-            latest_review(str(it.get('id')), meta=meta)
+            bad += [f"{it.get('id')}: {x}" for x in problems(it,c,meta=meta)]
             fallback += 1 if meta.get("mtime_fallback") else 0
-            bad += [f"{it.get('id')}: {x}" for x in problems(it,c)]
         print(f"fix-guard: status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={fallback}")
     elif a.item:
         it=backlog.get_epic('product_forge',None,a.item) or {}
-        bad += [f"{a.item}: {x}" for x in problems(it,c)]
+        meta={}
+        bad += [f"{a.item}: {x}" for x in problems(it,c,meta=meta)]
+        print(f"fix-guard: item={a.item} mtime_fallback={1 if meta.get('mtime_fallback') else 0}")
     else:
         print('fix-guard: --item or --all required',file=sys.stderr); return 2
     print('fix-guard: '+('OK' if not bad else 'FAIL'))

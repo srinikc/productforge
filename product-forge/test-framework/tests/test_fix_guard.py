@@ -69,3 +69,11 @@ def test_missing_at_uses_mtime_and_reports_fallback(tmp_path):
     meta = {}
     assert review_select.latest_review(reviews, "BI-PF-5", meta=meta)["sha"] == "legacy"
     assert meta["mtime_fallback"] is True
+
+
+def test_closed_status_authority_covers_all_closed_values():
+    for status in ("completed", "closed", "done", "delivered", "duplicate",
+                   "rejected", "wontfix", "archived"):
+        assert review_select.is_closed(status) is True, status
+    for status in ("new", "in_progress", "executing", "wait", "blocked"):
+        assert review_select.is_closed(status) is False, status

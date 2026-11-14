@@ -19,6 +19,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import logging
 import os
 import re
 import subprocess
@@ -555,7 +556,6 @@ def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
 
 def _latest_review(item_id: str, mode: str, prefer_sha: str = ""):
     """Prefer the current review sha; otherwise newest by recorded `at`."""
-    import logging
     from review_select import latest_review
     meta = {}
     found = latest_review(EVID, item_id, mode, prefer_sha, meta=meta)

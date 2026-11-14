@@ -35,7 +35,7 @@ def latest_review(reviews_dir: Path, item_id: str, mode: str = "diff",
             continue
         if prefer_sha and str(d.get("sha") or "") == prefer_sha:
             if meta is not None:
-                meta["mtime_fallback"] = not bool(str(d.get("at") or "").strip())
+                meta["mtime_fallback"] = False
             return d
         key = (_ts(d.get("at")), p.stat().st_mtime)
         if best_key is None or key > best_key:
@@ -48,4 +48,5 @@ def latest_review(reviews_dir: Path, item_id: str, mode: str = "diff",
 
 def is_closed(status) -> bool:
     from core import backlog
-    return backlog.section({"status": str(status or "")}) == "done"
+    value = str(status or "").lower()
+    return value in CLOSED_STATUSES or backlog.section({"status": value}) == "done"
