@@ -46,6 +46,17 @@
       "seq": 3,
       "note": "HIL approved Gate 2; all three ACs verified.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T11:48:15.882986+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "ecea6eb5d02c",
+      "findings_digest": "e1ef0efb26fc",
+      "seq": 4,
+      "note": "Gate 2 re-recorded after current-SHA review ecea6eb5d02c.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -131,15 +142,15 @@
     "at": ""
   },
   "verification": [
-    "python -m pytest test-framework/tests/test_fix_guard.py -q",
-    "python scripts/dev/fix_guard.py --all"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 4, 'NIT': 1}"
   ],
   "risks": [
     "Legacy review files may lack at and use mtime fallback; malformed files are skipped and covered by tests."
   ],
   "rollback": "Revert the change.",
   "evidence": [
-    "test-framework/tests/test_fix_guard.py"
+    "test-framework/tests/test_fix_guard.py",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ecea6eb5d02c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).\n  - The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.\n  - Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.\n  - `test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered.\nNIT:\n  - `test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test.\nSUMMARY:\n  - Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.\n  - Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.\n  - Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "generic",
@@ -239,7 +250,7 @@
     "usage": {}
   },
   "created_at": "2026-11-14T15:38:55.947101",
-  "updated_at": "2026-11-14T16:54:10.050083",
+  "updated_at": "2026-11-14T17:18:16.559443",
   "score": 0.75,
   "_note": "final report persisted (BI-PF-1484)",
   "type_": "task",
@@ -939,6 +950,35 @@
         ]
       },
       "evidence": "BI-PF-1536-ac58c94a8886.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+      "review_sha": "ecea6eb5d02c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T11:48:01.548153+00:00",
+      "review_scope": "delta",
+      "base_sha": "4442430d772200bfe0bbc20a0fc35fd2b2bf05f1",
+      "head_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).",
+          "The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.",
+          "Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.",
+          "`test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered."
+        ],
+        "NIT": [
+          "`test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.",
+          "Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.",
+          "Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge."
+        ]
+      },
+      "evidence": "BI-PF-1536-ecea6eb5d02c.json"
     }
   ],
   "review_dispositions": {
@@ -1076,6 +1116,30 @@
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
         "note": "Addressed with closed-item output/mixed-case tests."
+      },
+      "sig:6c32a64169d1ce02": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests."
+      },
+      "sig:c2c815719f0eb19f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests."
+      },
+      "sig:5aac2097c6141e1c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests."
+      },
+      "sig:c3c914b3c3a0f7d1": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests."
       }
     }
   },
@@ -1363,12 +1427,12 @@
   "verified_by": "hil:user",
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "8832905a8c9363d2",
-    "total_time_ms": 4295913,
-    "sum_stage_ms": 970329,
+    "ac_hash": "67110713aa4d7e16",
+    "total_time_ms": 5742416,
+    "sum_stage_ms": 1062807,
     "clock_skew": false,
     "item": "BI-PF-1536",
-    "generated_at": "2026-11-14T11:24:09.963619+00:00",
+    "generated_at": "2026-11-14T11:48:16.470808+00:00",
     "item_revision": 2,
     "current_stage": "complete",
     "acs": [
@@ -1539,19 +1603,99 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T11:48:01.923654+00:00",
+        "duration_ms": 92478,
+        "input_tokens": 8353,
+        "output_tokens": 2250,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-14T11:48:14.448847+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-14T11:48:14.456443+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-14T11:48:14.463572+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-14T11:48:14.470072+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-14T11:48:14.475991+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-14T11:48:14.482289+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T11:48:15.994315+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
       }
     ],
     "usage": {
-      "input_tokens": 52535,
-      "output_tokens": 26613,
+      "input_tokens": 60888,
+      "output_tokens": 28863,
       "cached_tokens": 512,
       "cost_usd": 0.0,
-      "captured": 7,
+      "captured": 8,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-14T10:12:33.578029+00:00",
-    "finished_at": "2026-11-14T11:24:09.491312+00:00",
+    "finished_at": "2026-11-14T11:48:15.994315+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -1584,6 +1728,17 @@
         "findings_digest": "9b1dfb9042a8",
         "seq": 3,
         "note": "HIL approved Gate 2; all three ACs verified.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T11:48:15.882986+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "ecea6eb5d02c",
+        "findings_digest": "e1ef0efb26fc",
+        "seq": 4,
+        "note": "Gate 2 re-recorded after current-SHA review ecea6eb5d02c.",
         "hil_confirmed": true
       }
     ],
