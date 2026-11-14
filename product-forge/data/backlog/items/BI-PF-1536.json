@@ -275,9 +275,9 @@
     "usage": {}
   },
   "created_at": "2026-11-14T15:38:55.947101",
-  "updated_at": "2026-11-14T17:41:54.071537",
+  "updated_at": "2026-11-14T17:52:08.718119",
   "score": 0.75,
-  "_note": "final report persisted (BI-PF-1484)",
+  "_note": "Filled runtime-design contract fields and disposition evidence.",
   "type_": "task",
   "design_pack": {
     "version": 1,
@@ -454,7 +454,19 @@
     ],
     "coverage": [
       {
+        "ac": "AC-1",
         "fr": "FR-1",
+        "adapter": "filesystem review evidence",
+        "call_sites": [
+          "scripts/dev/fix_guard.py",
+          "scripts/dev/architect_review.py"
+        ],
+        "contract": "newest review by recorded at; mtime fallback",
+        "entrypoint": "scripts/dev/review_select.py",
+        "failure_cases": [
+          "malformed review skipped",
+          "mtime fallback"
+        ],
         "tests": [
           "test_latest_review_uses_recorded_at_not_mtime",
           "test_selector_normalizes_timestamps_and_skips_malformed"
@@ -464,16 +476,18 @@
         ]
       },
       {
-        "fr": "FR-2",
-        "tests": [
-          "test_closed_item_is_not_enforced"
-        ],
-        "evidence": [
-          "test-framework/tests/test_fix_guard.py"
-        ]
-      },
-      {
+        "ac": "AC-2",
         "fr": "FR-3",
+        "adapter": "shared selector",
+        "call_sites": [
+          "scripts/dev/fix_guard.py",
+          "scripts/dev/architect_review.py"
+        ],
+        "contract": "one deterministic selector",
+        "entrypoint": "scripts/dev/review_select.py",
+        "failure_cases": [
+          "selector drift"
+        ],
         "tests": [
           "test_shared_selector_used_for_reviews",
           "test_architect_review_uses_shared_selector"
@@ -481,9 +495,72 @@
         "evidence": [
           "test-framework/tests/test_fix_guard.py"
         ]
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-2",
+        "adapter": "closed status authority",
+        "call_sites": [
+          "scripts/dev/fix_guard.py"
+        ],
+        "contract": "skip closed and report",
+        "entrypoint": "scripts/dev/fix_guard.py",
+        "failure_cases": [
+          "closed item enforced"
+        ],
+        "tests": [
+          "test_closed_item_is_not_enforced",
+          "test_item_closed_skip_output"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
       }
     ],
-    "data_lifecycle": "Review evidence files are read-only inputs; no runtime data is stored."
+    "data_lifecycle": "Review evidence files are read-only inputs; no runtime data is stored.",
+    "standards": [
+      "AGENTS.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "scripts/dev/review_select.py",
+        "evidence": "scripts/dev/review_select.py",
+        "check": "python -m pytest test-framework/tests/test_fix_guard.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/test_fix_guard.py",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "check": "python -m pytest test-framework/tests/test_fix_guard.py -q"
+      }
+    ],
+    "review_scope": {
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_fix_guard.py"
+      ],
+      "components": [
+        "scripts/dev",
+        "test-framework"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "exclude": []
+    }
   },
   "functional_spec": {
     "version": 1,
@@ -1064,115 +1141,115 @@
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:bad7670a17ec2852": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:0cbda53cec8fc309": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:ff668995734fcadd": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:49165dd062dfa322": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:d431481b8f53b8cb": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:8eaf1d6f5fd78fcd": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:6b9547f0de69043c": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:2dc82d7dcd406884": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:d0aa7ce2a12dede6": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:62a72c6e8e6ac062": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:770228891da5cfa2": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:36f50e84bec8e89e": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:a2a0d7727dc24517": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:1ed30cb9e7ff497f": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:c8e3637be58a3c11": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:75a001c8eafcf023": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:065421ea828d53e4": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:d237163657e61fa7": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1536 design and tests."
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
       }
     },
     "diff": {
@@ -1180,55 +1257,55 @@
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed with closed-item output/mixed-case tests."
+        "note": "Addressed with closed-item output/mixed-case tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:77384a26204d783a": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed with closed-item output/mixed-case tests."
+        "note": "Addressed with closed-item output/mixed-case tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:c047ea5f900c51c6": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed with closed-item output/mixed-case tests."
+        "note": "Addressed with closed-item output/mixed-case tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:6c32a64169d1ce02": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed in BI-PF-1536 tooling/tests."
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:c2c815719f0eb19f": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed in BI-PF-1536 tooling/tests."
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:5aac2097c6141e1c": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed in BI-PF-1536 tooling/tests."
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:c3c914b3c3a0f7d1": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "Addressed in BI-PF-1536 tooling/tests."
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:ed2f39127686b15b": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix."
+        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix. evidence: test-framework/tests/test_fix_guard.py"
       },
       "sig:6457f5b904d7e36a": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
-        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix."
+        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix. evidence: test-framework/tests/test_fix_guard.py"
       }
     }
   },
