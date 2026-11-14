@@ -275,7 +275,7 @@
     "usage": {}
   },
   "created_at": "2026-11-14T15:38:55.947101",
-  "updated_at": "2026-11-14T17:53:10.916138",
+  "updated_at": "2026-11-14T17:54:50.641127",
   "score": 0.75,
   "_note": "final report persisted (BI-PF-1484)",
   "type_": "task",
@@ -336,7 +336,7 @@
       "Closed status comes from the authoritative backlog store/API (core/backlog.py); status transitions are protected by the close guard and independent verification. No PR-local flag is accepted."
     ],
     "observability": [
-      "fix-guard emits status=ok skipped_closed=<n>. mtime fallback is covered by test_selector_normalizes_timestamps_and_skips_malformed."
+      "status=ok/fail skipped_closed=<n> mtime_fallback=<n>"
     ],
     "performance": [
       "Linear scan over per-item review files."
@@ -561,7 +561,76 @@
       "exclude": [
         "none"
       ]
-    }
+    },
+    "prerequisites": [
+      "BI-PF-1243 gate ownership",
+      "review evidence files exist"
+    ],
+    "data_model": [
+      "Review JSON files: at, sha, mode, findings; no runtime store."
+    ],
+    "api_contract": [
+      "No API change; CLI gate tooling."
+    ],
+    "security_model": [
+      "CI-only; no tenant data."
+    ],
+    "rls_tenant": [
+      "N/A: no database or tenant data."
+    ],
+    "failure_taxonomy": [
+      "malformed review skipped",
+      "mtime fallback",
+      "closed item skipped"
+    ],
+    "concurrency_idempotency": [
+      "Selection is stable and side-effect free."
+    ],
+    "performance_capacity": [
+      "Linear scan of per-item review files."
+    ],
+    "audit": [
+      "Review file sha/at and gate output provide audit."
+    ],
+    "quotas": [
+      "N/A: CI tooling."
+    ],
+    "rollback_recovery": [
+      "Revert the tooling PR; no data migration."
+    ],
+    "backup_restore": [
+      "N/A: no runtime data store."
+    ],
+    "deployment_rollout": [
+      "Merge with CI gate tooling; no runtime deployment."
+    ],
+    "ownership": [
+      "scripts/dev/review_select.py shared selector; fix_guard and architect_review are callers."
+    ],
+    "evidence": [
+      "test-framework/tests/test_fix_guard.py",
+      "engineering/reviews/BI-PF-1536-54e62280101b.json"
+    ],
+    "controls": [
+      {
+        "id": "CTL-REVIEW-SELECT",
+        "dimension": "ownership",
+        "applies_to": "scripts/dev/review_select.py",
+        "check": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "failure_behavior": "fail closed on drift",
+        "owner": "engineering"
+      }
+    ],
+    "compatibility": [
+      "Open items unchanged; closed items skipped."
+    ],
+    "open_questions": [
+      "None."
+    ],
+    "risks": [
+      "Legacy missing-at mtime fallback; covered by test."
+    ]
   },
   "functional_spec": {
     "version": 1,
@@ -1599,7 +1668,7 @@
     "sum_stage_ms": 1152723,
     "clock_skew": false,
     "item": "BI-PF-1536",
-    "generated_at": "2026-11-14T12:23:10.828478+00:00",
+    "generated_at": "2026-11-14T12:24:50.546966+00:00",
     "item_revision": 2,
     "current_stage": "complete",
     "acs": [
@@ -1951,5 +2020,17 @@
       }
     ],
     "other_decisions": []
-  }
+  },
+  "tier": 1,
+  "tier_reasons": [
+    "computed from affected surface: tier 1"
+  ],
+  "control_evidence": [
+    {
+      "control_id": "CTL-REVIEW-SELECT",
+      "sha": "60b07435edbbaad728f5c1c3a574808bc2df565e-21aa13c42cf1",
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    }
+  ]
 }
