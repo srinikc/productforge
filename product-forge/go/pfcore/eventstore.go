@@ -239,7 +239,7 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 		if projRoot == "" {
 			projRoot = filepath.Join("products", tenant)
 		}
-		projPath := filepath.Join(projRoot, "events.jsonl")
+		projPath := filepath.Join(projRoot, tenant, "events.jsonl")
 		result := map[string]any{"seq": recorded.Seq, "record": ev}
 		if err := st.RegenerateProjection(ctx, tenant, projPath); err != nil {
 			result["projection_error"] = err.Error()

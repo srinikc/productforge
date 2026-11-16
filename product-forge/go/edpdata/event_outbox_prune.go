@@ -3,6 +3,7 @@ package edpdata
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"productforge/datastore"
@@ -37,6 +38,7 @@ func (s *EventStore) EnforceOutboxBound(ctx context.Context, tenant string, maxP
 		return err
 	}
 	if n > maxPending {
+		log.Printf("EVENT_OUTBOX_BOUND_EXCEEDED tenant=%s pending=%d max=%d", tenant, n, maxPending)
 		return fmt.Errorf("%w: pending=%d max=%d", ErrOutboxBound, n, maxPending)
 	}
 	return nil

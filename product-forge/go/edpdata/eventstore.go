@@ -146,7 +146,7 @@ func (s *EventStore) Append(ctx context.Context, ev Event, outboxEnabled bool) (
 		if err == nil {
 			break
 		}
-		if !strings.Contains(err.Error(), "events_pkey") {
+		if !strings.Contains(err.Error(), "events_pkey") && !strings.Contains(err.Error(), "events_tenant_id_seq_key") {
 			break
 		}
 	}
