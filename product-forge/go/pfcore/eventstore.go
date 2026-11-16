@@ -235,12 +235,16 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 			return nil, fmt.Sprintf("event_append: %v", err)
 		}
 		ev["seq"] = recorded.Seq
-		if path, _ := payload["path"].(string); path != "" {
-			if err := st.RegenerateProjection(ctx, tenant, path); err != nil {
-				return nil, fmt.Sprintf("event_append: projection refresh failed: %v", err)
-			}
+		projRoot := os.Getenv("PF_EVENT_PROJECTION_DIR")
+		if projRoot == "" {
+			projRoot = filepath.Join("products", tenant)
 		}
-		return map[string]any{"seq": recorded.Seq, "record": ev}, ""
+		projPath := filepath.Join(projRoot, "events.jsonl")
+		result := map[string]any{"seq": recorded.Seq, "record": ev}
+		if err := st.RegenerateProjection(ctx, tenant, projPath); err != nil {
+			result["projection_error"] = err.Error()
+		}
+		return result, ""
 	}
 	path, _ := payload["path"].(string)
 	if strings.TrimSpace(path) == "" {

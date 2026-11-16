@@ -38,11 +38,20 @@ type EventStore struct {
 	timeout     time.Duration
 	payloads    PayloadStore
 	inlineLimit int64
+	outboxMax   int64
 }
 
 // NewEventStore returns an event store over db.
 func NewEventStore(db datastore.RelationalStore) *EventStore {
-	return &EventStore{db: db, timeout: defaultStatementTimeout}
+	return &EventStore{db: db, timeout: defaultStatementTimeout, inlineLimit: 32 * 1024, outboxMax: 100_000}
+}
+
+// WithOutboxBound configures pending-outbox backpressure.
+func (s *EventStore) WithOutboxBound(maxPending int64) *EventStore {
+	if maxPending > 0 {
+		s.outboxMax = maxPending
+	}
+	return s
 }
 
 func (s *EventStore) setTenant(ctx context.Context, tx datastore.Tx, tenant string) error {
@@ -88,6 +97,11 @@ func (s *EventStore) Append(ctx context.Context, ev Event, outboxEnabled bool) (
 		ev.PayloadRef, ev.PayloadSHA256, ev.SizeBytes, ev.ContentType = ref.Ref, ref.SHA256, ref.Size, ref.ContentType
 		ev.Payload = json.RawMessage(`{}`)
 	}
+	if outboxEnabled {
+		if err := s.EnforceOutboxBound(ctx, ev.TenantID, s.outboxMax); err != nil {
+			return Event{}, err
+		}
+	}
 	var err error
 	for attempt := 0; attempt < 5; attempt++ {
 		err = s.db.WithTx(ctx, func(tx datastore.Tx) error {
@@ -132,7 +146,7 @@ func (s *EventStore) Append(ctx context.Context, ev Event, outboxEnabled bool) (
 		if err == nil {
 			break
 		}
-		if !strings.Contains(err.Error(), "duplicate key") {
+		if !strings.Contains(err.Error(), "events_pkey") {
 			break
 		}
 	}

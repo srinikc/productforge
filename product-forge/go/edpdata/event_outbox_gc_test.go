@@ -90,3 +90,24 @@ func TestPayloadGCUsesTenantScope(t *testing.T) {
 		t.Fatalf("tenant=%q", ps.tenant)
 	}
 }
+
+func TestAppendEnforcesOutboxBound(t *testing.T) {
+	fs := &fakeStore{queries: [][][]any{{{int64(5)}}}}
+	st := NewEventStore(fs).WithOutboxBound(1)
+	_, err := st.Append(context.Background(), Event{TenantID: "t1", EventID: "e1", Type: "x"}, true)
+	if err == nil {
+		t.Fatal("Append did not enforce outbox bound")
+	}
+}
+
+func TestAppendLargePayloadWithoutStoreFailsClosed(t *testing.T) {
+	fs := &fakeStore{queries: [][][]any{{{int64(0)}}}}
+	st := NewEventStore(fs)
+	payload := make([]byte, 40*1024)
+	for i := range payload {
+		payload[i] = 'a'
+	}
+	if _, err := st.Append(context.Background(), Event{TenantID: "t1", EventID: "e1", Type: "x", Payload: payload}, false); err == nil {
+		t.Fatal("large payload without object store accepted")
+	}
+}

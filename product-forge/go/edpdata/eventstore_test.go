@@ -6,7 +6,7 @@ import (
 )
 
 func TestEventStoreAppendAssignsSeqAndOutbox(t *testing.T) {
-	f := &fakeStore{queries: [][][]any{{{int64(7)}}}}
+	f := &fakeStore{queries: [][][]any{{{int64(0)}}, {{int64(7)}}}}
 	st := NewEventStore(f)
 	ev, err := st.Append(context.Background(), Event{
 		TenantID: "t1", EventID: "e1", Type: "run_started",
