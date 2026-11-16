@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "d795e655e201",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-16T10:56:41.756846+00:00",
+  "review_scope": "delta",
+  "base_sha": "c55566a0b21fad39a275470daab6eba1959c267f",
+  "head_sha": "c140aec362d4e334e3db4a04487dd4d3c67a86eb",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta adds \"prune job enforces bound\" (failure_matrix + guardrails) but never states whether pruning may delete *pending* outbox rows; with no dispatcher until BI-PF-1269, bound-enforcement-by-deletion silently drops undelivered dispatch intent (AC-4 data-loss risk).",
+      "New controls added to design_pack coverage/test_matrix (outbox prune, payload GC, RLS posture tests) have no matching functional_spec.traceability/requirements rows in the same delta, violating the delta rule that control/test changes update matching design rows and evidence."
+    ],
+    "MINOR": [
+      "EVENT_MIGRATION_BACKUP_REQUIRED appears in the delta failure_matrix but has no owner, coverage row, or test evidence anywhere in the declared review_scope files; \"refuse downgrade unless verified backup\" is unenforced at this gate (checklist items 1 and 6).",
+      "test_matrix contains near-duplicate AC-4 prune rows (\"outbox prune/bound\" \u2192 eventstore_pg_test.go vs \"outbox prune bound\" \u2192 event_outbox_prune_test.go), leaving evidence mapping ambiguous for the same control.",
+      "functional_spec in the delta is effectively identical to the previously approved content, so no FR-level contract was updated to absorb the new prune/GC/RLS controls added in design_pack."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta materially closes prior gaps: EVENT_OUTBOX_DISABLED now states flag-off append behavior, and prune/GC/RLS gain coverage, test, and ownership rows.",
+      "Top residual risks: bound enforcement may destroy pending outbox rows before BI-PF-1269, and new test evidence is not mirrored into functional_spec traceability in this delta.",
+      "Recommend resolving the prune retention semantics (alert/block pending rows vs delete delivered only) before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "Design delta for prior deb5b55ac4d2 and fd0d4f130e59",
+  "rereview_reason_sha256": "e5a7e5816df72f37ffe4d677aec94a728d8188b8ff954650d6b64a63e3152f15"
+}
