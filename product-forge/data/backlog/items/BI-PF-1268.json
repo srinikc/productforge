@@ -145,7 +145,7 @@
     "at": "2026-10-13T09:52:56.718617"
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 5, 'MINOR': 3, 'NIT': 1}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 4, 'MINOR': 4, 'NIT': 0}"
   ],
   "risks": [
     "Not specified."
@@ -153,7 +153,8 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=deb5b55ac4d2\nBLOCKER:\n  - AC-3 cannot be met as specified: Go becomes sole writer to PostgreSQL but no in-scope component regenerates the read-only events.jsonl, so legacy readers silently receive stale data (projection \"refresh\" trigger has no owner in affected_files).\nMAJOR:\n  - Per-tenant seq uniqueness not stated as a constraint; design only lists index (tenant_id, seq), allowing concurrent appends to race and produce duplicate seq, breaking AC-1's \"exactly events seq>cursor\" guarantee.\n  - Migration 0024 down path drops the event authority table (destructive, non-reversible without data loss); no verified backup/restore checkpoint is defined before applying/reverting it (checklist item 1).\n  - CL-011 unaddressed: no design evidence or test that the runtime DB role is NOSUPERUSER/NOBYPASSRLS and remains subject to FORCE ROW LEVEL SECURITY on events/outbox.\n  - Outbox row-count bound (AC-4) has no enforcing owner or cleanup job before BI-PF-1269; an alert alone does not bound rows, so \"observable row-count limits\" degrade to unbounded growth.\n  - Object-store orphan cleanup is listed as a guardrail but has no owner, test, or acceptance evidence in the declared files, risking unrecoverable garbage and cost growth.\nMINOR:\n  - `risks` field is \"Not specified.\" despite a cross-item cutover (1266/1267/1269) with a migration and writer swap; risk register should be populated before Gate 1.5.\n  - Failure matrix error codes (EVENT_OUTBOX_UNBOUNDED, projection stale) have no corresponding metric/log contract test in the listed test files.\n  - Rollback text is only \"Revert the change\"; it does not state recovery from a migration-interrupted state (checklist item 6).\nNIT:\n  - Traceability maps FR-4→AC-3 while AC-3 is JSONL and FR-3 is cursor; AC/FR numbering in coverage rows should be reconciled to avoid audit confusion.\nSUMMARY:\n  - The Go-authority direction is sound and language-rule compliant, but AC-3 is not deliverable without an owned projection producer, and AC-1/AC-4 hinge on unstated uniqueness/bound enforcement. Top risks: stale legacy reads after cutover, duplicate per-tenant seq under concurrency, and unbounded outbox/orphan growth.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=deb5b55ac4d2\nBLOCKER:\n  - AC-3 cannot be met as specified: Go becomes sole writer to PostgreSQL but no in-scope component regenerates the read-only events.jsonl, so legacy readers silently receive stale data (projection \"refresh\" trigger has no owner in affected_files).\nMAJOR:\n  - Per-tenant seq uniqueness not stated as a constraint; design only lists index (tenant_id, seq), allowing concurrent appends to race and produce duplicate seq, breaking AC-1's \"exactly events seq>cursor\" guarantee.\n  - Migration 0024 down path drops the event authority table (destructive, non-reversible without data loss); no verified backup/restore checkpoint is defined before applying/reverting it (checklist item 1).\n  - CL-011 unaddressed: no design evidence or test that the runtime DB role is NOSUPERUSER/NOBYPASSRLS and remains subject to FORCE ROW LEVEL SECURITY on events/outbox.\n  - Outbox row-count bound (AC-4) has no enforcing owner or cleanup job before BI-PF-1269; an alert alone does not bound rows, so \"observable row-count limits\" degrade to unbounded growth.\n  - Object-store orphan cleanup is listed as a guardrail but has no owner, test, or acceptance evidence in the declared files, risking unrecoverable garbage and cost growth.\nMINOR:\n  - `risks` field is \"Not specified.\" despite a cross-item cutover (1266/1267/1269) with a migration and writer swap; risk register should be populated before Gate 1.5.\n  - Failure matrix error codes (EVENT_OUTBOX_UNBOUNDED, projection stale) have no corresponding metric/log contract test in the listed test files.\n  - Rollback text is only \"Revert the change\"; it does not state recovery from a migration-interrupted state (checklist item 6).\nNIT:\n  - Traceability maps FR-4→AC-3 while AC-3 is JSONL and FR-3 is cursor; AC/FR numbering in coverage rows should be reconciled to avoid audit confusion.\nSUMMARY:\n  - The Go-authority direction is sound and language-rule compliant, but AC-3 is not deliverable without an owned projection producer, and AC-1/AC-4 hinge on unstated uniqueness/bound enforcement. Top risks: stale legacy reads after cutover, duplicate per-tenant seq under concurrency, and unbounded outbox/orphan growth.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=fd0d4f130e59\nBLOCKER:\n  - none\nMAJOR:\n  - FR-1 acceptance and operation_matrix require an outbox row on every append, but config_contract defaults EVENT_OUTBOX_ENABLED=off; the delta never states append behavior when the flag is off, so AC-1 and AC-4 are mutually unsatisfiable as written.\n  - CL-011 only partially addressed: `security` now asserts NOSUPERUSER/NOBYPASSRLS + FORCE RLS, but test_matrix/coverage contain no role-posture or RLS test row/evidence (checklist item 3 requires enforceable tests).\n  - EVENT_ORPHAN_PAYLOAD/GC gained guardrail and failure-matrix rows but still has no owner, test, or evidence in the declared review_scope files; prior finding remains unenforced.\n  - Outbox row-count bound (AC-4) still lacks an implementing owner in 1268 scope: \"prune job enforces bound before enable\" defers enforcement to 1269 with no 1268 test/evidence row, leaving the bound advisory only.\nMINOR:\n  - deployment_rollout and rollback reference an \"event writer flag\" that is absent from config_contract (only EVENT_INLINE_PAYLOAD_LIMIT and EVENT_OUTBOX_ENABLED); contracts are out of sync (checklist item 8).\n  - Coverage FR labels are scrambled in the delta: JSONL row tagged FR-3, outbox row tagged FR-4, and FR-3 (cursor) has no correctly labeled coverage row.\n  - test_matrix evidence cites go/pfcore/event_projection_test.go, which is not in review_scope.files; evidence outside declared scope cannot be verified at this gate.\n  - Failure-matrix error codes (EVENT_OUTBOX_UNBOUNDED, projection stale) still have no corresponding metric/log contract test in the listed test files (residual; observability rows changed).\nNIT:\n  - none\nSUMMARY:\n  - Delta resolves the prior projection-writer blocker (event_projection.go now in scope), seq uniqueness, backup/down-path, and rollback-text findings at design level.\n  - Top residual risks: FR-1 vs outbox-flag-off contradiction, missing RLS/role test evidence, and unowned orphan-GC/outbox-prune enforcement.\n  - Traceability FR-4→AC-3 mismatch and unspecified `risks` field persist unchanged and remain as previously logged.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -247,9 +248,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:08.889301",
-  "updated_at": "2026-11-16T15:01:46.781871",
+  "updated_at": "2026-11-16T15:06:04.309471",
   "score": 0.62,
-  "_note": "Gate 1.5 design findings addressed: projection owner, seq uniqueness, backup gate, RLS proof, outbox/object GC.",
+  "_note": "Outbox flag semantics, RLS tests, outbox prune and payload GC owners added.",
   "api_impact": {
     "needs_api": false,
     "reason": "Internal A1 event seam only; no public API route change."
@@ -322,7 +323,11 @@
         "migrations/0024_events_authority.up.sql",
         "migrations/0024_events_authority.down.sql",
         "test-framework/tests/pipeline/test_event_core.py",
-        "go/pfcore/event_projection.go"
+        "go/pfcore/event_projection.go",
+        "go/pfcore/event_outbox_prune.go",
+        "go/pfcore/event_outbox_prune_test.go",
+        "go/pfcore/event_payload_gc.go",
+        "go/pfcore/event_payload_gc_test.go"
       ],
       "components": [
         "go/pfcore",
@@ -425,6 +430,11 @@
         "case": "orphan payload after failed commit",
         "expected": "reconcile against event refs; GC only unreferenced objects",
         "code": "EVENT_ORPHAN_PAYLOAD"
+      },
+      {
+        "case": "EVENT_OUTBOX_ENABLED=off",
+        "expected": "append event without outbox row; no dispatcher assumed",
+        "code": "EVENT_OUTBOX_DISABLED"
       }
     ],
     "concurrency_idempotency": [
@@ -435,7 +445,8 @@
     ],
     "observability": [
       "event append errors/latency; outbox lag/row count; DLQ later; cursor lag.",
-      "outbox_rows_current and prune failures; orphan payload count; projection age."
+      "outbox_rows_current and prune failures; orphan payload count; projection age.",
+      "outbox prune job result; orphan payload GC result; role posture check."
     ],
     "audit": [
       "Append-only event metadata; outbox attempts recorded."
@@ -515,6 +526,33 @@
         ],
         "evidence": [
           "go/pfcore/eventstore_pg_test.go"
+        ]
+      },
+      {
+        "ac": "AC-1",
+        "tests": [
+          "go test ./go/pfcore (role posture/RLS)"
+        ],
+        "evidence": [
+          "go/pfcore/eventstore_pg_test.go"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "go test ./go/pfcore (outbox prune bound)"
+        ],
+        "evidence": [
+          "go/pfcore/event_outbox_prune_test.go"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "go test ./go/pfcore (orphan payload gc)"
+        ],
+        "evidence": [
+          "go/pfcore/event_payload_gc_test.go"
         ]
       }
     ],
@@ -613,6 +651,63 @@
         "evidence": [
           "go/pfcore/event_projection_test.go"
         ]
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "adapter": "PostgreSQL role/RLS",
+        "call_sites": [
+          "go/pfcore/eventstore.go"
+        ],
+        "contract": "NOSUPERUSER/NOBYPASSRLS + force RLS",
+        "entrypoint": "go/pfcore/eventstore.go",
+        "failure_cases": [
+          "RLS bypass"
+        ],
+        "tests": [
+          "go/pfcore/eventstore_pg_test.go"
+        ],
+        "evidence": [
+          "go/pfcore/eventstore_pg_test.go"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-1",
+        "adapter": "outbox prune job",
+        "call_sites": [
+          "go/pfcore/event_outbox_prune.go"
+        ],
+        "contract": "bounded outbox rows",
+        "entrypoint": "go/pfcore/event_outbox_prune.go",
+        "failure_cases": [
+          "EVENT_OUTBOX_BOUND_EXCEEDED"
+        ],
+        "tests": [
+          "go/pfcore/event_outbox_prune_test.go"
+        ],
+        "evidence": [
+          "go/pfcore/event_outbox_prune_test.go"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "adapter": "payload GC",
+        "call_sites": [
+          "go/pfcore/event_payload_gc.go"
+        ],
+        "contract": "delete only unreferenced payloads",
+        "entrypoint": "go/pfcore/event_payload_gc.go",
+        "failure_cases": [
+          "EVENT_ORPHAN_PAYLOAD"
+        ],
+        "tests": [
+          "go/pfcore/event_payload_gc_test.go"
+        ],
+        "evidence": [
+          "go/pfcore/event_payload_gc_test.go"
+        ]
       }
     ],
     "proof_plan": {
@@ -641,7 +736,9 @@
       "Object orphan cleanup required.",
       "Outbox prune job is mandatory before enable.",
       "Object GC deletes only unreferenced refs.",
-      "Migration down is blocked without verified backup."
+      "Migration down is blocked without verified backup.",
+      "RLS/role posture is tested.",
+      "Outbox prune and payload GC are owned by 1268."
     ],
     "learnings": [
       "JSONL file scanning is not a durable cursor."
@@ -702,7 +799,7 @@
         "data_rules": "Atomic event+outbox.",
         "edge_cases": "Retry duplicate.",
         "acceptance": [
-          "Given a valid event When appended Then exactly one row gets a monotonic tenant seq and an outbox row."
+          "Given an event When appended with outbox enabled Then event and outbox commit atomically; when disabled Then only the event row is written and the flag state is observable."
         ],
         "verification": "go/pfcore/eventstore_pg_test.go"
       },
@@ -860,7 +957,7 @@
       "Gate1.5/Gate1 approved",
       "tests pass"
     ],
-    "functional_sha": "20bc8cd68f50"
+    "functional_sha": "fa2cc36fe211"
   },
   "spec_pack": {
     "version": 1,
@@ -1038,6 +1135,38 @@
         ]
       },
       "evidence": "BI-PF-1268-deb5b55ac4d2.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "c55566a0b21fad39a275470daab6eba1959c267f",
+      "review_sha": "fd0d4f130e59",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-16T09:35:20.166336+00:00",
+      "review_scope": "delta",
+      "base_sha": "18f1f054ca3f1a61a67ab4fb6b21067dd6726461",
+      "head_sha": "c55566a0b21fad39a275470daab6eba1959c267f",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "FR-1 acceptance and operation_matrix require an outbox row on every append, but config_contract defaults EVENT_OUTBOX_ENABLED=off; the delta never states append behavior when the flag is off, so AC-1 and AC-4 are mutually unsatisfiable as written.",
+          "CL-011 only partially addressed: `security` now asserts NOSUPERUSER/NOBYPASSRLS + FORCE RLS, but test_matrix/coverage contain no role-posture or RLS test row/evidence (checklist item 3 requires enforceable tests).",
+          "EVENT_ORPHAN_PAYLOAD/GC gained guardrail and failure-matrix rows but still has no owner, test, or evidence in the declared review_scope files; prior finding remains unenforced.",
+          "Outbox row-count bound (AC-4) still lacks an implementing owner in 1268 scope: \"prune job enforces bound before enable\" defers enforcement to 1269 with no 1268 test/evidence row, leaving the bound advisory only."
+        ],
+        "MINOR": [
+          "deployment_rollout and rollback reference an \"event writer flag\" that is absent from config_contract (only EVENT_INLINE_PAYLOAD_LIMIT and EVENT_OUTBOX_ENABLED); contracts are out of sync (checklist item 8).",
+          "Coverage FR labels are scrambled in the delta: JSONL row tagged FR-3, outbox row tagged FR-4, and FR-3 (cursor) has no correctly labeled coverage row.",
+          "test_matrix evidence cites go/pfcore/event_projection_test.go, which is not in review_scope.files; evidence outside declared scope cannot be verified at this gate.",
+          "Failure-matrix error codes (EVENT_OUTBOX_UNBOUNDED, projection stale) still have no corresponding metric/log contract test in the listed test files (residual; observability rows changed)."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta resolves the prior projection-writer blocker (event_projection.go now in scope), seq uniqueness, backup/down-path, and rollback-text findings at design level.",
+          "Top residual risks: FR-1 vs outbox-flag-off contradiction, missing RLS/role test evidence, and unowned orphan-GC/outbox-prune enforcement.",
+          "Traceability FR-4→AC-3 mismatch and unspecified `risks` field persist unchanged and remain as previously logged."
+        ]
+      },
+      "evidence": "BI-PF-1268-fd0d4f130e59.json"
     }
   ]
 }
