@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"productforge/edpdata"
@@ -165,6 +166,37 @@ func asInt64(v any) (int64, bool) {
 }
 
 // EventAppendOp handles the event_append wire op; returns (result, error-message).
+var (
+	eventStoreMu sync.Mutex
+	eventStore   *edpdata.EventStore
+)
+
+func sharedEventStore(ctx context.Context) (*edpdata.EventStore, error) {
+	eventStoreMu.Lock()
+	defer eventStoreMu.Unlock()
+	if eventStore != nil {
+		return eventStore, nil
+	}
+	st, _, err := edpdata.OpenEventStoreFromEnv(ctx)
+	if err != nil {
+		return nil, err
+	}
+	eventStore = st
+	return st, nil
+}
+
+func outboxEnabled() (bool, error) {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("EVENT_OUTBOX_ENABLED")))
+	switch v {
+	case "", "off", "0", "false", "no":
+		return false, nil
+	case "on", "1", "true", "yes":
+		return true, nil
+	default:
+		return false, fmt.Errorf("invalid EVENT_OUTBOX_ENABLED=%q", v)
+	}
+}
+
 func EventAppendOp(payload map[string]any) (map[string]any, string) {
 	ev, ok := payload["event"].(map[string]any)
 	if !ok {
@@ -178,15 +210,23 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 		if tenant == "" {
 			return nil, "event_append: tenant_id is required for the PostgreSQL event authority"
 		}
-		ctx := context.Background()
-		st, closeFn, err := edpdata.OpenEventStoreFromEnv(ctx)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		st, err := sharedEventStore(ctx)
 		if err != nil {
 			return nil, fmt.Sprintf("event_append: %v", err)
 		}
-		defer closeFn()
-		outbox := strings.EqualFold(os.Getenv("EVENT_OUTBOX_ENABLED"), "on")
+		outbox, err := outboxEnabled()
+		if err != nil {
+			return nil, fmt.Sprintf("event_append: %v", err)
+		}
+		eventID, _ := ev["event_id"].(string)
+		eventType, _ := ev["event_type"].(string)
+		if eventID == "" || eventType == "" {
+			return nil, "event_append: event_id and event_type are required"
+		}
 		recorded, err := st.Append(ctx, edpdata.Event{
-			TenantID: tenant, EventID: fmt.Sprint(ev["event_id"]), Type: fmt.Sprint(ev["event_type"]),
+			TenantID: tenant, EventID: eventID, Type: eventType,
 			Version: fmt.Sprint(ev["event_version"]), Payload: mustJSON(ev["payload"]),
 			CorrelationID: fmt.Sprint(ev["correlation_id"]), CausationID: fmt.Sprint(ev["causation_id"]),
 			Actor: fmt.Sprint(ev["actor"]),
@@ -195,6 +235,11 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 			return nil, fmt.Sprintf("event_append: %v", err)
 		}
 		ev["seq"] = recorded.Seq
+		if path, _ := payload["path"].(string); path != "" {
+			if err := st.RegenerateProjection(ctx, tenant, path); err != nil {
+				return nil, fmt.Sprintf("event_append: projection refresh failed: %v", err)
+			}
+		}
 		return map[string]any{"seq": recorded.Seq, "record": ev}, ""
 	}
 	path, _ := payload["path"].(string)
@@ -225,12 +270,12 @@ func EventReadOp(payload map[string]any) (map[string]any, string) {
 		if tenant == "" {
 			return nil, "event_read: tenant_id is required for the PostgreSQL event authority"
 		}
-		ctx := context.Background()
-		st, closeFn, err := edpdata.OpenEventStoreFromEnv(ctx)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		st, err := sharedEventStore(ctx)
 		if err != nil {
 			return nil, fmt.Sprintf("event_read: %v", err)
 		}
-		defer closeFn()
 		rows, maxSeq, err := st.Read(ctx, tenant, since, limit)
 		if err != nil {
 			return nil, fmt.Sprintf("event_read: %v", err)

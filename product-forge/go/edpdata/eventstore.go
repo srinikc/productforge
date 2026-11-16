@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"productforge/datastore"
@@ -33,8 +34,10 @@ type Event struct {
 
 // EventStore is the PostgreSQL event authority (single writer).
 type EventStore struct {
-	db      datastore.RelationalStore
-	timeout time.Duration
+	db          datastore.RelationalStore
+	timeout     time.Duration
+	payloads    PayloadStore
+	inlineLimit int64
 }
 
 // NewEventStore returns an event store over db.
@@ -54,6 +57,15 @@ func (s *EventStore) setTenant(ctx context.Context, tx datastore.Tx, tenant stri
 	return err
 }
 
+// WithPayloads configures object payload storage and the inline threshold.
+func (s *EventStore) WithPayloads(store PayloadStore, inlineLimit int64) *EventStore {
+	s.payloads = store
+	if inlineLimit > 0 {
+		s.inlineLimit = inlineLimit
+	}
+	return s
+}
+
 // Append stores one event and, when enabled, an atomic outbox row.
 func (s *EventStore) Append(ctx context.Context, ev Event, outboxEnabled bool) (Event, error) {
 	if ev.TenantID == "" || ev.EventID == "" || ev.Type == "" {
@@ -65,45 +77,65 @@ func (s *EventStore) Append(ctx context.Context, ev Event, outboxEnabled bool) (
 	if len(ev.Payload) == 0 {
 		ev.Payload = json.RawMessage(`{}`)
 	}
-	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		if err := s.setTenant(ctx, tx, ev.TenantID); err != nil {
-			return err
+	if s.inlineLimit > 0 && int64(len(ev.Payload)) > s.inlineLimit {
+		if s.payloads == nil {
+			return Event{}, fmt.Errorf("%w: object store required for payload", ErrEventInvalid)
 		}
-		var seq int64
-		rows, err := tx.Query(ctx, "SELECT COALESCE(MAX(seq),0)+1 FROM events WHERE tenant_id=$1", ev.TenantID)
+		ref, err := s.payloads.Put(ctx, ev.TenantID, ev.EventID, ev.Payload, ev.ContentType)
 		if err != nil {
-			return err
+			return Event{}, err
 		}
-		if rows.Next() {
-			if err := rows.Scan(&seq); err != nil {
+		ev.PayloadRef, ev.PayloadSHA256, ev.SizeBytes, ev.ContentType = ref.Ref, ref.SHA256, ref.Size, ref.ContentType
+		ev.Payload = json.RawMessage(`{}`)
+	}
+	var err error
+	for attempt := 0; attempt < 5; attempt++ {
+		err = s.db.WithTx(ctx, func(tx datastore.Tx) error {
+			if err := s.setTenant(ctx, tx, ev.TenantID); err != nil {
+				return err
+			}
+			var seq int64
+			rows, err := tx.Query(ctx, "SELECT COALESCE(MAX(seq),0)+1 FROM events WHERE tenant_id=$1", ev.TenantID)
+			if err != nil {
+				return err
+			}
+			if rows.Next() {
+				if err := rows.Scan(&seq); err != nil {
+					rows.Close()
+					return err
+				}
+			}
+			if err := rows.Err(); err != nil {
 				rows.Close()
 				return err
 			}
-		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return err
-		}
-		_ = rows.Close()
-		ev.Seq = seq
-		if ev.OccurredAt.IsZero() {
-			ev.OccurredAt = time.Now().UTC()
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO events
+			_ = rows.Close()
+			ev.Seq = seq
+			if ev.OccurredAt.IsZero() {
+				ev.OccurredAt = time.Now().UTC()
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO events
 			(tenant_id,seq,event_id,occurred_at,type,version,payload,payload_ref,payload_sha256,size_bytes,content_type,correlation_id,causation_id,actor)
 			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,$14)`,
-			ev.TenantID, ev.Seq, ev.EventID, ev.OccurredAt, ev.Type, ev.Version, string(ev.Payload),
-			ev.PayloadRef, ev.PayloadSHA256, ev.SizeBytes, ev.ContentType, ev.CorrelationID, ev.CausationID, ev.Actor); err != nil {
-			return err
-		}
-		if outboxEnabled {
-			if _, err := tx.Exec(ctx, `INSERT INTO events_outbox (id,tenant_id,event_id) VALUES ($1,$2,$3)`,
-				fmt.Sprintf("%s-outbox", ev.EventID), ev.TenantID, ev.EventID); err != nil {
+				ev.TenantID, ev.Seq, ev.EventID, ev.OccurredAt, ev.Type, ev.Version, string(ev.Payload),
+				ev.PayloadRef, ev.PayloadSHA256, ev.SizeBytes, ev.ContentType, ev.CorrelationID, ev.CausationID, ev.Actor); err != nil {
 				return err
 			}
+			if outboxEnabled {
+				if _, err := tx.Exec(ctx, `INSERT INTO events_outbox (id,tenant_id,event_id) VALUES ($1,$2,$3)`,
+					fmt.Sprintf("%s-outbox", ev.EventID), ev.TenantID, ev.EventID); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err == nil {
+			break
 		}
-		return nil
-	})
+		if !strings.Contains(err.Error(), "duplicate key") {
+			break
+		}
+	}
 	if err != nil {
 		return Event{}, err
 	}

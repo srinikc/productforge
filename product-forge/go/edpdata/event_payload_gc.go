@@ -3,22 +3,39 @@ package edpdata
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"productforge/datastore"
 )
 
-// PayloadStore is the object-store subset used for event payload GC.
-type PayloadStore interface {
-	List(ctx context.Context) ([]string, error)
-	Delete(ctx context.Context, ref string) error
+// PayloadObject is one tenant-scoped object-store entry.
+type PayloadObject struct {
+	Ref       string
+	CreatedAt int64 // unix seconds
 }
 
-// ReconcilePayloads deletes object refs that no event row references.
-func (s *EventStore) ReconcilePayloads(ctx context.Context, tenant string, store PayloadStore) (int, error) {
+// PayloadStore is the object-store subset used for event payloads.
+type PayloadStore interface {
+	Put(ctx context.Context, tenant, eventID string, data []byte, contentType string) (PayloadRef, error)
+	List(ctx context.Context, tenant string) ([]PayloadObject, error)
+	Delete(ctx context.Context, tenant, ref string) error
+}
+
+// PayloadRef is the durable DB reference for a large payload.
+type PayloadRef struct {
+	Ref         string
+	SHA256      string
+	Size        int64
+	ContentType string
+}
+
+// ReconcilePayloads deletes tenant-scoped object refs that no event row references.
+// Objects younger than graceSeconds are skipped to avoid TOCTOU on in-flight appends.
+func (s *EventStore) ReconcilePayloads(ctx context.Context, tenant string, store PayloadStore, graceSeconds int64) (int, error) {
 	if tenant == "" || store == nil {
 		return 0, fmt.Errorf("%w: tenant and payload store required", ErrEventInvalid)
 	}
-	refs, err := store.List(ctx)
+	objects, err := store.List(ctx, tenant)
 	if err != nil {
 		return 0, err
 	}
@@ -44,12 +61,13 @@ func (s *EventStore) ReconcilePayloads(ctx context.Context, tenant string, store
 	if err != nil {
 		return 0, err
 	}
+	now := time.Now().Unix()
 	deleted := 0
-	for _, ref := range refs {
-		if live[ref] {
+	for _, obj := range objects {
+		if live[obj.Ref] || (graceSeconds > 0 && now-obj.CreatedAt < graceSeconds) {
 			continue
 		}
-		if err := store.Delete(ctx, ref); err != nil {
+		if err := store.Delete(ctx, tenant, obj.Ref); err != nil {
 			return deleted, err
 		}
 		deleted++
