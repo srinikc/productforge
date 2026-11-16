@@ -124,6 +124,38 @@
       "seq": 10,
       "note": "Gate 2 approved after 0B/0M full+delta review; HIL waived minors.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-16T09:14:25.036076+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "scope": "review_budget",
+      "seq": 11,
+      "hil_confirmed": true,
+      "note": "HIL acknowledged existing 1267 full reviews; complete under grandfather policy."
+    },
+    {
+      "at": "2026-11-16T09:14:42.253151+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "ce87a24abe09",
+      "findings_digest": "a34d62767099",
+      "seq": 12,
+      "note": "Gate 1 re-recorded under grandfather policy.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-16T09:14:43.664155+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "ebb7ab0b5d44",
+      "findings_digest": "3023bf07e51a",
+      "seq": 13,
+      "note": "Gate 2 re-recorded; complete under grandfather policy.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -336,136 +368,14 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-11-14T18:46:17.158789",
+  "updated_at": "2026-11-16T14:44:45.060479",
   "score": 0.83,
   "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
     "needs_api": false,
     "reason": "Shared contract shapes only; no runtime API route change."
   },
-  "design_pack": {
-    "version": 2,
-    "requirements": [
-      "Go and Python required-field/shape parity tests pass; existing test_api_events stays green."
-    ],
-    "invariants": [
-      "Wire contracts are versioned and additive.",
-      "Unknown top-level envelope fields are rejected; vendor data belongs only in extensions{}.",
-      "seq is assigned by the Go/PostgreSQL event core, never by producers; per-tenant monotonic, gaps allowed, never reused.",
-      "Cursor ordering uses seq only; occurred_at is not an ordering key.",
-      "Python and Go must agree on required fields and shapes.",
-      "Webhook signatures use constant-time HMAC over the raw body; idempotency key is event_id."
-    ],
-    "contracts": {
-      "api": [
-        "No public runtime API change; contract shapes are shared by event producers/consumers."
-      ],
-      "db": [
-        "No schema change in BI-PF-1267."
-      ],
-      "files": [
-        "core/contracts.py",
-        "go/pfcore/pfcore.go",
-        "go/contract/contract.go",
-        "test-framework/tests/pipeline/test_contracts.py",
-        "go/pfcore/event_contracts_test.go"
-      ],
-      "config": [
-        "WEBHOOK_HMAC_KEY_REF is a secret reference (never the key); required and fail-closed at startup when webhook delivery is enabled."
-      ]
-    },
-    "failure_matrix": [
-      {
-        "case": "Required field missing",
-        "expected": "Reject with CONTRACT_INVALID",
-        "code": "CONTRACT_INVALID"
-      },
-      {
-        "case": "Unknown envelope version",
-        "expected": "Reject with CONTRACT_VERSION_UNSUPPORTED",
-        "code": "CONTRACT_VERSION_UNSUPPORTED"
-      },
-      {
-        "case": "Python/Go shape mismatch",
-        "expected": "Parity test fails CI",
-        "code": "CONTRACT_PARITY_MISMATCH"
-      },
-      {
-        "case": "Webhook signature mismatch",
-        "expected": "Reject delivery before processing",
-        "code": "WEBHOOK_SIGNATURE_INVALID"
-      }
-    ],
-    "dependencies": [
-      "BI-PF-1266 design (ADR-0011)",
-      "BI-PF-1292 EDP baseline",
-      "core/contracts.py A1 pattern"
-    ],
-    "security": [
-      "HMAC verification uses constant-time comparison; tenant/auth fields are required in subscription/replay contracts."
-    ],
-    "observability": [
-      "Contract metrics are defined but emitted by BI-PF-1270/1274, not this contract item: contract_validation_failures_total{code}, contract_parity_test_failures. Owner: platform + CI."
-    ],
-    "performance": [
-      "Envelope validation is bounded and allocation-light; no large payload copies (payload_ref contract)."
-    ],
-    "test_matrix": [
-      {
-        "ac": "AC-1",
-        "tests": [
-          "test_contracts_unknown_field_parity",
-          "test_contracts_seq_parity",
-          "test_contracts_subscription_alert_webhook_parity",
-          "test_webhook_hmac_constant_time",
-          "test_api_events"
-        ],
-        "evidence": [
-          "core/contracts.py",
-          "go/pfcore/pfcore.go",
-          "test-framework/tests/pipeline/test_contracts.py",
-          "test-framework/tests/pipeline/test_api_events.py"
-        ]
-      }
-    ],
-    "rollout": [
-      "Additive contract fields only; ship Python and Go mirrors together."
-    ],
-    "rollback": "Revert the contract PR. Mixed-version window: producers must keep legacy fields; consumers ignore unknown extensions and reject unknown top-level fields. Do not enable webhook delivery until BI-PF-1270 ships the verifier caller.",
-    "decisions": [
-      "Envelope v2 adds seq and payload reference fields additively.",
-      "Subscription/alert/webhook contracts are versioned and shared.",
-      "Go mirrors Python contracts; parity is CI-blocking.",
-      "Unknown top-level envelope fields are rejected; vendor data must use extensions{}; no silent coercion.",
-      "seq is assigned by the Go/PostgreSQL event core, never by producers; per-tenant monotonic increasing, gaps allowed, never reused; cursor uses seq > cursor, not occurred_at.",
-      "BI-PF-1267 owns webhook payload/header contract and constant-time verifier test; BI-PF-1270 owns runtime delivery and calls that verifier.",
-      "WEBHOOK_HMAC_KEY_REF is a secret reference, never the key; webhook-enabled startup fails closed when missing.",
-      "BI-PF-1267 guarantees event_id and idempotency header shape; runtime dedupe belongs to BI-PF-1270.",
-      "Python/Go parity tests must cover missing/invalid seq, cursor ordering, unknown version, and signature verification.",
-      "Go contract surface: go/pfcore/contracts.go is canonical for parity; go/contract/contract.go and pfcore.contractShapes are legacy, not extended.",
-      "Reuse existing contract owners: Python core/contracts.py and Go go/pfcore/pfcore.go contractShapes are canonical; no new go/pfcore/contracts.go.",
-      "BI-PF-1267 adds strict unknown-field parity, seq/subscription/alert/webhook parity tests, and constant-time webhook HMAC verification.",
-      "Both existing Go mirrors (go/pfcore and go/contract) must stay in lockstep with Python; parity test covers required fields across both."
-    ],
-    "guardrails": [
-      "No breaking envelope field removal.",
-      "No new Python module under shipped roots.",
-      "No secret in webhook payload.",
-      "HIL-approved open-question resolutions are binding; no unconfirmed assumption may be implemented.",
-      "Unknown top-level fields fail validation; extensions{} is the only vendor extension surface.",
-      "CL-008 authz/tenant: subscription/replay contracts require tenant + auth_ref.",
-      "Unknown-field and seq invariants have named parity tests.",
-      "No metric/alert is introduced without owner and threshold.",
-      "CL-008 reversibility: revert the contract PR; no data migration.",
-      "CL-008 SPOF/startup: no runtime component in this item; webhook startup validation is owned by BI-PF-1270.",
-      "CL-008 blast radius/dry-run: contract-only; no runtime rollout; parity tests are the dry-run proof.",
-      "CL-008 tenant isolation: tenant/auth fields are required contracts and tested.",
-      "CL-008 reuse/observability: reuse core/contracts.py and existing Go mirror; metric emission is owned by BI-PF-1270/1274."
-    ],
-    "learnings": [
-      "Contract drift is caught by required-field parity tests, not by prose."
-    ]
-  },
+  "design_pack": {},
   "functional_spec": {
     "version": 1,
     "status": "APPROVED",
@@ -1737,11 +1647,11 @@
   "final_report": {
     "schema": "pf.final-report/2",
     "ac_hash": "5d8ccaf0451d55d9",
-    "total_time_ms": 32073928,
+    "total_time_ms": 190381178,
     "sum_stage_ms": 2407395,
     "clock_skew": false,
     "item": "BI-PF-1267",
-    "generated_at": "2026-11-14T13:16:17.068630+00:00",
+    "generated_at": "2026-11-16T09:14:44.898101+00:00",
     "item_revision": 6,
     "current_stage": "blocked at precheck",
     "acs": [
@@ -2124,6 +2034,26 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-16T09:14:42.453550+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-16T09:14:43.851467+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
       }
     ],
     "usage": {
@@ -2136,7 +2066,7 @@
       "unpriced": 0
     },
     "started_at": "2026-11-14T04:21:42.672521+00:00",
-    "finished_at": "2026-11-14T13:16:16.600745+00:00",
+    "finished_at": "2026-11-16T09:14:43.851467+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -2192,6 +2122,28 @@
         "seq": 10,
         "note": "Gate 2 approved after 0B/0M full+delta review; HIL waived minors.",
         "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-16T09:14:42.253151+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "ce87a24abe09",
+        "findings_digest": "a34d62767099",
+        "seq": 12,
+        "note": "Gate 1 re-recorded under grandfather policy.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-16T09:14:43.664155+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "ebb7ab0b5d44",
+        "findings_digest": "3023bf07e51a",
+        "seq": 13,
+        "note": "Gate 2 re-recorded; complete under grandfather policy.",
+        "hil_confirmed": true
       }
     ],
     "other_decisions": [
@@ -2238,6 +2190,16 @@
         "seq": 9,
         "hil_confirmed": true,
         "note": "HIL approved final full-candidate 1267 review after seq/version/auth fixes."
+      },
+      {
+        "at": "2026-11-16T09:14:25.036076+00:00",
+        "by": "hil:user",
+        "decision": "MATERIAL_CHANGE",
+        "mode": "diff",
+        "scope": "review_budget",
+        "seq": 11,
+        "hil_confirmed": true,
+        "note": "HIL acknowledged existing 1267 full reviews; complete under grandfather policy."
       }
     ]
   }
