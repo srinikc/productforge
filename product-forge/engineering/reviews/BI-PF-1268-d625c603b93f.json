@@ -1,0 +1,26 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "d625c603b93f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-16T18:13:27.154959+00:00",
+  "review_scope": "delta",
+  "base_sha": "93a7fb20eef6122179d7a5cd20d6abf20b0673d1",
+  "head_sha": "ddffb07c128e9c8f4068c990031649ed16bce925",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`projectionPath` joins the raw `tenant` into a filesystem path with no sanitization; a tenant value containing `..` or a separator can escape `PF_EVENT_PROJECTION_DIR`/`products` (tenant is server-resolved, so low likelihood, but this is a new path-construction helper and deserves a boundary assertion)."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta resolves the prior BLOCKER (double-tenant default path) and MAJOR (missing tests): `projectionPath` now yields `products/<tenant>/events.jsonl` by default and `<dir>/<tenant>/events.jsonl` under env, matching legacy reader locations, with both cases unit-tested.",
+      "Behavior under env-set root is byte-identical to the old code, so AC-3 reader compatibility is preserved; no new AC/security regression introduced.",
+      "Residual risk is limited to unsanitized tenant segment in the new path helper (MINOR hardening)."
+    ]
+  },
+  "rereview_reason": "Delta for prior 86ea3ecb0516, a38e7f93d541, 66ce76e2715a and 0334907eb280 findings",
+  "rereview_reason_sha256": "5b523da88a4dbdf52de7d118f186c3c1b675135dca13add7d1a3038fa8cbf40e"
+}

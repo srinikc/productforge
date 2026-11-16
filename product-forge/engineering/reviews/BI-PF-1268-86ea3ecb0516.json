@@ -1,0 +1,48 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "86ea3ecb0516",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-16T14:49:02.908575+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0070bac5bffa4a7d6fb2320808e61e0503b5bc58",
+  "findings": {
+    "BLOCKER": [
+      "AC-2 unimplemented: `Append` always writes `payload` inline to PostgreSQL; no object-store upload path, no `EVENT_INLINE_PAYLOAD_LIMIT` threshold, no `payload_ref`/`sha256` population, no fail-closed `EVENT_PAYLOAD_STORE_FAILED` path.",
+      "AC-3 unmet: `RegenerateProjection` has zero call sites; when `PF_DB_DSN` is set the writer stops appending to `events.jsonl` while nothing regenerates it, so existing JSONL readers observe stale/empty data (readers do not keep working).",
+      "AC-3/AC-4 evidence files declared in scope are absent from the diff: `go/edpdata/event_projection_test.go`, `test-framework/tests/pipeline/test_event_core.py`, and all `eventstore_pg_test.go` traceability evidence \u2014 no fail-able test for projection, outbox flag/bound, RLS posture, or concurrency.",
+      "AC-4 unmet: no observable outbox row-count limit, metric, or alert anywhere; `PruneOutbox` exists but nothing enforces/bounds/observes pending-row growth while the dispatcher is absent.",
+      "Data loss (cross-tenant): `PayloadStore.List(ctx)` takes no tenant scope, so `ReconcilePayloads` for tenant A computes \"unreferenced\" from A's RLS-filtered view and deletes tenant B's objects; `Delete` is also unscoped.",
+      "Security: `EVENT_OUTBOX_ENABLED` invalid values (e.g. `yes`, `1`) are silently treated as off by `EqualFold(...,\"on\")`, violating the config contract's fail-closed `invalid_behavior`."
+    ],
+    "MAJOR": [
+      "Seq allocation uses `SELECT MAX(seq)+1` with no lock and no retry on unique conflict (design requires retry) \u2014 concurrent appends to one tenant collide on PK `(tenant_id,seq)` and fail; no concurrency test exists.",
+      "`EventAppendOp`/`EventReadOp` open and close a full PostgreSQL pool per request via `OpenEventStoreFromEnv` with `context.Background()` (no timeout/cancel) \u2014 scalability and SPOF risk at the A1 seam.",
+      "Payload GC TOCTOU: objects uploaded but whose event row is not yet committed (or whose append later rolls back) are deleted immediately; no grace window / `created_at` age filter before `Delete`.",
+      "Zero observability emitted: no append latency/error metrics, outbox row count/lag, cursor lag, prune/GC results, or projection age despite the design's observability contract.",
+      "`fmt.Sprint(ev[\"event_id\"])` turns a missing field into literal `\"<nil>\"`, which passes `Append` validation \u2014 malformed events are persisted with bogus ids/types.",
+      "CL-011 role-posture evidence missing: no test proving NOSUPERUSER/NOBYPASSRLS runtime role under `FORCE ROW LEVEL SECURITY`."
+    ],
+    "MINOR": [
+      "`Read` does not reject future/unknown cursors (`EVENT_CURSOR_INVALID` per failure matrix); returns empty page instead.",
+      "`RegenerateProjection` buffers all events in memory (unbounded), writes no staleness marker/age, and never verifies JSONL permissions are read-only for consumers.",
+      "Duplicate `event_id` returns a raw driver error instead of an idempotent replay response (FR idempotency/edge case \"retry duplicate\").",
+      "Destructive down-migration backup refusal is a comment only \u2014 no enforced checkpoint verification (`EVENT_MIGRATION_BACKUP_REQUIRED`).",
+      "`mustJSON` discards marshal errors, silently encoding invalid payloads.",
+      "Flag/env reads (`PF_DB_DSN`, `EVENT_OUTBOX_ENABLED`) are re-read per request with no startup validation as required by the config contract."
+    ],
+    "NIT": [
+      "Projection temp file `path + \".tmp\"` is not unique \u2014 concurrent regenerations can clobber each other.",
+      "`PruneOutbox` wraps a single DELETE in a transaction solely to set tenant/timeout.",
+      "`ReconcilePayloads` returns a partial `deleted` count alongside an error, which callers may misread as success.",
+      "`go.mod` jumps `go 1.21` \u2192 `go 1.25.0` without note; confirm toolchain alignment with repo standard."
+    ],
+    "SUMMARY": [
+      "The diff establishes a plausible PostgreSQL event store skeleton (RLS, atomic event+outbox, cursor read) but ships none of AC-2, only dead code for AC-3, and no bounds/observability for AC-4 \u2014 three of four acceptance criteria are demonstrably unmet, with declared test evidence files missing entirely.",
+      "Top risks: cross-tenant payload deletion in GC, silent JSONL reader starvation after cutover, concurrent seq conflicts without retry, and per-request connection churn at the A1 wire seam.",
+      "Verdict: not approvable; requires the object-storage emit path, a wired projection regeneration with tests, scoped/deferred payload GC, outbox bound + metrics, and seq-concurrency handling before Gate re-review."
+    ]
+  }
+}

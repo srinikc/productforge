@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "0334907eb280",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-16T18:09:36.422230+00:00",
+  "review_scope": "delta",
+  "base_sha": "e61ef867f976db960f66c061926e6759e3bf490b",
+  "head_sha": "93a7fb20eef6122179d7a5cd20d6abf20b0673d1",
+  "findings": {
+    "BLOCKER": [
+      "AC-3 regression (pfcore hunk): with `projRoot == \"\"` the code still sets `projRoot = filepath.Join(\"products\", tenant)`, and the new line then joins `tenant` again \u2014 default writes become `products/<tenant>/<tenant>/events.jsonl`, so existing readers of `products/<tenant>/events.jsonl` silently stop receiving updates (stale projection)."
+    ],
+    "MAJOR": [
+      "The tenant-path fix (disposition of prior BLOCKER) ships with no test in this delta: nothing asserts the env-set path `<dir>/<tenant>/events.jsonl` nor that the default path stays exactly where legacy readers look, so the double-tenant defect above is undetected by CI."
+    ],
+    "MINOR": [
+      "`EnforceOutboxBound` observability fix is log-only (`log.Printf` to stderr, no logger injection/level/structured fields, no `outbox_rows_current`-style metric), so AC-4 row-count limits remain hard to alert on across instances.",
+      "The retry hunk still matches constraint names by substring on `err.Error()` (`events_tenant_id_seq_key`); DB error-message coupling is brittle across PG versions/upgrades (pre-existing pattern, extended here)."
+    ],
+    "NIT": [
+      "The new log line duplicates the `pending=/max=` data already present in the returned error string."
+    ],
+    "SUMMARY": [
+      "Delta correctly targets all three prior pending findings, but the AC-3 tenant-path fix is wrong on the default branch (tenant joined twice), breaking legacy `events.jsonl` readers \u2014 a hard AC-3 regression.",
+      "Outbox bound logging and seq-conflict retry additions look correct but are untested in this delta.",
+      "Must fix path composition (append `tenant` only when `projRoot` comes from the env override) and add a regression test for both branches before merge."
+    ]
+  },
+  "rereview_reason": "Delta for prior 86ea3ecb0516, a38e7f93d541 and 66ce76e2715a findings",
+  "rereview_reason_sha256": "ccee1e14c76f9e150a16136ea34d7a36de49957feb550f322d74cc1b021cf039"
+}
