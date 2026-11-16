@@ -76,8 +76,15 @@
     "test-framework"
   ],
   "affected_files": [
+    "go/edpdata/eventstore.go",
+    "go/edpdata/eventstore_test.go",
+    "go/edpdata/event_projection.go",
+    "go/edpdata/event_projection_test.go",
+    "go/edpdata/event_outbox_prune.go",
+    "go/edpdata/event_outbox_prune_test.go",
+    "go/edpdata/event_payload_gc.go",
+    "go/edpdata/event_payload_gc_test.go",
     "go/pfcore/eventstore.go",
-    "go/pfcore/eventstore_pg_test.go",
     "migrations/0024_events_authority.up.sql",
     "migrations/0024_events_authority.down.sql",
     "test-framework/tests/pipeline/test_event_core.py"
@@ -261,9 +268,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:08.889301",
-  "updated_at": "2026-11-16T16:28:18.323253",
+  "updated_at": "2026-11-16T19:10:31.772585",
   "score": 0.62,
-  "_note": "Design findings dispositioned.",
+  "_note": "Owner correction: PG event store in go/edpdata; pfcore remains A1 seam/projection.",
   "api_impact": {
     "needs_api": false,
     "reason": "Internal A1 event seam only; no public API route change."
@@ -331,16 +338,18 @@
     ],
     "review_scope": {
       "files": [
+        "go/edpdata/eventstore.go",
+        "go/edpdata/eventstore_test.go",
+        "go/edpdata/event_projection.go",
+        "go/edpdata/event_projection_test.go",
+        "go/edpdata/event_outbox_prune.go",
+        "go/edpdata/event_outbox_prune_test.go",
+        "go/edpdata/event_payload_gc.go",
+        "go/edpdata/event_payload_gc_test.go",
         "go/pfcore/eventstore.go",
-        "go/pfcore/eventstore_pg_test.go",
         "migrations/0024_events_authority.up.sql",
         "migrations/0024_events_authority.down.sql",
-        "test-framework/tests/pipeline/test_event_core.py",
-        "go/pfcore/event_projection.go",
-        "go/pfcore/event_outbox_prune.go",
-        "go/pfcore/event_outbox_prune_test.go",
-        "go/pfcore/event_payload_gc.go",
-        "go/pfcore/event_payload_gc_test.go"
+        "test-framework/tests/pipeline/test_event_core.py"
       ],
       "components": [
         "go/pfcore",
@@ -372,6 +381,7 @@
         "events UNIQUE(tenant_id, seq) and event_id; append-only; outbox atomic; RLS forced."
       ],
       "files": [
+        "go/edpdata/eventstore.go",
         "go/pfcore/eventstore.go",
         "migrations/0024_events_authority.up.sql"
       ],
@@ -390,16 +400,15 @@
     ],
     "runtime_contract": {
       "trigger": "event_append/event_read A1 call",
-      "entrypoint": "go/pfcore/eventstore.go",
+      "entrypoint": "go/edpdata/eventstore.go",
       "call_sites": [
-        "core/go_host.py",
-        "core/events.py projection reader",
-        "go/pfcore/event_projection.go"
+        "go/pfcore/eventstore.go",
+        "core/go_host.py"
       ],
-      "adapter": "PostgreSQL + ObjectStore",
+      "adapter": "PostgreSQL pgx + ObjectStore",
       "contract": "per-tenant seq/cursor + outbox",
       "failure_behavior": "fail closed on DB/object failure",
-      "observable_result": "append/cursor/outbox metrics and errors"
+      "observable_result": "append/cursor/outbox metrics"
     },
     "security_model": [
       "Tenant context server-resolved; RLS on events/outbox.",
@@ -475,7 +484,7 @@
       "Apply 0024 only after backup checkpoint; event writer flag off; outbox flag off until 1269; enable writer after cursor/projection parity."
     ],
     "ownership": [
-      "go/pfcore event core is single writer; core/events.py thin client/projection."
+      "go/edpdata is the PostgreSQL event-store owner (existing pgx boundary); go/pfcore keeps the A1 event_append/event_read compatibility seam and JSONL projection."
     ],
     "test_matrix": [
       {
@@ -578,7 +587,7 @@
           "go/pfcore/eventstore.go"
         ],
         "contract": "per-tenant seq/cursor",
-        "entrypoint": "go/pfcore/eventstore.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "EVENT_DB_UNAVAILABLE"
         ],
@@ -597,7 +606,7 @@
           "go/pfcore/eventstore.go"
         ],
         "contract": "payload ref/hash",
-        "entrypoint": "go/pfcore/eventstore.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "EVENT_PAYLOAD_STORE_FAILED"
         ],
@@ -616,7 +625,7 @@
           "core/events.py"
         ],
         "contract": "read-only projection",
-        "entrypoint": "core/events.py",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "projection stale"
         ],
@@ -635,7 +644,7 @@
           "go/pfcore/eventstore.go"
         ],
         "contract": "bounded outbox",
-        "entrypoint": "go/pfcore/eventstore.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "EVENT_OUTBOX_UNBOUNDED"
         ],
@@ -654,7 +663,7 @@
           "go/pfcore/event_projection.go"
         ],
         "contract": "JSONL read-only projection",
-        "entrypoint": "go/pfcore/event_projection.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "projection stale"
         ],
@@ -673,7 +682,7 @@
           "go/pfcore/eventstore.go"
         ],
         "contract": "NOSUPERUSER/NOBYPASSRLS + force RLS",
-        "entrypoint": "go/pfcore/eventstore.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "RLS bypass"
         ],
@@ -692,7 +701,7 @@
           "go/pfcore/event_outbox_prune.go"
         ],
         "contract": "bounded outbox rows",
-        "entrypoint": "go/pfcore/event_outbox_prune.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "EVENT_OUTBOX_BOUND_EXCEEDED"
         ],
@@ -711,7 +720,7 @@
           "go/pfcore/event_payload_gc.go"
         ],
         "contract": "delete only unreferenced payloads",
-        "entrypoint": "go/pfcore/event_payload_gc.go",
+        "entrypoint": "go/edpdata/eventstore.go",
         "failure_cases": [
           "EVENT_ORPHAN_PAYLOAD"
         ],
@@ -740,7 +749,8 @@
     "decisions": [
       "PostgreSQL authority per ADR-0011.",
       "Per-tenant seq.",
-      "Outbox flag off until 1269."
+      "Outbox flag off until 1269.",
+      "PostgreSQL event store lives in go/edpdata (existing DB owner); no pgx dependency is added to stdlib-only pfcore."
     ],
     "guardrails": [
       "No dual writer.",
@@ -793,7 +803,8 @@
     "dependencies": [
       "BI-PF-1267",
       "ADR-0011",
-      "ADR-0006"
+      "ADR-0006",
+      "go/edpdata PostgreSQL owner"
     ],
     "domain": [
       "event store"
@@ -990,7 +1001,7 @@
       "Gate1.5/Gate1 approved",
       "tests pass"
     ],
-    "functional_sha": "920cf749cf2b"
+    "functional_sha": "43cfbeb5287b"
   },
   "spec_pack": {
     "version": 1,
