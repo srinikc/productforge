@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"productforge/edpdata"
 )
 
 // lockEventStore acquires a portable exclusive lock beside path (never blocks forever).
@@ -163,13 +166,40 @@ func asInt64(v any) (int64, bool) {
 
 // EventAppendOp handles the event_append wire op; returns (result, error-message).
 func EventAppendOp(payload map[string]any) (map[string]any, string) {
-	path, _ := payload["path"].(string)
-	if strings.TrimSpace(path) == "" {
-		return nil, "event_append: payload.path is required"
-	}
 	ev, ok := payload["event"].(map[string]any)
 	if !ok {
 		return nil, "event_append: payload.event must be an object"
+	}
+	if os.Getenv("PF_DB_DSN") != "" {
+		tenant, _ := payload["tenant_id"].(string)
+		if tenant == "" {
+			tenant, _ = ev["tenant_id"].(string)
+		}
+		if tenant == "" {
+			return nil, "event_append: tenant_id is required for the PostgreSQL event authority"
+		}
+		ctx := context.Background()
+		st, closeFn, err := edpdata.OpenEventStoreFromEnv(ctx)
+		if err != nil {
+			return nil, fmt.Sprintf("event_append: %v", err)
+		}
+		defer closeFn()
+		outbox := strings.EqualFold(os.Getenv("EVENT_OUTBOX_ENABLED"), "on")
+		recorded, err := st.Append(ctx, edpdata.Event{
+			TenantID: tenant, EventID: fmt.Sprint(ev["event_id"]), Type: fmt.Sprint(ev["event_type"]),
+			Version: fmt.Sprint(ev["event_version"]), Payload: mustJSON(ev["payload"]),
+			CorrelationID: fmt.Sprint(ev["correlation_id"]), CausationID: fmt.Sprint(ev["causation_id"]),
+			Actor: fmt.Sprint(ev["actor"]),
+		}, outbox)
+		if err != nil {
+			return nil, fmt.Sprintf("event_append: %v", err)
+		}
+		ev["seq"] = recorded.Seq
+		return map[string]any{"seq": recorded.Seq, "record": ev}, ""
+	}
+	path, _ := payload["path"].(string)
+	if strings.TrimSpace(path) == "" {
+		return nil, "event_append: payload.path is required in legacy JSONL mode"
 	}
 	res, err := AppendEvent(path, ev)
 	if err != nil {
@@ -180,10 +210,6 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 
 // EventReadOp handles the event_read wire op; returns (result, error-message).
 func EventReadOp(payload map[string]any) (map[string]any, string) {
-	path, _ := payload["path"].(string)
-	if strings.TrimSpace(path) == "" {
-		return nil, "event_read: payload.path is required"
-	}
 	var since int64
 	if v, ok := payload["since_seq"]; ok {
 		since, _ = asInt64(v)
@@ -194,9 +220,39 @@ func EventReadOp(payload map[string]any) (map[string]any, string) {
 			limit = int(n)
 		}
 	}
+	if os.Getenv("PF_DB_DSN") != "" {
+		tenant, _ := payload["tenant_id"].(string)
+		if tenant == "" {
+			return nil, "event_read: tenant_id is required for the PostgreSQL event authority"
+		}
+		ctx := context.Background()
+		st, closeFn, err := edpdata.OpenEventStoreFromEnv(ctx)
+		if err != nil {
+			return nil, fmt.Sprintf("event_read: %v", err)
+		}
+		defer closeFn()
+		rows, maxSeq, err := st.Read(ctx, tenant, since, limit)
+		if err != nil {
+			return nil, fmt.Sprintf("event_read: %v", err)
+		}
+		events := make([]map[string]any, 0, len(rows))
+		for _, r := range rows {
+			events = append(events, map[string]any{"seq": r.Seq, "event_id": r.EventID, "event_type": r.Type, "event_version": r.Version, "tenant_id": r.TenantID, "payload": json.RawMessage(r.Payload)})
+		}
+		return map[string]any{"events": events, "count": len(events), "max_seq": maxSeq}, ""
+	}
+	path, _ := payload["path"].(string)
+	if strings.TrimSpace(path) == "" {
+		return nil, "event_read: payload.path is required in legacy JSONL mode"
+	}
 	events, maxSeq, err := ReadEvents(path, since, limit)
 	if err != nil {
 		return nil, fmt.Sprintf("event_read: %v", err)
 	}
 	return map[string]any{"events": events, "count": len(events), "max_seq": maxSeq}, ""
+}
+
+func mustJSON(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return json.RawMessage(b)
 }
