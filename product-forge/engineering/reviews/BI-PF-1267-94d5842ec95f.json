@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "94d5842ec95f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T08:40:43.703236+00:00",
+  "review_scope": "delta",
+  "base_sha": "8ff92d02b183152362092b5b8df5cec6cfd3f754",
+  "head_sha": "3ad0a315bf0b6d05e124d20e4c9a2850a56759cf",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Go `contractShape` in pfcore.go carries only a flat `fields` slice (unkeyed literal = 2 struct fields), so `describe`'s `required` must be synthesized as `fields`; the new `required` assertion therefore only proves Python marks every eventing field required \u2014 optionality is unrepresentable in Go, and a future optional field forces either over-strict Python validation or a weakened parity test.",
+      "The added `verify_webhook_signature(b\"x\", \"sha256=00\", \"\") is False` uses an already-invalid signature, so it passes even if verify would accept a correctly computed HMAC under an empty key; assert against `hmac.new(b\"\", b\"x\", sha256)`-derived signature to actually prove empty-secret fail-closed (prior MINOR only partially addressed).",
+      "[OUT_OF_SCOPE] `TestRequiredFieldParityWithContractHost`'s expected map was edited in lockstep with `pfcore.go`, so this delta's Go test cannot fail by construction; cross-language safety for this change rests entirely on the Python parity test."
+    ],
+    "NIT": [
+      "`subscription@1`/`alert-rule@1` required sets were tightened in place under unchanged schema IDs; harmless while unreleased, but treat @1 as frozen once BI-PF-1270 ships consumers to preserve the additive-only invariant."
+    ],
+    "SUMMARY": [
+      "Delta is coherent and in-language (Go impl + test-only Python): tenant_id added to subscription/alert-rule required sets in both implementation and pin, plus a cross-language required-set assertion and an empty-secret verify assertion; no blockers found.",
+      "Prior findings: empty-secret MINOR only partially resolved (wrong-signature assertion does not prove fail-closed); prior MAJORs (go/contract mirror coverage, shape/type parity) remain PENDING \u2014 this delta adds required-set parity but still no type/shape check.",
+      "CI must record an actual non-skipped pass of `test_pfcore_eventing_field_parity` and `test_api_events` as AC evidence."
+    ]
+  },
+  "rereview_reason": "Final diff delta for prior 0b854fbc08f1 and cb85c2ac352d findings",
+  "rereview_reason_sha256": "7ee2ac20ab555fdbcb37c9c6504c171ba0c7b3ea122d03368bf595470c186912"
+}

@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "aa6c871b510a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T13:12:11.429884+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "ac1eb39f73e42f967095c8d0d1ea3ef9e495ffff",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Shape parity is only proven for field names and required sets (`test_pfcore_eventing_field_parity` compares `fields`/`required` only); no Go assertion covers field types/enums (`seq` integer, `payload`/`extensions` object, `severity`/`transport` enums), so \"Go and Python shape parity\" is only partially demonstrated against the AC.",
+      "Go `Validate` accepts a non-string `event_version` (the `.(string)` type assertion falls through silently), while Python's `enum=(\"1\")` field rejects it \u2014 cross-language unknown-version rejection drifts on the exact invariant the design pins."
+    ],
+    "MINOR": [
+      "Cursor ordering invariant (`seq > cursor`) is tested only in Python (`test_event_cursor_ordering`); no Go mirror or Go test exists, despite the binding open question requiring Python/Go parity coverage of cursor ordering.",
+      "Go `event_contracts_test.go` still lacks unknown-`event_version` and invalid non-integer `seq` cases; those are asserted only in Python, leaving the Go half of the version/seq parity obligation unverified.",
+      "`events_after_cursor` filters with `int(r.get(\"seq\", 0))` but sorts with `int(r[\"seq\"])`: a row missing `seq` is silently coerced to 0 in the filter yet raises in the sort key \u2014 inconsistent malformed-row handling that can mask integrity errors.",
+      "Go unknown-field errors are produced by iterating `eventContractFields` payload maps, so error ordering is nondeterministic, degrading stable diagnostics/observability for the same invalid payload.",
+      "Public helpers `webhook_headers` and `events_after_cursor` are appended after the `if __name__ == \"__main__\"` entrypoint in `contracts.py`, harming discoverability and maintainability of the contract surface.",
+      "`test_pfcore_eventing_field_parity` is skipped when the Go toolchain is absent, so the headline parity AC can pass green with zero Go evidence on that runner."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Prior PENDING findings are addressed in this pass: invalid-seq/unknown-version/cursor tests added, subscription `auth_ref` now required in both mirrors, and Python unknown-field rejection now covers all four eventing contracts.",
+      "Residual risk concentrates on type-level (not just name-level) Go/Python shape parity and the Go `event_version` string-assertion gap, both of which can let drifted validators pass CI.",
+      "Overall the diff meets the AC directionally; tighten parity tests to cover Go-side version/seq cases and field types before treating the parity invariant as fully proven."
+    ]
+  }
+}

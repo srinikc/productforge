@@ -6,9 +6,13 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 )
 
 // WireVersion mirrors the A1 wire contract version (core/contracts.py WIRE_VERSION).
@@ -64,9 +68,115 @@ var contractShapes = map[string]contractShape{
 	"wire-request":        {"product-forge/wire-request@1", []string{"schema", "id", "op"}},
 	"wire-response":       {"product-forge/wire-response@1", []string{"schema", "id", "op", "ok", "status", "host"}},
 	"event-envelope":      {"product-forge/event-envelope@1", []string{"schema", "event_id", "event_type", "event_version", "occurred_at", "seq"}},
-	"subscription":        {"product-forge/subscription@1", []string{"schema", "id", "transport"}},
-	"alert-rule":          {"product-forge/alert-rule@1", []string{"schema", "event_type", "channels"}},
+	"subscription":        {"product-forge/subscription@1", []string{"schema", "id", "tenant_id", "transport", "auth_ref"}},
+	"alert-rule":          {"product-forge/alert-rule@1", []string{"schema", "tenant_id", "event_type", "channels"}},
 	"webhook-delivery":    {"product-forge/webhook-delivery@1", []string{"schema", "delivery_id", "event_id", "subscription_id", "target_url"}},
+}
+
+// eventContractFields is the strict top-level allowlist for BI-PF-1267 eventing contracts.
+var eventContractFields = map[string][]string{
+	"event-envelope": {"schema", "event_id", "event_type", "event_version", "occurred_at", "seq",
+		"tenant_id", "project_id", "run_id", "stage_id", "task_id", "worker_id", "actor",
+		"correlation_id", "causation_id", "payload", "extensions", "ts", "type", "level",
+		"stage", "agent", "trace_id", "span_id"},
+	"subscription": {"schema", "id", "tenant_id", "types", "filter", "transport", "target", "auth_ref",
+		"enabled", "created_by"},
+	"alert-rule": {"schema", "id", "tenant_id", "event_type", "severity", "channels", "throttle_window",
+		"escalate", "enabled"},
+	"webhook-delivery": {"schema", "delivery_id", "event_id", "subscription_id", "target_url",
+		"payload", "signature", "idempotency_key", "attempts", "status"},
+}
+
+func containsField(fields []string, name string) bool {
+	for _, f := range fields {
+		if f == name {
+			return true
+		}
+	}
+	return false
+}
+
+const (
+	WebhookSignatureHeader   = "X-PF-Signature"
+	WebhookIdempotencyHeader = "X-PF-Idempotency-Key"
+	WebhookHMACKeyRef        = "WEBHOOK_HMAC_KEY_REF"
+)
+
+// ContractMetrics mirrors core/contracts.py CONTRACT_METRICS names.
+var ContractMetrics = map[string]string{
+	"validation_failures": "contract_validation_failures_total",
+	"parity_failures":     "contract_parity_test_failures",
+}
+
+// WebhookHeaders returns canonical webhook headers; idempotency key is event_id.
+func WebhookHeaders(eventID string, body []byte, secret string) map[string]string {
+	return map[string]string{WebhookSignatureHeader: WebhookSignature(body, secret),
+		WebhookIdempotencyHeader: eventID}
+}
+
+// WebhookSignature returns the canonical HMAC-SHA256 header value.
+func WebhookSignature(body []byte, secret string) string {
+	if secret == "" {
+		return ""
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// VerifyWebhookSignature compares signatures in constant time (fail closed).
+func VerifyWebhookSignature(body []byte, signature, secret string) bool {
+	if signature == "" || secret == "" {
+		return false
+	}
+	expected := WebhookSignature(body, secret)
+	return expected != "" && hmac.Equal([]byte(expected), []byte(signature))
+}
+
+// eventContractTypes pins the field types/enums that must agree with Python JSON Schema.
+var eventContractTypes = map[string]map[string]string{
+	"event-envelope":   {"event_version": "string", "seq": "integer", "payload": "object", "extensions": "object"},
+	"subscription":     {"id": "string", "tenant_id": "string", "transport": "enum:inproc,sse,webhook,notify,email", "types": "array", "filter": "object", "enabled": "boolean"},
+	"alert-rule":       {"event_type": "string", "severity": "enum:low,medium,high,critical", "channels": "array", "throttle_window": "integer", "escalate": "boolean", "enabled": "boolean"},
+	"webhook-delivery": {"delivery_id": "string", "event_id": "string", "subscription_id": "string", "target_url": "string", "payload": "object", "attempts": "integer"},
+}
+
+func validType(v any, want string) bool {
+	switch {
+	case want == "string":
+		_, ok := v.(string)
+		return ok
+	case want == "integer":
+		switch n := v.(type) {
+		case int:
+			return true
+		case float64:
+			return n == float64(int(n))
+		default:
+			return false
+		}
+	case want == "object":
+		_, ok := v.(map[string]any)
+		return ok
+	case want == "array":
+		_, ok := v.([]any)
+		return ok
+	case want == "boolean":
+		_, ok := v.(bool)
+		return ok
+	case strings.HasPrefix(want, "enum:"):
+		s, ok := v.(string)
+		if !ok {
+			return false
+		}
+		for _, e := range strings.Split(strings.TrimPrefix(want, "enum:"), ",") {
+			if s == e {
+				return true
+			}
+		}
+		return false
+	}
+	return true
 }
 
 // ContractNames returns the known contract names (sorted, deterministic describe output).
@@ -112,6 +222,31 @@ func Validate(name string, payload map[string]any) (bool, []string) {
 	if got, present := payload["schema"]; present {
 		if s, isStr := got.(string); isStr && s != shape.schemaConst {
 			errs = append(errs, fmt.Sprintf("schema: must equal %s", shape.schemaConst))
+		}
+	}
+	if allowed, ok := eventContractFields[name]; ok {
+		for field := range payload {
+			if !containsField(allowed, field) {
+				errs = append(errs, field+": unknown field")
+			}
+		}
+	}
+	if name == "event-envelope" {
+		v, present := payload["event_version"]
+		if present {
+			s, ok := v.(string)
+			if !ok {
+				errs = append(errs, "event_version: must be string")
+			} else if s != "1" {
+				errs = append(errs, "event_version: unsupported")
+			}
+		}
+	}
+	if types, ok := eventContractTypes[name]; ok {
+		for field, want := range types {
+			if v, present := payload[field]; present && !validType(v, want) {
+				errs = append(errs, field+": invalid type")
+			}
 		}
 	}
 	return len(errs) == 0, errs
@@ -183,10 +318,14 @@ func Handle(req WireRequest) WireResponse {
 		if !ok {
 			return response(req, false, "error", nil, "unknown contract: "+req.ContractName)
 		}
-		return response(req, true, "ok", map[string]any{
+		result := map[string]any{
 			"contract": req.ContractName, "required": shape.required,
 			"schema": shape.schemaConst,
-		}, "")
+		}
+		if fields, ok := eventContractFields[req.ContractName]; ok {
+			result["fields"] = fields
+		}
+		return response(req, true, "ok", result, "")
 	case "validate":
 		if _, ok := contractShapes[req.ContractName]; !ok {
 			return response(req, false, "error", nil, "unknown contract: "+req.ContractName)

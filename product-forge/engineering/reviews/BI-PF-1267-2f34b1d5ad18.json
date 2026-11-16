@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "2f34b1d5ad18",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T08:14:44.632223+00:00",
+  "review_scope": "delta",
+  "base_sha": "2e91cf5da3d3258470ccbbf7c873ea33c16e1e62",
+  "head_sha": "18f0d38f6bf7d38a2e0b325e80442ec76960176c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta hunk `go/pfcore/event_contracts_test.go::TestWebhookHeadersAndMetricsParity` is single-language: every assertion is satisfiable by Go alone (Go-only calls + hardcoded `\"contract_validation_failures_total\"` literal), and no assertion reads Python's `CONTRACT_METRICS`/`webhook_headers`. CI would stay green if the Python side drifted, contradicting the design invariant \"contract drift is caught by required-field parity tests, not prose\" for exactly the surfaces this test names."
+    ],
+    "MINOR": [
+      "Delta introduces `CONTRACT_METRIC_LABELS` in `core/contracts.py` with no Go mirror, leaving a new one-sided declaration (residual of the prior CONTRACT_METRICS finding: names mirrored, label structure not).",
+      "`webhook_headers`/`WebhookHeaders` accept empty `event_id` and empty `secret`, emitting empty `X-PF-Idempotency-Key`/`X-PF-Signature` values without rejection, while design declares `event_id required` and config `empty_behavior: fail closed`; only the happy path is tested in the delta.",
+      "The delta changes the approved metric contract literal (`contract_validation_failures_total{code}` \u2192 name + separate labels) but adds no Python-side assertion pinning `CONTRACT_METRICS`/`CONTRACT_METRIC_LABELS` values, so the Python half of the new metric contract is untested.",
+      "Python `webhook_signature` now returns `\"\"` on empty secret (previously `ValueError`); fail-closed holds at `verify_webhook_signature`, but no delta test covers the empty-secret signing output against the Go primitive (sign-side parity only implied)."
+    ],
+    "NIT": [
+      "`webhook_headers` is defined after the `if __name__ == \"__main__\": raise SystemExit(_cli())` guard, leaving the module's main block mid-file rather than at the end.",
+      "Freeze asymmetry: Python `CONTRACT_METRICS` is a `MappingProxyType` while Go `ContractMetrics` is a mutable package-level `map[string]string`."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves prior dispositions: idempotency-header assertion added, sign-primitive cross-language divergence removed (both return `\"\"`), metric label template split out, Python dict frozen, `pytest.raises`-style cleanup done; no blockers and no language-rule or security regressions.",
+      "Top residual risk: the new \"parity\" test cannot detect Python/Go drift (single-language assertions + hardcoded literals), and the new labels/empty-secret edge paths lack cross-language and fail-closed test coverage."
+    ]
+  },
+  "rereview_reason": "Delta diff fixes for prior 0b854fbc08f1 and d1dd33734ca9 findings",
+  "rereview_reason_sha256": "9ac56d7332fb699be962e69f3576df134d0b8ad349e8bfeb7a3949190336e420"
+}
