@@ -176,7 +176,7 @@
     "at": "2026-10-13T09:52:56.718617"
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 7, 'NIT': 2}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 1, 'MINOR': 2, 'NIT': 1}"
   ],
   "risks": [
     "Not specified."
@@ -190,7 +190,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=1bfb2402407f\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - New failure_matrix row EVENT_OUTBOX_BOUND_EXCEEDED mandates \"enable backpressure\", but config_contract defines only EVENT_INLINE_PAYLOAD_LIMIT/EVENT_OUTBOX_ENABLED; no backpressure knob or owner is specified, so the control is unimplementable as written.\n  - FR-1/FR-2 `requirements[].verification` still point solely to eventstore_pg_test.go while new controls (outbox prune, payload GC) are owned by 1268; requirements rows were not updated in this delta even though traceability was.\n  - functional_spec.delta is otherwise byte-identical to the previously approved content, so no FR-level contract absorbed the prune/GC/RLS controls added in design_pack (prior finding only partially resolved via traceability rows).\n  - functional_spec.traceability now has duplicate FR-1 and FR-2 rows with inconsistent `test` field formatting (\"file; file\" vs single file), mirroring the ambiguous evidence mapping already flagged in test_matrix.\n  - [VERIFIED-PRIOR] EVENT_MIGRATION_BACKUP_REQUIRED still has no owner, coverage row, or test evidence in review_scope files; unchanged and remains unenforced at this gate.\nNIT:\n  - EVENT_INLINE_PAYLOAD_LIMIT `default: \"deployment\"` is not a concrete value; startup_validation \"required\" makes behavior deployment-dependent and hard to test deterministically.\n  - FR-4 edge_case \"PostgreSQL down\" / error \"Projection stale marked\" does not state projection write atomicity (temp+rename) or staleness metric, though observability lists \"projection age\".\nSUMMARY:\n  - Delta resolves the prior data-loss MAJOR: prune is now explicitly forbidden from deleting pending/claimed rows and the bound is enforced via backpressure/disable, preserving dispatch intent until BI-PF-1269.\n  - Traceability rows now reference outbox-prune and payload-GC tests, partially closing the delta-rule mismatch, but FR requirements/verification rows remain stale.\n  - Top residual risks: undefined backpressure mechanism for the outbox bound, and migration-down backup enforcement still lacking any test evidence.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=86ea3ecb0516\nBLOCKER:\n  - AC-2 unimplemented: `Append` always writes `payload` inline to PostgreSQL; no object-store upload path, no `EVENT_INLINE_PAYLOAD_LIMIT` threshold, no `payload_ref`/`sha256` population, no fail-closed `EVENT_PAYLOAD_STORE_FAILED` path.\n  - AC-3 unmet: `RegenerateProjection` has zero call sites; when `PF_DB_DSN` is set the writer stops appending to `events.jsonl` while nothing regenerates it, so existing JSONL readers observe stale/empty data (readers do not keep working).\n  - AC-3/AC-4 evidence files declared in scope are absent from the diff: `go/edpdata/event_projection_test.go`, `test-framework/tests/pipeline/test_event_core.py`, and all `eventstore_pg_test.go` traceability evidence — no fail-able test for projection, outbox flag/bound, RLS posture, or concurrency.\n  - AC-4 unmet: no observable outbox row-count limit, metric, or alert anywhere; `PruneOutbox` exists but nothing enforces/bounds/observes pending-row growth while the dispatcher is absent.\n  - Data loss (cross-tenant): `PayloadStore.List(ctx)` takes no tenant scope, so `ReconcilePayloads` for tenant A computes \"unreferenced\" from A's RLS-filtered view and deletes tenant B's objects; `Delete` is also unscoped.\n  - Security: `EVENT_OUTBOX_ENABLED` invalid values (e.g. `yes`, `1`) are silently treated as off by `EqualFold(...,\"on\")`, violating the config contract's fail-closed `invalid_behavior`.\nMAJOR:\n  - Seq allocation uses `SELECT MAX(seq)+1` with no lock and no retry on unique conflict (design requires retry) — concurrent appends to one tenant collide on PK `(tenant_id,seq)` and fail; no concurrency test exists.\n  - `EventAppendOp`/`EventReadOp` open and close a full PostgreSQL pool per request via `OpenEventStoreFromEnv` with `context.Background()` (no timeout/cancel) — scalability and SPOF risk at the A1 seam.\n  - Payload GC TOCTOU: objects uploaded but whose event row is not yet committed (or whose append later rolls back) are deleted immediately; no grace window / `created_at` age filter before `Delete`.\n  - Zero observability emitted: no append latency/error metrics, outbox row count/lag, cursor lag, prune/GC results, or projection age despite the design's observability contract.\n  - `fmt.Sprint(ev[\"event_id\"])` turns a missing field into literal `\"<nil>\"`, which passes `Append` validation — malformed events are persisted with bogus ids/types.\n  - CL-011 role-posture evidence missing: no test proving NOSUPERUSER/NOBYPASSRLS runtime role under `FORCE ROW LEVEL SECURITY`.\nMINOR:\n  - `Read` does not reject future/unknown cursors (`EVENT_CURSOR_INVALID` per failure matrix); returns empty page instead.\n  - `RegenerateProjection` buffers all events in memory (unbounded), writes no staleness marker/age, and never verifies JSONL permissions are read-only for consumers.\n  - Duplicate `event_id` returns a raw driver error instead of an idempotent replay response (FR idempotency/edge case \"retry duplicate\").\n  - Destructive down-migration backup refusal is a comment only — no enforced checkpoint verification (`EVENT_MIGRATION_BACKUP_REQUIRED`).\n  - `mustJSON` discards marshal errors, silently encoding invalid payloads.\n  - Flag/env reads (`PF_DB_DSN`, `EVENT_OUTBOX_ENABLED`) are re-read per request with no startup validation as required by the config contract.\nNIT:\n  - Projection temp file `path + \".tmp\"` is not unique — concurrent regenerations can clobber each other.\n  - `PruneOutbox` wraps a single DELETE in a transaction solely to set tenant/timeout.\n  - `ReconcilePayloads` returns a partial `deleted` count alongside an error, which callers may misread as success.\n  - `go.mod` jumps `go 1.21` → `go 1.25.0` without note; confirm toolchain alignment with repo standard.\nSUMMARY:\n  - The diff establishes a plausible PostgreSQL event store skeleton (RLS, atomic event+outbox, cursor read) but ships none of AC-2, only dead code for AC-3, and no bounds/observability for AC-4 — three of four acceptance criteria are demonstrably unmet, with declared test evidence files missing entirely.\n  - Top risks: cross-tenant payload deletion in GC, silent JSONL reader starvation after cutover, concurrent seq conflicts without retry, and per-request connection churn at the A1 wire seam.\n  - Verdict: not approvable; requires the object-storage emit path, a wired projection regeneration with tests, scoped/deferred payload GC, outbox bound + metrics, and seq-concurrency handling before Gate re-review.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=a38e7f93d541\nBLOCKER:\n  - AC-3/tenant isolation: `EventAppendOp` passes caller-supplied `payload[\"path\"]` straight into `RegenerateProjection` (pfcore hunk), so any A1 caller can redirect the writer to another tenant's JSONL (or any writable path) and overwrite it — projection path must be server-resolved, not wire-controlled.\n  - AC-2 fail-closed gap introduced by the delta: offload runs `payloads.Put` before any DB write and, if `WithPayloads` was never configured (`inlineLimit==0`), `Append` silently writes large payloads inline to PostgreSQL instead of failing closed per the config contract.\nMAJOR:\n  - AC-4: new `EnforceOutboxBound` has no production call site — it is not invoked by `Append`, no job, and emits no metric/log, so the row-count limit remains dead code and outbox growth stays unobservable.\n  - AC-3 integrity: `RegenerateProjection` runs after the event transaction commits; a projection failure makes `event_append` report failure for an already-persisted event, and the client's retry then fails on duplicate `event_id` — inconsistent authority reporting.\n  - AC-3: projection refresh is conditional on the caller including `path`; an append without it commits to PostgreSQL but never regenerates `events.jsonl`, so legacy readers silently go stale.\n  - Seq-conflict detection uses `strings.Contains(err.Error(), \"duplicate key\")` — message/driver dependent and untested; a duplicate `event_id` is retried 5× pointlessly while non-`seq` unique violations also retrigger allocation.\nMINOR:\n  - `payloads.Put` precedes the transaction; a failed/aborted commit leaves an orphan object, and the new grace window only applies when callers pass `graceSeconds > 0` (existing test passes 0).\n  - No fail-closed test for storage failure (`Put` error → `Append` error) or for sha256/size/content-type persistence in the row; `TestAppendUsesObjectStoreAboveThreshold` only asserts the ref string.\n  - `TestOutboxBoundFailsClosed` asserts only `err != nil`, so an `ErrEventInvalid` validation failure would satisfy it instead of proving `ErrOutboxBound`.\n  - Grace window silently degrades if a store returns `CreatedAt==0`: `now-0` always exceeds grace, so in-flight objects are deletable despite the TOCTOU guard.\n  - `sharedEventStore` is an unclosable package-global (discarded `closeFn`), serializing all appends behind the first DB open and preventing clean shutdown/test reset.\n  - [OUT_OF_SCOPE] `CorrelationID`/`CausationID`/`Actor`/`Version` still use `fmt.Sprint` and persist `\"<nil>\"` for missing fields; only `event_id`/`event_type` were fixed in this delta.\nNIT:\n  - Retry loop has no backoff/jitter across its 5 attempts under per-tenant seq contention.\n  - Hard-coded 30s context timeout is not declared in the config contract (`EVENT_*` registry).\nSUMMARY:\n  - Delta resolves most prior blockers (payload offload path, tenant-scoped GC, fail-closed outbox flag, seq retry, pooled store, role-posture test), but introduces a wire-controlled projection path (cross-tenant overwrite risk) and leaves AC-4's new bound unwired and unobserved.\n  - Top risks: caller-controlled `RegenerateProjection` path, post-commit projection failure corrupting append semantics, and `inlineLimit<=0` silently reverting to inline PG payloads.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=66ce76e2715a\nBLOCKER:\n  - AC-3/tenant isolation (pfcore hunk): when `PF_EVENT_PROJECTION_DIR` is set, `projPath := filepath.Join(projRoot, \"events.jsonl\")` drops the tenant segment entirely — the env is process-wide and cannot vary per tenant, so every tenant regenerates the *same* file and each append overwrites other tenants' projections (cross-tenant leak + lost projection). Tenant must be joined in both branches.\nMAJOR:\n  - AC-1 (eventstore.go hunk): retry match narrowed from `\"duplicate key\"` to `\"events_pkey\"`. The design mandates retry on the `UNIQUE(tenant_id, seq)` conflict, which is a *separate* constraint unless the PK is exactly `(tenant_id, seq)`; if not, concurrent seq conflicts now abort instead of retrying while PK duplicates retry 5×. No test proves the retry still fires for the actual seq constraint name.\n  - AC-4 observability (delta touches this line): `EnforceOutboxBound` is now invoked, but the rejection still emits no metric/log/counter and the bound check itself produces no row-count signal, so operators cannot distinguish `EVENT_OUTBOX_BOUND_EXCEEDED` backpressure from a generic append failure.\nMINOR:\n  - Bound check runs *after* payload offload (`payloads.Put` precedes it): an outbox-bound rejection orphans an already-uploaded object and relies on GC grace; the cheap check should fail fast before the expensive write.\n  - Per-append `EnforceOutboxBound` adds a DB round-trip (likely a COUNT over outbox) to every outbox-enabled append: O(pending rows) latency at scale, TOCTOU-racy outside the tx (bound advisory under concurrency), with no supporting index/metric evidence.\n  - `WithOutboxBound` mutates the receiver in place (unsafe if applied to a shared/global store; post-construction config mutation) and silently ignores `<=0`, contradicting the config contract's `invalid_behavior: fail closed`.\n  - New `TestAppendEnforcesOutboxBound` asserts only `err != nil`; an `ErrEventInvalid` or DB error would satisfy it — assert the specific bound error to prove AC-4 backpressure.\n  - `NewEventStore` hard-codes `inlineLimit: 32*1024` / `outboxMax: 100_000` as magic numbers rather than sourcing the declared `EVENT_INLINE_PAYLOAD_LIMIT` / outbox bound from the config contract with startup validation (divergence risk between code and contract).\n  - `PF_EVENT_PROJECTION_DIR` is a new env var read via `os.Getenv` per append, with no startup validation and no entry in the config contract or env registry.\n  - Projection default root `filepath.Join(\"products\", tenant)` is cwd-relative (a service started elsewhere writes where no reader looks, silently stale), and `tenant` is joined unsanitized — a tenant value containing a separator or `..` escapes the projection root.\nNIT:\n  - The outbox-bound test belongs in `eventstore_test.go`, not `event_outbox_gc_test.go`.\n  - `projection_error` is surfaced only in the returned map; nothing logs/meters it, so AC-3 stale-projection marking depends entirely on callers echoing the field.\nSUMMARY:\n  - Delta correctly resolves the two prior blockers (caller-controlled projection path now server-resolved; large payload without store now fails closed) and wires `EnforceOutboxBound` into `Append`.\n  - Top risks: the new `PF_EVENT_PROJECTION_DIR` branch drops tenant scoping (blocker), and narrowing the duplicate-match to `events_pkey` may disable the required per-tenant seq retry with no test evidence.\n  - Remaining hardening: bound-check ordering/observability, config-registry alignment for new constants/env var, and stronger assertions in the new tests.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=66ce76e2715a\nBLOCKER:\n  - AC-3/tenant isolation (pfcore hunk): when `PF_EVENT_PROJECTION_DIR` is set, `projPath := filepath.Join(projRoot, \"events.jsonl\")` drops the tenant segment entirely — the env is process-wide and cannot vary per tenant, so every tenant regenerates the *same* file and each append overwrites other tenants' projections (cross-tenant leak + lost projection). Tenant must be joined in both branches.\nMAJOR:\n  - AC-1 (eventstore.go hunk): retry match narrowed from `\"duplicate key\"` to `\"events_pkey\"`. The design mandates retry on the `UNIQUE(tenant_id, seq)` conflict, which is a *separate* constraint unless the PK is exactly `(tenant_id, seq)`; if not, concurrent seq conflicts now abort instead of retrying while PK duplicates retry 5×. No test proves the retry still fires for the actual seq constraint name.\n  - AC-4 observability (delta touches this line): `EnforceOutboxBound` is now invoked, but the rejection still emits no metric/log/counter and the bound check itself produces no row-count signal, so operators cannot distinguish `EVENT_OUTBOX_BOUND_EXCEEDED` backpressure from a generic append failure.\nMINOR:\n  - Bound check runs *after* payload offload (`payloads.Put` precedes it): an outbox-bound rejection orphans an already-uploaded object and relies on GC grace; the cheap check should fail fast before the expensive write.\n  - Per-append `EnforceOutboxBound` adds a DB round-trip (likely a COUNT over outbox) to every outbox-enabled append: O(pending rows) latency at scale, TOCTOU-racy outside the tx (bound advisory under concurrency), with no supporting index/metric evidence.\n  - `WithOutboxBound` mutates the receiver in place (unsafe if applied to a shared/global store; post-construction config mutation) and silently ignores `<=0`, contradicting the config contract's `invalid_behavior: fail closed`.\n  - New `TestAppendEnforcesOutboxBound` asserts only `err != nil`; an `ErrEventInvalid` or DB error would satisfy it — assert the specific bound error to prove AC-4 backpressure.\n  - `NewEventStore` hard-codes `inlineLimit: 32*1024` / `outboxMax: 100_000` as magic numbers rather than sourcing the declared `EVENT_INLINE_PAYLOAD_LIMIT` / outbox bound from the config contract with startup validation (divergence risk between code and contract).\n  - `PF_EVENT_PROJECTION_DIR` is a new env var read via `os.Getenv` per append, with no startup validation and no entry in the config contract or env registry.\n  - Projection default root `filepath.Join(\"products\", tenant)` is cwd-relative (a service started elsewhere writes where no reader looks, silently stale), and `tenant` is joined unsanitized — a tenant value containing a separator or `..` escapes the projection root.\nNIT:\n  - The outbox-bound test belongs in `eventstore_test.go`, not `event_outbox_gc_test.go`.\n  - `projection_error` is surfaced only in the returned map; nothing logs/meters it, so AC-3 stale-projection marking depends entirely on callers echoing the field.\nSUMMARY:\n  - Delta correctly resolves the two prior blockers (caller-controlled projection path now server-resolved; large payload without store now fails closed) and wires `EnforceOutboxBound` into `Append`.\n  - Top risks: the new `PF_EVENT_PROJECTION_DIR` branch drops tenant scoping (blocker), and narrowing the duplicate-match to `events_pkey` may disable the required per-tenant seq retry with no test evidence.\n  - Remaining hardening: bound-check ordering/observability, config-registry alignment for new constants/env var, and stronger assertions in the new tests.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=0334907eb280\nBLOCKER:\n  - AC-3 regression (pfcore hunk): with `projRoot == \"\"` the code still sets `projRoot = filepath.Join(\"products\", tenant)`, and the new line then joins `tenant` again — default writes become `products/<tenant>/<tenant>/events.jsonl`, so existing readers of `products/<tenant>/events.jsonl` silently stop receiving updates (stale projection).\nMAJOR:\n  - The tenant-path fix (disposition of prior BLOCKER) ships with no test in this delta: nothing asserts the env-set path `<dir>/<tenant>/events.jsonl` nor that the default path stays exactly where legacy readers look, so the double-tenant defect above is undetected by CI.\nMINOR:\n  - `EnforceOutboxBound` observability fix is log-only (`log.Printf` to stderr, no logger injection/level/structured fields, no `outbox_rows_current`-style metric), so AC-4 row-count limits remain hard to alert on across instances.\n  - The retry hunk still matches constraint names by substring on `err.Error()` (`events_tenant_id_seq_key`); DB error-message coupling is brittle across PG versions/upgrades (pre-existing pattern, extended here).\nNIT:\n  - The new log line duplicates the `pending=/max=` data already present in the returned error string.\nSUMMARY:\n  - Delta correctly targets all three prior pending findings, but the AC-3 tenant-path fix is wrong on the default branch (tenant joined twice), breaking legacy `events.jsonl` readers — a hard AC-3 regression.\n  - Outbox bound logging and seq-conflict retry additions look correct but are untested in this delta.\n  - Must fix path composition (append `tenant` only when `projRoot` comes from the env override) and add a regression test for both branches before merge.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "design",
@@ -284,9 +285,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:08.889301",
-  "updated_at": "2026-11-16T23:31:54.840747",
+  "updated_at": "2026-11-16T23:39:37.011838",
   "score": 0.62,
-  "_note": "Fix evidence for a38 findings.",
+  "_note": "Fix evidence for 66ce findings.",
   "api_impact": {
     "needs_api": false,
     "reason": "Internal A1 event seam only; no public API route change."
@@ -1412,6 +1413,37 @@
         ]
       },
       "evidence": "BI-PF-1268-66ce76e2715a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "93a7fb20eef6122179d7a5cd20d6abf20b0673d1",
+      "review_sha": "0334907eb280",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-16T18:09:36.422230+00:00",
+      "review_scope": "delta",
+      "base_sha": "e61ef867f976db960f66c061926e6759e3bf490b",
+      "head_sha": "93a7fb20eef6122179d7a5cd20d6abf20b0673d1",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 regression (pfcore hunk): with `projRoot == \"\"` the code still sets `projRoot = filepath.Join(\"products\", tenant)`, and the new line then joins `tenant` again — default writes become `products/<tenant>/<tenant>/events.jsonl`, so existing readers of `products/<tenant>/events.jsonl` silently stop receiving updates (stale projection)."
+        ],
+        "MAJOR": [
+          "The tenant-path fix (disposition of prior BLOCKER) ships with no test in this delta: nothing asserts the env-set path `<dir>/<tenant>/events.jsonl` nor that the default path stays exactly where legacy readers look, so the double-tenant defect above is undetected by CI."
+        ],
+        "MINOR": [
+          "`EnforceOutboxBound` observability fix is log-only (`log.Printf` to stderr, no logger injection/level/structured fields, no `outbox_rows_current`-style metric), so AC-4 row-count limits remain hard to alert on across instances.",
+          "The retry hunk still matches constraint names by substring on `err.Error()` (`events_tenant_id_seq_key`); DB error-message coupling is brittle across PG versions/upgrades (pre-existing pattern, extended here)."
+        ],
+        "NIT": [
+          "The new log line duplicates the `pending=/max=` data already present in the returned error string."
+        ],
+        "SUMMARY": [
+          "Delta correctly targets all three prior pending findings, but the AC-3 tenant-path fix is wrong on the default branch (tenant joined twice), breaking legacy `events.jsonl` readers — a hard AC-3 regression.",
+          "Outbox bound logging and seq-conflict retry additions look correct but are untested in this delta.",
+          "Must fix path composition (append `tenant` only when `projRoot` comes from the env override) and add a regression test for both branches before merge."
+        ]
+      },
+      "evidence": "BI-PF-1268-0334907eb280.json"
     }
   ],
   "review_dispositions": {
@@ -1970,6 +2002,69 @@
         "evidence"
       ],
       "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:e4c33644e9596512",
+      "finding": "AC-3/tenant isolation (pfcore hunk): when `PF_EVENT_PROJECTION_DIR` is set, `projPath := filepath.Join(projRoot, \"events.jsonl\")` drops the tenant segment entirely — the env is process-wide and cannot vary per tenant, so every tenant regenerates the *same* file and each append overwrites other tenants' projections (cross-tenant leak + lost projection). Tenant must be joined in both branches.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "go test ./... in go/edpdata and go/pfcore",
+      "evidence": "go/edpdata/event_outbox_gc_test.go",
+      "files": [
+        "go/edpdata/eventstore.go",
+        "go/pfcore/eventstore.go",
+        "go/edpdata/event_outbox_prune.go"
+      ],
+      "rollback": "Revert event-core PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:00c08c487e56ef15",
+      "finding": "AC-1 (eventstore.go hunk): retry match narrowed from `\"duplicate key\"` to `\"events_pkey\"`. The design mandates retry on the `UNIQUE(tenant_id, seq)` conflict, which is a *separate* constraint unless the PK is exactly `(tenant_id, seq)`; if not, concurrent seq conflicts now abort instead of retrying while PK duplicates retry 5×. No test proves the retry still fires for the actual seq constraint name.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "go test ./... in go/edpdata and go/pfcore",
+      "evidence": "go/edpdata/event_outbox_gc_test.go",
+      "files": [
+        "go/edpdata/eventstore.go",
+        "go/pfcore/eventstore.go",
+        "go/edpdata/event_outbox_prune.go"
+      ],
+      "rollback": "Revert event-core PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:9f4f8b3b29aadaa9",
+      "finding": "AC-4 observability (delta touches this line): `EnforceOutboxBound` is now invoked, but the rejection still emits no metric/log/counter and the bound check itself produces no row-count signal, so operators cannot distinguish `EVENT_OUTBOX_BOUND_EXCEEDED` backpressure from a generic append failure.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "go test ./... in go/edpdata and go/pfcore",
+      "evidence": "go/edpdata/event_outbox_gc_test.go",
+      "files": [
+        "go/edpdata/eventstore.go",
+        "go/pfcore/eventstore.go",
+        "go/edpdata/event_outbox_prune.go"
+      ],
+      "rollback": "Revert event-core PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
     }
   ],
   "fix_evidence": [
@@ -2145,6 +2240,36 @@
     },
     {
       "finding_sig": "sig:8bca6602f4788e09",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go test ./... in go/edpdata and go/pfcore",
+      "controls_rerun": [
+        "go test ./..."
+      ],
+      "result": "PASS",
+      "evidence": "go/edpdata/event_outbox_gc_test.go"
+    },
+    {
+      "finding_sig": "sig:e4c33644e9596512",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go test ./... in go/edpdata and go/pfcore",
+      "controls_rerun": [
+        "go test ./..."
+      ],
+      "result": "PASS",
+      "evidence": "go/edpdata/event_outbox_gc_test.go"
+    },
+    {
+      "finding_sig": "sig:00c08c487e56ef15",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go test ./... in go/edpdata and go/pfcore",
+      "controls_rerun": [
+        "go test ./..."
+      ],
+      "result": "PASS",
+      "evidence": "go/edpdata/event_outbox_gc_test.go"
+    },
+    {
+      "finding_sig": "sig:9f4f8b3b29aadaa9",
       "origin_class": "IMPLEMENTATION_GAP",
       "regression_test": "go test ./... in go/edpdata and go/pfcore",
       "controls_rerun": [

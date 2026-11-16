@@ -197,6 +197,13 @@ func outboxEnabled() (bool, error) {
 	}
 }
 
+func projectionPath(tenant string) string {
+	if root := os.Getenv("PF_EVENT_PROJECTION_DIR"); root != "" {
+		return filepath.Join(root, tenant, "events.jsonl")
+	}
+	return filepath.Join("products", tenant, "events.jsonl")
+}
+
 func EventAppendOp(payload map[string]any) (map[string]any, string) {
 	ev, ok := payload["event"].(map[string]any)
 	if !ok {
@@ -235,11 +242,7 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 			return nil, fmt.Sprintf("event_append: %v", err)
 		}
 		ev["seq"] = recorded.Seq
-		projRoot := os.Getenv("PF_EVENT_PROJECTION_DIR")
-		if projRoot == "" {
-			projRoot = filepath.Join("products", tenant)
-		}
-		projPath := filepath.Join(projRoot, tenant, "events.jsonl")
+		projPath := projectionPath(tenant)
 		result := map[string]any{"seq": recorded.Seq, "record": ev}
 		if err := st.RegenerateProjection(ctx, tenant, projPath); err != nil {
 			result["projection_error"] = err.Error()
