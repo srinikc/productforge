@@ -647,59 +647,6 @@ def set_item_execution(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
-def _latest_review_sha(item_id: str, mode: str) -> str:
-    import json
-    from pathlib import Path
-    try:
-        from core.paths import ROOT
-    except Exception:
-        return ""
-    best = ("", "")
-    for p in (ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"):
-        try:
-            d = json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if str(d.get("mode") or "") != mode:
-            continue
-        at = str(d.get("at") or "")
-        if at >= best[0]:
-            best = (at, str(d.get("sha") or ""))
-    return best[1]
-
-
-def _material_change_errors(item_id: str, body: dict[str, Any]) -> list[str]:
-    import json
-    from pathlib import Path
-    decision = str(body.get("decision") or "").strip().upper()
-    mode = str(body.get("mode") or "").strip()
-    reason = str(body.get("reason") or "").strip()
-    by = str(body.get("by") or "").strip()
-    bad = []
-    if decision != "MATERIAL_CHANGE":
-        bad.append("decision must be MATERIAL_CHANGE")
-    if mode not in ("design", "diff"):
-        bad.append("mode must be design or diff")
-    if len(reason) < 20:
-        bad.append("reason must be concrete (>=20 chars)")
-    if body.get("hil_confirmed") is not True:
-        bad.append("hil_confirmed=true required")
-    actors = []
-    try:
-        from core.paths import ROOT
-        actors = json.loads((ROOT / "config" / "review-material-change.json").read_text(encoding="utf-8")).get("hil_actors") or []
-    except Exception:
-        bad.append("HIL allowlist config unreadable")
-    if by not in actors:
-        bad.append("by must be an allowlisted hil:<actor>")
-    latest = _latest_review_sha(item_id, mode)
-    if not latest:
-        bad.append(f"no {mode} review evidence for item")
-    elif latest not in reason:
-        bad.append(f"reason must cite latest review sha {latest}")
-    return bad
-
-
 @router.post("/items/{item_id}/decisions", dependencies=[Depends(require_operator)])
 def add_item_decision(item_id: str, body: dict[str, Any], request: Request,
                       ctx: dict[str, Any] = Depends(require_operator)):
@@ -712,7 +659,7 @@ def add_item_decision(item_id: str, body: dict[str, Any], request: Request,
     mode = str(body.get("mode") or "").strip()
     reason = str(body.get("reason") or "").strip()
     by = str(body.get("by") or "").strip()
-    validation = _material_change_errors(item_id, body)
+    validation = backlog.material_change_errors(item_id, body)
     if validation:
         raise ApiError("VALIDATION_FAILED", "; ".join(validation))
     item = backlog.get_epic(s, p, item_id)

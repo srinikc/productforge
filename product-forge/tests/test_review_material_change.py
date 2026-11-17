@@ -31,7 +31,7 @@ def test_decisions_api_route_exists():
 
 
 def test_material_change_requires_allowlisted_hil_actor():
-    from core.review_decisions import material_change_errors
+    from core.backlog import material_change_errors
     body = {"decision": "MATERIAL_CHANGE", "mode": "design", "reason": "x" * 30,
             "hil_confirmed": True, "by": "hil:evil"}
     bad = material_change_errors("BI-PF-1540", body)
@@ -39,7 +39,7 @@ def test_material_change_requires_allowlisted_hil_actor():
 
 
 def test_material_change_reason_must_cite_latest_review():
-    from core.review_decisions import material_change_errors, latest_review_sha
+    from core.backlog import material_change_errors, latest_review_sha
     sha = latest_review_sha("BI-PF-1540", "design")
     assert sha
     body = {"decision": "MATERIAL_CHANGE", "mode": "design", "reason": "x" * 30,

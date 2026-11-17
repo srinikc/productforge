@@ -73,6 +73,10 @@ def _start_state_checkpoint():
     The delivery lane checkpoints per-delivery; this covers grooming/restamp/triage/intake mutations made
     through the API. Interval via PF_STATE_CHECKPOINT_SECONDS (default 900; <=0 disables).
     """
+    from core import backlog as _backlog
+    _cfg_bad = _backlog.review_material_change_config_errors()
+    if _cfg_bad:
+        raise RuntimeError("; ".join(_cfg_bad))
     import threading
     import time
     try:
