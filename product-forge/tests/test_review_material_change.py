@@ -47,3 +47,22 @@ def test_material_change_reason_must_cite_latest_review():
     assert any("reason must cite" in x for x in material_change_errors("BI-PF-1540", body))
     body["reason"] = "Material change approved after review " + sha
     assert material_change_errors("BI-PF-1540", body) == []
+
+
+def test_decisions_endpoint_rejects_without_hil(monkeypatch):
+    monkeypatch.setenv("API_ALLOW_ANON", "1")
+    from fastapi.testclient import TestClient
+    from api.app import app
+    c = TestClient(app)
+    r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
+               headers={"X-Roles": "operator"},
+               json={"decision": "MATERIAL_CHANGE", "mode": "design", "reason": "x" * 30,
+                     "hil_confirmed": False, "by": "hil:owner"})
+    assert r.status_code == 400
+
+
+def test_reviewed_ancestor_contract():
+    import architect_review
+    heads = architect_review._reviewed_heads("BI-PF-1540", "design")
+    assert heads
+    assert all(len(h) >= 12 for h in heads)
