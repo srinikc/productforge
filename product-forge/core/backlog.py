@@ -2272,6 +2272,7 @@ def material_change_errors(item_id: str, body: dict) -> list[str]:
 def review_material_change_config_errors() -> list[str]:
     """Startup validation for the material-change HIL config (BI-PF-1540)."""
     import json as _json
+    from pathlib import Path
     root = Path(__file__).resolve().parents[1]
     try:
         cfg = _json.loads((root / "config" / "review-material-change.json").read_text(encoding="utf-8"))
