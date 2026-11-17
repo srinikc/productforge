@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "f592397af08a",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:48:26.343408+00:00",
+  "review_scope": "delta",
+  "base_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+  "head_sha": "9e1d88917a0eac2bdcb551742a155ebb16ebea74",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Rollback removes `config/review-material-change.json` while append-only MATERIAL_CHANGE decisions already persisted reference that fixed HIL actor; post-rollback re-verification behavior for existing decisions is undefined and could fail closed or silently void `review_budget` exemptions (integrity of stored decisions vs. policy)."
+    ],
+    "MINOR": [
+      "`api/openapi.json` is a declared affected/checked-in file, but rollback only says \"remove the decisions route\"; without explicit contract re-sync, the documented path survives code removal (API contracts in sync, guardrail 8).",
+      "HIL actor config is \"loaded and validated per request\" with no caching stated, while the NFR requires \"no added runtime latency\"; define a cache/TTL or explicitly justify the per-request file read.",
+      "Rollback deletes `tests/test_review_material_change.py` and the design doc outright; retained append-only decisions then have no regression coverage or traceability for the audit records that remain."
+    ],
+    "NIT": [
+      "Security wording layers \"operator role AND fixed HIL actor on the token\"; note explicitly how a non-HIL operator acts (or is rejected) to avoid ambiguity for API consumers.",
+      "Rollback list omits `api/openapi.json` regeneration step alongside the route removal."
+    ],
+    "SUMMARY": [
+      "Delta is coherent on the changed fields (security boundary, rollback, language rule) and satisfies the ACs as specified; language rule is respected (shipped Python API extension + tooling Python).",
+      "Top risks: rollback leaves stored decisions referencing a deleted HIL config with undefined re-verification semantics, and openapi contract re-sync is not called out in rollback.",
+      "No blocker-level AC, security, or data-loss defect found in the delta."
+    ]
+  },
+  "rereview_reason": "Delta for prior 5c7b2b648bda: rollback, language rule, token/role binding",
+  "rereview_reason_sha256": "e6a9e1d2b1b23e3f1bee033d1d4132f5ff9eb26734fd068b1fe2f72479ea9af4"
+}

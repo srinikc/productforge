@@ -71,7 +71,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 0}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 3, 'NIT': 2}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -86,7 +86,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f640a23729b1\nBLOCKER:\n  - none\nMAJOR:\n  - Delta replaces `design_pack.affected_files` with only `config/review-material-change.json`, dropping `api/routers/backlog.py`, `api/openapi.json`, `scripts/dev/architect_review.py` and `tests/test_review_material_change.py`; this contradicts `design_pack.contracts.files.route`, `runtime_contract.entrypoint`, AC evidence and FR traceability — contracts are no longer in sync (checklist 8).\n  - `rollback` (\"remove decisions route and reviewed-ancestor exemption\") does not cover removal of the newly declared `config/review-material-change.json`, so rollback leaves an orphaned control file (checklist 1/6).\nMINOR:\n  - Delta `failure_matrix` still lacks an availability row mapping `DEPENDENCY_UNAVAILABLE` to HTTP 503/500, while guardrail declares 503/500 fail-closed and FR-1.errors gives no status-to-code mapping — the changed field remains unsynced.\n  - New config file has no stated load/validate-on-startup behaviour in the delta, so defence-in-depth (checklist 2) for a missing/malformed allowlist is unspecified.\nNIT:\n  - `functional_spec` delta re-declares unchanged fields (`domain`, `dod`, `non_goals`, `nfr`) verbatim, adding diff noise without design change.\nSUMMARY:\n  - Delta correctly closes the prior config-contract/affected-file MAJOR for the allowlist and strengthens HIL binding language (\"not self-asserted\"), but it regresses `affected_files` to a single config file, desyncing declared scope from route/tests/OpenAPI evidence, and rollback omits the new config artifact. Resolve the affected_files/rollback sync plus the availability-row/status mapping before Gate 1.5 approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=5c7b2b648bda\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `rollback` still omits `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md`, which is declared in the delta `affected_files`; rollback therefore leaves a stale design artifact alongside the removed route/config/tests.\n  - Delta does not state the language-rule disposition for the new endpoint logic in `api/routers/backlog.py` (Python) versus scripts/dev tooling, so checklist item 7 is answered only implicitly by the AC naming the file.\n  - `security` wording (\"operator-only endpoint\" vs. HIL actor \"bound to the authenticated API token\") leaves the required token/role intersection (operator role AND fixed HIL actor, or operator acting for HIL) unstated in the changed field; validation tests must pin this down.\nNIT:\n  - `failure_matrix` row \"reason misses latest review sha\" describes the `architect_review.py` tooling path, not the API route that the matrix otherwise documents; labeling the owner (API vs. tool) would avoid contract ambiguity.\n  - Prior MINOR on on-startup config validation is only partially addressed: per-request validation is stated, but a startup/pre-check fail-fast for `config/review-material-change.json` is still not recorded in the delta.\nSUMMARY:\n  - Prior MAJORs on `affected_files` completeness and rollback coverage of the new config file are resolved by this delta, and the availability failure rows (503/500) close the earlier MINOR.\n  - Remaining gaps are documentation-rollback completeness, explicit language-rule and token/role binding statements, and tool-vs-API labeling in the failure matrix — all hardening, none blocking the approved ACs.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=9e6d021f8486\nBLOCKER:\n  - none\nMAJOR:\n  - Diff contains only `api/openapi.json`; no changes to `scripts/dev/architect_review.py` or `tests/test_review_material_change.py` are visible, so AC-2 (reviewed-ancestor `--since` + reason-cites-latest-SHA + reject arbitrary SHA) and AC-3 (auth/validation, persistence, ancestor-accept, arbitrary-SHA-reject tests) are not demonstrable from this diff.\n  - New decisions route documents only 200/422, but the approved failure matrix requires 404 NOT_FOUND, 409 CONFLICT (revision guard), 503 DEPENDENCY_UNAVAILABLE, 500 CONFIG_INVALID — API contract (spec_pack `api_contract` = APPLICABLE, evidence `api/openapi.json`) is out of sync with the approved design.\n  - Request body for `/api/v1/backlog/items/{item_id}/decisions` is an untyped `additionalProperties: true` object; no OpenAPI schema for `mode`/`reason`/`hil_confirmed`/`expected_revision`, so the contract does not express the HIL/revision-guard validation the AC requires.\nMINOR:\n  - No `security`/operator-role requirement is declared on the decisions operation; operator-only enforcement is not discoverable from the contract (relies solely on optional `authorization`/`x-roles` header params like every other route).\n  - The diff re-sorts/reformats the entire 14k-line `openapi.json` (ordering, key order, description placement), producing enormous unrelated churn that obscures the single substantive addition and risks noisy future diffs.\nNIT:\n  - Route description (\"Append an append-only decision (BI-PF-1540)\") leaks the ticket ID into the public API surface; prefer a stable behavioral description.\n  - `operationId` `add_item_decision_...` does not convey MATERIAL_CHANGE semantics; consider a name that reflects the allowlisted decision type.\nSUMMARY:\n  - The diff shows the decisions route added to the OpenAPI contract (AC-3 route-presence partially met) but provides no evidence for the architect_review delta-base change or the required tests, and the published schema/error contract diverges from the approved design's failure matrix and validation requirements.\n  - Top risks: unverified AC-2/AC-3 implementation, incomplete 404/409/503/500 contract, and an untyped decision payload that does not encode the HIL/revision-guard invariants.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=5c7b2b648bda\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Delta declares `changed_fields: []` and an empty `delta`, so there are no new design fields to review and no new findings can be raised against this delta.\n  - The five prior findings remain disposition=PENDING; under CL-006 they must be resolved before Gate 1 approval, but they are not repeated here.\n  - No AC, contract, test, or control changed in this delta; the approved design and its risks stand as previously reviewed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=5c7b2b648bda\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Delta declares `changed_fields: []` and an empty `delta`, so there are no new design fields to review and no new findings can be raised against this delta.\n  - The five prior findings remain disposition=PENDING; under CL-006 they must be resolved before Gate 1 approval, but they are not repeated here.\n  - No AC, contract, test, or control changed in this delta; the approved design and its risks stand as previously reviewed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f592397af08a\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback removes `config/review-material-change.json` while append-only MATERIAL_CHANGE decisions already persisted reference that fixed HIL actor; post-rollback re-verification behavior for existing decisions is undefined and could fail closed or silently void `review_budget` exemptions (integrity of stored decisions vs. policy).\nMINOR:\n  - `api/openapi.json` is a declared affected/checked-in file, but rollback only says \"remove the decisions route\"; without explicit contract re-sync, the documented path survives code removal (API contracts in sync, guardrail 8).\n  - HIL actor config is \"loaded and validated per request\" with no caching stated, while the NFR requires \"no added runtime latency\"; define a cache/TTL or explicitly justify the per-request file read.\n  - Rollback deletes `tests/test_review_material_change.py` and the design doc outright; retained append-only decisions then have no regression coverage or traceability for the audit records that remain.\nNIT:\n  - Security wording layers \"operator role AND fixed HIL actor on the token\"; note explicitly how a non-HIL operator acts (or is rejected) to avoid ambiguity for API consumers.\n  - Rollback list omits `api/openapi.json` regeneration step alongside the route removal.\nSUMMARY:\n  - Delta is coherent on the changed fields (security boundary, rollback, language rule) and satisfies the ACs as specified; language rule is respected (shipped Python API extension + tooling Python).\n  - Top risks: rollback leaves stored decisions referencing a deleted HIL config with undefined re-verification semantics, and openapi contract re-sync is not called out in rollback.\n  - No blocker-level AC, security, or data-loss defect found in the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -182,7 +183,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:17:39.131358",
+  "updated_at": "2026-11-17T18:18:49.948523",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -574,7 +575,7 @@
     ],
     "security": "Operator-only endpoint; HIL actor is fixed by config/review-material-change.json and bound to the authenticated API token, not self-asserted. Item lookup is scope/project-scoped by _scope_project; no tenant header or caller-controlled tenant. HIL actor config is loaded and validated per request; missing/malformed config fails closed. API route requires operator role AND the fixed configured HIL actor bound to the authenticated token.",
     "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
-    "performance": "O(1) append.",
+    "performance": "O(1) append; allowlist config is a tiny file read per request, bounded and constant-size, with no measurable runtime impact.",
     "test_matrix": [
       {
         "ac": "AC-1",
@@ -593,7 +594,7 @@
       }
     ],
     "rollout": "Enable with the API route; no data migration.",
-    "rollback": "Remove the decisions route, reviewed-ancestor exemption, config/review-material-change.json, tests and docs/REVIEW-MATERIAL-CHANGE-DESIGN.md; append-only decisions remain as audit history.",
+    "rollback": "Remove the decisions route and reviewed-ancestor exemption; retain config/review-material-change.json, design doc and audit tests so persisted MATERIAL_CHANGE decisions remain verifiable. Stored decisions are treated as historical evidence; no new decisions are accepted after rollback. Re-sync api/openapi.json when the route is removed.",
     "decisions": [
       "Bootstrap exception approved for 1540-first merge."
     ],
@@ -857,6 +858,37 @@
         ]
       },
       "evidence": "BI-PF-1540-9e6d021f8486.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "9e1d88917a0eac2bdcb551742a155ebb16ebea74",
+      "review_sha": "f592397af08a",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T12:48:26.343408+00:00",
+      "review_scope": "delta",
+      "base_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+      "head_sha": "9e1d88917a0eac2bdcb551742a155ebb16ebea74",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Rollback removes `config/review-material-change.json` while append-only MATERIAL_CHANGE decisions already persisted reference that fixed HIL actor; post-rollback re-verification behavior for existing decisions is undefined and could fail closed or silently void `review_budget` exemptions (integrity of stored decisions vs. policy)."
+        ],
+        "MINOR": [
+          "`api/openapi.json` is a declared affected/checked-in file, but rollback only says \"remove the decisions route\"; without explicit contract re-sync, the documented path survives code removal (API contracts in sync, guardrail 8).",
+          "HIL actor config is \"loaded and validated per request\" with no caching stated, while the NFR requires \"no added runtime latency\"; define a cache/TTL or explicitly justify the per-request file read.",
+          "Rollback deletes `tests/test_review_material_change.py` and the design doc outright; retained append-only decisions then have no regression coverage or traceability for the audit records that remain."
+        ],
+        "NIT": [
+          "Security wording layers \"operator role AND fixed HIL actor on the token\"; note explicitly how a non-HIL operator acts (or is rejected) to avoid ambiguity for API consumers.",
+          "Rollback list omits `api/openapi.json` regeneration step alongside the route removal."
+        ],
+        "SUMMARY": [
+          "Delta is coherent on the changed fields (security boundary, rollback, language rule) and satisfies the ACs as specified; language rule is respected (shipped Python API extension + tooling Python).",
+          "Top risks: rollback leaves stored decisions referencing a deleted HIL config with undefined re-verification semantics, and openapi contract re-sync is not called out in rollback.",
+          "No blocker-level AC, security, or data-loss defect found in the delta."
+        ]
+      },
+      "evidence": "BI-PF-1540-f592397af08a.json"
     }
   ],
   "fix_impact": [
