@@ -41,21 +41,30 @@
     "Tests cover API auth/validation, decision persistence, accepted reviewed-ancestor delta, and rejection of arbitrary or non-reviewed bases."
   ],
   "in_scope": [
-    "Review material-change decision API and correct delta-review base"
+    "decisions API",
+    "reviewed-ancestor delta base",
+    "tests and design"
   ],
   "out_of_scope": [
     "Not specified."
   ],
   "affected_components": [
+    "core/backlog.py",
+    "config/review-material-change.json",
     "api/routers/backlog.py",
     "scripts/dev/architect_review.py",
-    "tests"
+    "scripts/dev/review_budget.py",
+    "tests/test_review_material_change.py"
   ],
   "affected_files": [
     "api/routers/backlog.py",
     "api/openapi.json",
     "scripts/dev/architect_review.py",
-    "tests/test_review_material_change.py"
+    "scripts/dev/review_budget.py",
+    "core/backlog.py",
+    "config/review-material-change.json",
+    "tests/test_review_material_change.py",
+    "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md"
   ],
   "approach": "Add an operator-only decisions endpoint that appends validated MATERIAL_CHANGE decisions through core.backlog.update, and fix architect_review delta budget to accept any reviewed ancestor base with a reason citing the latest review SHA.",
   "review": {
@@ -71,7 +80,8 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 3, 'NIT': 1}"
+    "pytest -q tests/test_review_material_change.py",
+    "design/functional/spec/conformance checks"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -96,7 +106,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=eb7b86c9e1d6\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Rollback now correctly removes AC-2 tests, but still asserts \"decision-validation/audit tests\" are retained \"so the suite stays green\" without stating they exercise `core.backlog.material_change_errors` rather than the removed route; the proof-plan test (`test_material_change_without_hil_is_rejected`) reads endpoint-oriented, so post-rollback suite state remains unverified.\n  - `design_pack.affected_components` (re-stated in this delta) lists only `core/backlog.py` and `config/review-material-change.json`, while the same delta's `runtime_contract.entrypoint` (`api.routers.backlog.add_item_decision`) and `call_sites` (`architect_review`) name components absent from the row — component/file traceability gap inside the changed design_pack.\nNIT:\n  - `runtime_contract.adapter` mixes specificity levels: `core.backlog.material_change_errors` (module.symbol) vs `architect_review reviewed-head ancestry` and `review_budget.problems` (no file/function anchor), weakening precise traceability of AC-2 enforcement points.\nSUMMARY:\n  - Delta resolves the prior pending MAJOR (AC-2 SHA/--since enforcement is now traceable to `architect_review`/`review_budget` in `adapter`/`contract`) and the prior rollback MINOR (AC-2 tests explicitly listed for removal); prior path-mismatch NIT and top-level `affected_components` MINOR remain unchanged and correctly PENDING/[OUT_OF_SCOPE].\n  - No blockers: auth, revision guard, fail-closed config, and ancestry+reviewed-head checks are stated and testable per ACs.\n  - Top residual risks: rollback \"suite stays green\" claim unproven for retained decision-validation tests, and component-row vs runtime-contract traceability drift.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=4799357712ae\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - proof_plan.failing_test does not state whether it invokes the API route or imports core.backlog.material_change_errors directly; the rollback's \"import it directly (not via the removed route)\" retention clause and its post-rollback suite-green guarantee depend on this, and the test name changed from the previously reviewed proof-plan test without resolving it.\n  - proof_plan rows do not cohere: green_evidence (\"material_change_errors returns empty for valid input\") does not evidence the named failing test (allowlisted-HIL rejection), and red_evidence (\"invalid HIL actor rejected\") describes green-state behavior rather than the initial failure.\n  - The delta adds scripts/dev/review_budget.py to affected_components and anchors it in runtime_contract.adapter, but does not update design_pack.affected_files, which still omits it — the matching file-inventory row was not updated in the same delta.\nNIT:\n  - runtime_contract.adapter names _reviewed_heads and problems but does not identify which function enforces AC-2's \"reason must cite latest review SHA\" or the ancestry check, leaving those two controls without a precise enforcement anchor.\nSUMMARY:\n  - Delta is a net improvement: prior rollback-wording, affected_components-completeness, and adapter-specificity findings are addressed; no blockers, ACs remain testable with no language-rule violation.\n  - Top residual risks are proof-plan incoherence (test identity/import path and mismatched green evidence), weakening TDD and rollback verifiability, plus the un-updated affected_files row for review_budget.py.\n  - Minor traceability and proof-plan corrections needed before Gate 1.5 sign-off.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=c726719964f5\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - proof_plan now anchors only the AC-1 allowlist fix (core-level import); the AC-2 reviewed-ancestor/budget-exemption control, listed as P0 in the same delta and gated by stop_condition \"Arbitrary SHA accepted\", has no red/green fail-able anchor in proof_plan — only a generic test_matrix row.\n  - proof_plan's failing test imports core.backlog.material_change_errors directly, so the operator/HIL authz boundary at api/routers/backlog.py (AC-1 \"API auth/validation\", AC-3) is not exercised by any red/green proof; test_matrix asserts coverage but the proof rows do not demonstrate the route-level rejection.\nNIT:\n  - runtime_contract.call_sites mixes granularities: \"review_budget.problems\" is an internal function while the other entries are user-facing commands/routes; name the invoking entrypoint (e.g. architect_review --rereview path) for consistency.\nSUMMARY:\n  - All four prior findings verify as resolved in this delta: failing_test now states the direct core.backlog import; red/green evidence is coherent and correctly ordered; scripts/dev/review_budget.py is added to design_pack.affected_files; and adapter now names review_guard as the ancestry/reason-citation enforcement anchor.\n  - Design deltas (affected_files, proof_plan, runtime_contract) are internally consistent with each other, the ACs, the failure matrix, and the rollback retention clause; language rule satisfied (edits to shipped Python only, tooling Python allowed).\n  - Residual gaps are proof-plan coverage of AC-2 and the route-level authz boundary, plus a call-site granularity nit — no contract, security, or rollback defects introduced by the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=99849004483b\nBLOCKER:\n  - none\nMAJOR:\n  - Delta runtime_contract places enforcement in core/backlog.py and scripts/dev/review_budget.py, but AC affected_components/affected_files still list only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests — scope/traceability rows are out of sync with the changed contract; AC/design must be updated together in this delta.\nMINOR:\n  - proof_plan green_evidence covers only missing-HIL 400 and non-reviewed-base rejection; AC-2's reason-cites-latest-SHA, arbitrary-SHA and non-ancestor rejections (and stop_condition \"Arbitrary SHA accepted\") have no red/green anchor.\n  - red_evidence claims the endpoint \"accepts missing HIL before fix\", yet the decisions route is newly added — the red state for a new route is 404/missing, not permissive behavior; red evidence is not reproducible as written.\n  - Operator-role authz and revision-guard 409 (AC-1 \"API auth/validation\", failure_matrix CONFLICT) remain unproven; the delta's route-level anchor exercises only the HIL path.\nNIT:\n  - call_sites shorthand \"POST /items/{id}/decisions\" diverges from contracts.api path \"/api/v1/backlog/items/{item_id}/decisions\"; use one canonical path.\nSUMMARY:\n  - Delta substantively resolves the prior proof-anchor and call-site-granularity findings, but their dispositions remain PENDING — per CL-006, Gate 1 approval is invalid until the main thread records them.\n  - Top risks: AC scope rows not updated where enforcement logic now lands, and proof anchors narrower than AC-2's full rejection set.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=99849004483b\nBLOCKER:\n  - none\nMAJOR:\n  - Delta runtime_contract places enforcement in core/backlog.py and scripts/dev/review_budget.py, but AC affected_components/affected_files still list only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests — scope/traceability rows are out of sync with the changed contract; AC/design must be updated together in this delta.\nMINOR:\n  - proof_plan green_evidence covers only missing-HIL 400 and non-reviewed-base rejection; AC-2's reason-cites-latest-SHA, arbitrary-SHA and non-ancestor rejections (and stop_condition \"Arbitrary SHA accepted\") have no red/green anchor.\n  - red_evidence claims the endpoint \"accepts missing HIL before fix\", yet the decisions route is newly added — the red state for a new route is 404/missing, not permissive behavior; red evidence is not reproducible as written.\n  - Operator-role authz and revision-guard 409 (AC-1 \"API auth/validation\", failure_matrix CONFLICT) remain unproven; the delta's route-level anchor exercises only the HIL path.\nNIT:\n  - call_sites shorthand \"POST /items/{id}/decisions\" diverges from contracts.api path \"/api/v1/backlog/items/{item_id}/decisions\"; use one canonical path.\nSUMMARY:\n  - Delta substantively resolves the prior proof-anchor and call-site-granularity findings, but their dispositions remain PENDING — per CL-006, Gate 1 approval is invalid until the main thread records them.\n  - Top risks: AC scope rows not updated where enforcement logic now lands, and proof anchors narrower than AC-2's full rejection set.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=b50a04dc5071\nBLOCKER:\n  - none\nMAJOR:\n  - Prior MAJOR not resolved by this delta: design_pack.affected_files now lists 8 files, but the item-level AC affected_files/affected_components and functional_spec/scope rows still declare only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests — scope/traceability rows remain out of sync; disposition PENDING is correct and CL-006 still blocks approval.\n  - Delta proof_plan only; the AC row itself (affected components/files) was not updated in the same delta, violating \"any AC/contract change must update the matching design rows and evidence in the same delta.\"\nMINOR:\n  - Prior MINOR partially addressed: failing_test now anchors reason-cites-SHA and valid_delta_base, but green_evidence still states only \"401/409/400 as required\" and does not explicitly assert 400 for missing latest-review-SHA citation, arbitrary-SHA and non-ancestor rejections (stop_condition \"Arbitrary SHA accepted\" lacks a green assertion).\n  - Prior MINOR partially addressed: red_evidence adds the correct 404-for-absent-route anchor, but still claims missing auth/HIL \"not enforced\" before the fix — a newly added route cannot be permissive pre-implementation; that clause is still not reproducible.\n  - Operator-role authorization distinct from HIL-actor check remains unproven: green_evidence cites \"401\" generically with no named test for operator-role rejection (prior MINOR disposition should stay PENDING).\n  - CL-008: the delta does not answer the ten guardrail checklist items in the changed design_pack; no checklist evidence accompanies this delta (reversibility, availability, blast radius, tenant isolation, reuse/metrics rows absent).\nNIT:\n  - green_evidence shorthand \"401/409/400 as required\" is ambiguous; name the exact failing_test symbols per assertion so red/green anchors map 1:1 to FR-1/FR-2/FR-3.\nSUMMARY:\n  - Delta improves proof_plan coverage but does not resolve the PENDING MAJOR on AC/scope row sync, which per CL-006 invalidates Gate 1 approval while pending.\n  - Top risks: unsynced AC affected-file rows and still-ambiguous red evidence for the new route; guardrail checklist not evidenced in this delta.\n  - Language rule, rollback note, and append-only/fail-closed contracts are consistent; no new BLOCKER introduced by the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -192,7 +203,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:53:02.340733",
+  "updated_at": "2026-11-17T18:55:08.426061",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -673,9 +684,9 @@
       "observable_result": "decision persisted; review budget exempted"
     },
     "proof_plan": {
-      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_reason_must_cite_latest_review; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
-      "red_evidence": "before implementation the route is absent (404); before the fix, missing auth/HIL, stale revision, missing SHA citation and arbitrary delta bases are not enforced",
-      "green_evidence": "route returns 401/409/400 as required and valid_delta_base accepts only reviewed ancestor heads"
+      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_reason_must_cite_latest_review; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
+      "red_evidence": "before implementation the route is absent (404); the new tests fail until auth/role/revision/HIL/SHA/ancestor rules are implemented",
+      "green_evidence": "401 without token; 403 without operator role; 409 stale revision; 400 missing HIL, missing latest-SHA citation, arbitrary or non-ancestor base"
     },
     "ac_evidence": [
       {
@@ -721,7 +732,19 @@
       "scripts/dev/architect_review.py",
       "scripts/dev/review_budget.py",
       "tests/test_review_material_change.py"
-    ]
+    ],
+    "guardrail_answers": {
+      "reversibility": "route/config/tests removed; decisions retained as audit history",
+      "availability": "fail closed; no partial write",
+      "authorization": "operator + fixed HIL actor bound to token",
+      "blast_radius": "append-only item field; no schema/data migration",
+      "tenant_scope": "scope/project-scoped item lookup; no tenant header",
+      "reuse": "extends core.backlog/API/review tooling; no new store",
+      "observability": "standard API error envelope + item history/trail",
+      "performance": "decisions-route scoped constant-size config read",
+      "rollback": "retain core validation/tests; remove route/exemption",
+      "language_rule": "edits existing shipped Python only"
+    }
   },
   "api_impact": {
     "needs_api": true,
@@ -1175,6 +1198,38 @@
         ]
       },
       "evidence": "BI-PF-1540-99849004483b.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "98244a268c9413cc312d2851c635ce82140d1ba5",
+      "review_sha": "b50a04dc5071",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T13:24:31.939244+00:00",
+      "review_scope": "delta",
+      "base_sha": "e407d9bd29d52653a25ddb1c123e5621f7ff6af0",
+      "head_sha": "98244a268c9413cc312d2851c635ce82140d1ba5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Prior MAJOR not resolved by this delta: design_pack.affected_files now lists 8 files, but the item-level AC affected_files/affected_components and functional_spec/scope rows still declare only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests — scope/traceability rows remain out of sync; disposition PENDING is correct and CL-006 still blocks approval.",
+          "Delta proof_plan only; the AC row itself (affected components/files) was not updated in the same delta, violating \"any AC/contract change must update the matching design rows and evidence in the same delta.\""
+        ],
+        "MINOR": [
+          "Prior MINOR partially addressed: failing_test now anchors reason-cites-SHA and valid_delta_base, but green_evidence still states only \"401/409/400 as required\" and does not explicitly assert 400 for missing latest-review-SHA citation, arbitrary-SHA and non-ancestor rejections (stop_condition \"Arbitrary SHA accepted\" lacks a green assertion).",
+          "Prior MINOR partially addressed: red_evidence adds the correct 404-for-absent-route anchor, but still claims missing auth/HIL \"not enforced\" before the fix — a newly added route cannot be permissive pre-implementation; that clause is still not reproducible.",
+          "Operator-role authorization distinct from HIL-actor check remains unproven: green_evidence cites \"401\" generically with no named test for operator-role rejection (prior MINOR disposition should stay PENDING).",
+          "CL-008: the delta does not answer the ten guardrail checklist items in the changed design_pack; no checklist evidence accompanies this delta (reversibility, availability, blast radius, tenant isolation, reuse/metrics rows absent)."
+        ],
+        "NIT": [
+          "green_evidence shorthand \"401/409/400 as required\" is ambiguous; name the exact failing_test symbols per assertion so red/green anchors map 1:1 to FR-1/FR-2/FR-3."
+        ],
+        "SUMMARY": [
+          "Delta improves proof_plan coverage but does not resolve the PENDING MAJOR on AC/scope row sync, which per CL-006 invalidates Gate 1 approval while pending.",
+          "Top risks: unsynced AC affected-file rows and still-ambiguous red evidence for the new route; guardrail checklist not evidenced in this delta.",
+          "Language rule, rollback note, and append-only/fail-closed contracts are consistent; no new BLOCKER introduced by the delta."
+        ]
+      },
+      "evidence": "BI-PF-1540-b50a04dc5071.json"
     }
   ],
   "fix_impact": [

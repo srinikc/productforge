@@ -99,3 +99,14 @@ def test_decisions_endpoint_revision_guard_returns_409(monkeypatch):
                      "mode": "design", "reason": "x" * 30, "hil_confirmed": True,
                      "by": "hil:owner"})
     assert r.status_code == 409
+
+
+def test_decisions_endpoint_requires_operator_role(monkeypatch):
+    monkeypatch.setenv("API_ALLOW_ANON", "0")
+    monkeypatch.setenv("PF_API_TOKEN", "tok")
+    from fastapi.testclient import TestClient
+    from api.app import app
+    c = TestClient(app)
+    r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
+               headers={"Authorization": "Bearer tok"})
+    assert r.status_code == 403
