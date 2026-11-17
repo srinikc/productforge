@@ -1,6 +1,8 @@
 """Run canonical review material-change tests."""
 import importlib.util
+import os
 from pathlib import Path
+os.environ.setdefault("PF_HIL_TOKEN", "hil-tok")
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "tests" / "test_review_material_change.py"
 _spec = importlib.util.spec_from_file_location("pf_review_material_change_tests", _SRC)
