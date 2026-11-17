@@ -192,7 +192,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:47:02.896446",
+  "updated_at": "2026-11-17T18:53:02.340733",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -673,9 +673,9 @@
       "observable_result": "decision persisted; review budget exempted"
     },
     "proof_plan": {
-      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_rejects_without_hil and ::test_reviewed_ancestor_contract",
-      "red_evidence": "endpoint accepts missing HIL or unreviewed ancestor before fix",
-      "green_evidence": "endpoint returns 400 for missing HIL and reviewed-ancestor helper rejects non-reviewed bases"
+      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_reason_must_cite_latest_review; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
+      "red_evidence": "before implementation the route is absent (404); before the fix, missing auth/HIL, stale revision, missing SHA citation and arbitrary delta bases are not enforced",
+      "green_evidence": "route returns 401/409/400 as required and valid_delta_base accepts only reviewed ancestor heads"
     },
     "ac_evidence": [
       {
@@ -708,11 +708,11 @@
       "api/routers/backlog.py",
       "api/openapi.json",
       "scripts/dev/architect_review.py",
-      "tests/test_review_material_change.py",
-      "config/review-material-change.json",
-      "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+      "scripts/dev/review_budget.py",
       "core/backlog.py",
-      "scripts/dev/review_budget.py"
+      "config/review-material-change.json",
+      "tests/test_review_material_change.py",
+      "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md"
     ],
     "affected_components": [
       "core/backlog.py",

@@ -341,6 +341,13 @@ def _reviewed_heads(item_id: str, mode: str) -> set:
     return heads
 
 
+def valid_delta_base(item_id: str, mode: str, since: str) -> bool:
+    """A delta base must be a reviewed head and an ancestor of HEAD."""
+    if not since or since not in _reviewed_heads(item_id, mode):
+        return False
+    return _is_ancestor(since, _git_text(["rev-parse", "HEAD"]).strip())
+
+
 def _prior_context(item: dict, item_id: str, mode: str) -> str:
     """Prior review findings + dispositions, so a re-review only reports new/unresolved items."""
     rows = ((item.get("review_dispositions") or {}).get(mode) or {})
@@ -1073,8 +1080,7 @@ def main(argv: list[str]) -> int:
                 for x in fix_bad:
                     print("  - " + x)
                 return 1
-    _delta_base = (a.since in _reviewed_heads(a.item, a.mode)
-                   and _is_ancestor(a.since, _git_text(["rev-parse", "HEAD"]).strip()))
+    _delta_base = valid_delta_base(a.item, a.mode, a.since)
     if a.mode in ("diff", "design") and a.rereview and a.since and _delta_base:
         budget_bad = []
     else:

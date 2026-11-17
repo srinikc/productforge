@@ -66,3 +66,36 @@ def test_reviewed_ancestor_contract():
     heads = architect_review._reviewed_heads("BI-PF-1540", "design")
     assert heads
     assert all(len(h) >= 12 for h in heads)
+
+
+def test_valid_delta_base_requires_reviewed_head_and_ancestor():
+    import architect_review
+    heads = architect_review._reviewed_heads("BI-PF-1540", "design")
+    assert heads
+    head = sorted(heads)[0]
+    assert architect_review.valid_delta_base("BI-PF-1540", "design", head)
+    assert not architect_review.valid_delta_base("BI-PF-1540", "design", "0" * 40)
+
+
+def test_decisions_endpoint_requires_authentication(monkeypatch):
+    monkeypatch.setenv("API_ALLOW_ANON", "0")
+    monkeypatch.delenv("PF_API_TOKEN", raising=False)
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    from fastapi.testclient import TestClient
+    from api.app import app
+    c = TestClient(app)
+    r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions", json={})
+    assert r.status_code == 401
+
+
+def test_decisions_endpoint_revision_guard_returns_409(monkeypatch):
+    monkeypatch.setenv("API_ALLOW_ANON", "1")
+    from fastapi.testclient import TestClient
+    from api.app import app
+    c = TestClient(app)
+    r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
+               headers={"X-Roles": "operator"},
+               json={"expected_revision": 0, "decision": "MATERIAL_CHANGE",
+                     "mode": "design", "reason": "x" * 30, "hil_confirmed": True,
+                     "by": "hil:owner"})
+    assert r.status_code == 409
