@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "4799357712ae",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:11:48.685991+00:00",
+  "review_scope": "delta",
+  "base_sha": "a01c075bdae0634f1bb38c05040b58a2ae06a40b",
+  "head_sha": "cc324f5110aeb8c5b99f347ac741d4235c3b0e25",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "proof_plan.failing_test does not state whether it invokes the API route or imports core.backlog.material_change_errors directly; the rollback's \"import it directly (not via the removed route)\" retention clause and its post-rollback suite-green guarantee depend on this, and the test name changed from the previously reviewed proof-plan test without resolving it.",
+      "proof_plan rows do not cohere: green_evidence (\"material_change_errors returns empty for valid input\") does not evidence the named failing test (allowlisted-HIL rejection), and red_evidence (\"invalid HIL actor rejected\") describes green-state behavior rather than the initial failure.",
+      "The delta adds scripts/dev/review_budget.py to affected_components and anchors it in runtime_contract.adapter, but does not update design_pack.affected_files, which still omits it \u2014 the matching file-inventory row was not updated in the same delta."
+    ],
+    "NIT": [
+      "runtime_contract.adapter names _reviewed_heads and problems but does not identify which function enforces AC-2's \"reason must cite latest review SHA\" or the ancestry check, leaving those two controls without a precise enforcement anchor."
+    ],
+    "SUMMARY": [
+      "Delta is a net improvement: prior rollback-wording, affected_components-completeness, and adapter-specificity findings are addressed; no blockers, ACs remain testable with no language-rule violation.",
+      "Top residual risks are proof-plan incoherence (test identity/import path and mismatched green evidence), weakening TDD and rollback verifiability, plus the un-updated affected_files row for review_budget.py.",
+      "Minor traceability and proof-plan corrections needed before Gate 1.5 sign-off."
+    ]
+  },
+  "rereview_reason": "Delta for prior eb7b86c9e1d6: explicit retained tests and components",
+  "rereview_reason_sha256": "c685bca741ffae428e0f589a1a465e4fb3368ad432087086fb226d57d0bb958d"
+}

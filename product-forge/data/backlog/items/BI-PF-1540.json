@@ -71,7 +71,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 1}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 3, 'NIT': 1}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -93,7 +93,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f28dd975eec7\nBLOCKER:\n  - Delta adds shipped module `core/review_decisions.py` to affected_files while design_pack restates the language rule as \"extending shipped Python API is allowed\", dropping \"new shipped logic -> Go\"; the delta never states the module is an edit to existing shipped Python vs new logic, so language-rule compliance is unestablished before Gate 1.5.\nMAJOR:\n  - Delta adds `core/review_decisions.py` but `design_pack.contracts.files` (still only `api/routers/backlog.py`), `dependencies` (still `core.backlog`, `architect_review.py`) and `runtime_contract.entrypoint/adapter` were not updated in the same delta, breaking design-row sync for a new logic file.\n  - Rollback names `core/review_decisions.py` as the retained validation owner, but the delta never states the API handler in `api/routers/backlog.py` delegates HIL/SHA/reason validation to it; without a stated single source, pre-rollback duplicate validation paths can diverge (distinct from the prior post-rollback test-suite finding).\nMINOR:\n  - `config/review-material-change.json` is now in affected_files while spec_pack/config_contract describe it as the existing fixed-HIL config; state new vs modified vs read-only dependency so rollback and \"no data change\" claims stay accurate.\n  - Delta expands affected_files from the 4 files declared at item level to 7 (config, docs, core) without a matching scope/traceability note, leaving item-level and design-level file lists inconsistent.\nNIT:\n  - `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` is listed as affected without indicating which sections change, giving reviewers no delta pointer inside the design doc.\nSUMMARY:\n  - Delta is a narrow file-list/rollback amendment and mostly improves rollback honesty (names `core/review_decisions.py`, adds fail-closed check), but it introduces a shipped `core/` module while restating the language rule permissively and leaves contract rows unsynced.\n  - Top risks: unverified Go-vs-Python compliance for `core/review_decisions.py`, and unstated single-source validation between the API handler and core (duplicate security checks).\n  - Note (process, CL-006): the prior Gate 1.5 MAJOR/MINOR/NIT findings remain disposition=PENDING with no dispositions recorded in this delta, so Gate 1 approval is invalid until the main thread records them.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=fdc98620ba7f\nBLOCKER:\n  - none\nMAJOR:\n  - AC-2's enforcement point is absent from the delta: `contracts.files` and `runtime_contract.adapter` name only `core.backlog.material_change_errors` (HIL/decision), while `failure_behavior` claims \"reject invalid HIL/SHA\" — the reviewed-ancestor/--since SHA check lives in `scripts/dev/architect_review.py` + `review_budget.py` with no stated validation owner, fail-closed behavior, or reason-cites-latest-SHA contract row.\n  - `runtime_contract.call_sites` lists \"architect_review run --rereview\" but never names the `--since` input from FR-2/AC-2, so the AC-2 contract row cannot be traced to a design row updated in this delta (guardrail: AC change must update matching rows in the same delta).\nMINOR:\n  - `contracts.api` was edited in this delta but still records only the path — method (POST), operator authn/authz, and scope resolution are not restated in the contract row (checklist item 8: needs_api contracts in sync).\n  - Rollback says \"retain core.backlog validation ... so the suite stays green\" while removing the route: post-rollback `material_change_errors` has no shipped caller, and the design does not state which tests in `tests/test_review_material_change.py` are route-dependent (would fail) vs core-level (survive).\n  - Prior findings' dispositions remain PENDING; the delta appears to address the language-rule BLOCKER and design-row MAJORs (module dropped, `core/backlog.py` single source stated) but dispositions must be recorded before Gate 1 approval per CL-006.\nNIT:\n  - `dependencies` uses bare `architect_review.py` while `affected_files` uses `scripts/dev/architect_review.py`; align identifiers so file-level traceability is unambiguous.\nSUMMARY:\n  - Delta resolves the prior language-rule BLOCKER (no new shipped module; validation consolidated in `core/backlog.py`) and the design-row sync MAJORs, pending disposition recording.\n  - Top remaining risks: AC-2's --since validation ownership and fail-closed contract are undefined in the delta, and rollback's test-retention claim is ambiguous.\n  - No security, data-loss, or AC-unmet blocker found in the changed fields.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=88c7475bc408\nBLOCKER:\n  - none\nMAJOR:\n  - Verified prior MAJOR (disposition still PENDING): the delta leaves AC-2 enforcement untraceable in `runtime_contract` — `adapter` and `contract` (\"validation delegated to core.backlog\") name only `core/backlog.py:material_change_errors`, while the changed `failure_behavior` asserts SHA/--since rejection owned by `scripts/dev/architect_review.py` + `review_budget.py`; `contracts.files.delta_base` was updated but the runtime row was not reconciled in the same delta.\nMINOR:\n  - Rollback removes the reviewed-ancestor exemption but only lists route-only and endpoint-auth tests for removal; the AC-2 tests (accepted reviewed-ancestor delta, rejection of arbitrary/non-reviewed bases) would fail post-rollback, contradicting \"so the suite stays green\" without stating their disposition.\n  - [OUT_OF_SCOPE] Top-level `affected_components` still omit `core/backlog.py` and `config/review-material-change.json`, both referenced by this delta's `contracts.files`/`contracts.config` (pre-existing row, not updated here).\nNIT:\n  - `runtime_contract.call_sites` uses \"/items/{id}/decisions\" while `contracts.api.path` is \"/api/v1/backlog/items/{item_id}/decisions\" — prefix and param naming differ, weakening file/row traceability.\nSUMMARY:\n  - Delta resolves the prior `contracts.api` MINOR (method/auth/scope now present) and the call_sites `--since` MAJOR; no blocker found, language rule and fail-closed auth posture hold.\n  - Top remaining risk: AC-2's enforcement point is still only half-traced — file row updated, runtime row not — and the rollback test plan does not cover AC-2 tests.\n  - All prior dispositions remain PENDING; per CL-006 they must be recorded before Gate 1 approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=eb7b86c9e1d6\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Rollback now correctly removes AC-2 tests, but still asserts \"decision-validation/audit tests\" are retained \"so the suite stays green\" without stating they exercise `core.backlog.material_change_errors` rather than the removed route; the proof-plan test (`test_material_change_without_hil_is_rejected`) reads endpoint-oriented, so post-rollback suite state remains unverified.\n  - `design_pack.affected_components` (re-stated in this delta) lists only `core/backlog.py` and `config/review-material-change.json`, while the same delta's `runtime_contract.entrypoint` (`api.routers.backlog.add_item_decision`) and `call_sites` (`architect_review`) name components absent from the row — component/file traceability gap inside the changed design_pack.\nNIT:\n  - `runtime_contract.adapter` mixes specificity levels: `core.backlog.material_change_errors` (module.symbol) vs `architect_review reviewed-head ancestry` and `review_budget.problems` (no file/function anchor), weakening precise traceability of AC-2 enforcement points.\nSUMMARY:\n  - Delta resolves the prior pending MAJOR (AC-2 SHA/--since enforcement is now traceable to `architect_review`/`review_budget` in `adapter`/`contract`) and the prior rollback MINOR (AC-2 tests explicitly listed for removal); prior path-mismatch NIT and top-level `affected_components` MINOR remain unchanged and correctly PENDING/[OUT_OF_SCOPE].\n  - No blockers: auth, revision guard, fail-closed config, and ancestry+reviewed-head checks are stated and testable per ACs.\n  - Top residual risks: rollback \"suite stays green\" claim unproven for retained decision-validation tests, and component-row vs runtime-contract traceability drift.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=eb7b86c9e1d6\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Rollback now correctly removes AC-2 tests, but still asserts \"decision-validation/audit tests\" are retained \"so the suite stays green\" without stating they exercise `core.backlog.material_change_errors` rather than the removed route; the proof-plan test (`test_material_change_without_hil_is_rejected`) reads endpoint-oriented, so post-rollback suite state remains unverified.\n  - `design_pack.affected_components` (re-stated in this delta) lists only `core/backlog.py` and `config/review-material-change.json`, while the same delta's `runtime_contract.entrypoint` (`api.routers.backlog.add_item_decision`) and `call_sites` (`architect_review`) name components absent from the row — component/file traceability gap inside the changed design_pack.\nNIT:\n  - `runtime_contract.adapter` mixes specificity levels: `core.backlog.material_change_errors` (module.symbol) vs `architect_review reviewed-head ancestry` and `review_budget.problems` (no file/function anchor), weakening precise traceability of AC-2 enforcement points.\nSUMMARY:\n  - Delta resolves the prior pending MAJOR (AC-2 SHA/--since enforcement is now traceable to `architect_review`/`review_budget` in `adapter`/`contract`) and the prior rollback MINOR (AC-2 tests explicitly listed for removal); prior path-mismatch NIT and top-level `affected_components` MINOR remain unchanged and correctly PENDING/[OUT_OF_SCOPE].\n  - No blockers: auth, revision guard, fail-closed config, and ancestry+reviewed-head checks are stated and testable per ACs.\n  - Top residual risks: rollback \"suite stays green\" claim unproven for retained decision-validation tests, and component-row vs runtime-contract traceability drift.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=4799357712ae\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - proof_plan.failing_test does not state whether it invokes the API route or imports core.backlog.material_change_errors directly; the rollback's \"import it directly (not via the removed route)\" retention clause and its post-rollback suite-green guarantee depend on this, and the test name changed from the previously reviewed proof-plan test without resolving it.\n  - proof_plan rows do not cohere: green_evidence (\"material_change_errors returns empty for valid input\") does not evidence the named failing test (allowlisted-HIL rejection), and red_evidence (\"invalid HIL actor rejected\") describes green-state behavior rather than the initial failure.\n  - The delta adds scripts/dev/review_budget.py to affected_components and anchors it in runtime_contract.adapter, but does not update design_pack.affected_files, which still omits it — the matching file-inventory row was not updated in the same delta.\nNIT:\n  - runtime_contract.adapter names _reviewed_heads and problems but does not identify which function enforces AC-2's \"reason must cite latest review SHA\" or the ancestry check, leaving those two controls without a precise enforcement anchor.\nSUMMARY:\n  - Delta is a net improvement: prior rollback-wording, affected_components-completeness, and adapter-specificity findings are addressed; no blockers, ACs remain testable with no language-rule violation.\n  - Top residual risks are proof-plan incoherence (test identity/import path and mismatched green evidence), weakening TDD and rollback verifiability, plus the un-updated affected_files row for review_budget.py.\n  - Minor traceability and proof-plan corrections needed before Gate 1.5 sign-off.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -189,7 +190,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:37:10.550627",
+  "updated_at": "2026-11-17T18:42:10.458592",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -664,15 +665,15 @@
         "architect_review run --rereview --since <reviewed ancestor head>",
         "review_budget.problems"
       ],
-      "adapter": "core.backlog.material_change_errors; scripts/dev/architect_review.py:_reviewed_heads; scripts/dev/review_budget.py:problems",
+      "adapter": "core.backlog.material_change_errors (HIL/reason); scripts/dev/architect_review.py:_reviewed_heads + review_guard (ancestry/reason citation); scripts/dev/review_budget.py:problems (budget enforcement)",
       "contract": "decision validation delegated to core.backlog; delta-base validation delegated to architect_review/review_budget; append via core.backlog.update",
       "failure_behavior": "Reject invalid HIL/SHA; reject unreviewed or non-ancestor --since; reason must cite latest review sha",
       "observable_result": "decision persisted; review budget exempted"
     },
     "proof_plan": {
-      "failing_test": "tests/test_review_material_change.py::test_material_change_requires_allowlisted_hil_actor",
-      "red_evidence": "invalid HIL actor rejected",
-      "green_evidence": "core.backlog.material_change_errors returns empty for valid input"
+      "failing_test": "tests/test_review_material_change.py::test_material_change_requires_allowlisted_hil_actor imports core.backlog.material_change_errors directly",
+      "red_evidence": "before the allowlist fix, the test fails because invalid HIL actor is accepted",
+      "green_evidence": "after the fix, the same test passes and material_change_errors returns the actor error"
     },
     "ac_evidence": [
       {
@@ -708,7 +709,8 @@
       "tests/test_review_material_change.py",
       "config/review-material-change.json",
       "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
-      "core/backlog.py"
+      "core/backlog.py",
+      "scripts/dev/review_budget.py"
     ],
     "affected_components": [
       "core/backlog.py",
@@ -1087,6 +1089,34 @@
         ]
       },
       "evidence": "BI-PF-1540-eb7b86c9e1d6.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "cc324f5110aeb8c5b99f347ac741d4235c3b0e25",
+      "review_sha": "4799357712ae",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T13:11:48.685991+00:00",
+      "review_scope": "delta",
+      "base_sha": "a01c075bdae0634f1bb38c05040b58a2ae06a40b",
+      "head_sha": "cc324f5110aeb8c5b99f347ac741d4235c3b0e25",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "proof_plan.failing_test does not state whether it invokes the API route or imports core.backlog.material_change_errors directly; the rollback's \"import it directly (not via the removed route)\" retention clause and its post-rollback suite-green guarantee depend on this, and the test name changed from the previously reviewed proof-plan test without resolving it.",
+          "proof_plan rows do not cohere: green_evidence (\"material_change_errors returns empty for valid input\") does not evidence the named failing test (allowlisted-HIL rejection), and red_evidence (\"invalid HIL actor rejected\") describes green-state behavior rather than the initial failure.",
+          "The delta adds scripts/dev/review_budget.py to affected_components and anchors it in runtime_contract.adapter, but does not update design_pack.affected_files, which still omits it — the matching file-inventory row was not updated in the same delta."
+        ],
+        "NIT": [
+          "runtime_contract.adapter names _reviewed_heads and problems but does not identify which function enforces AC-2's \"reason must cite latest review SHA\" or the ancestry check, leaving those two controls without a precise enforcement anchor."
+        ],
+        "SUMMARY": [
+          "Delta is a net improvement: prior rollback-wording, affected_components-completeness, and adapter-specificity findings are addressed; no blockers, ACs remain testable with no language-rule violation.",
+          "Top residual risks are proof-plan incoherence (test identity/import path and mismatched green evidence), weakening TDD and rollback verifiability, plus the un-updated affected_files row for review_budget.py.",
+          "Minor traceability and proof-plan corrections needed before Gate 1.5 sign-off."
+        ]
+      },
+      "evidence": "BI-PF-1540-4799357712ae.json"
     }
   ],
   "fix_impact": [
