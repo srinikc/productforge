@@ -1073,7 +1073,7 @@ def main(argv: list[str]) -> int:
                 for x in fix_bad:
                     print("  - " + x)
                 return 1
-    _delta_base = (a.since in reviewed_head_shas(a.item, a.mode)
+    _delta_base = (a.since in _reviewed_heads(a.item, a.mode)
                    and _is_ancestor(a.since, _git_text(["rev-parse", "HEAD"]).strip()))
     if a.mode in ("diff", "design") and a.rereview and a.since and _delta_base:
         budget_bad = []
