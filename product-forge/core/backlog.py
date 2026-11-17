@@ -2281,6 +2281,9 @@ def review_material_change_config_errors() -> list[str]:
     out = []
     if not str(cfg.get("hil_actor") or "").strip():
         out.append("review-material-change config: hil_actor missing")
+    import os
+    if not os.environ.get("PF_HIL_TOKEN", ""):
+        out.append("PF_HIL_TOKEN missing (HIL decision auth unavailable)")
     return out
 
 

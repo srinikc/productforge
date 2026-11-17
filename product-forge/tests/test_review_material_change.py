@@ -149,3 +149,9 @@ def test_decisions_endpoint_requires_hil_token(monkeypatch):
     r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
                headers={"X-Roles": "operator"}, json={})
     assert r.status_code == 403
+
+
+def test_startup_requires_hil_token(monkeypatch):
+    from core.backlog import review_material_change_config_errors
+    monkeypatch.delenv("PF_HIL_TOKEN", raising=False)
+    assert any("PF_HIL_TOKEN missing" in x for x in review_material_change_config_errors())
