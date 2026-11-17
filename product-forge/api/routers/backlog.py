@@ -647,6 +647,28 @@ def set_item_execution(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
+@router.post("/items/{item_id}/design-pack", dependencies=[Depends(require_operator)])
+def set_design_pack(item_id: str, body: dict[str, Any], request: Request,
+                    ctx: dict[str, Any] = Depends(require_operator)):
+    """Write design_pack through the single writer (BI-PF-1544)."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    pack = body.get("design_pack")
+    if not isinstance(pack, dict) or not pack:
+        raise ApiError("VALIDATION_FAILED", "design_pack object required")
+    controls = pack.get("implementation_controls")
+    if controls is not None and not isinstance(controls, list):
+        raise ApiError("VALIDATION_FAILED", "implementation_controls must be a list")
+    try:
+        res = backlog.update(s, p, item_id, design_pack=pack)
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
 @router.post("/items/{item_id}/decisions", dependencies=[Depends(require_operator)])
 def add_item_decision(item_id: str, body: dict[str, Any], request: Request,
                       ctx: dict[str, Any] = Depends(require_operator)):
