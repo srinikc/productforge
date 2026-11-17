@@ -10,7 +10,7 @@
   "title": "Review material-change decision API and correct delta-review base",
   "body": "Review budget blocks legitimate fix deltas because HIL MATERIAL_CHANGE decisions cannot be recorded through the backlog API, and re-review base selection rejects a valid earlier reviewed head. Add an operator-only decisions endpoint and make delta-budget exemption require a reviewed ancestor base plus a reason citing the latest review SHA.",
   "source": "api",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -124,7 +124,10 @@
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=4bd683fc1072\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Only the negative path is asserted (`PF_HIL_TOKEN` absent -> error present); there is no test that a set token yields no error, so a regression that always reports the missing-token error would pass this test.\n  - The new check uses `os.environ.get(\"PF_HIL_TOKEN\", \"\")` with no `.strip()`, unlike the adjacent `hil_actor` check that strips, so a whitespace-only token passes startup yet will fail request-time auth (inconsistent fail-closed boundary).\n  - The startup check hard-requires an endpoint-specific env var from a shared `*_config_errors()` helper; any non-API consumer invoking it now fails closed for a token it may not need — confirm caller set is startup-only.\nNIT:\n  - `import os` executed inline inside `review_material_change_config_errors()` on every call rather than at module scope.\n  - Error text `PF_HIL_TOKEN missing (HIL decision auth unavailable)` states the symptom but gives no operator remediation (where/how to set the token).\nSUMMARY:\n  - Delta is small, additive, and correctly addresses the prior startup fail-closed gap by checking `PF_HIL_TOKEN` plus a negative test; no AC is broken and no security/data regression introduced.\n  - Residual risk is test seam and consistency: no positive-path assertion, env check not stripped, and no verification that `app.py` actually invokes this helper at startup.\n  - Prior `config/env-flags.json` registration finding for `PF_HIL_TOKEN` remains unresolved but is unchanged and not re-reported here.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=7b61dc6fc29d\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The `.strip()` hardening for whitespace-only `PF_HIL_TOKEN` has no test: only unset and a well-formed token are covered, so a regression that drops the strip would pass the suite.\n  - `test_startup_accepts_configured_hil_token` asserts `errors == []`, coupling this token test to unrelated config state (e.g. `hil_actor` in `config/review-material-change.json`); a change there would fail an unrelated test with a misleading message.\nNIT:\n  - none\nSUMMARY:\n  - Delta is small and on-target: it resolves two prior MINORs (positive-path token test, `.strip()` fail-closed boundary, actionable error text) without regressing AC-1/AC-2/AC-3 evidence.\n  - Residual risk is test-coverage depth on the new blank-token path and assertion coupling in the new positive test; no blockers or contract deviations found.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=19838e55cc5f\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - The updated assertions match on the substring \"PF_HIL_TOKEN\" inside error text, coupling tests to message wording; a reworded error string would silently pass `not any(...)` while still catching unset-token cases only via the separate required-token test.\n  - `test_startup_accepts_configured_hil_token` now proves only the absence of a token error; it no longer verifies the overall config is clean, so it cannot detect unrelated startup-config regressions by design (intentional decoupling, but the test name overstates its coverage).\nSUMMARY:\n  - Delta resolves both prior MINOR findings: whitespace-token test added and the configured-token assertion decoupled from unrelated config state.\n  - No blockers or AC regressions in this delta; remaining risk is substring-based, message-coupled assertions (nit-level).\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ac10b5b583a1\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Module-level `os.environ.setdefault(\"PF_HIL_TOKEN\", ...)` mutates process-global state at import time, coupling this wrapper to import order within a shared pytest session (any test asserting token-absent startup behavior in the same process becomes order-dependent).\n  - `setdefault` never overrides a `PF_HIL_TOKEN` already present in the ambient environment (dev shell/CI), so tests may exercise real token material instead of the deterministic fixture value, breaking test determinism.\n  - Import-time side effect is undocumented (no comment on why the wrapper must inject the token); a fixture/`monkeypatch`-scoped setup would keep the mutation bounded and self-describing.\nNIT:\n  - Hardcoded `\"hil-tok\"` literal inline; a named constant would make intent and any future rotation obvious.\nSUMMARY:\n  - Delta is test-only env bootstrap for the wrapper; no shipped-code change, contract change, or language-rule violation, so nothing rises to BLOCKER/MAJOR.\n  - Top risks are test isolation (global env mutation, import-order coupling) and silent absorption of a real ambient token; both are hardening-level for this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ac10b5b583a1\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Module-level `os.environ.setdefault(\"PF_HIL_TOKEN\", ...)` mutates process-global state at import time, coupling this wrapper to import order within a shared pytest session (any test asserting token-absent startup behavior in the same process becomes order-dependent).\n  - `setdefault` never overrides a `PF_HIL_TOKEN` already present in the ambient environment (dev shell/CI), so tests may exercise real token material instead of the deterministic fixture value, breaking test determinism.\n  - Import-time side effect is undocumented (no comment on why the wrapper must inject the token); a fixture/`monkeypatch`-scoped setup would keep the mutation bounded and self-describing.\nNIT:\n  - Hardcoded `\"hil-tok\"` literal inline; a named constant would make intent and any future rotation obvious.\nSUMMARY:\n  - Delta is test-only env bootstrap for the wrapper; no shipped-code change, contract change, or language-rule violation, so nothing rises to BLOCKER/MAJOR.\n  - Top risks are test isolation (global env mutation, import-order coupling) and silent absorption of a real ambient token; both are hardening-level for this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "PR #362 merged to develop at 3d80a880b7f974270ecbb16c1508b9f767cff7c0",
+    "precheck fast PASS (64 gates); Gate 1 PASS; Gate 2.5 0 blockers/0 majors",
+    "tests/test_review_material_change.py 16 passing"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -220,9 +223,9 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T21:10:57.112958",
+  "updated_at": "2026-11-17T21:32:17.140987",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "Delivered via PR #362",
   "functional_spec": {
     "version": 1,
     "status": "approved",
@@ -2246,5 +2249,6 @@
         "note": "Non-blocking hardening; alerting/runbook evidence tracked in BI-PF-1541."
       }
     }
-  }
+  },
+  "verified_by": "Srinikc HIL"
 }
