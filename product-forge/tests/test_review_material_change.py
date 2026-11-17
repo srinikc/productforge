@@ -155,3 +155,9 @@ def test_startup_requires_hil_token(monkeypatch):
     from core.backlog import review_material_change_config_errors
     monkeypatch.delenv("PF_HIL_TOKEN", raising=False)
     assert any("PF_HIL_TOKEN missing" in x for x in review_material_change_config_errors())
+
+
+def test_startup_accepts_configured_hil_token(monkeypatch):
+    from core.backlog import review_material_change_config_errors
+    monkeypatch.setenv("PF_HIL_TOKEN", "configured-token")
+    assert review_material_change_config_errors() == []

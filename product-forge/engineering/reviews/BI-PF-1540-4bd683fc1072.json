@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "4bd683fc1072",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-17T15:24:49.266604+00:00",
+  "review_scope": "delta",
+  "base_sha": "08a66a3315c43d2d40153a3a3e3c7f0927382c72",
+  "head_sha": "95ef89a046d1fce622fd5659f3e89f8361d322c0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Only the negative path is asserted (`PF_HIL_TOKEN` absent -> error present); there is no test that a set token yields no error, so a regression that always reports the missing-token error would pass this test.",
+      "The new check uses `os.environ.get(\"PF_HIL_TOKEN\", \"\")` with no `.strip()`, unlike the adjacent `hil_actor` check that strips, so a whitespace-only token passes startup yet will fail request-time auth (inconsistent fail-closed boundary).",
+      "The startup check hard-requires an endpoint-specific env var from a shared `*_config_errors()` helper; any non-API consumer invoking it now fails closed for a token it may not need \u2014 confirm caller set is startup-only."
+    ],
+    "NIT": [
+      "`import os` executed inline inside `review_material_change_config_errors()` on every call rather than at module scope.",
+      "Error text `PF_HIL_TOKEN missing (HIL decision auth unavailable)` states the symptom but gives no operator remediation (where/how to set the token)."
+    ],
+    "SUMMARY": [
+      "Delta is small, additive, and correctly addresses the prior startup fail-closed gap by checking `PF_HIL_TOKEN` plus a negative test; no AC is broken and no security/data regression introduced.",
+      "Residual risk is test seam and consistency: no positive-path assertion, env check not stripped, and no verification that `app.py` actually invokes this helper at startup.",
+      "Prior `config/env-flags.json` registration finding for `PF_HIL_TOKEN` remains unresolved but is unchanged and not re-reported here."
+    ]
+  },
+  "rereview_reason": "Delta for prior b5774997dc13 and 9e6d021f8486: HIL token startup validation and env flag",
+  "rereview_reason_sha256": "cc8f13f999777d2bc88845323e9ed5e838e78a728c484a00f85040c35ef081db"
+}
