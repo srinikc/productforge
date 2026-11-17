@@ -209,7 +209,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T19:25:25.125925",
+  "updated_at": "2026-11-17T19:29:34.997145",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -632,10 +632,10 @@
       "Bootstrap exception approved for 1540-first merge."
     ],
     "guardrails": [
-      "Reversibility: code revert removes route; decisions are append-only audit records retained intentionally.",
-      "Availability: endpoint uses local backlog owner; failures return 503/500 fail-closed, no partial write.",
-      "Invariant ordering: validate revision -> identity -> reason/SHA -> append atomically through core.backlog.update.",
-      "Security: allowlisted HIL actor, operator role, scoped item lookup."
+      "Reversibility: remove route/exemption; retain core validation/config/design/tests.",
+      "Availability: failures return 500/503 fail-closed; alerting evidence tracked in BI-PF-1541.",
+      "Security: operator + fixed HIL actor; no new DB role or RLS change.",
+      "Reuse: extends core.backlog/API/review tooling."
     ],
     "learnings": [
       "1538 and 1540 were circular; 1540 first breaks the cycle."
@@ -692,8 +692,8 @@
     },
     "proof_plan": {
       "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_persists_append_only; ::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
-      "red_evidence": "before implementation the route is absent (404); missing auth/role/revision/HIL/SHA/ancestor rules are unenforced",
-      "green_evidence": "decision appended; 401 no token; 403 no operator; 409 stale revision; 400 HIL/SHA; route present; reviewed ancestor only"
+      "red_evidence": "route absent before implementation; rules unenforced",
+      "green_evidence": "tests pass for persistence, auth, role, revision, HIL, SHA, route and ancestor rules"
     },
     "ac_evidence": [
       {
@@ -739,24 +739,7 @@
       "scripts/dev/architect_review.py",
       "scripts/dev/review_budget.py",
       "tests/test_review_material_change.py"
-    ],
-    "guardrail_answers": {
-      "reversibility": "Remove decisions route and reviewed-ancestor exemption; retain core.backlog validation, config, design doc and core validation/audit tests so the suite stays green",
-      "availability": "fail closed; no partial write",
-      "authorization": "operator + fixed HIL actor bound to token",
-      "blast_radius": "append-only item.decisions field only; no schema migration",
-      "tenant_scope": "scope/project-scoped item lookup; no tenant header",
-      "reuse": "extends core.backlog/API/review tooling; no new store",
-      "observability": "standard API error envelope; item history/trail records appends; repeated 400/403/409/503 errors are diagnosable via API error-rate metrics and logs",
-      "performance": "decisions-route scoped constant-size config read",
-      "rollback": "Remove route and reviewed-ancestor exemption; re-sync api/openapi.json; remove route/AC-2 tests; retain core.backlog validation, config/review-material-change.json, design doc and core validation/audit tests",
-      "language_rule": "edits existing shipped Python only",
-      "invariants_ordering": "operator role is enforced by the route dependency before the handler; handler validates revision, then fixed HIL actor, then reason/latest SHA, then appends atomically. Unauthorized callers get 403 before revision/state.",
-      "api_contract": "needs_api=true; POST /items/{id}/decisions; operator auth; fixed HIL actor; revision guard; scope-resolved item; validated payload",
-      "runtime_role_rls": "no new DB role; API service uses existing non-superuser role where DB-backed; RLS behavior unchanged; no BYPASSRLS introduced",
-      "backup_restore": "no migration/destructive step; existing verified backup/restore path unchanged",
-      "startup_defence": "startup validates config shape; handler reads the same file per request, so edits apply immediately; missing/malformed config yields 500 CONFIG_INVALID until the file is fixed (no restart needed)"
-    }
+    ]
   },
   "api_impact": {
     "needs_api": true,
