@@ -81,7 +81,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 3, 'MINOR': 3, 'NIT': 2}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 3, 'NIT': 1}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -114,7 +114,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=aadac728a8aa\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `guardrail_answers.invariants_ordering` checks revision before operator role, so a non-operator can receive 409 (revision state) instead of 403; authz should precede resource-state checks to avoid leaking item existence/revision to unauthorized callers.\n  - `proof_plan.failing_test` omits anchors for HIL-actor mismatch and the FR-3 OpenAPI route-existence test (`test_decisions_api_route_exists`), while `green_evidence` asserts \"400 HIL failures\" and FR-3 requires the route test — evidence list and claims are out of sync.\n  - `guardrail_answers.rollback` drops the `re-sync api/openapi.json` step present in `design_pack.rollback`; after a rollback the exported contract would retain a removed route.\n  - `guardrail_answers.startup_defence` (fail-fast config validation at startup) conflicts with `performance` (config re-read inside the handler per request); a config edited or deleted post-startup bypasses the startup gate — state which source of truth governs at runtime.\nNIT:\n  - `guardrail_answers.observability` cites only the error envelope and item history; consider a one-line statement on how repeated decision rejections/budget refusals are diagnosable over time (log/metric signal) for the observability guardrail.\n  - Prior MINOR findings (FR-1 error codes, FR-1/FR-3 preconditions, bootstrap-exception claim, language-rule interpretation) remain PENDING and unchanged by this delta; dispositions must be recorded before Gate 1.5 approval per CL-006.\nSUMMARY:\n  - Delta only rewrites `design_pack.guardrail_answers` and `proof_plan`; core approach (operator-only MATERIAL_CHANGE endpoint, reviewed-ancestor `--since` with latest-SHA citation) remains sound and reversible with no migration.\n  - Top risks: authorization ordering allows state probing by non-operators, proof-plan test anchors don't fully cover asserted HIL/OpenAPI evidence, and rollback contract re-sync was lost in the shortened rollback text.\n  - No blockers or majors in the changed fields; five prior findings still await disposition before approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=e095e7c8dcb3\nBLOCKER:\n  - none\nMAJOR:\n  - `guardrail_answers.rollback` and `guardrail_answers.reversibility` (both in this delta) contradict: reversibility removes \"route/config/tests\", while rollback says to retain \"core validation/config/design/audit tests\" and does not list config removal — after rollback the retained config-dependent tests would fail against a removed `config/review-material-change.json`, leaving the suite red and the rollback contract unmeetable as written.\nMINOR:\n  - `guardrail_answers.startup_defence` says the handler fails closed \"if it changed\", but never defines how change is detected (hash/mtime/content) or the fail-closed window; a benign policy edit could yield unexplained 500 CONFIG_INVALID with no stated recovery/observability signal.\n  - `guardrail_answers.rollback` omits re-sync/removal of `config/review-material-change.json` from the step list even though `reversibility` includes config removal — the two rollback-related rows in the same delta should enumerate identical artifacts.\nNIT:\n  - none\nSUMMARY:\n  - Delta correctly resolves the four prior PENDING MINORs (authz-before-revision ordering, failing_test anchors now include HIL mismatch + `test_decisions_api_route_exists`, openapi re-sync restored in rollback, startup vs per-request config read clarified) and the observability NIT; dispositions should be recorded as RESOLVED per CL-006.\n  - Top risk is the self-contradictory rollback/reversibility pair over config-file removal vs retained config tests — must be reconciled before Gate 1.5; otherwise design is coherent, language rule (shipped-Python edits only) and operator/HIL/revision controls are satisfied.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=e6c41221a05b\nBLOCKER:\n  - none\nMAJOR:\n  - `guardrail_answers.rollback`/`reversibility` claim the post-rollback suite \"stays green\" while only \"route/AC-2 tests\" are removed, but `test_decisions_api_route_exists` (FR-3/AC-3, named in proof_plan) will fail once the route is removed and `api/openapi.json` re-synced; enumerate AC-3's route test in both rollback rows or the stated rollback cannot pass.\n  - `guardrail_answers.availability` is only \"fail closed; no partial write\" and never addresses the checklist's single-point-of-failure/alert-lead-time item for persistent 503/`DEPENDENCY_UNAVAILABLE` and 500/`CONFIG_INVALID` conditions; a dead backlog store or broken config yields an unalerted, indefinitely failing endpoint with no stated detection or recovery window.\nMINOR:\n  - `guardrail_answers.observability` asserts failures are diagnosable \"via API error-rate metrics\", but no metric name, emission point, or evidence in the delta/test matrix shows such metrics exist; the claim is unevidenced in this delta.\n  - Prior MINOR on `startup_defence` is only partially resolved: per-request file read now defines change detection, but the row still names no log/event signal distinguishing `CONFIG_INVALID` 500s from ordinary handler failures.\n  - `guardrail_answers.performance` promises \"constant-size config read\" per decision request with no cache/TTL stated, so an unreadable config path turns every decision request into a 500; note the failure mode explicitly or state the read is guarded.\nNIT:\n  - `guardrail_answers.invariants_ordering` and `authorization` duplicate the same operator+HIL ordering text; a single canonical row would avoid future drift like the rollback/reversibility mismatch.\nSUMMARY:\n  - Delta resolves the prior rollback/reversibility config-retention contradiction (both rows now retain the same artifacts) and defines per-request config reads, but the rollback plan still leaves the AC-3 route test failing and availability/observability claims remain unevidenced.\n  - Top risks: incomplete rollback test enumeration (MAJOR) and no alerting/fail-closed signal for 503/500 conditions (MAJOR).\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=bb7f65b424f7\nBLOCKER:\n  - none\nMAJOR:\n  - Delta updates `design_pack` while two prior MAJOR findings remain disposition=PENDING; CL-006 requires all Gate 1.5 findings have dispositions embedded before approval, so this delta cannot be approved as-is.\n  - `guardrail_answers` is set to `null`, leaving checklist items 2 (availability alert lead-time), 4, 5, 7, 8, 9, 10 unanswered in the delta; CL-008 requires each checklist item answered in the design before Gate 1.5.\n  - `guardrails.reversibility` still claims the post-rollback suite \"stays green\" without enumerating `test_decisions_api_route_exists` removal, so the prior MAJOR is propagated uncorrected into the delta's authoritative guardrail text.\nMINOR:\n  - `guardrails.availability` still defers alerting to BI-PF-1541 with no alert lead-time or SPOF statement, leaving the pending availability MAJOR's substance unaddressed in the changed field.\n  - `proof_plan.red_evidence`/`green_evidence` gained no coverage for rollback/recovery or CONFIG_INVALID/503 observability, so the delta's evidence rows do not match the guardrails it asserts.\n  - No test evidence row added for the guardrail claims (fail-closed 500/503, append-only ordering); guardrail answers remain unevidenced per the existing observability/performance pattern.\nNIT:\n  - The delta's `guardrails` and `proof_plan` values are byte-identical to the pre-delta design, so `changed_fields=[\"design_pack\"]` declares a change that alters nothing substantive.\n  - `guardrail_answers: null` plus a separate `guardrails` array creates two competing places for checklist answers, risking further drift like the prior rollback/reversibility mismatch.\nSUMMARY:\n  - Delta is a no-op republish of `design_pack` that leaves both prior MAJOR dispositions PENDING and nulls `guardrail_answers`, violating CL-006/CL-008.\n  - Top risks: approval recorded against an uncorrected reversibility claim and unanswered availability/authorization checklist items.\n  - Verdict: reject until guardrail answers are restored, prior MAJORs are dispositioned in-design, and evidence rows are added for the asserted controls.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=bb7f65b424f7\nBLOCKER:\n  - none\nMAJOR:\n  - Delta updates `design_pack` while two prior MAJOR findings remain disposition=PENDING; CL-006 requires all Gate 1.5 findings have dispositions embedded before approval, so this delta cannot be approved as-is.\n  - `guardrail_answers` is set to `null`, leaving checklist items 2 (availability alert lead-time), 4, 5, 7, 8, 9, 10 unanswered in the delta; CL-008 requires each checklist item answered in the design before Gate 1.5.\n  - `guardrails.reversibility` still claims the post-rollback suite \"stays green\" without enumerating `test_decisions_api_route_exists` removal, so the prior MAJOR is propagated uncorrected into the delta's authoritative guardrail text.\nMINOR:\n  - `guardrails.availability` still defers alerting to BI-PF-1541 with no alert lead-time or SPOF statement, leaving the pending availability MAJOR's substance unaddressed in the changed field.\n  - `proof_plan.red_evidence`/`green_evidence` gained no coverage for rollback/recovery or CONFIG_INVALID/503 observability, so the delta's evidence rows do not match the guardrails it asserts.\n  - No test evidence row added for the guardrail claims (fail-closed 500/503, append-only ordering); guardrail answers remain unevidenced per the existing observability/performance pattern.\nNIT:\n  - The delta's `guardrails` and `proof_plan` values are byte-identical to the pre-delta design, so `changed_fields=[\"design_pack\"]` declares a change that alters nothing substantive.\n  - `guardrail_answers: null` plus a separate `guardrails` array creates two competing places for checklist answers, risking further drift like the prior rollback/reversibility mismatch.\nSUMMARY:\n  - Delta is a no-op republish of `design_pack` that leaves both prior MAJOR dispositions PENDING and nulls `guardrail_answers`, violating CL-006/CL-008.\n  - Top risks: approval recorded against an uncorrected reversibility claim and unanswered availability/authorization checklist items.\n  - Verdict: reject until guardrail answers are restored, prior MAJORs are dispositioned in-design, and evidence rows are added for the asserted controls.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=0137062eb073\nBLOCKER:\n  - none\nMAJOR:\n  - proof_plan names no test for the accepted reviewed-ancestor delta path (budget not consumed); AC-3 requires accepted-case coverage alongside rejection of arbitrary/non-reviewed bases, and only `test_valid_delta_base_requires_reviewed_head_and_ancestor` is listed for AC-2.\nMINOR:\n  - guardrail_answers.2_availability restates deferral to BI-PF-1541 with no alert lead-time or SPOF statement, so the prior availability MINOR remains unaddressed in a changed field despite the delta's re-scoping claim.\n  - Deferred items (alerting, metric runbook) are asserted in guardrail_answers but not reflected in design scope/non-goals or a dependency row, leaving the BI-PF-1541 handoff untraceable within the delta.\n  - guardrail_answers.1_reversibility and .4_blast_radius never state that append-only decisions are non-destructive (backup/restore N/A), so checklists 1 and 4 are only partially answered.\nNIT:\n  - guardrail_answers now duplicate `design_pack.guardrails` content in two locations, retaining the drift risk previously flagged between checklist answers and guardrail text.\nSUMMARY:\n  - Prior MAJORs are correctly ACTIONED: guardrail answers are populated and rollback enumerates route/OpenAPI/AC-2 test removal.\n  - Top risks: missing proof-plan evidence for the accepted reviewed-ancestor delta (AC-3), and availability/observability deferrals still PENDING against changed-field assertions.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -210,7 +211,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T20:31:45.640826",
+  "updated_at": "2026-11-17T20:34:22.082483",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -605,7 +606,8 @@
     "dependencies": [
       "core.backlog",
       "architect_review.py",
-      "review_budget.py"
+      "review_budget.py",
+      "BI-PF-1541 alerting/runbook"
     ],
     "security": "Operator role AND fixed HIL actor bound to authenticated token. No new DB role; runtime roles remain NOSUPERUSER/NOBYPASSRLS where DB-backed; RLS unchanged; item lookup is scope/project-scoped with no tenant header.",
     "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
@@ -692,7 +694,7 @@
       "observable_result": "decision persisted; review budget exempted"
     },
     "proof_plan": {
-      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_persists_append_only; ::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
+      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_persists_append_only; ::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor; ::test_valid_delta_base_requires_reviewed_head_and_ancestor (accepted reviewed ancestor)",
       "red_evidence": "route absent before implementation; rules unenforced",
       "green_evidence": "persistence, 401/403/409, HIL/SHA errors, route presence and reviewed-ancestor checks pass"
     },
@@ -721,7 +723,8 @@
     ],
     "non_goals": [
       "changing severity policy",
-      "new runtime service"
+      "new runtime service",
+      "alerting/metric runbook evidence (BI-PF-1541)"
     ],
     "affected_files": [
       "api/routers/backlog.py",
@@ -742,10 +745,10 @@
       "tests/test_review_material_change.py"
     ],
     "guardrail_answers": {
-      "1_reversibility": "remove route/exemption, re-sync OpenAPI, remove route and AC-2 tests; retain core validation/config/design/audit tests",
-      "2_availability": "fail closed 500/503; alert lead-time and SPOF evidence deferred to BI-PF-1541",
+      "1_reversibility": "route/exemption removal is reversible; append-only decisions are non-destructive historical audit records (backup/restore N/A)",
+      "2_availability": "fail closed 500/503; backlog store is single local writer (known SPOF); alert on >5 minutes of decision-route 5xx; full runbook in BI-PF-1541",
       "3_authorization": "operator role + fixed HIL actor; runtime roles NOSUPERUSER/NOBYPASSRLS; RLS unchanged",
-      "4_blast_radius": "append-only item.decisions only; no schema migration",
+      "4_blast_radius": "append-only item.decisions field only; no schema migration; non-destructive",
       "5_invariants_ordering": "route dependency authz first; revision, HIL, reason/SHA, atomic append",
       "6_rollback": "remove route/exemption, re-sync OpenAPI, remove test_decisions_api_route_exists and AC-2 tests; retain core validation/config/design/audit tests",
       "7_language_rule": "edits existing shipped Python only; no new shipped module",
@@ -1417,6 +1420,35 @@
         ]
       },
       "evidence": "BI-PF-1540-bb7f65b424f7.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "c292bbd9e2ddffbc1306839608ef4818374f105f",
+      "review_sha": "0137062eb073",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T15:03:44.248026+00:00",
+      "review_scope": "delta",
+      "base_sha": "e2bee8b4313289efa9581d9e5d075abcb7b238e0",
+      "head_sha": "c292bbd9e2ddffbc1306839608ef4818374f105f",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "proof_plan names no test for the accepted reviewed-ancestor delta path (budget not consumed); AC-3 requires accepted-case coverage alongside rejection of arbitrary/non-reviewed bases, and only `test_valid_delta_base_requires_reviewed_head_and_ancestor` is listed for AC-2."
+        ],
+        "MINOR": [
+          "guardrail_answers.2_availability restates deferral to BI-PF-1541 with no alert lead-time or SPOF statement, so the prior availability MINOR remains unaddressed in a changed field despite the delta's re-scoping claim.",
+          "Deferred items (alerting, metric runbook) are asserted in guardrail_answers but not reflected in design scope/non-goals or a dependency row, leaving the BI-PF-1541 handoff untraceable within the delta.",
+          "guardrail_answers.1_reversibility and .4_blast_radius never state that append-only decisions are non-destructive (backup/restore N/A), so checklists 1 and 4 are only partially answered."
+        ],
+        "NIT": [
+          "guardrail_answers now duplicate `design_pack.guardrails` content in two locations, retaining the drift risk previously flagged between checklist answers and guardrail text."
+        ],
+        "SUMMARY": [
+          "Prior MAJORs are correctly ACTIONED: guardrail answers are populated and rollback enumerates route/OpenAPI/AC-2 test removal.",
+          "Top risks: missing proof-plan evidence for the accepted reviewed-ancestor delta (AC-3), and availability/observability deferrals still PENDING against changed-field assertions."
+        ]
+      },
+      "evidence": "BI-PF-1540-0137062eb073.json"
     }
   ],
   "fix_impact": [
