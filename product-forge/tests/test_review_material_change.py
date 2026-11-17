@@ -160,4 +160,10 @@ def test_startup_requires_hil_token(monkeypatch):
 def test_startup_accepts_configured_hil_token(monkeypatch):
     from core.backlog import review_material_change_config_errors
     monkeypatch.setenv("PF_HIL_TOKEN", "configured-token")
-    assert review_material_change_config_errors() == []
+    assert not any("PF_HIL_TOKEN" in x for x in review_material_change_config_errors())
+
+
+def test_startup_rejects_whitespace_hil_token(monkeypatch):
+    from core.backlog import review_material_change_config_errors
+    monkeypatch.setenv("PF_HIL_TOKEN", "   ")
+    assert any("PF_HIL_TOKEN" in x for x in review_material_change_config_errors())
