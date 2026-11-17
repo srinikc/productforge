@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "f640a23729b1",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:42:26.810856+00:00",
+  "review_scope": "delta",
+  "base_sha": "0e7552fead9a353503ab0ce3c31b00d607271103",
+  "head_sha": "ca116db20f173b6457dcca652411fdd84f65a51a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta replaces `design_pack.affected_files` with only `config/review-material-change.json`, dropping `api/routers/backlog.py`, `api/openapi.json`, `scripts/dev/architect_review.py` and `tests/test_review_material_change.py`; this contradicts `design_pack.contracts.files.route`, `runtime_contract.entrypoint`, AC evidence and FR traceability \u2014 contracts are no longer in sync (checklist 8).",
+      "`rollback` (\"remove decisions route and reviewed-ancestor exemption\") does not cover removal of the newly declared `config/review-material-change.json`, so rollback leaves an orphaned control file (checklist 1/6)."
+    ],
+    "MINOR": [
+      "Delta `failure_matrix` still lacks an availability row mapping `DEPENDENCY_UNAVAILABLE` to HTTP 503/500, while guardrail declares 503/500 fail-closed and FR-1.errors gives no status-to-code mapping \u2014 the changed field remains unsynced.",
+      "New config file has no stated load/validate-on-startup behaviour in the delta, so defence-in-depth (checklist 2) for a missing/malformed allowlist is unspecified."
+    ],
+    "NIT": [
+      "`functional_spec` delta re-declares unchanged fields (`domain`, `dod`, `non_goals`, `nfr`) verbatim, adding diff noise without design change."
+    ],
+    "SUMMARY": [
+      "Delta correctly closes the prior config-contract/affected-file MAJOR for the allowlist and strengthens HIL binding language (\"not self-asserted\"), but it regresses `affected_files` to a single config file, desyncing declared scope from route/tests/OpenAPI evidence, and rollback omits the new config artifact. Resolve the affected_files/rollback sync plus the availability-row/status mapping before Gate 1.5 approval."
+    ]
+  },
+  "rereview_reason": "Delta for prior 6fdf4391d423: bound HIL actor, synced functional/config/failure contracts",
+  "rereview_reason_sha256": "5eca3802fedbfb00721cf125669462a1378c2e3e5e60f75bcea91fc893cd4191"
+}

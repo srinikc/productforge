@@ -71,7 +71,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 3, 'NIT': 2}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 1}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -82,7 +82,8 @@
     "pending",
     "Design guardrails applied (BI-PF-1540): sig:19e0ddde2a4c5048 (20 lines)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=2d9a0b7d3ba6\nBLOCKER:\n  - none\nMAJOR:\n  - hil:<actor> validation method is unspecified: design requires the field but does not say it is verified against an authenticated identity/allowlist, so any operator could self-assert HIL confirmation and satisfy the guard at the new endpoint.\n  - AC-2 requires the delta reason to cite the latest review SHA, but FR-2/design_pack contracts only list \"refuse unreviewed/non-ancestor\" and omit the reason-citation rule, leaving the AC-2 half of validation unimplemented/tested by design.\n  - New network endpoint contract (guardrail 8/9) states no tenant/subject scoping for /items/{id}/decisions; with only \"operator role\" authz, item-ID enumeration could cross scope — design must declare scoping or explicitly assert single-tenant.\n  - Design pack does not answer the design-guardrail checklist (CL-008): availability/defence-in-depth, observability depth, and invariant ordering are absent; only rollback and tests are addressed.\nMINOR:\n  - Rollback claims \"code revert only / no data migration\", but append-only decisions written via the new route persist after revert with no purge/statement of post-rollback handling.\n  - Observability is limited to \"API errors and budget output\": no structured log/metric for decision appends, HIL rejections, or budget refusals (guardrail 10).\n  - Append ordering/sequence invariant is not stated (append-only yes, but ordering and duplicate-POST behavior beyond the revision guard is undefined).\n  - Failure matrix defines only VALIDATION_FAILED while FR-1 declares 400/404/409; error-code contract is not aligned across design_pack and functional spec.\n  - Language-rule classification of the new route (new shipped logic vs. edit to shipped Python in api/routers/backlog.py) should be explicitly asserted in the design.\nNIT:\n  - FR-3 test only asserts route existence in OpenAPI; a contract snapshot/diff would catch schema drift more reliably.\n  - \"no added runtime latency\" NFR has no stated measurement or threshold.\nSUMMARY:\n  - Design is directionally sound (operator-only, append-only, revision guard, reviewed-ancestor + ancestor-of-HEAD check, tests with a named failing test), and rollback is code-only with no migration.\n  - Top risks: unspecified HIL actor verification, missing reason-cites-latest-SHA rule in FR-2 contracts, and undefined tenant/subject scoping on the new endpoint — all must be resolved before Gate 1.5.\n  - Guardrail checklist responses (availability, observability, invariants) and error-code contract alignment should be added to the design pack.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6fdf4391d423\nBLOCKER:\n  - none\nMAJOR:\n  - Delta adds a new control contract `config/review-material-change.json` in design_pack.contracts.config, yet the same delta leaves functional_spec.config_contract as \"review-budget.json: existing policy used unchanged\" and the file is absent from declared affected_files — matching design rows were not updated in this delta as required.\n  - Prior MAJOR (hil:<actor> validation) disposition is only half-correct: the delta now specifies an allowlist check, but `by` remains a caller-supplied payload field with no statement that it is bound to the authenticated principal, so an operator can still self-assert `hil:<actor>` and pass the guard — remains PENDING.\nMINOR:\n  - Guardrail newly declares 503/500 fail-closed behaviour, but the failure_matrix updated in this delta has no availability rows and FR-1.errors remains 400/404/409 with no status-to-code mapping — three changed/related rows unsynced.\n  - Invariant ordering is \"validate revision -> identity\": authorization should precede revision checks, otherwise an unauthorized caller can probe item existence/state via CONFLICT vs VALIDATION responses.\n  - Scope claim (\"scope/project-scoped by _scope_project, no tenant header\") exists only in design_pack.security; FR-1 auth/data_rules do not record scoping, leaving the functional spec as the weaker contract.\nNIT:\n  - Availability guardrail covers fail-closed handling but not the checklist's on-startup defence-in-depth check or alert lead-time (residual of the pending CL-008 finding).\n  - The new allowlist config has no stated ownership/refresh process or dedicated test evidence in traceability.\nSUMMARY:\n  - Design delta materially improves guardrails (security, availability, invariant ordering, observability) and resolves the reason-citation and scoping prior findings, but introduces a new config control that is not synced into the functional spec's config contract, and the HIL identity binding remains unproven — the two open MAJORs must be dispositioned before Gate 1.5 approval (CL-006).\n  - Top risks: forged `by`/HIL confirmation at the new endpoint, and contract-row drift between design_pack and functional_spec within the same delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6fdf4391d423\nBLOCKER:\n  - none\nMAJOR:\n  - Delta adds a new control contract `config/review-material-change.json` in design_pack.contracts.config, yet the same delta leaves functional_spec.config_contract as \"review-budget.json: existing policy used unchanged\" and the file is absent from declared affected_files — matching design rows were not updated in this delta as required.\n  - Prior MAJOR (hil:<actor> validation) disposition is only half-correct: the delta now specifies an allowlist check, but `by` remains a caller-supplied payload field with no statement that it is bound to the authenticated principal, so an operator can still self-assert `hil:<actor>` and pass the guard — remains PENDING.\nMINOR:\n  - Guardrail newly declares 503/500 fail-closed behaviour, but the failure_matrix updated in this delta has no availability rows and FR-1.errors remains 400/404/409 with no status-to-code mapping — three changed/related rows unsynced.\n  - Invariant ordering is \"validate revision -> identity\": authorization should precede revision checks, otherwise an unauthorized caller can probe item existence/state via CONFLICT vs VALIDATION responses.\n  - Scope claim (\"scope/project-scoped by _scope_project, no tenant header\") exists only in design_pack.security; FR-1 auth/data_rules do not record scoping, leaving the functional spec as the weaker contract.\nNIT:\n  - Availability guardrail covers fail-closed handling but not the checklist's on-startup defence-in-depth check or alert lead-time (residual of the pending CL-008 finding).\n  - The new allowlist config has no stated ownership/refresh process or dedicated test evidence in traceability.\nSUMMARY:\n  - Design delta materially improves guardrails (security, availability, invariant ordering, observability) and resolves the reason-citation and scoping prior findings, but introduces a new config control that is not synced into the functional spec's config contract, and the HIL identity binding remains unproven — the two open MAJORs must be dispositioned before Gate 1.5 approval (CL-006).\n  - Top risks: forged `by`/HIL confirmation at the new endpoint, and contract-row drift between design_pack and functional_spec within the same delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f640a23729b1\nBLOCKER:\n  - none\nMAJOR:\n  - Delta replaces `design_pack.affected_files` with only `config/review-material-change.json`, dropping `api/routers/backlog.py`, `api/openapi.json`, `scripts/dev/architect_review.py` and `tests/test_review_material_change.py`; this contradicts `design_pack.contracts.files.route`, `runtime_contract.entrypoint`, AC evidence and FR traceability — contracts are no longer in sync (checklist 8).\n  - `rollback` (\"remove decisions route and reviewed-ancestor exemption\") does not cover removal of the newly declared `config/review-material-change.json`, so rollback leaves an orphaned control file (checklist 1/6).\nMINOR:\n  - Delta `failure_matrix` still lacks an availability row mapping `DEPENDENCY_UNAVAILABLE` to HTTP 503/500, while guardrail declares 503/500 fail-closed and FR-1.errors gives no status-to-code mapping — the changed field remains unsynced.\n  - New config file has no stated load/validate-on-startup behaviour in the delta, so defence-in-depth (checklist 2) for a missing/malformed allowlist is unspecified.\nNIT:\n  - `functional_spec` delta re-declares unchanged fields (`domain`, `dod`, `non_goals`, `nfr`) verbatim, adding diff noise without design change.\nSUMMARY:\n  - Delta correctly closes the prior config-contract/affected-file MAJOR for the allowlist and strengthens HIL binding language (\"not self-asserted\"), but it regresses `affected_files` to a single config file, desyncing declared scope from route/tests/OpenAPI evidence, and rollback omits the new config artifact. Resolve the affected_files/rollback sync plus the availability-row/status mapping before Gate 1.5 approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -178,7 +179,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:11:42.021925",
+  "updated_at": "2026-11-17T18:12:48.600320",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -529,40 +530,45 @@
     "failure_matrix": [
       {
         "case": "invalid decision",
-        "behavior": "reject",
+        "behavior": "reject 400",
         "code": "VALIDATION_FAILED"
       },
       {
         "case": "item not found",
-        "behavior": "reject",
+        "behavior": "reject 404",
         "code": "NOT_FOUND"
       },
       {
         "case": "stale revision",
-        "behavior": "reject",
+        "behavior": "reject 409",
         "code": "CONFLICT"
       },
       {
         "case": "HIL actor mismatch",
-        "behavior": "reject",
+        "behavior": "reject 400",
         "code": "VALIDATION_FAILED"
       },
       {
         "case": "reason misses latest review sha",
-        "behavior": "reject",
+        "behavior": "reject 400",
         "code": "VALIDATION_FAILED"
       },
       {
         "case": "backlog store unavailable",
-        "behavior": "fail closed",
+        "behavior": "fail closed 503",
         "code": "DEPENDENCY_UNAVAILABLE"
+      },
+      {
+        "case": "HIL config missing/malformed",
+        "behavior": "fail closed 500",
+        "code": "CONFIG_INVALID"
       }
     ],
     "dependencies": [
       "core.backlog",
       "architect_review.py"
     ],
-    "security": "Operator-only endpoint; HIL actor is fixed by config/review-material-change.json and bound to the authenticated API token, not self-asserted. Item lookup is scope/project-scoped by _scope_project; no tenant header or caller-controlled tenant.",
+    "security": "Operator-only endpoint; HIL actor is fixed by config/review-material-change.json and bound to the authenticated API token, not self-asserted. Item lookup is scope/project-scoped by _scope_project; no tenant header or caller-controlled tenant. HIL actor config is loaded and validated per request; missing/malformed config fails closed.",
     "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
     "performance": "O(1) append.",
     "test_matrix": [
@@ -583,7 +589,7 @@
       }
     ],
     "rollout": "Enable with the API route; no data migration.",
-    "rollback": "Remove route and exemption.",
+    "rollback": "Remove the decisions route, reviewed-ancestor exemption, config/review-material-change.json and tests; append-only decisions remain as audit history.",
     "decisions": [
       "Bootstrap exception approved for 1540-first merge."
     ],
@@ -678,7 +684,12 @@
       "new runtime service"
     ],
     "affected_files": [
-      "config/review-material-change.json"
+      "api/routers/backlog.py",
+      "api/openapi.json",
+      "scripts/dev/architect_review.py",
+      "tests/test_review_material_change.py",
+      "config/review-material-change.json",
+      "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md"
     ]
   },
   "api_impact": {
@@ -755,6 +766,34 @@
         ]
       },
       "evidence": "BI-PF-1540-6fdf4391d423.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "ca116db20f173b6457dcca652411fdd84f65a51a",
+      "review_sha": "f640a23729b1",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T12:42:26.810856+00:00",
+      "review_scope": "delta",
+      "base_sha": "0e7552fead9a353503ab0ce3c31b00d607271103",
+      "head_sha": "ca116db20f173b6457dcca652411fdd84f65a51a",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta replaces `design_pack.affected_files` with only `config/review-material-change.json`, dropping `api/routers/backlog.py`, `api/openapi.json`, `scripts/dev/architect_review.py` and `tests/test_review_material_change.py`; this contradicts `design_pack.contracts.files.route`, `runtime_contract.entrypoint`, AC evidence and FR traceability — contracts are no longer in sync (checklist 8).",
+          "`rollback` (\"remove decisions route and reviewed-ancestor exemption\") does not cover removal of the newly declared `config/review-material-change.json`, so rollback leaves an orphaned control file (checklist 1/6)."
+        ],
+        "MINOR": [
+          "Delta `failure_matrix` still lacks an availability row mapping `DEPENDENCY_UNAVAILABLE` to HTTP 503/500, while guardrail declares 503/500 fail-closed and FR-1.errors gives no status-to-code mapping — the changed field remains unsynced.",
+          "New config file has no stated load/validate-on-startup behaviour in the delta, so defence-in-depth (checklist 2) for a missing/malformed allowlist is unspecified."
+        ],
+        "NIT": [
+          "`functional_spec` delta re-declares unchanged fields (`domain`, `dod`, `non_goals`, `nfr`) verbatim, adding diff noise without design change."
+        ],
+        "SUMMARY": [
+          "Delta correctly closes the prior config-contract/affected-file MAJOR for the allowlist and strengthens HIL binding language (\"not self-asserted\"), but it regresses `affected_files` to a single config file, desyncing declared scope from route/tests/OpenAPI evidence, and rollback omits the new config artifact. Resolve the affected_files/rollback sync plus the availability-row/status mapping before Gate 1.5 approval."
+        ]
+      },
+      "evidence": "BI-PF-1540-f640a23729b1.json"
     }
   ]
 }
