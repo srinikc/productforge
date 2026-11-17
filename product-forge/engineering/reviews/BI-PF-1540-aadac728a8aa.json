@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "aadac728a8aa",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:51:29.903767+00:00",
+  "review_scope": "delta",
+  "base_sha": "3eebc7af08cb80ac6e24a3b2a245a186a2927d32",
+  "head_sha": "587c4ab3547641601d630003e86c7ee056477ae4",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`guardrail_answers.invariants_ordering` checks revision before operator role, so a non-operator can receive 409 (revision state) instead of 403; authz should precede resource-state checks to avoid leaking item existence/revision to unauthorized callers.",
+      "`proof_plan.failing_test` omits anchors for HIL-actor mismatch and the FR-3 OpenAPI route-existence test (`test_decisions_api_route_exists`), while `green_evidence` asserts \"400 HIL failures\" and FR-3 requires the route test \u2014 evidence list and claims are out of sync.",
+      "`guardrail_answers.rollback` drops the `re-sync api/openapi.json` step present in `design_pack.rollback`; after a rollback the exported contract would retain a removed route.",
+      "`guardrail_answers.startup_defence` (fail-fast config validation at startup) conflicts with `performance` (config re-read inside the handler per request); a config edited or deleted post-startup bypasses the startup gate \u2014 state which source of truth governs at runtime."
+    ],
+    "NIT": [
+      "`guardrail_answers.observability` cites only the error envelope and item history; consider a one-line statement on how repeated decision rejections/budget refusals are diagnosable over time (log/metric signal) for the observability guardrail.",
+      "Prior MINOR findings (FR-1 error codes, FR-1/FR-3 preconditions, bootstrap-exception claim, language-rule interpretation) remain PENDING and unchanged by this delta; dispositions must be recorded before Gate 1.5 approval per CL-006."
+    ],
+    "SUMMARY": [
+      "Delta only rewrites `design_pack.guardrail_answers` and `proof_plan`; core approach (operator-only MATERIAL_CHANGE endpoint, reviewed-ancestor `--since` with latest-SHA citation) remains sound and reversible with no migration.",
+      "Top risks: authorization ordering allows state probing by non-operators, proof-plan test anchors don't fully cover asserted HIL/OpenAPI evidence, and rollback contract re-sync was lost in the shortened rollback text.",
+      "No blockers or majors in the changed fields; five prior findings still await disposition before approval."
+    ]
+  },
+  "rereview_reason": "Delta for prior 0a30481c411d: persistence/startup evidence, core validation import",
+  "rereview_reason_sha256": "a48100ce569048baefdd0195c21281500653c1e9f62116989cc6f8b34ffc5eea"
+}
