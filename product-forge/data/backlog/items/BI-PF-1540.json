@@ -81,7 +81,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 0}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 2}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -122,7 +122,8 @@
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=3930af56ceec\nBLOCKER:\n  - none\nMAJOR:\n  - `core.backlog.material_change_errors` validates `by` only against caller-supplied `body[\"by\"]` vs config `hil_actor`; `ctx` from `require_operator` is never used, so the HIL identity is self-asserted — any operator can post `by: \"hil:owner\"` and pass. The delta newly changed the message to claim the actor is \"bound to the authenticated token\", a binding the code does not implement (design security contract: \"operator + fixed HIL actor bound to authenticated token\").\nMINOR:\n  - Fail-closed config validation was inserted into `_start_state_checkpoint()` (unrelated checkpoint subsystem). If that function runs on a thread or is skipped when `PF_STATE_CHECKPOINT_SECONDS<=0`, the `RuntimeError` is swallowed/skipped and the guardrail-2 startup guarantee is lost; it also crashes the process instead of the documented 500 `CONFIG_INVALID` envelope (failure matrix).\n  - Three new functions each recompute `Path(__file__).resolve().parents[1]` instead of reusing `core.paths.ROOT` (which the removed router code used) — duplicate path resolution that can silently diverge from the canonical root.\n  - Config semantics changed `hil_actors` (allowlist) → `hil_actor` (single) but `config/review-material-change.json` still carries a stale `hil_actors` array and `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` still says identities \"are allowlisted\"; operators editing `hil_actors` get silent no-op.\n  - Two independent review-evidence readers now exist (`core.backlog.latest_review_sha` with a `-prev-` filter vs `architect_review._reviewed_heads`); divergence can make \"reason cites latest sha\" reference a SHA that is not a reviewed head, breaking AC-2's citation/ancestry pairing.\n  - `latest_review_sha` tie-breaks equal `at` timestamps by unsorted glob order → non-deterministic SHA selection.\n  - Tests assert status codes only: the 400 \"rejects without HIL\" case would also pass on sha-citation/mode failure, and the arbitrary-base test uses `\"0\"*40` (neither ancestor nor reviewed), so a non-reviewed-but-ancestor `--since` rejection is not covered — weak AC-3 evidence.\n  - Caller-supplied `item_id` is interpolated unescaped into `glob(f\"{item_id}-*.json\")` in the shipped core validator; metacharacters (`*`, `?`) can widen evidence matching (pattern pre-existed in the router, but is now promoted into core).\nNIT:\n  - `test_reviewed_ancestor_contract` (`len(h) >= 12`) is subsumed by `test_valid_delta_base_requires_reviewed_head_and_ancestor` — redundant and assertion-trivial.\n  - `from core import backlog` was added above the stdlib imports inside `_start_state_checkpoint`; import ordering is inconsistent with the surrounding function.\nSUMMARY:\n  - Solid consolidation: router-side duplicate validation was removed, validation now lives in `core.backlog`, and the delta-base predicate was extracted for reuse — reuse/language-rule posture is good.\n  - Top risks: the HIL control is still body-self-asserted while the new error text falsely claims token binding (security contract gap), and the fail-closed config check is mislocated in the checkpoint bootstrap so its availability guarantee is unverifiable.\n  - Tests expand coverage meaningfully but lean on status codes and repo-state fixtures rather than asserting the specific validation path, leaving AC-3 rejection coverage partly nominal.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=b5774997dc13\nBLOCKER:\n  - none\nMAJOR:\n  - Startup fail-closed check (`review_material_change_config_errors`) validates `hil_actor` only; the newly required `PF_HIL_TOKEN` is never checked at startup. If unset in a deployment, every decision POST returns 403 with no startup failure, log, or metric — guardrail-2 defence-in-depth (on-startup check) is incomplete for the new secret, so the AC-1 endpoint can be silently dead.\n  - `PF_HIL_TOKEN` bypasses `config/env-flags.json`, which is the declared discoverability registry for PF_* auth flags (e.g. `PF_API_TOKEN`); a required security switch is invisible to operators and has no documented default/purpose/owner.\nMINOR:\n  - Approved invariant ordering is `authz -> revision -> HIL -> reason/SHA`; the delta inserts the `X-HIL-Token` check before `_guard_revision`, so a stale-revision request without a token returns 403 instead of the contract's 409 CONFLICT (failure-matrix mismatch).\n  - `secrets.compare_digest(provided_hil, expected_hil)` raises `TypeError` for non-ASCII `X-HIL-Token` values, turning an attacker-supplied header into an unhandled 500 instead of a clean FORBIDDEN.\n  - `material_change_errors` reports unreadable `review-material-change.json` as `VALIDATION_FAILED` (400), while the approved failure matrix specifies `CONFIG_INVALID` fail-closed 500 for missing/malformed HIL config.\n  - New `review_material_change_config_errors()` and the `app.py` startup guard have no test, so the guardrail-2 fail-closed behaviour added in this delta is not fail-able/regressable.\n  - Delta-base check extraction to `valid_delta_base()` keeps the reason-cites-latest-SHA requirement outside this helper; no assertion in the delta couples accepted `--since` with the citation check (AC-2 pairing relies on an untested seam).\nNIT:\n  - `import os, secrets` executed inside the handler on every request; hoist to module scope for consistency with surrounding router imports.\n  - `test_decisions_endpoint_rejects_without_hil` supplies a valid `X-HIL-Token` and only flips `hil_confirmed`, so the test name does not match the behaviour it asserts.\nSUMMARY:\n  - Delta correctly moves validation into `core.backlog` (reuse) and adds a constant-time HIL token gate plus a reviewed-ancestor helper with tests, but the new shared secret is neither startup-validated nor registered in the env-flag registry, leaving a silent-failure risk for AC-1.\n  - Validation ordering deviates from the approved invariant/failure matrix (HIL before revision; config errors as 400 not 500), and the new startup guard is untested.\n  - Prior MAJOR (self-asserted `by` not bound to `ctx`) and prior MINOR/NIT findings remain PENDING and unchanged; no blocker introduced.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=4bd683fc1072\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Only the negative path is asserted (`PF_HIL_TOKEN` absent -> error present); there is no test that a set token yields no error, so a regression that always reports the missing-token error would pass this test.\n  - The new check uses `os.environ.get(\"PF_HIL_TOKEN\", \"\")` with no `.strip()`, unlike the adjacent `hil_actor` check that strips, so a whitespace-only token passes startup yet will fail request-time auth (inconsistent fail-closed boundary).\n  - The startup check hard-requires an endpoint-specific env var from a shared `*_config_errors()` helper; any non-API consumer invoking it now fails closed for a token it may not need — confirm caller set is startup-only.\nNIT:\n  - `import os` executed inline inside `review_material_change_config_errors()` on every call rather than at module scope.\n  - Error text `PF_HIL_TOKEN missing (HIL decision auth unavailable)` states the symptom but gives no operator remediation (where/how to set the token).\nSUMMARY:\n  - Delta is small, additive, and correctly addresses the prior startup fail-closed gap by checking `PF_HIL_TOKEN` plus a negative test; no AC is broken and no security/data regression introduced.\n  - Residual risk is test seam and consistency: no positive-path assertion, env check not stripped, and no verification that `app.py` actually invokes this helper at startup.\n  - Prior `config/env-flags.json` registration finding for `PF_HIL_TOKEN` remains unresolved but is unchanged and not re-reported here.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=7b61dc6fc29d\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The `.strip()` hardening for whitespace-only `PF_HIL_TOKEN` has no test: only unset and a well-formed token are covered, so a regression that drops the strip would pass the suite.\n  - `test_startup_accepts_configured_hil_token` asserts `errors == []`, coupling this token test to unrelated config state (e.g. `hil_actor` in `config/review-material-change.json`); a change there would fail an unrelated test with a misleading message.\nNIT:\n  - none\nSUMMARY:\n  - Delta is small and on-target: it resolves two prior MINORs (positive-path token test, `.strip()` fail-closed boundary, actionable error text) without regressing AC-1/AC-2/AC-3 evidence.\n  - Residual risk is test-coverage depth on the new blank-token path and assertion coupling in the new positive test; no blockers or contract deviations found.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=7b61dc6fc29d\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The `.strip()` hardening for whitespace-only `PF_HIL_TOKEN` has no test: only unset and a well-formed token are covered, so a regression that drops the strip would pass the suite.\n  - `test_startup_accepts_configured_hil_token` asserts `errors == []`, coupling this token test to unrelated config state (e.g. `hil_actor` in `config/review-material-change.json`); a change there would fail an unrelated test with a misleading message.\nNIT:\n  - none\nSUMMARY:\n  - Delta is small and on-target: it resolves two prior MINORs (positive-path token test, `.strip()` fail-closed boundary, actionable error text) without regressing AC-1/AC-2/AC-3 evidence.\n  - Residual risk is test-coverage depth on the new blank-token path and assertion coupling in the new positive test; no blockers or contract deviations found.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=19838e55cc5f\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - The updated assertions match on the substring \"PF_HIL_TOKEN\" inside error text, coupling tests to message wording; a reworded error string would silently pass `not any(...)` while still catching unset-token cases only via the separate required-token test.\n  - `test_startup_accepts_configured_hil_token` now proves only the absence of a token error; it no longer verifies the overall config is clean, so it cannot detect unrelated startup-config regressions by design (intentional decoupling, but the test name overstates its coverage).\nSUMMARY:\n  - Delta resolves both prior MINOR findings: whitespace-token test added and the configured-token assertion decoupled from unrelated config state.\n  - No blockers or AC regressions in this delta; remaining risk is substring-based, message-coupled assertions (nit-level).\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -218,7 +219,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T20:55:37.613755",
+  "updated_at": "2026-11-17T20:56:57.156009",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -1665,6 +1666,30 @@
         ]
       },
       "evidence": "BI-PF-1540-7b61dc6fc29d.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "0a66641c0efa4b1e3e7d46f4a6c51f5638c3c581",
+      "review_sha": "19838e55cc5f",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T15:26:41.416099+00:00",
+      "review_scope": "delta",
+      "base_sha": "1ea284ed6453f4f1557e1f69e3a671ba7a1d1436",
+      "head_sha": "0a66641c0efa4b1e3e7d46f4a6c51f5638c3c581",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "NIT": [
+          "The updated assertions match on the substring \"PF_HIL_TOKEN\" inside error text, coupling tests to message wording; a reworded error string would silently pass `not any(...)` while still catching unset-token cases only via the separate required-token test.",
+          "`test_startup_accepts_configured_hil_token` now proves only the absence of a token error; it no longer verifies the overall config is clean, so it cannot detect unrelated startup-config regressions by design (intentional decoupling, but the test name overstates its coverage)."
+        ],
+        "SUMMARY": [
+          "Delta resolves both prior MINOR findings: whitespace-token test added and the configured-token assertion decoupled from unrelated config state.",
+          "No blockers or AC regressions in this delta; remaining risk is substring-based, message-coupled assertions (nit-level)."
+        ]
+      },
+      "evidence": "BI-PF-1540-19838e55cc5f.json"
     }
   ],
   "fix_impact": [
@@ -2167,6 +2192,14 @@
       "sig:7c6686bc8e6baf06": {
         "status": "ACTIONED",
         "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:03a4e5742827203e": {
+        "status": "SCOPE",
+        "note": "Non-blocking documentation/style nit; behavior covered by tests."
+      },
+      "sig:122e38329caff2c3": {
+        "status": "SCOPE",
+        "note": "Non-blocking documentation/style nit; behavior covered by tests."
       }
     }
   }
