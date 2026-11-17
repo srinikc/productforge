@@ -1,3 +1,4 @@
+import pytest
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,6 +8,11 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 
 import review_budget
+
+
+@pytest.fixture(autouse=True)
+def _hil_token_env(monkeypatch):
+    monkeypatch.setenv("PF_HIL_TOKEN", "hil-tok")
 
 
 def test_material_change_decision_is_required_for_extra_review():
@@ -55,7 +61,7 @@ def test_decisions_endpoint_rejects_without_hil(monkeypatch):
     from api.app import app
     c = TestClient(app)
     r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
-               headers={"X-Roles": "operator"},
+               headers={"X-Roles": "operator", "X-HIL-Token": "hil-tok"},
                json={"decision": "MATERIAL_CHANGE", "mode": "design", "reason": "x" * 30,
                      "hil_confirmed": False, "by": "hil:owner"})
     assert r.status_code == 400
@@ -94,7 +100,7 @@ def test_decisions_endpoint_revision_guard_returns_409(monkeypatch):
     from api.app import app
     c = TestClient(app)
     r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
-               headers={"X-Roles": "operator"},
+               headers={"X-Roles": "operator", "X-HIL-Token": "hil-tok"},
                json={"expected_revision": 0, "decision": "MATERIAL_CHANGE",
                      "mode": "design", "reason": "x" * 30, "hil_confirmed": True,
                      "by": "hil:owner"})
@@ -126,10 +132,20 @@ def test_decisions_endpoint_persists_append_only(monkeypatch):
     sha = latest_review_sha("BI-PF-1540", "design")
     c = TestClient(app)
     r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
-               headers={"X-Roles": "operator"},
+               headers={"X-Roles": "operator", "X-HIL-Token": "hil-tok"},
                json={"decision": "MATERIAL_CHANGE", "mode": "design",
                      "reason": "Approved after review " + sha,
                      "hil_confirmed": True, "by": "hil:owner"})
     assert r.status_code == 200
     assert captured["decisions"][-1]["decision"] == "MATERIAL_CHANGE"
     assert captured["decisions"][-1]["by"] == "hil:owner"
+
+
+def test_decisions_endpoint_requires_hil_token(monkeypatch):
+    monkeypatch.setenv("API_ALLOW_ANON", "1")
+    from fastapi.testclient import TestClient
+    from api.app import app
+    c = TestClient(app)
+    r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
+               headers={"X-Roles": "operator"}, json={})
+    assert r.status_code == 403

@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "3930af56ceec",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-17T15:14:24.834544+00:00",
+  "review_scope": "delta",
+  "base_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+  "head_sha": "c097c9c6f6b667faef37bc965e1249d212060f7d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`core.backlog.material_change_errors` validates `by` only against caller-supplied `body[\"by\"]` vs config `hil_actor`; `ctx` from `require_operator` is never used, so the HIL identity is self-asserted \u2014 any operator can post `by: \"hil:owner\"` and pass. The delta newly changed the message to claim the actor is \"bound to the authenticated token\", a binding the code does not implement (design security contract: \"operator + fixed HIL actor bound to authenticated token\")."
+    ],
+    "MINOR": [
+      "Fail-closed config validation was inserted into `_start_state_checkpoint()` (unrelated checkpoint subsystem). If that function runs on a thread or is skipped when `PF_STATE_CHECKPOINT_SECONDS<=0`, the `RuntimeError` is swallowed/skipped and the guardrail-2 startup guarantee is lost; it also crashes the process instead of the documented 500 `CONFIG_INVALID` envelope (failure matrix).",
+      "Three new functions each recompute `Path(__file__).resolve().parents[1]` instead of reusing `core.paths.ROOT` (which the removed router code used) \u2014 duplicate path resolution that can silently diverge from the canonical root.",
+      "Config semantics changed `hil_actors` (allowlist) \u2192 `hil_actor` (single) but `config/review-material-change.json` still carries a stale `hil_actors` array and `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` still says identities \"are allowlisted\"; operators editing `hil_actors` get silent no-op.",
+      "Two independent review-evidence readers now exist (`core.backlog.latest_review_sha` with a `-prev-` filter vs `architect_review._reviewed_heads`); divergence can make \"reason cites latest sha\" reference a SHA that is not a reviewed head, breaking AC-2's citation/ancestry pairing.",
+      "`latest_review_sha` tie-breaks equal `at` timestamps by unsorted glob order \u2192 non-deterministic SHA selection.",
+      "Tests assert status codes only: the 400 \"rejects without HIL\" case would also pass on sha-citation/mode failure, and the arbitrary-base test uses `\"0\"*40` (neither ancestor nor reviewed), so a non-reviewed-but-ancestor `--since` rejection is not covered \u2014 weak AC-3 evidence.",
+      "Caller-supplied `item_id` is interpolated unescaped into `glob(f\"{item_id}-*.json\")` in the shipped core validator; metacharacters (`*`, `?`) can widen evidence matching (pattern pre-existed in the router, but is now promoted into core)."
+    ],
+    "NIT": [
+      "`test_reviewed_ancestor_contract` (`len(h) >= 12`) is subsumed by `test_valid_delta_base_requires_reviewed_head_and_ancestor` \u2014 redundant and assertion-trivial.",
+      "`from core import backlog` was added above the stdlib imports inside `_start_state_checkpoint`; import ordering is inconsistent with the surrounding function."
+    ],
+    "SUMMARY": [
+      "Solid consolidation: router-side duplicate validation was removed, validation now lives in `core.backlog`, and the delta-base predicate was extracted for reuse \u2014 reuse/language-rule posture is good.",
+      "Top risks: the HIL control is still body-self-asserted while the new error text falsely claims token binding (security contract gap), and the fail-closed config check is mislocated in the checkpoint bootstrap so its availability guarantee is unverifiable.",
+      "Tests expand coverage meaningfully but lean on status codes and repo-state fixtures rather than asserting the specific validation path, leaving AC-3 rejection coverage partly nominal."
+    ]
+  },
+  "rereview_reason": "Delta for prior 9e6d021f8486: HIL binding, SHA citation, core validation, proof tests",
+  "rereview_reason_sha256": "78c14402d6907a339da2cbfc4077a1f146b102154877d43145090936ef43a9a1"
+}

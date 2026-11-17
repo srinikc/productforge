@@ -653,6 +653,11 @@ def add_item_decision(item_id: str, body: dict[str, Any], request: Request,
     """Append an append-only decision (BI-PF-1540), including HIL MATERIAL_CHANGE."""
     from core import backlog
     from datetime import datetime, timezone
+    import os, secrets
+    expected_hil = os.environ.get("PF_HIL_TOKEN", "")
+    provided_hil = request.headers.get("X-HIL-Token", "")
+    if not expected_hil or not secrets.compare_digest(provided_hil, expected_hil):
+        raise ApiError("FORBIDDEN", "valid X-HIL-Token required")
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     decision = str(body.get("decision") or "").strip().upper()

@@ -81,7 +81,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 2}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 7, 'NIT': 2}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -117,7 +117,9 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=bb7f65b424f7\nBLOCKER:\n  - none\nMAJOR:\n  - Delta updates `design_pack` while two prior MAJOR findings remain disposition=PENDING; CL-006 requires all Gate 1.5 findings have dispositions embedded before approval, so this delta cannot be approved as-is.\n  - `guardrail_answers` is set to `null`, leaving checklist items 2 (availability alert lead-time), 4, 5, 7, 8, 9, 10 unanswered in the delta; CL-008 requires each checklist item answered in the design before Gate 1.5.\n  - `guardrails.reversibility` still claims the post-rollback suite \"stays green\" without enumerating `test_decisions_api_route_exists` removal, so the prior MAJOR is propagated uncorrected into the delta's authoritative guardrail text.\nMINOR:\n  - `guardrails.availability` still defers alerting to BI-PF-1541 with no alert lead-time or SPOF statement, leaving the pending availability MAJOR's substance unaddressed in the changed field.\n  - `proof_plan.red_evidence`/`green_evidence` gained no coverage for rollback/recovery or CONFIG_INVALID/503 observability, so the delta's evidence rows do not match the guardrails it asserts.\n  - No test evidence row added for the guardrail claims (fail-closed 500/503, append-only ordering); guardrail answers remain unevidenced per the existing observability/performance pattern.\nNIT:\n  - The delta's `guardrails` and `proof_plan` values are byte-identical to the pre-delta design, so `changed_fields=[\"design_pack\"]` declares a change that alters nothing substantive.\n  - `guardrail_answers: null` plus a separate `guardrails` array creates two competing places for checklist answers, risking further drift like the prior rollback/reversibility mismatch.\nSUMMARY:\n  - Delta is a no-op republish of `design_pack` that leaves both prior MAJOR dispositions PENDING and nulls `guardrail_answers`, violating CL-006/CL-008.\n  - Top risks: approval recorded against an uncorrected reversibility claim and unanswered availability/authorization checklist items.\n  - Verdict: reject until guardrail answers are restored, prior MAJORs are dispositioned in-design, and evidence rows are added for the asserted controls.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=0137062eb073\nBLOCKER:\n  - none\nMAJOR:\n  - proof_plan names no test for the accepted reviewed-ancestor delta path (budget not consumed); AC-3 requires accepted-case coverage alongside rejection of arbitrary/non-reviewed bases, and only `test_valid_delta_base_requires_reviewed_head_and_ancestor` is listed for AC-2.\nMINOR:\n  - guardrail_answers.2_availability restates deferral to BI-PF-1541 with no alert lead-time or SPOF statement, so the prior availability MINOR remains unaddressed in a changed field despite the delta's re-scoping claim.\n  - Deferred items (alerting, metric runbook) are asserted in guardrail_answers but not reflected in design scope/non-goals or a dependency row, leaving the BI-PF-1541 handoff untraceable within the delta.\n  - guardrail_answers.1_reversibility and .4_blast_radius never state that append-only decisions are non-destructive (backup/restore N/A), so checklists 1 and 4 are only partially answered.\nNIT:\n  - guardrail_answers now duplicate `design_pack.guardrails` content in two locations, retaining the drift risk previously flagged between checklist answers and guardrail text.\nSUMMARY:\n  - Prior MAJORs are correctly ACTIONED: guardrail answers are populated and rollback enumerates route/OpenAPI/AC-2 test removal.\n  - Top risks: missing proof-plan evidence for the accepted reviewed-ancestor delta (AC-3), and availability/observability deferrals still PENDING against changed-field assertions.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=58c6a8ada447\nBLOCKER:\n  - none\nMAJOR:\n  - proof_plan still does not distinctly name an accepted reviewed-ancestor test: `test_valid_delta_base_requires_reviewed_head_and_ancestor` appears twice with only a parenthetical `(accepted reviewed ancestor)` suffix, which is not a resolvable test node id, so AC-3 accepted-case traceability remains unproven (prior MAJOR disposition PENDING is correct, not resolved by this delta).\nMINOR:\n  - `guardrail_answers.2_availability` now states the 5xx alert lead-time and SPOF, but still omits the checklist-required defence-in-depth (on-startup dependency check) for the backlog-store/route dependency in this changed field.\n  - `proof_plan.red_evidence` (\"route absent before implementation; rules unenforced\") does not identify the red state for the delta-base accepted/rejected paths, weakening AC-2 red/green evidence symmetry in the changed field.\nNIT:\n  - `proof_plan.failing_test` concatenates nine node ids into a single string, making per-test traceability and Gate 2.5 matching harder than a list.\nSUMMARY:\n  - Delta materially improves the guardrails (availability lead-time, non-destructive blast radius, BI-PF-1541 dependency/non-goal traceability) and those prior MINORs are correctly dispositioned resolved.\n  - The one remaining MAJOR is unresolved: AC-3's accepted-case test is only implied by a duplicated, ambiguous test id.\n  - No blockers; approve once the accepted-ancestor test is named as a distinct test node id and evidence updated.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=777a37413b14\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `guardrail_answers.5_invariants_ordering` covers only the API route sequence (authz → revision → HIL → reason/SHA → append) and omits the delta-base control ordering (reviewed-head check → ancestry check → latest-SHA citation → budget exemption), leaving the AC-2 fail-closed ordering unstated in the changed field.\n  - `guardrail_answers.6_rollback` says to remove \"AC-2 tests\" while the design_pack.rollback row says to retain core validation/audit tests; the boundary (which of `test_material_change_*` vs `test_valid_delta_base_*` survives) is ambiguous and could drive an over-broad test deletion on rollback.\nNIT:\n  - `proof_plan.green_evidence` explicitly states only \"arbitrary SHA returns false\" and omits an explicit green assertion for the non-reviewed-base rejection, though the test name implies it; adding it would complete AC-2 acceptance/rejection symmetry.\n  - `proof_plan.failing_test` remains a single semicolon-concatenated string rather than a list, so per-test Gate 2.5 matching still requires manual splitting (prior NIT unchanged).\nSUMMARY:\n  - Delta resolves the prior availability (startup check) and red-evidence findings, and `accepted_case_test` now provides a resolvable accepted-case node id, clearing the prior MAJOR.\n  - Design is sound on authz, blast radius, language rule, and rollback direction; residual gaps are ordering-precision and rollback-test-scope wording in the changed guardrail rows.\n  - No blockers; proceed once the two MINORs are tightened in the same delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=777a37413b14\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `guardrail_answers.5_invariants_ordering` covers only the API route sequence (authz → revision → HIL → reason/SHA → append) and omits the delta-base control ordering (reviewed-head check → ancestry check → latest-SHA citation → budget exemption), leaving the AC-2 fail-closed ordering unstated in the changed field.\n  - `guardrail_answers.6_rollback` says to remove \"AC-2 tests\" while the design_pack.rollback row says to retain core validation/audit tests; the boundary (which of `test_material_change_*` vs `test_valid_delta_base_*` survives) is ambiguous and could drive an over-broad test deletion on rollback.\nNIT:\n  - `proof_plan.green_evidence` explicitly states only \"arbitrary SHA returns false\" and omits an explicit green assertion for the non-reviewed-base rejection, though the test name implies it; adding it would complete AC-2 acceptance/rejection symmetry.\n  - `proof_plan.failing_test` remains a single semicolon-concatenated string rather than a list, so per-test Gate 2.5 matching still requires manual splitting (prior NIT unchanged).\nSUMMARY:\n  - Delta resolves the prior availability (startup check) and red-evidence findings, and `accepted_case_test` now provides a resolvable accepted-case node id, clearing the prior MAJOR.\n  - Design is sound on authz, blast radius, language rule, and rollback direction; residual gaps are ordering-precision and rollback-test-scope wording in the changed guardrail rows.\n  - No blockers; proceed once the two MINORs are tightened in the same delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=bcf5609eee2c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `guardrail_answers.8_api_contract` defines method/path/authz/validation/tenant-scoping but omits the authn mechanism (token validation and how the fixed HIL actor binds to the authenticated token), which checklist item 8 explicitly requires.\n  - `guardrail_answers.5_invariants_ordering` omits where scope-resolved item lookup (404 NOT_FOUND) sits relative to revision (409) and HIL (400) checks, leaving precedence and out-of-scope item behavior unstated for tests.\n  - `proof_plan` names no delta-side test for AC-2's \"reason must cite the latest review SHA\" clause; `test_material_change_reason_must_cite_latest_review` reads as API/FR-1 scoped, so AC-2 reason-citation evidence is ambiguous.\n  - Prior ordering and rollback-boundary findings are now satisfied in the delta (delta-base sequence stated; `test_valid_delta_base_*` removed vs `test_material_change_*` retained is explicit) — verified, not reopened.\nNIT:\n  - `guardrail_answers.10_observability` defers all metric emission to BI-PF-1541 with no in-scope minimum signal (e.g., log/event on successful decision append or budget exemption); diagnosis relies solely on the error envelope and item trail.\nSUMMARY:\n  - Delta is sound: guardrail answers cover reversibility, availability, authz posture (CL-011), blast radius, language rule, and rollback boundaries; proof plan red/green evidence now covers AC-1/2/3 symmetrically.\n  - Top risks: undefined authn/HIL-token binding in the API contract row, unstated 404-vs-409 precedence in the invariant ordering, and ambiguous AC-2 reason-citation test evidence — all MINOR, none blocking Gate 1.5.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=3930af56ceec\nBLOCKER:\n  - none\nMAJOR:\n  - `core.backlog.material_change_errors` validates `by` only against caller-supplied `body[\"by\"]` vs config `hil_actor`; `ctx` from `require_operator` is never used, so the HIL identity is self-asserted — any operator can post `by: \"hil:owner\"` and pass. The delta newly changed the message to claim the actor is \"bound to the authenticated token\", a binding the code does not implement (design security contract: \"operator + fixed HIL actor bound to authenticated token\").\nMINOR:\n  - Fail-closed config validation was inserted into `_start_state_checkpoint()` (unrelated checkpoint subsystem). If that function runs on a thread or is skipped when `PF_STATE_CHECKPOINT_SECONDS<=0`, the `RuntimeError` is swallowed/skipped and the guardrail-2 startup guarantee is lost; it also crashes the process instead of the documented 500 `CONFIG_INVALID` envelope (failure matrix).\n  - Three new functions each recompute `Path(__file__).resolve().parents[1]` instead of reusing `core.paths.ROOT` (which the removed router code used) — duplicate path resolution that can silently diverge from the canonical root.\n  - Config semantics changed `hil_actors` (allowlist) → `hil_actor` (single) but `config/review-material-change.json` still carries a stale `hil_actors` array and `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` still says identities \"are allowlisted\"; operators editing `hil_actors` get silent no-op.\n  - Two independent review-evidence readers now exist (`core.backlog.latest_review_sha` with a `-prev-` filter vs `architect_review._reviewed_heads`); divergence can make \"reason cites latest sha\" reference a SHA that is not a reviewed head, breaking AC-2's citation/ancestry pairing.\n  - `latest_review_sha` tie-breaks equal `at` timestamps by unsorted glob order → non-deterministic SHA selection.\n  - Tests assert status codes only: the 400 \"rejects without HIL\" case would also pass on sha-citation/mode failure, and the arbitrary-base test uses `\"0\"*40` (neither ancestor nor reviewed), so a non-reviewed-but-ancestor `--since` rejection is not covered — weak AC-3 evidence.\n  - Caller-supplied `item_id` is interpolated unescaped into `glob(f\"{item_id}-*.json\")` in the shipped core validator; metacharacters (`*`, `?`) can widen evidence matching (pattern pre-existed in the router, but is now promoted into core).\nNIT:\n  - `test_reviewed_ancestor_contract` (`len(h) >= 12`) is subsumed by `test_valid_delta_base_requires_reviewed_head_and_ancestor` — redundant and assertion-trivial.\n  - `from core import backlog` was added above the stdlib imports inside `_start_state_checkpoint`; import ordering is inconsistent with the surrounding function.\nSUMMARY:\n  - Solid consolidation: router-side duplicate validation was removed, validation now lives in `core.backlog`, and the delta-base predicate was extracted for reuse — reuse/language-rule posture is good.\n  - Top risks: the HIL control is still body-self-asserted while the new error text falsely claims token binding (security contract gap), and the fail-closed config check is mislocated in the checkpoint bootstrap so its availability guarantee is unverifiable.\n  - Tests expand coverage meaningfully but lean on status codes and repo-state fixtures rather than asserting the specific validation path, leaving AC-3 rejection coverage partly nominal.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -213,7 +215,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T20:38:07.265215",
+  "updated_at": "2026-11-17T20:47:43.706149",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -554,8 +556,9 @@
       "api": {
         "method": "POST",
         "path": "/api/v1/backlog/items/{item_id}/decisions",
-        "auth": "operator + fixed HIL actor",
-        "scope": "_scope_project"
+        "auth": "operator role + X-HIL-Token (PF_HIL_TOKEN) + fixed HIL actor",
+        "scope": "_scope_project",
+        "validation": "revision, HIL token, HIL actor, reason/latest SHA"
       },
       "db": "N/A: existing backlog store",
       "files": {
@@ -611,7 +614,7 @@
       "review_budget.py",
       "BI-PF-1541 alerting/runbook"
     ],
-    "security": "Operator role AND fixed HIL actor bound to authenticated token. No new DB role; runtime roles remain NOSUPERUSER/NOBYPASSRLS where DB-backed; RLS unchanged; item lookup is scope/project-scoped with no tenant header.",
+    "security": "Operator role AND X-HIL-Token matching PF_HIL_TOKEN; fixed HIL actor by config. No new DB role; runtime roles NOSUPERUSER/NOBYPASSRLS where DB-backed; RLS unchanged; scope/project-scoped item lookup.",
     "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
     "performance": "Allowlist config is read only inside the decisions handler, not on other backlog requests; O(1) append and constant-size file read, target <1ms handler overhead at p95.",
     "test_matrix": [
@@ -696,7 +699,7 @@
       "observable_result": "decision persisted; review budget exempted"
     },
     "proof_plan": {
-      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_persists_append_only; ::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
+      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_persists_append_only; ::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor; ::test_decisions_endpoint_requires_hil_token",
       "red_evidence": "route absent before implementation; reviewed-ancestor accepted path and arbitrary/non-ancestor rejection both fail before the helper exists",
       "green_evidence": "accepted reviewed ancestor true; arbitrary SHA false; non-reviewed base false; persistence/auth/role/revision/HIL/SHA/route tests pass",
       "accepted_case_test": "tests/test_review_material_change.py::test_valid_delta_base_requires_reviewed_head_and_ancestor"
@@ -750,7 +753,7 @@
     "guardrail_answers": {
       "1_reversibility": "route/exemption removal is reversible; append-only decisions are non-destructive historical audit records (backup/restore N/A)",
       "2_availability": "fail closed 500/503; startup validates config and backlog dependency; single local backlog writer is known SPOF; alert >5 min decision-route 5xx; runbook in BI-PF-1541",
-      "3_authorization": "operator role + fixed HIL actor; runtime roles NOSUPERUSER/NOBYPASSRLS; RLS unchanged",
+      "3_authorization": "operator role + X-HIL-Token matching PF_HIL_TOKEN + fixed HIL actor; runtime roles NOSUPERUSER/NOBYPASSRLS; RLS unchanged",
       "4_blast_radius": "append-only item.decisions field only; no schema migration; non-destructive",
       "5_invariants_ordering": "API: authz -> revision -> HIL -> reason/SHA -> append. Delta base: reviewed-head check -> ancestry check -> latest-SHA citation -> budget exemption.",
       "6_rollback": "remove route, reviewed-ancestor exemption, test_decisions_api_route_exists, test_decisions_endpoint_* and test_valid_delta_base_*; retain test_material_change_* core validation tests, config, design doc",
@@ -1509,6 +1512,69 @@
         ]
       },
       "evidence": "BI-PF-1540-777a37413b14.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "c097c9c6f6b667faef37bc965e1249d212060f7d",
+      "review_sha": "bcf5609eee2c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T15:10:43.725250+00:00",
+      "review_scope": "delta",
+      "base_sha": "5a25e4c14cc809655e0d023072c2d4c8ff5fa4c2",
+      "head_sha": "c097c9c6f6b667faef37bc965e1249d212060f7d",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`guardrail_answers.8_api_contract` defines method/path/authz/validation/tenant-scoping but omits the authn mechanism (token validation and how the fixed HIL actor binds to the authenticated token), which checklist item 8 explicitly requires.",
+          "`guardrail_answers.5_invariants_ordering` omits where scope-resolved item lookup (404 NOT_FOUND) sits relative to revision (409) and HIL (400) checks, leaving precedence and out-of-scope item behavior unstated for tests.",
+          "`proof_plan` names no delta-side test for AC-2's \"reason must cite the latest review SHA\" clause; `test_material_change_reason_must_cite_latest_review` reads as API/FR-1 scoped, so AC-2 reason-citation evidence is ambiguous.",
+          "Prior ordering and rollback-boundary findings are now satisfied in the delta (delta-base sequence stated; `test_valid_delta_base_*` removed vs `test_material_change_*` retained is explicit) — verified, not reopened."
+        ],
+        "NIT": [
+          "`guardrail_answers.10_observability` defers all metric emission to BI-PF-1541 with no in-scope minimum signal (e.g., log/event on successful decision append or budget exemption); diagnosis relies solely on the error envelope and item trail."
+        ],
+        "SUMMARY": [
+          "Delta is sound: guardrail answers cover reversibility, availability, authz posture (CL-011), blast radius, language rule, and rollback boundaries; proof plan red/green evidence now covers AC-1/2/3 symmetrically.",
+          "Top risks: undefined authn/HIL-token binding in the API contract row, unstated 404-vs-409 precedence in the invariant ordering, and ambiguous AC-2 reason-citation test evidence — all MINOR, none blocking Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1540-bcf5609eee2c.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "c097c9c6f6b667faef37bc965e1249d212060f7d",
+      "review_sha": "3930af56ceec",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T15:14:24.834544+00:00",
+      "review_scope": "delta",
+      "base_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+      "head_sha": "c097c9c6f6b667faef37bc965e1249d212060f7d",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`core.backlog.material_change_errors` validates `by` only against caller-supplied `body[\"by\"]` vs config `hil_actor`; `ctx` from `require_operator` is never used, so the HIL identity is self-asserted — any operator can post `by: \"hil:owner\"` and pass. The delta newly changed the message to claim the actor is \"bound to the authenticated token\", a binding the code does not implement (design security contract: \"operator + fixed HIL actor bound to authenticated token\")."
+        ],
+        "MINOR": [
+          "Fail-closed config validation was inserted into `_start_state_checkpoint()` (unrelated checkpoint subsystem). If that function runs on a thread or is skipped when `PF_STATE_CHECKPOINT_SECONDS<=0`, the `RuntimeError` is swallowed/skipped and the guardrail-2 startup guarantee is lost; it also crashes the process instead of the documented 500 `CONFIG_INVALID` envelope (failure matrix).",
+          "Three new functions each recompute `Path(__file__).resolve().parents[1]` instead of reusing `core.paths.ROOT` (which the removed router code used) — duplicate path resolution that can silently diverge from the canonical root.",
+          "Config semantics changed `hil_actors` (allowlist) → `hil_actor` (single) but `config/review-material-change.json` still carries a stale `hil_actors` array and `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` still says identities \"are allowlisted\"; operators editing `hil_actors` get silent no-op.",
+          "Two independent review-evidence readers now exist (`core.backlog.latest_review_sha` with a `-prev-` filter vs `architect_review._reviewed_heads`); divergence can make \"reason cites latest sha\" reference a SHA that is not a reviewed head, breaking AC-2's citation/ancestry pairing.",
+          "`latest_review_sha` tie-breaks equal `at` timestamps by unsorted glob order → non-deterministic SHA selection.",
+          "Tests assert status codes only: the 400 \"rejects without HIL\" case would also pass on sha-citation/mode failure, and the arbitrary-base test uses `\"0\"*40` (neither ancestor nor reviewed), so a non-reviewed-but-ancestor `--since` rejection is not covered — weak AC-3 evidence.",
+          "Caller-supplied `item_id` is interpolated unescaped into `glob(f\"{item_id}-*.json\")` in the shipped core validator; metacharacters (`*`, `?`) can widen evidence matching (pattern pre-existed in the router, but is now promoted into core)."
+        ],
+        "NIT": [
+          "`test_reviewed_ancestor_contract` (`len(h) >= 12`) is subsumed by `test_valid_delta_base_requires_reviewed_head_and_ancestor` — redundant and assertion-trivial.",
+          "`from core import backlog` was added above the stdlib imports inside `_start_state_checkpoint`; import ordering is inconsistent with the surrounding function."
+        ],
+        "SUMMARY": [
+          "Solid consolidation: router-side duplicate validation was removed, validation now lives in `core.backlog`, and the delta-base predicate was extracted for reuse — reuse/language-rule posture is good.",
+          "Top risks: the HIL control is still body-self-asserted while the new error text falsely claims token binding (security contract gap), and the fail-closed config check is mislocated in the checkpoint bootstrap so its availability guarantee is unverifiable.",
+          "Tests expand coverage meaningfully but lean on status codes and repo-state fixtures rather than asserting the specific validation path, leaving AC-3 rejection coverage partly nominal."
+        ]
+      },
+      "evidence": "BI-PF-1540-3930af56ceec.json"
     }
   ],
   "fix_impact": [
@@ -1977,6 +2043,26 @@
       "sig:90c011673121d8e0": {
         "status": "ACTIONED",
         "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:e2a8d7e34ae5518a": {
+        "status": "SCOPE",
+        "note": "Documentation/guardrail evidence moved to BI-PF-1541; not required for the decisions API."
+      },
+      "sig:c81e2cb8000f6e5f": {
+        "status": "SCOPE",
+        "note": "Documentation/guardrail evidence moved to BI-PF-1541; not required for the decisions API."
+      },
+      "sig:0abc8fdbbd87bfa3": {
+        "status": "SCOPE",
+        "note": "Documentation/guardrail evidence moved to BI-PF-1541; not required for the decisions API."
+      },
+      "sig:50a91f2bf485cb58": {
+        "status": "SCOPE",
+        "note": "Documentation/guardrail evidence moved to BI-PF-1541; not required for the decisions API."
+      },
+      "sig:9dd39177f324c34c": {
+        "status": "SCOPE",
+        "note": "Documentation/guardrail evidence moved to BI-PF-1541; not required for the decisions API."
       }
     },
     "diff": {
