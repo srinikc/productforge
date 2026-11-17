@@ -71,7 +71,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 0}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 2, 'NIT': 2}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -88,7 +88,8 @@
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=9e6d021f8486\nBLOCKER:\n  - none\nMAJOR:\n  - Diff contains only `api/openapi.json`; no changes to `scripts/dev/architect_review.py` or `tests/test_review_material_change.py` are visible, so AC-2 (reviewed-ancestor `--since` + reason-cites-latest-SHA + reject arbitrary SHA) and AC-3 (auth/validation, persistence, ancestor-accept, arbitrary-SHA-reject tests) are not demonstrable from this diff.\n  - New decisions route documents only 200/422, but the approved failure matrix requires 404 NOT_FOUND, 409 CONFLICT (revision guard), 503 DEPENDENCY_UNAVAILABLE, 500 CONFIG_INVALID — API contract (spec_pack `api_contract` = APPLICABLE, evidence `api/openapi.json`) is out of sync with the approved design.\n  - Request body for `/api/v1/backlog/items/{item_id}/decisions` is an untyped `additionalProperties: true` object; no OpenAPI schema for `mode`/`reason`/`hil_confirmed`/`expected_revision`, so the contract does not express the HIL/revision-guard validation the AC requires.\nMINOR:\n  - No `security`/operator-role requirement is declared on the decisions operation; operator-only enforcement is not discoverable from the contract (relies solely on optional `authorization`/`x-roles` header params like every other route).\n  - The diff re-sorts/reformats the entire 14k-line `openapi.json` (ordering, key order, description placement), producing enormous unrelated churn that obscures the single substantive addition and risks noisy future diffs.\nNIT:\n  - Route description (\"Append an append-only decision (BI-PF-1540)\") leaks the ticket ID into the public API surface; prefer a stable behavioral description.\n  - `operationId` `add_item_decision_...` does not convey MATERIAL_CHANGE semantics; consider a name that reflects the allowlisted decision type.\nSUMMARY:\n  - The diff shows the decisions route added to the OpenAPI contract (AC-3 route-presence partially met) but provides no evidence for the architect_review delta-base change or the required tests, and the published schema/error contract diverges from the approved design's failure matrix and validation requirements.\n  - Top risks: unverified AC-2/AC-3 implementation, incomplete 404/409/503/500 contract, and an untyped decision payload that does not encode the HIL/revision-guard invariants.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=5c7b2b648bda\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Delta declares `changed_fields: []` and an empty `delta`, so there are no new design fields to review and no new findings can be raised against this delta.\n  - The five prior findings remain disposition=PENDING; under CL-006 they must be resolved before Gate 1 approval, but they are not repeated here.\n  - No AC, contract, test, or control changed in this delta; the approved design and its risks stand as previously reviewed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f592397af08a\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback removes `config/review-material-change.json` while append-only MATERIAL_CHANGE decisions already persisted reference that fixed HIL actor; post-rollback re-verification behavior for existing decisions is undefined and could fail closed or silently void `review_budget` exemptions (integrity of stored decisions vs. policy).\nMINOR:\n  - `api/openapi.json` is a declared affected/checked-in file, but rollback only says \"remove the decisions route\"; without explicit contract re-sync, the documented path survives code removal (API contracts in sync, guardrail 8).\n  - HIL actor config is \"loaded and validated per request\" with no caching stated, while the NFR requires \"no added runtime latency\"; define a cache/TTL or explicitly justify the per-request file read.\n  - Rollback deletes `tests/test_review_material_change.py` and the design doc outright; retained append-only decisions then have no regression coverage or traceability for the audit records that remain.\nNIT:\n  - Security wording layers \"operator role AND fixed HIL actor on the token\"; note explicitly how a non-HIL operator acts (or is rejected) to avoid ambiguity for API consumers.\n  - Rollback list omits `api/openapi.json` regeneration step alongside the route removal.\nSUMMARY:\n  - Delta is coherent on the changed fields (security boundary, rollback, language rule) and satisfies the ACs as specified; language rule is respected (shipped Python API extension + tooling Python).\n  - Top risks: rollback leaves stored decisions referencing a deleted HIL config with undefined re-verification semantics, and openapi contract re-sync is not called out in rollback.\n  - No blocker-level AC, security, or data-loss defect found in the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=02875e871b7d\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback retains `tests/test_review_material-change.py` \"audit tests\", but those include FR-3 route-existence/auth tests for `POST /items/{id}/decisions`; after route removal the retained suite fails, so post-rollback verification cannot pass (guardrail 6: rollback coverage must leave a green suite).\n  - Rollback says \"no new decisions are accepted after rollback\" but defines no enforcement/verification step beyond route removal; if any alternate path (direct `core.backlog.update`, stale client) exists, the claim is unverifiable — state the fail-closed check.\nMINOR:\n  - `performance` states \"allowlist config is a tiny file read per request\" without scoping \"per request\" (decisions route only vs every backlog request); on a hot path the \"no measurable runtime impact\" claim needs an explicit route-scoped reading or a stated cache/TTL.\n  - \"no measurable runtime impact\" is asserted without a stated measurement basis (latency budget/threshold); tie it to the NFR so the claim is testable.\nNIT:\n  - none\nSUMMARY:\n  - Delta resolves the prior MAJOR (config file now retained on rollback) and the openapi/tests rollback MINORs (re-sync + retention explicitly stated); those dispositions look correct and should not be reopened.\n  - Top residual risks: retained audit tests are inconsistent with route removal, and the rollback's \"no new decisions accepted\" guarantee lacks an explicit fail-closed verification step.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=02875e871b7d\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback retains `tests/test_review_material-change.py` \"audit tests\", but those include FR-3 route-existence/auth tests for `POST /items/{id}/decisions`; after route removal the retained suite fails, so post-rollback verification cannot pass (guardrail 6: rollback coverage must leave a green suite).\n  - Rollback says \"no new decisions are accepted after rollback\" but defines no enforcement/verification step beyond route removal; if any alternate path (direct `core.backlog.update`, stale client) exists, the claim is unverifiable — state the fail-closed check.\nMINOR:\n  - `performance` states \"allowlist config is a tiny file read per request\" without scoping \"per request\" (decisions route only vs every backlog request); on a hot path the \"no measurable runtime impact\" claim needs an explicit route-scoped reading or a stated cache/TTL.\n  - \"no measurable runtime impact\" is asserted without a stated measurement basis (latency budget/threshold); tie it to the NFR so the claim is testable.\nNIT:\n  - none\nSUMMARY:\n  - Delta resolves the prior MAJOR (config file now retained on rollback) and the openapi/tests rollback MINORs (re-sync + retention explicitly stated); those dispositions look correct and should not be reopened.\n  - Top residual risks: retained audit tests are inconsistent with route removal, and the rollback's \"no new decisions accepted\" guarantee lacks an explicit fail-closed verification step.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=77b2aca80349\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback retains \"decision-validation/audit unit tests\" but does not state which module owns decision validation after route removal; if validation lives in the removed `api/routers/backlog.py` handler, the retained tests fail and post-rollback suite is not green (guardrail 6). New evidence: delta rollback text still assumes test separability without specifying the surviving target. (extends prior #1)\nMINOR:\n  - Fail-closed check is scoped to \"no HTTP path can append new decisions\"; the prior finding also cited a non-HTTP alternate path (`core.backlog.update` invoked directly by tooling), which remains outside the stated check — narrow the claim or cover it.\n  - Rollback says remove \"route-existence and endpoint-auth tests\" and retain \"audit tests\" but does not enumerate the partition within `tests/test_review_material_change.py`; ambiguous split risks a red or partially-removed suite at rollback time.\nNIT:\n  - `<1ms handler overhead at p95>` states a threshold but no measurement basis (tool, window, fixture), so the NFR claim remains weakly testable.\n  - Fail-closed check is prose only; specify an executable assertion (e.g., retained negative test asserting the route is absent from app and OpenAPI) so rollback verification is automated.\nSUMMARY:\n  - Performance delta correctly scopes config reads to the decisions handler and adds an explicit latency budget, resolving both prior MINOR findings.\n  - Rollback delta addresses prior MAJOR #2 by stating a fail-closed check, but the check covers only HTTP paths and test partitioning for the retained suite is unspecified.\n  - Top risks: post-rollback suite greenness (guardrail 6) and residual non-HTTP append path remain the gating items before Gate 1.5 approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -184,7 +185,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:20:13.851902",
+  "updated_at": "2026-11-17T18:23:46.784323",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -595,7 +596,7 @@
       }
     ],
     "rollout": "Enable with the API route; no data migration.",
-    "rollback": "Remove the decisions route and reviewed-ancestor exemption; re-sync api/openapi.json; remove route-existence and endpoint-auth tests; retain config, design doc and decision-validation/audit unit tests. Existing MATERIAL_CHANGE decisions remain historical evidence. Fail-closed check: the decisions path is absent from the app and OpenAPI, and no HTTP path can append new decisions.",
+    "rollback": "Remove the decisions route and reviewed-ancestor exemption; re-sync api/openapi.json; remove route-existence/endpoint-auth tests. Retain core/review_decisions.py validation, config, design doc and decision-validation/audit tests, so the post-rollback suite stays green. Existing MATERIAL_CHANGE decisions remain historical evidence. Fail-closed check: route absent from app/OpenAPI; no HTTP append path.",
     "decisions": [
       "Bootstrap exception approved for 1540-first merge."
     ],
@@ -695,7 +696,8 @@
       "scripts/dev/architect_review.py",
       "tests/test_review_material_change.py",
       "config/review-material-change.json",
-      "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md"
+      "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+      "core/review_decisions.py"
     ]
   },
   "api_impact": {
@@ -917,6 +919,36 @@
         ]
       },
       "evidence": "BI-PF-1540-02875e871b7d.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "53106c659a1bf59554ec699e90b652c52c6d9359",
+      "review_sha": "77b2aca80349",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T12:52:08.783384+00:00",
+      "review_scope": "delta",
+      "base_sha": "371b7152e980ebff5de705cc694887f58b8c60e1",
+      "head_sha": "53106c659a1bf59554ec699e90b652c52c6d9359",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Rollback retains \"decision-validation/audit unit tests\" but does not state which module owns decision validation after route removal; if validation lives in the removed `api/routers/backlog.py` handler, the retained tests fail and post-rollback suite is not green (guardrail 6). New evidence: delta rollback text still assumes test separability without specifying the surviving target. (extends prior #1)"
+        ],
+        "MINOR": [
+          "Fail-closed check is scoped to \"no HTTP path can append new decisions\"; the prior finding also cited a non-HTTP alternate path (`core.backlog.update` invoked directly by tooling), which remains outside the stated check — narrow the claim or cover it.",
+          "Rollback says remove \"route-existence and endpoint-auth tests\" and retain \"audit tests\" but does not enumerate the partition within `tests/test_review_material_change.py`; ambiguous split risks a red or partially-removed suite at rollback time."
+        ],
+        "NIT": [
+          "`<1ms handler overhead at p95>` states a threshold but no measurement basis (tool, window, fixture), so the NFR claim remains weakly testable.",
+          "Fail-closed check is prose only; specify an executable assertion (e.g., retained negative test asserting the route is absent from app and OpenAPI) so rollback verification is automated."
+        ],
+        "SUMMARY": [
+          "Performance delta correctly scopes config reads to the decisions handler and adds an explicit latency budget, resolving both prior MINOR findings.",
+          "Rollback delta addresses prior MAJOR #2 by stating a fail-closed check, but the check covers only HTTP paths and test partitioning for the retained suite is unspecified.",
+          "Top risks: post-rollback suite greenness (guardrail 6) and residual non-HTTP append path remain the gating items before Gate 1.5 approval."
+        ]
+      },
+      "evidence": "BI-PF-1540-77b2aca80349.json"
     }
   ],
   "fix_impact": [
