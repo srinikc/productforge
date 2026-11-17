@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "88c7475bc408",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:04:05.074976+00:00",
+  "review_scope": "delta",
+  "base_sha": "c8b6713b8bfe8b1880119cd7f1431fbb4f09d56b",
+  "head_sha": "7ab76d83dbdec683146d86718730d9f6ad58ae8c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Verified prior MAJOR (disposition still PENDING): the delta leaves AC-2 enforcement untraceable in `runtime_contract` \u2014 `adapter` and `contract` (\"validation delegated to core.backlog\") name only `core/backlog.py:material_change_errors`, while the changed `failure_behavior` asserts SHA/--since rejection owned by `scripts/dev/architect_review.py` + `review_budget.py`; `contracts.files.delta_base` was updated but the runtime row was not reconciled in the same delta."
+    ],
+    "MINOR": [
+      "Rollback removes the reviewed-ancestor exemption but only lists route-only and endpoint-auth tests for removal; the AC-2 tests (accepted reviewed-ancestor delta, rejection of arbitrary/non-reviewed bases) would fail post-rollback, contradicting \"so the suite stays green\" without stating their disposition.",
+      "[OUT_OF_SCOPE] Top-level `affected_components` still omit `core/backlog.py` and `config/review-material-change.json`, both referenced by this delta's `contracts.files`/`contracts.config` (pre-existing row, not updated here)."
+    ],
+    "NIT": [
+      "`runtime_contract.call_sites` uses \"/items/{id}/decisions\" while `contracts.api.path` is \"/api/v1/backlog/items/{item_id}/decisions\" \u2014 prefix and param naming differ, weakening file/row traceability."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior `contracts.api` MINOR (method/auth/scope now present) and the call_sites `--since` MAJOR; no blocker found, language rule and fail-closed auth posture hold.",
+      "Top remaining risk: AC-2's enforcement point is still only half-traced \u2014 file row updated, runtime row not \u2014 and the rollback test plan does not cover AC-2 tests.",
+      "All prior dispositions remain PENDING; per CL-006 they must be recorded before Gate 1 approval."
+    ]
+  },
+  "rereview_reason": "Delta for prior fdc98620ba7f: AC-2 enforcement owner, rollback test partition",
+  "rereview_reason_sha256": "e423333edf9a5285804f02bb7036cce2b389f58c50b14aed8c0ed18cabf0f517"
+}
