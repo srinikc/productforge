@@ -178,7 +178,473 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T17:36:00.596886",
+  "updated_at": "2026-11-17T17:43:22.482736",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1540",
+    "outcome": "HIL material-change decisions are API-recordable and valid fix deltas do not exceed budget.",
+    "actors": [
+      "operator",
+      "reviewer",
+      "HIL owner"
+    ],
+    "scope": [
+      "decisions API",
+      "delta base",
+      "tests"
+    ],
+    "non_goals": [
+      "changing review severity policy",
+      "new runtime service"
+    ],
+    "assumptions": [
+      "review evidence remains the source of reviewed heads"
+    ],
+    "dependencies": [
+      "core.backlog",
+      "architect_review.py",
+      "review_budget.py"
+    ],
+    "domain": "Product Forge review process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Record HIL material-change decisions",
+        "priority": "P0",
+        "source": "BI-PF-1540",
+        "preconditions": "A review budget decision or delta base must be validated.",
+        "trigger": "An operator posts a MATERIAL_CHANGE decision.",
+        "inputs": [
+          "decision payload",
+          "expected revision"
+        ],
+        "outputs": [
+          "item.decisions appended"
+        ],
+        "errors": [
+          "400/404/409"
+        ],
+        "auth": "operator role; hil:<actor> required",
+        "idempotency": "revision guard",
+        "data_rules": "append-only decisions",
+        "edge_cases": [
+          "stale revision",
+          "missing HIL"
+        ],
+        "acceptance": [
+          "Given HIL approval, when posted, then the decision is stored append-only."
+        ],
+        "verification": [
+          "pytest tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Accept reviewed-ancestor delta base",
+        "priority": "P0",
+        "source": "BI-PF-1540",
+        "preconditions": "A review budget decision or delta base must be validated.",
+        "trigger": "A re-review supplies a since SHA.",
+        "inputs": [
+          "since SHA",
+          "reason"
+        ],
+        "outputs": [
+          "budget exemption or refusal"
+        ],
+        "errors": [
+          "refuse unreviewed/non-ancestor"
+        ],
+        "auth": "review tooling only",
+        "idempotency": "deterministic ancestry check",
+        "data_rules": "base must be reviewed head and ancestor of HEAD",
+        "edge_cases": [
+          "arbitrary SHA"
+        ],
+        "acceptance": [
+          "Given a reviewed ancestor, when re-review runs, then full-review budget is not consumed."
+        ],
+        "verification": [
+          "pytest tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Expose decision API contract",
+        "priority": "P0",
+        "source": "BI-PF-1540",
+        "preconditions": "A review budget decision or delta base must be validated.",
+        "trigger": "API docs are generated.",
+        "inputs": [
+          "route metadata"
+        ],
+        "outputs": [
+          "OpenAPI path"
+        ],
+        "errors": [
+          "missing route"
+        ],
+        "auth": "operator-only",
+        "idempotency": "idempotent schema export",
+        "data_rules": "route documented",
+        "edge_cases": [
+          "no auth"
+        ],
+        "acceptance": [
+          "Given the app, when OpenAPI is generated, then the decisions route is present."
+        ],
+        "verification": [
+          "pytest tests/test_review_material_change.py::test_decisions_api_route_exists"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "append decision",
+        "owner": "backlog API",
+        "failure": "reject"
+      }
+    ],
+    "config_contract": {
+      "review-budget.json": "existing policy used unchanged"
+    },
+    "nfr": [
+      "deterministic checks",
+      "no added runtime latency"
+    ],
+    "data_lifecycle": "decisions append-only in backlog item",
+    "compatibility": "existing decisions remain readable",
+    "rollback": "remove decisions route and reviewed-ancestor exemption",
+    "observability": "API errors and review budget output",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+        "test": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+        "test": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+        "test": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: bootstrap exception is recorded in the item."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "1f4d4d4351e2"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1540.md",
+    "design_ref": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "review decision design",
+        "artifact": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+        "sections": [
+          "1-6"
+        ],
+        "evidence": [
+          "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "new decisions endpoint",
+        "artifact": "api/openapi.json",
+        "sections": [
+          "decisions"
+        ],
+        "evidence": [
+          "api/openapi.json"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1540",
+        "reason": "decisions use the existing backlog item store"
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "review budget policy consumed",
+        "artifact": "config/review-budget.json",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "config/review-budget.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1540",
+        "reason": "tooling-only change"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "operator-only append-only decisions",
+        "artifact": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1540",
+        "reason": "no database migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1540",
+        "reason": "code revert only"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "API errors and budget output",
+        "artifact": "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
+        "sections": [
+          "failure modes"
+        ],
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1540",
+        "reason": "No user interface exists in this tooling-only API change."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1540",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "route and budget change",
+        "artifact": "api/routers/backlog.py",
+        "sections": [
+          "decisions"
+        ],
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1540",
+        "reason": "tests verify release",
+        "artifact": "tests/test_review_material_change.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md"
+    ],
+    "requirements": [
+      "FR-1 decisions API",
+      "FR-2 reviewed ancestor",
+      "FR-3 OpenAPI"
+    ],
+    "invariants": [
+      "append-only decisions",
+      "reviewed head + ancestor required"
+    ],
+    "contracts": {
+      "api": {
+        "route": "/items/{id}/decisions"
+      },
+      "db": "N/A: existing backlog store",
+      "files": {
+        "route": "api/routers/backlog.py"
+      },
+      "config": {
+        "policy": "config/review-budget.json"
+      }
+    },
+    "failure_matrix": [
+      {
+        "case": "invalid decision",
+        "behavior": "reject",
+        "code": "VALIDATION_FAILED"
+      }
+    ],
+    "dependencies": [
+      "core.backlog",
+      "architect_review.py"
+    ],
+    "security": "Operator-only, append-only, HIL actor required.",
+    "observability": "API errors and review-budget messages.",
+    "performance": "O(1) append.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "pytest tests/test_review_material_change.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "pytest tests/test_review_material_change.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "pytest tests/test_review_material_change.py"
+      }
+    ],
+    "rollout": "Enable with the API route; no data migration.",
+    "rollback": "Remove route and exemption.",
+    "decisions": [
+      "Bootstrap exception approved for 1540-first merge."
+    ],
+    "guardrails": [
+      "No arbitrary SHA budget bypass."
+    ],
+    "learnings": [
+      "1538 and 1540 were circular; 1540 first breaks the cycle."
+    ],
+    "design_areas": [
+      {
+        "area": "review-tooling",
+        "status": "APPLICABLE",
+        "reason": "BI-PF-1540 scope",
+        "sections": [
+          "1-6"
+        ],
+        "evidence": [
+          "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1540.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ],
+    "runtime_contract": {
+      "trigger": "operator posts material-change decision or reviewer runs delta",
+      "entrypoint": "api.routers.backlog.add_item_decision",
+      "call_sites": [
+        "POST /items/{id}/decisions",
+        "architect_review run --rereview"
+      ],
+      "adapter": "core.backlog.update",
+      "contract": "append-only decision; reviewed ancestor accepted",
+      "failure_behavior": "reject invalid HIL/SHA",
+      "observable_result": "decision persisted; review budget exempted"
+    },
+    "proof_plan": {
+      "failing_test": "tests/test_review_material_change.py::test_material_change_without_hil_is_rejected",
+      "red_evidence": "missing HIL rejected",
+      "green_evidence": "tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "tests/test_review_material_change.py"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "tests/test_review_material_change.py"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "tests/test_review_material_change.py"
+      }
+    ],
+    "stop_conditions": [
+      "No API-only decision path",
+      "Arbitrary SHA accepted"
+    ],
+    "scope": [
+      "decisions API",
+      "reviewed ancestor delta base",
+      "tests"
+    ],
+    "non_goals": [
+      "changing severity policy",
+      "new runtime service"
+    ]
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "Adds an operator-only decisions endpoint for review material changes.",
+    "routes": [
+      "POST /api/v1/backlog/items/{item_id}/decisions"
+    ]
+  }
 }

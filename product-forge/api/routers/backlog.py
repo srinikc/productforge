@@ -427,7 +427,8 @@ def set_delivery(item_id: str, body: dict[str, Any], request: Request,
 _CONTEXT_FIELDS = ("objective", "acceptance_criteria", "in_scope", "out_of_scope",
                    "affected_components", "affected_files", "approach", "verification",
                    "risks", "rollback", "evidence", "owner", "summary", "brief", "verified_by",
-                   "review_dispositions")
+                   "review_dispositions", "functional_spec", "spec_pack", "design_pack",
+                   "fix_impact", "fix_evidence")
 
 
 @router.post("/items/{item_id}/context", dependencies=[Depends(require_operator)])
