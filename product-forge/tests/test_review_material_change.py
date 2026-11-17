@@ -28,3 +28,22 @@ def test_material_change_without_hil_is_rejected():
 def test_decisions_api_route_exists():
     from api.app import app
     assert "/api/v1/backlog/items/{item_id}/decisions" in app.openapi()["paths"]
+
+
+def test_material_change_requires_allowlisted_hil_actor():
+    from api.routers.backlog import _material_change_errors
+    body = {"decision": "MATERIAL_CHANGE", "mode": "design", "reason": "x" * 30,
+            "hil_confirmed": True, "by": "hil:evil"}
+    bad = _material_change_errors("BI-PF-1540", body)
+    assert any("allowlisted" in x for x in bad)
+
+
+def test_material_change_reason_must_cite_latest_review():
+    from api.routers.backlog import _material_change_errors, _latest_review_sha
+    sha = _latest_review_sha("BI-PF-1540", "design")
+    assert sha
+    body = {"decision": "MATERIAL_CHANGE", "mode": "design", "reason": "x" * 30,
+            "hil_confirmed": True, "by": "hil:owner"}
+    assert any("reason must cite" in x for x in _material_change_errors("BI-PF-1540", body))
+    body["reason"] = "Material change approved after review " + sha
+    assert _material_change_errors("BI-PF-1540", body) == []

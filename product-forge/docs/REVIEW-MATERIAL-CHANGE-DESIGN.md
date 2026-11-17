@@ -62,3 +62,14 @@ The reason must still cite the latest review SHA. Arbitrary or unreviewed SHAs a
 - material-change rejected without HIL
 - decisions route published
 - reviewed-ancestor base accepted; arbitrary base rejected
+
+
+## Guardrail answers
+
+- **Reversibility**: removing the route is safe; append-only decisions are intentionally retained as audit history.
+- **Availability**: the endpoint uses the local backlog owner; failures are fail-closed and never partially write.
+- **Invariant ordering**: validate revision, then allowlisted HIL identity, then reason/latest-SHA, then append atomically via `core.backlog.update`.
+- **Scope/tenant**: item lookup is scope/project-scoped by `_scope_project`; there is no tenant header or caller-controlled tenant input.
+- **Observability**: API errors use the standard envelope; decision appends are auditable through item history/trail; budget refusals report mode and count.
+
+HIL identities are allowlisted in `config/review-material-change.json`. The reason must literally cite the latest review SHA.

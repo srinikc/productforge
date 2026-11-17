@@ -177,7 +177,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T17:54:00.972084",
+  "updated_at": "2026-11-17T18:09:30.377407",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -227,7 +227,7 @@
         "errors": [
           "400/404/409"
         ],
-        "auth": "operator role; hil:<actor> required",
+        "auth": "operator role; by must be an allowlisted hil:<actor>",
         "idempotency": "revision guard",
         "data_rules": "append-only decisions",
         "edge_cases": [
@@ -260,7 +260,10 @@
         ],
         "auth": "review tooling only",
         "idempotency": "deterministic ancestry check",
-        "data_rules": "base must be reviewed head and ancestor of HEAD",
+        "data_rules": [
+          "base must be a reviewed head and ancestor of HEAD",
+          "reason must cite latest review sha"
+        ],
         "edge_cases": [
           "arbitrary SHA"
         ],
@@ -351,7 +354,7 @@
     "dod": [
       "Delivery Complete requires all five states"
     ],
-    "functional_sha": "1f4d4d4351e2"
+    "functional_sha": "3d3c9b9bef68"
   },
   "spec_pack": {
     "version": 1,
@@ -512,6 +515,7 @@
         "route": "api/routers/backlog.py"
       },
       "config": {
+        "allowlist": "config/review-material-change.json",
         "policy": "config/review-budget.json"
       }
     },
@@ -520,14 +524,34 @@
         "case": "invalid decision",
         "behavior": "reject",
         "code": "VALIDATION_FAILED"
+      },
+      {
+        "case": "item not found",
+        "behavior": "reject",
+        "code": "NOT_FOUND"
+      },
+      {
+        "case": "stale revision",
+        "behavior": "reject",
+        "code": "CONFLICT"
+      },
+      {
+        "case": "HIL actor not allowlisted",
+        "behavior": "reject",
+        "code": "VALIDATION_FAILED"
+      },
+      {
+        "case": "reason misses latest review sha",
+        "behavior": "reject",
+        "code": "VALIDATION_FAILED"
       }
     ],
     "dependencies": [
       "core.backlog",
       "architect_review.py"
     ],
-    "security": "Operator-only, append-only, HIL actor required.",
-    "observability": "API errors and review-budget messages.",
+    "security": "Operator-only endpoint; by must be in config/review-material-change.json allowlist; item lookup is scope/project-scoped by _scope_project, no tenant header or caller-controlled tenant.",
+    "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
     "performance": "O(1) append.",
     "test_matrix": [
       {
@@ -552,7 +576,10 @@
       "Bootstrap exception approved for 1540-first merge."
     ],
     "guardrails": [
-      "No arbitrary SHA budget bypass."
+      "Reversibility: code revert removes route; decisions are append-only audit records retained intentionally.",
+      "Availability: endpoint uses local backlog owner; failures return 503/500 fail-closed, no partial write.",
+      "Invariant ordering: validate revision -> identity -> reason/SHA -> append atomically through core.backlog.update.",
+      "Security: allowlisted HIL actor, operator role, scoped item lookup."
     ],
     "learnings": [
       "1538 and 1540 were circular; 1540 first breaks the cycle."
