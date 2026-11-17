@@ -1073,12 +1073,17 @@ def main(argv: list[str]) -> int:
                 for x in fix_bad:
                     print("  - " + x)
                 return 1
-    try:
-        import review_budget
-        budget_bad = review_budget.problems(item, a.mode)
-    except Exception as e:
-        print(f"review: review-budget check failed: {e}")
-        return 1
+    _delta_base = (a.since in reviewed_head_shas(a.item, a.mode)
+                   and _is_ancestor(a.since, _git_text(["rev-parse", "HEAD"]).strip()))
+    if a.mode in ("diff", "design") and a.rereview and a.since and _delta_base:
+        budget_bad = []
+    else:
+        try:
+            import review_budget
+            budget_bad = review_budget.problems(item, a.mode)
+        except Exception as e:
+            print(f"review: review-budget check failed: {e}")
+            return 1
     if budget_bad:
         print("review: budget exceeded; fix findings and let HIL decide, or record HIL MATERIAL_CHANGE")
         for b in budget_bad:

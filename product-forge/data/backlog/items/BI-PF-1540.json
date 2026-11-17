@@ -28,13 +28,13 @@
   ],
   "follow_up": {},
   "brief": {
-    "problem": "Review budget blocks legitimate fix deltas because HIL MATERIAL_CHANGE decisions cannot be recorded through the backlog API, and re-review base selection rejects a valid earlier reviewed head. Add an operator-only decisions endpoint and make delta-budget exemption require a reviewed ancestor base plus a reason citing the latest review SHA.",
-    "what_adds": "Review material-change decision API and correct delta-review base",
-    "why": "Review budget blocks legitimate fix deltas because HIL MATERIAL_CHANGE decisions cannot be recorded through the backlog API, and re-review base selection rejects a valid earlier reviewed head. Add an operator-only decisions endpoint and make delta-budget exemption require a reviewed ancestor base plus a reason citing the latest review SHA.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "extracted"
+    "problem": "HIL MATERIAL_CHANGE cannot be recorded via API; review budget blocks valid fix deltas.",
+    "what_adds": "Operator-only decisions endpoint plus reviewed-ancestor delta base.",
+    "why": "Keeps review enforcement compliant while allowing evidence-based re-reviews.",
+    "who_feels": "Reviewers, HIL owners, delivery engineers.",
+    "source": "authored"
   },
-  "objective": "Review material-change decision API and correct delta-review base",
+  "objective": "Unblock legitimate fix deltas without weakening review-budget enforcement or requiring direct backlog mutation.",
   "acceptance_criteria": [
     "The backlog API exposes an operator-only endpoint to append a MATERIAL_CHANGE decision with mode, reason, HIL confirmation and revision guard, and the item stores it for review_budget.",
     "Delta re-review budget exemption accepts any reviewed ancestor as --since, requires the reason to cite the latest review SHA, and rejects arbitrary caller-supplied SHAs.",
@@ -47,12 +47,17 @@
     "Not specified."
   ],
   "affected_components": [
-    "Not specified."
+    "api/routers/backlog.py",
+    "scripts/dev/architect_review.py",
+    "tests"
   ],
   "affected_files": [
-    "Not specified."
+    "api/routers/backlog.py",
+    "api/openapi.json",
+    "scripts/dev/architect_review.py",
+    "tests/test_review_material_change.py"
   ],
-  "approach": "Review material-change decision API and correct delta-review base",
+  "approach": "Add an operator-only decisions endpoint that appends validated MATERIAL_CHANGE decisions through core.backlog.update, and fix architect_review delta budget to accept any reviewed ancestor base with a reason citing the latest review SHA.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -66,12 +71,15 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Review material-change decision API and correct delta-review base"
+    "pytest -q tests/test_review_material_change.py",
+    "API route appears in openapi.json",
+    "material-change decision persists with HIL fields"
   ],
   "risks": [
-    "Not specified."
+    "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
+    "Arbitrary --since could bypass budget; require the SHA to be a reviewed head and an ancestor of HEAD."
   ],
-  "rollback": "Revert the change.",
+  "rollback": "Remove the decisions route and restore strict latest-SHA delta exemption; no data migration.",
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1540): sig:19e0ddde2a4c5048 (20 lines)"
@@ -81,7 +89,7 @@
   "due": "",
   "target_release": "",
   "approvals": [],
-  "summary": "",
+  "summary": "Adds API-only HIL MATERIAL_CHANGE recording and allows correct reviewed-ancestor delta re-reviews without budget bypass.",
   "children": [],
   "epic": "BI-PF-1243",
   "parent": "BI-PF-1243",
@@ -170,7 +178,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T17:33:28.154660",
+  "updated_at": "2026-11-17T17:36:00.596886",
   "score": 0.75,
   "_note": "readiness computed"
 }

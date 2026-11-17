@@ -646,6 +646,37 @@ def set_item_execution(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
+@router.post("/items/{item_id}/decisions", dependencies=[Depends(require_operator)])
+def add_item_decision(item_id: str, body: dict[str, Any], request: Request,
+                      ctx: dict[str, Any] = Depends(require_operator)):
+    """Append an append-only decision (BI-PF-1540), including HIL MATERIAL_CHANGE."""
+    from core import backlog
+    from datetime import datetime, timezone
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    decision = str(body.get("decision") or "").strip().upper()
+    mode = str(body.get("mode") or "").strip()
+    reason = str(body.get("reason") or "").strip()
+    by = str(body.get("by") or "").strip()
+    if decision != "MATERIAL_CHANGE":
+        raise ApiError("VALIDATION_FAILED", "decision must be MATERIAL_CHANGE")
+    if mode not in ("design", "diff"):
+        raise ApiError("VALIDATION_FAILED", "mode must be design or diff")
+    if len(reason) < 20:
+        raise ApiError("VALIDATION_FAILED", "reason must be concrete (>=20 chars)")
+    if body.get("hil_confirmed") is not True or not by.startswith("hil:"):
+        raise ApiError("VALIDATION_FAILED", "hil_confirmed=true and by=hil:<actor> required")
+    item = backlog.get_epic(s, p, item_id)
+    if not item:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    rows = list(item.get("decisions") or [])
+    rows.append({"decision": decision, "mode": mode, "reason": reason, "by": by,
+                 "hil_confirmed": True, "sigs": list(body.get("sigs") or []),
+                 "at": str(body.get("at") or datetime.now(timezone.utc).isoformat())})
+    res = backlog.update(s, p, item_id, decisions=rows)
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
 _EDITABLE_FIELDS = ("title", "body", "type", "label", "tag", "summary", "origin",
                     "value", "effort", "risk", "moscow")
 
