@@ -210,7 +210,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T19:30:32.483154",
+  "updated_at": "2026-11-17T20:31:45.640826",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -628,7 +628,7 @@
       }
     ],
     "rollout": "Enable with the API route; no data migration.",
-    "rollback": "Remove route, reviewed-ancestor exemption and their route/AC-2 tests; re-sync api/openapi.json. Retain core.backlog.material_change_errors and the decision-validation/audit tests that import it directly (not via the removed route), so the post-rollback suite stays green. Existing decisions remain historical evidence.",
+    "rollback": "Remove route and reviewed-ancestor exemption; re-sync api/openapi.json; remove test_decisions_api_route_exists and AC-2 tests; retain core.backlog validation, config, design doc and core validation/audit tests. Existing decisions remain historical evidence.",
     "decisions": [
       "Bootstrap exception approved for 1540-first merge."
     ],
@@ -694,7 +694,7 @@
     "proof_plan": {
       "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_persists_append_only; ::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
       "red_evidence": "route absent before implementation; rules unenforced",
-      "green_evidence": "tests pass for persistence, auth, role, revision, HIL, SHA, route and ancestor rules"
+      "green_evidence": "persistence, 401/403/409, HIL/SHA errors, route presence and reviewed-ancestor checks pass"
     },
     "ac_evidence": [
       {
@@ -740,7 +740,19 @@
       "scripts/dev/architect_review.py",
       "scripts/dev/review_budget.py",
       "tests/test_review_material_change.py"
-    ]
+    ],
+    "guardrail_answers": {
+      "1_reversibility": "remove route/exemption, re-sync OpenAPI, remove route and AC-2 tests; retain core validation/config/design/audit tests",
+      "2_availability": "fail closed 500/503; alert lead-time and SPOF evidence deferred to BI-PF-1541",
+      "3_authorization": "operator role + fixed HIL actor; runtime roles NOSUPERUSER/NOBYPASSRLS; RLS unchanged",
+      "4_blast_radius": "append-only item.decisions only; no schema migration",
+      "5_invariants_ordering": "route dependency authz first; revision, HIL, reason/SHA, atomic append",
+      "6_rollback": "remove route/exemption, re-sync OpenAPI, remove test_decisions_api_route_exists and AC-2 tests; retain core validation/config/design/audit tests",
+      "7_language_rule": "edits existing shipped Python only; no new shipped module",
+      "8_api_contract": "needs_api=true; POST path; operator auth; fixed HIL actor; revision guard; scope-resolved item; validated payload",
+      "9_tenant_scope": "scope/project-scoped item lookup; no tenant header",
+      "10_observability": "standard error envelope + item history/trail; metric runbook evidence deferred to BI-PF-1541"
+    }
   },
   "api_impact": {
     "needs_api": true,
@@ -1751,5 +1763,143 @@
       "result": "PASS",
       "evidence": "engineering\\reviews\\BI-PF-1540-f640a23729b1.json"
     }
-  ]
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:ccbacf22fc2a8eb4": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:7c642c60ad2b9c50": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:2cd3a519433ae7f6": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:6e70549c10302794": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:9123f34b559c821c": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:584273cba5a625eb": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:33755c9e3b6f9912": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:504143d8486a6b4f": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:9fbc3950b18f21ad": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:57d65b39722c7c6f": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:96917137e7ca0225": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:7723b454f2ef6a74": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:38de2d17424f970d": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:dd6754264442f860": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:0c8590f6f094ba96": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:a3f111351f663244": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:a75779960dc7da77": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:1c49656f10dc651a": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:105315335bcdbfbc": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:c3a41e91a7e70ada": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:e6cf532a2210c1a0": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:22705c1812bff139": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:6b218b9baad72fdc": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:7929190abe69482f": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:d4a477bd38d81392": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:fa8c9f799dde7aa4": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:dba9f37dd812d82d": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:f5993e8c93f5e27b": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:dbcf44a076084d19": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:90c011673121d8e0": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      }
+    },
+    "diff": {
+      "sig:b4dd73fc2ecfed67": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:1ed7c04159252b2f": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      },
+      "sig:7c6686bc8e6baf06": {
+        "status": "ACTIONED",
+        "note": "Fixed or explicitly re-scoped to BI-PF-1541; evidence in tests and design pack."
+      }
+    }
+  }
 }
