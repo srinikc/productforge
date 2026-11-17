@@ -42,7 +42,8 @@
   ],
   "in_scope": [
     "decisions API",
-    "reviewed-ancestor delta base",
+    "delta base",
+    "tests",
     "tests and design"
   ],
   "out_of_scope": [
@@ -80,7 +81,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 3, 'MINOR': 3, 'NIT': 2}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 1}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -107,7 +108,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=c726719964f5\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - proof_plan now anchors only the AC-1 allowlist fix (core-level import); the AC-2 reviewed-ancestor/budget-exemption control, listed as P0 in the same delta and gated by stop_condition \"Arbitrary SHA accepted\", has no red/green fail-able anchor in proof_plan — only a generic test_matrix row.\n  - proof_plan's failing test imports core.backlog.material_change_errors directly, so the operator/HIL authz boundary at api/routers/backlog.py (AC-1 \"API auth/validation\", AC-3) is not exercised by any red/green proof; test_matrix asserts coverage but the proof rows do not demonstrate the route-level rejection.\nNIT:\n  - runtime_contract.call_sites mixes granularities: \"review_budget.problems\" is an internal function while the other entries are user-facing commands/routes; name the invoking entrypoint (e.g. architect_review --rereview path) for consistency.\nSUMMARY:\n  - All four prior findings verify as resolved in this delta: failing_test now states the direct core.backlog import; red/green evidence is coherent and correctly ordered; scripts/dev/review_budget.py is added to design_pack.affected_files; and adapter now names review_guard as the ancestry/reason-citation enforcement anchor.\n  - Design deltas (affected_files, proof_plan, runtime_contract) are internally consistent with each other, the ACs, the failure matrix, and the rollback retention clause; language rule satisfied (edits to shipped Python only, tooling Python allowed).\n  - Residual gaps are proof-plan coverage of AC-2 and the route-level authz boundary, plus a call-site granularity nit — no contract, security, or rollback defects introduced by the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=99849004483b\nBLOCKER:\n  - none\nMAJOR:\n  - Delta runtime_contract places enforcement in core/backlog.py and scripts/dev/review_budget.py, but AC affected_components/affected_files still list only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests — scope/traceability rows are out of sync with the changed contract; AC/design must be updated together in this delta.\nMINOR:\n  - proof_plan green_evidence covers only missing-HIL 400 and non-reviewed-base rejection; AC-2's reason-cites-latest-SHA, arbitrary-SHA and non-ancestor rejections (and stop_condition \"Arbitrary SHA accepted\") have no red/green anchor.\n  - red_evidence claims the endpoint \"accepts missing HIL before fix\", yet the decisions route is newly added — the red state for a new route is 404/missing, not permissive behavior; red evidence is not reproducible as written.\n  - Operator-role authz and revision-guard 409 (AC-1 \"API auth/validation\", failure_matrix CONFLICT) remain unproven; the delta's route-level anchor exercises only the HIL path.\nNIT:\n  - call_sites shorthand \"POST /items/{id}/decisions\" diverges from contracts.api path \"/api/v1/backlog/items/{item_id}/decisions\"; use one canonical path.\nSUMMARY:\n  - Delta substantively resolves the prior proof-anchor and call-site-granularity findings, but their dispositions remain PENDING — per CL-006, Gate 1 approval is invalid until the main thread records them.\n  - Top risks: AC scope rows not updated where enforcement logic now lands, and proof anchors narrower than AC-2's full rejection set.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=b50a04dc5071\nBLOCKER:\n  - none\nMAJOR:\n  - Prior MAJOR not resolved by this delta: design_pack.affected_files now lists 8 files, but the item-level AC affected_files/affected_components and functional_spec/scope rows still declare only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests — scope/traceability rows remain out of sync; disposition PENDING is correct and CL-006 still blocks approval.\n  - Delta proof_plan only; the AC row itself (affected components/files) was not updated in the same delta, violating \"any AC/contract change must update the matching design rows and evidence in the same delta.\"\nMINOR:\n  - Prior MINOR partially addressed: failing_test now anchors reason-cites-SHA and valid_delta_base, but green_evidence still states only \"401/409/400 as required\" and does not explicitly assert 400 for missing latest-review-SHA citation, arbitrary-SHA and non-ancestor rejections (stop_condition \"Arbitrary SHA accepted\" lacks a green assertion).\n  - Prior MINOR partially addressed: red_evidence adds the correct 404-for-absent-route anchor, but still claims missing auth/HIL \"not enforced\" before the fix — a newly added route cannot be permissive pre-implementation; that clause is still not reproducible.\n  - Operator-role authorization distinct from HIL-actor check remains unproven: green_evidence cites \"401\" generically with no named test for operator-role rejection (prior MINOR disposition should stay PENDING).\n  - CL-008: the delta does not answer the ten guardrail checklist items in the changed design_pack; no checklist evidence accompanies this delta (reversibility, availability, blast radius, tenant isolation, reuse/metrics rows absent).\nNIT:\n  - green_evidence shorthand \"401/409/400 as required\" is ambiguous; name the exact failing_test symbols per assertion so red/green anchors map 1:1 to FR-1/FR-2/FR-3.\nSUMMARY:\n  - Delta improves proof_plan coverage but does not resolve the PENDING MAJOR on AC/scope row sync, which per CL-006 invalidates Gate 1 approval while pending.\n  - Top risks: unsynced AC affected-file rows and still-ambiguous red evidence for the new route; guardrail checklist not evidenced in this delta.\n  - Language rule, rollback note, and append-only/fail-closed contracts are consistent; no new BLOCKER introduced by the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=898e02cac7a4\nBLOCKER:\n  - none\nMAJOR:\n  - Delta guardrail_answers still omits checklist items 5 (invariants & ordering: keys/revision/append ordering stated and tested) and 8 (API & contracts: explicit needs_api decision with method/path/authn/authz/validation/tenant-scoping answered in the checklist rows), so CL-008 is only partially satisfied for this delta.\n  - authorization row does not state runtime role posture (NOSUPERUSER/NOBYPASSRLS) or DB/RLS binding required by CL-011; \"scope/project-scoped lookup\" alone does not answer checklist item 3's privilege-boundary clause.\n  - Prior MAJOR remains open at the functional_spec level: this delta updates design_pack and item-level affected_components/affected_files, but the functional_spec scope/traceability rows were not synced in the same delta (changed_fields does not include them), so scope/traceability ro… is still PENDING.\nMINOR:\n  - proof_plan.failing_test has no named anchor for decision persistence (AC-1), HIL actor mismatch rejection, or the OpenAPI route-presence test (FR-3), so red/green evidence does not map 1:1 to FR-1/FR-2/FR-3 despite green_evidence citing \"400 missing HIL\".\n  - in_scope changed to \"tests and design\" but functional_spec.scope still reads [\"decisions API\", \"reviewed-ancestor delta base\", \"tests\"]; the scope row must be updated in the same delta per the AC/design sync rule.\n  - checklist items 1 and 2 details (verified backup/restore path; on-startup defence-in-depth and alert lead-time) are not addressed in any guardrail row — only \"code revert\" and \"fail closed\" are stated.\nNIT:\n  - config/review-material-change.json and docs/REVIEW-MATERIAL-CHANGE-DESIGN.md are listed under affected_components alongside code modules; per CL-016, prerequisites/config/docs should be separated from changed source components.\n  - green_evidence still uses descriptive assertions rather than naming the exact failing_test symbols per assertion (401/403/409/400), keeping the prior 1:1 red/green mapping NIT open.\nSUMMARY:\n  - Delta materially improves the design: item-level affected rows, guardrail_answers, and an explicit named auth/role/409/400 proof plan are now present, resolving the prior operator-role and generic-401 findings.\n  - Top risks: guardrail checklist remains incomplete (invariants, API contract, CL-011 role posture) and functional_spec scope/traceability was not synced in the same delta, leaving prior MAJOR dispositions PENDING.\n  - No new blocker; proceed only after closing the guardrail and scope-sync gaps so CL-006/CL-008 enforcement passes.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=898e02cac7a4\nBLOCKER:\n  - none\nMAJOR:\n  - Delta guardrail_answers still omits checklist items 5 (invariants & ordering: keys/revision/append ordering stated and tested) and 8 (API & contracts: explicit needs_api decision with method/path/authn/authz/validation/tenant-scoping answered in the checklist rows), so CL-008 is only partially satisfied for this delta.\n  - authorization row does not state runtime role posture (NOSUPERUSER/NOBYPASSRLS) or DB/RLS binding required by CL-011; \"scope/project-scoped lookup\" alone does not answer checklist item 3's privilege-boundary clause.\n  - Prior MAJOR remains open at the functional_spec level: this delta updates design_pack and item-level affected_components/affected_files, but the functional_spec scope/traceability rows were not synced in the same delta (changed_fields does not include them), so scope/traceability ro… is still PENDING.\nMINOR:\n  - proof_plan.failing_test has no named anchor for decision persistence (AC-1), HIL actor mismatch rejection, or the OpenAPI route-presence test (FR-3), so red/green evidence does not map 1:1 to FR-1/FR-2/FR-3 despite green_evidence citing \"400 missing HIL\".\n  - in_scope changed to \"tests and design\" but functional_spec.scope still reads [\"decisions API\", \"reviewed-ancestor delta base\", \"tests\"]; the scope row must be updated in the same delta per the AC/design sync rule.\n  - checklist items 1 and 2 details (verified backup/restore path; on-startup defence-in-depth and alert lead-time) are not addressed in any guardrail row — only \"code revert\" and \"fail closed\" are stated.\nNIT:\n  - config/review-material-change.json and docs/REVIEW-MATERIAL-CHANGE-DESIGN.md are listed under affected_components alongside code modules; per CL-016, prerequisites/config/docs should be separated from changed source components.\n  - green_evidence still uses descriptive assertions rather than naming the exact failing_test symbols per assertion (401/403/409/400), keeping the prior 1:1 red/green mapping NIT open.\nSUMMARY:\n  - Delta materially improves the design: item-level affected rows, guardrail_answers, and an explicit named auth/role/409/400 proof plan are now present, resolving the prior operator-role and generic-401 findings.\n  - Top risks: guardrail checklist remains incomplete (invariants, API contract, CL-011 role posture) and functional_spec scope/traceability was not synced in the same delta, leaving prior MAJOR dispositions PENDING.\n  - No new blocker; proceed only after closing the guardrail and scope-sync gaps so CL-006/CL-008 enforcement passes.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=0a30481c411d\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Delta updates proof_plan.failing_test (HIL-mismatch and OpenAPI-route anchors added) but still has no named test anchor for AC-1 decision persistence (item.decisions append-only), so FR-1 red/green evidence remains non-1:1; traceability FR-1 evidence is file-level only.\n  - Prior checklist-item-2 MINOR only partially addressed: startup_defence row describes request-time fail-closed config reads (500/503), not an on-startup defence-in-depth check, and no alert lead-time is stated; only checklist item 1 (backup_restore) is now fully answered.\nNIT:\n  - in_scope lists both \"tests\" and \"tests and design\" as separate entries — redundant duplicate scope rows.\nSUMMARY:\n  - Delta resolves the prior guardrail MAJORs: invariants_ordering and api_contract now answer checklist items 5/8, runtime_role_rls answers CL-011, and functional_spec.scope is synced with in_scope; prior MAJOR dispositions can move to RESOLVED.\n  - Residual gaps are evidentiary only: a persistence-test anchor for AC-1 and a true startup/alerting answer for checklist item 2.\n  - No blocker-level security, data-integrity, language-rule, or contract breach found in the changed fields.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -203,7 +205,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:56:22.823355",
+  "updated_at": "2026-11-17T19:09:59.163090",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -220,7 +222,8 @@
     "scope": [
       "decisions API",
       "delta base",
-      "tests"
+      "tests",
+      "tests and design"
     ],
     "non_goals": [
       "changing review severity policy",
@@ -386,7 +389,7 @@
     "dod": [
       "Delivery Complete requires all five states"
     ],
-    "functional_sha": "78d461306be4"
+    "functional_sha": "ba842970790c"
   },
   "spec_pack": {
     "version": 1,
@@ -599,7 +602,7 @@
       "architect_review.py",
       "review_budget.py"
     ],
-    "security": "Operator-only endpoint; HIL actor is fixed by config/review-material-change.json and bound to the authenticated API token, not self-asserted. Item lookup is scope/project-scoped by _scope_project; no tenant header or caller-controlled tenant. HIL actor config is loaded and validated per request; missing/malformed config fails closed. API route requires operator role AND the fixed configured HIL actor bound to the authenticated token.",
+    "security": "Operator role AND fixed HIL actor bound to authenticated token. No new DB role; runtime roles remain NOSUPERUSER/NOBYPASSRLS where DB-backed; RLS unchanged; item lookup is scope/project-scoped with no tenant header.",
     "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
     "performance": "Allowlist config is read only inside the decisions handler, not on other backlog requests; O(1) append and constant-size file read, target <1ms handler overhead at p95.",
     "test_matrix": [
@@ -684,9 +687,9 @@
       "observable_result": "decision persisted; review budget exempted"
     },
     "proof_plan": {
-      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_reason_must_cite_latest_review; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
-      "red_evidence": "before implementation the route is absent (404); the new tests fail until auth/role/revision/HIL/SHA/ancestor rules are implemented",
-      "green_evidence": "401 without token; 403 without operator role; 409 stale revision; 400 missing HIL, missing latest-SHA citation, arbitrary or non-ancestor base"
+      "failing_test": "tests/test_review_material_change.py::test_decisions_endpoint_requires_authentication; ::test_decisions_endpoint_requires_operator_role; ::test_decisions_endpoint_revision_guard_returns_409; ::test_material_change_requires_allowlisted_hil_actor; ::test_material_change_reason_must_cite_latest_review; ::test_decisions_api_route_exists; ::test_valid_delta_base_requires_reviewed_head_and_ancestor",
+      "red_evidence": "before implementation the route is absent (404); missing auth/role/revision/HIL/SHA/ancestor rules are unenforced",
+      "green_evidence": "401 no token; 403 no operator role; 409 stale revision; 400 HIL/SHA failures; route present; reviewed ancestor accepted only"
     },
     "ac_evidence": [
       {
@@ -737,13 +740,18 @@
       "reversibility": "route/config/tests removed; decisions retained as audit history",
       "availability": "fail closed; no partial write",
       "authorization": "operator + fixed HIL actor bound to token",
-      "blast_radius": "append-only item field; no schema/data migration",
+      "blast_radius": "append-only item.decisions field only; no schema migration",
       "tenant_scope": "scope/project-scoped item lookup; no tenant header",
       "reuse": "extends core.backlog/API/review tooling; no new store",
       "observability": "standard API error envelope + item history/trail",
       "performance": "decisions-route scoped constant-size config read",
       "rollback": "retain core validation/tests; remove route/exemption",
-      "language_rule": "edits existing shipped Python only"
+      "language_rule": "edits existing shipped Python only",
+      "invariants_ordering": "validate scope -> revision -> operator role -> fixed HIL actor -> reason/latest SHA -> append atomically; tested by auth/409/reason tests",
+      "api_contract": "needs_api=true; POST /items/{id}/decisions; operator auth; fixed HIL actor; revision guard; scope-resolved item; validated payload",
+      "runtime_role_rls": "no new DB role; API service uses existing non-superuser role where DB-backed; RLS behavior unchanged; no BYPASSRLS introduced",
+      "backup_restore": "no migration/destructive step; existing verified backup/restore path unchanged",
+      "startup_defence": "config read fails closed on missing/malformed at request time; standard API 500/503; alerting uses API error rate"
     }
   },
   "api_impact": {
@@ -1263,6 +1271,33 @@
         ]
       },
       "evidence": "BI-PF-1540-898e02cac7a4.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "177567707e920130a6e23c88bcbeb6d87e31dd34",
+      "review_sha": "0a30481c411d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T13:39:58.526174+00:00",
+      "review_scope": "delta",
+      "base_sha": "4b6fc1e73ee182cfe1613ebe646ddb3e8ecf2d08",
+      "head_sha": "177567707e920130a6e23c88bcbeb6d87e31dd34",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta updates proof_plan.failing_test (HIL-mismatch and OpenAPI-route anchors added) but still has no named test anchor for AC-1 decision persistence (item.decisions append-only), so FR-1 red/green evidence remains non-1:1; traceability FR-1 evidence is file-level only.",
+          "Prior checklist-item-2 MINOR only partially addressed: startup_defence row describes request-time fail-closed config reads (500/503), not an on-startup defence-in-depth check, and no alert lead-time is stated; only checklist item 1 (backup_restore) is now fully answered."
+        ],
+        "NIT": [
+          "in_scope lists both \"tests\" and \"tests and design\" as separate entries — redundant duplicate scope rows."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior guardrail MAJORs: invariants_ordering and api_contract now answer checklist items 5/8, runtime_role_rls answers CL-011, and functional_spec.scope is synced with in_scope; prior MAJOR dispositions can move to RESOLVED.",
+          "Residual gaps are evidentiary only: a persistence-test anchor for AC-1 and a true startup/alerting answer for checklist item 2.",
+          "No blocker-level security, data-integrity, language-rule, or contract breach found in the changed fields."
+        ]
+      },
+      "evidence": "BI-PF-1540-0a30481c411d.json"
     }
   ],
   "fix_impact": [

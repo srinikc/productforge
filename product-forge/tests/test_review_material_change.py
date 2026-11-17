@@ -110,3 +110,26 @@ def test_decisions_endpoint_requires_operator_role(monkeypatch):
     r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
                headers={"Authorization": "Bearer tok"})
     assert r.status_code == 403
+
+
+def test_decisions_endpoint_persists_append_only(monkeypatch):
+    monkeypatch.setenv("API_ALLOW_ANON", "1")
+    from fastapi.testclient import TestClient
+    from api.app import app
+    from core import backlog
+    from core.backlog import latest_review_sha
+    captured = {}
+    def fake_update(scope, project, item_id, **fields):
+        captured.update(fields)
+        return {"id": item_id, **fields}
+    monkeypatch.setattr(backlog, "update", fake_update)
+    sha = latest_review_sha("BI-PF-1540", "design")
+    c = TestClient(app)
+    r = c.post("/api/v1/backlog/items/BI-PF-1540/decisions",
+               headers={"X-Roles": "operator"},
+               json={"decision": "MATERIAL_CHANGE", "mode": "design",
+                     "reason": "Approved after review " + sha,
+                     "hil_confirmed": True, "by": "hil:owner"})
+    assert r.status_code == 200
+    assert captured["decisions"][-1]["decision"] == "MATERIAL_CHANGE"
+    assert captured["decisions"][-1]["by"] == "hil:owner"
