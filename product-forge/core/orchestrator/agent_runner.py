@@ -1354,15 +1354,18 @@ Write the implementation with:
         spec = getattr(self, "agent_specs", {}).get(agent_id)
         if spec and getattr(spec, "instructions", ""):
             directive = self._tool_directive(agent_id, stage_id, task)
+            from core.orchestrator.prompt_builder import design_spec_mandates, implementation_mandates
             if directive and (agent_id.startswith("implement") or agent_id in ("devops", "fix")):
-                # Tool-first code agents: use the directive + requirements, NOT the
-                # opencode card (which references a 'Task' tool / sub-agents and
-                # derails the model into exploring instead of writing).
-                instruction = (directive + f"\n\nYou are the {agent_id} agent.\n"
+                # Tool-first code agents: use the directive + binding mandates + requirements.
+                instruction = (directive + implementation_mandates(agent_id)
+                               + self._implementation_controls_block(task)
+                               + f"\n\nYou are the {agent_id} agent.\n"
                                + self._output_requirements(agent_id) + f"\n\nTASK: {task}")
             else:
                 instruction = ((directive + "\n\n") if directive else "") + \
                     spec.instructions + f"\n\nTASK: {task}"
+                if agent_id.startswith("design") or "spec" in agent_id:
+                    instruction += design_spec_mandates(agent_id)
                 instruction += self._output_requirements(agent_id)
         else:
             template = instruction_templates.get(agent_id, """You are agent {agent_id} for Product Forge.
@@ -1534,6 +1537,49 @@ Write the output to: {artifact_file}"""
             self._last_media_parts = []
 
         return prompt
+
+    def _implementation_controls_block(self, task: str) -> str:
+        """Render the item's control matrix + tech-stack checks into the code prompt.
+
+        This is the binding pre-code contract the implementer must satisfy; the
+        readiness checker later verifies the same rows against the diff.
+        """
+        item = None
+        try:
+            m = re.search(r"\bBI-[A-Z]+-\d+\b", task or "")
+            if m:
+                from core import backlog
+                item = backlog.get_epic("product_forge", getattr(self, "project", "") or None, m.group(0))
+        except Exception:
+            item = None
+        rows = (((item or {}).get("design_pack") or {}).get("implementation_controls") or [])
+        if rows:
+            lines = ["\n\nIMPLEMENTATION CONTROL CONTRACT (binding; implement every row):"]
+            for r in rows:
+                lines.append(
+                    "- [{id}] AC={ac} kind={kind}: {control}; symbol={symbol}; "
+                    "positive={positive_test}; negative={negative_test}; tenant={tenant_test}; "
+                    "concurrency={concurrency_test}; observability={observability}; evidence={evidence}".format(
+                        id=r.get("id", "?"), ac=r.get("ac", "?"), kind=r.get("kind", "?"),
+                        control=r.get("control", "?"), symbol=r.get("symbol", "?"),
+                        positive_test=r.get("positive_test", "?"), negative_test=r.get("negative_test", "?"),
+                        tenant_test=r.get("tenant_test", "N/A"),
+                        concurrency_test=r.get("concurrency_test", "N/A"),
+                        observability=r.get("observability", "N/A"), evidence=r.get("evidence", "?")))
+        else:
+            lines = ["\n\nIMPLEMENTATION CONTROL CONTRACT: no design_pack.implementation_controls rows were "
+                     "found for this task. STOP and create the control matrix before coding (AC, kind, "
+                     "control, symbol, positive/negative/tenant/concurrency tests, observability, evidence)."]
+        try:
+            import json
+            cfg = json.loads((_PF_ROOT / "config" / "implementation-controls.json").read_text(encoding="utf-8"))
+            checks = cfg.get("checks") or []
+            if checks:
+                lines.append("\nTECH-STACK CHECKS (binding; run and record evidence):")
+                lines += [f"- {c.get('stack')}: {c.get('check')} -> {c.get('signal')}" for c in checks]
+        except Exception:
+            pass
+        return "\n".join(lines) + "\n\n"
 
     def _tool_directive(self, agent_id: str, stage_id: str, task: str) -> str:
         """Delegates to core/orchestrator/prompt_builder (1A.11)."""
