@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "5c7b2b648bda",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:44:01.570235+00:00",
+  "review_scope": "delta",
+  "base_sha": "ca116db20f173b6457dcca652411fdd84f65a51a",
+  "head_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`rollback` still omits `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md`, which is declared in the delta `affected_files`; rollback therefore leaves a stale design artifact alongside the removed route/config/tests.",
+      "Delta does not state the language-rule disposition for the new endpoint logic in `api/routers/backlog.py` (Python) versus scripts/dev tooling, so checklist item 7 is answered only implicitly by the AC naming the file.",
+      "`security` wording (\"operator-only endpoint\" vs. HIL actor \"bound to the authenticated API token\") leaves the required token/role intersection (operator role AND fixed HIL actor, or operator acting for HIL) unstated in the changed field; validation tests must pin this down."
+    ],
+    "NIT": [
+      "`failure_matrix` row \"reason misses latest review sha\" describes the `architect_review.py` tooling path, not the API route that the matrix otherwise documents; labeling the owner (API vs. tool) would avoid contract ambiguity.",
+      "Prior MINOR on on-startup config validation is only partially addressed: per-request validation is stated, but a startup/pre-check fail-fast for `config/review-material-change.json` is still not recorded in the delta."
+    ],
+    "SUMMARY": [
+      "Prior MAJORs on `affected_files` completeness and rollback coverage of the new config file are resolved by this delta, and the availability failure rows (503/500) close the earlier MINOR.",
+      "Remaining gaps are documentation-rollback completeness, explicit language-rule and token/role binding statements, and tool-vs-API labeling in the failure matrix \u2014 all hardening, none blocking the approved ACs."
+    ]
+  },
+  "rereview_reason": "Delta for prior f640a23729b1: restored affected files, rollback, failure codes",
+  "rereview_reason_sha256": "db2e6624af8ab6d61f2d5a219506ece88c2574b350a76838ecc265bc80a95f3c"
+}
