@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "bb7f65b424f7",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T14:00:31.888265+00:00",
+  "review_scope": "delta",
+  "base_sha": "fe50018effc3847fa55e6d8dfb54aa3aa20028cf",
+  "head_sha": "e2bee8b4313289efa9581d9e5d075abcb7b238e0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta updates `design_pack` while two prior MAJOR findings remain disposition=PENDING; CL-006 requires all Gate 1.5 findings have dispositions embedded before approval, so this delta cannot be approved as-is.",
+      "`guardrail_answers` is set to `null`, leaving checklist items 2 (availability alert lead-time), 4, 5, 7, 8, 9, 10 unanswered in the delta; CL-008 requires each checklist item answered in the design before Gate 1.5.",
+      "`guardrails.reversibility` still claims the post-rollback suite \"stays green\" without enumerating `test_decisions_api_route_exists` removal, so the prior MAJOR is propagated uncorrected into the delta's authoritative guardrail text."
+    ],
+    "MINOR": [
+      "`guardrails.availability` still defers alerting to BI-PF-1541 with no alert lead-time or SPOF statement, leaving the pending availability MAJOR's substance unaddressed in the changed field.",
+      "`proof_plan.red_evidence`/`green_evidence` gained no coverage for rollback/recovery or CONFIG_INVALID/503 observability, so the delta's evidence rows do not match the guardrails it asserts.",
+      "No test evidence row added for the guardrail claims (fail-closed 500/503, append-only ordering); guardrail answers remain unevidenced per the existing observability/performance pattern."
+    ],
+    "NIT": [
+      "The delta's `guardrails` and `proof_plan` values are byte-identical to the pre-delta design, so `changed_fields=[\"design_pack\"]` declares a change that alters nothing substantive.",
+      "`guardrail_answers: null` plus a separate `guardrails` array creates two competing places for checklist answers, risking further drift like the prior rollback/reversibility mismatch."
+    ],
+    "SUMMARY": [
+      "Delta is a no-op republish of `design_pack` that leaves both prior MAJOR dispositions PENDING and nulls `guardrail_answers`, violating CL-006/CL-008.",
+      "Top risks: approval recorded against an uncorrected reversibility claim and unanswered availability/authorization checklist items.",
+      "Verdict: reject until guardrail answers are restored, prior MAJORs are dispositioned in-design, and evidence rows are added for the asserted controls."
+    ]
+  },
+  "rereview_reason": "Delta for prior e6c41221a05b: guardrail scope moved to BI-PF-1541",
+  "rereview_reason_sha256": "23c1d5604721213336a85cbe15b736af87102b0fab1f3caf6a19b96ac1f099fe"
+}

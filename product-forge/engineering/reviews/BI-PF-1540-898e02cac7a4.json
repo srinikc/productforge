@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "898e02cac7a4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:26:22.192520+00:00",
+  "review_scope": "delta",
+  "base_sha": "98244a268c9413cc312d2851c635ce82140d1ba5",
+  "head_sha": "4b6fc1e73ee182cfe1613ebe646ddb3e8ecf2d08",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta guardrail_answers still omits checklist items 5 (invariants & ordering: keys/revision/append ordering stated and tested) and 8 (API & contracts: explicit needs_api decision with method/path/authn/authz/validation/tenant-scoping answered in the checklist rows), so CL-008 is only partially satisfied for this delta.",
+      "authorization row does not state runtime role posture (NOSUPERUSER/NOBYPASSRLS) or DB/RLS binding required by CL-011; \"scope/project-scoped lookup\" alone does not answer checklist item 3's privilege-boundary clause.",
+      "Prior MAJOR remains open at the functional_spec level: this delta updates design_pack and item-level affected_components/affected_files, but the functional_spec scope/traceability rows were not synced in the same delta (changed_fields does not include them), so scope/traceability ro\u2026 is still PENDING."
+    ],
+    "MINOR": [
+      "proof_plan.failing_test has no named anchor for decision persistence (AC-1), HIL actor mismatch rejection, or the OpenAPI route-presence test (FR-3), so red/green evidence does not map 1:1 to FR-1/FR-2/FR-3 despite green_evidence citing \"400 missing HIL\".",
+      "in_scope changed to \"tests and design\" but functional_spec.scope still reads [\"decisions API\", \"reviewed-ancestor delta base\", \"tests\"]; the scope row must be updated in the same delta per the AC/design sync rule.",
+      "checklist items 1 and 2 details (verified backup/restore path; on-startup defence-in-depth and alert lead-time) are not addressed in any guardrail row \u2014 only \"code revert\" and \"fail closed\" are stated."
+    ],
+    "NIT": [
+      "config/review-material-change.json and docs/REVIEW-MATERIAL-CHANGE-DESIGN.md are listed under affected_components alongside code modules; per CL-016, prerequisites/config/docs should be separated from changed source components.",
+      "green_evidence still uses descriptive assertions rather than naming the exact failing_test symbols per assertion (401/403/409/400), keeping the prior 1:1 red/green mapping NIT open."
+    ],
+    "SUMMARY": [
+      "Delta materially improves the design: item-level affected rows, guardrail_answers, and an explicit named auth/role/409/400 proof plan are now present, resolving the prior operator-role and generic-401 findings.",
+      "Top risks: guardrail checklist remains incomplete (invariants, API contract, CL-011 role posture) and functional_spec scope/traceability was not synced in the same delta, leaving prior MAJOR dispositions PENDING.",
+      "No new blocker; proceed only after closing the guardrail and scope-sync gaps so CL-006/CL-008 enforcement passes."
+    ]
+  },
+  "rereview_reason": "Delta for prior b50a04dc5071: item scope sync, guardrails, proof anchors",
+  "rereview_reason_sha256": "c8ae7be5cc158f60ae694aebbaa140b24d77654399df6b98f78eeb37030343fa"
+}

@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "77b2aca80349",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:52:08.783384+00:00",
+  "review_scope": "delta",
+  "base_sha": "371b7152e980ebff5de705cc694887f58b8c60e1",
+  "head_sha": "53106c659a1bf59554ec699e90b652c52c6d9359",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Rollback retains \"decision-validation/audit unit tests\" but does not state which module owns decision validation after route removal; if validation lives in the removed `api/routers/backlog.py` handler, the retained tests fail and post-rollback suite is not green (guardrail 6). New evidence: delta rollback text still assumes test separability without specifying the surviving target. (extends prior #1)"
+    ],
+    "MINOR": [
+      "Fail-closed check is scoped to \"no HTTP path can append new decisions\"; the prior finding also cited a non-HTTP alternate path (`core.backlog.update` invoked directly by tooling), which remains outside the stated check \u2014 narrow the claim or cover it.",
+      "Rollback says remove \"route-existence and endpoint-auth tests\" and retain \"audit tests\" but does not enumerate the partition within `tests/test_review_material_change.py`; ambiguous split risks a red or partially-removed suite at rollback time."
+    ],
+    "NIT": [
+      "`<1ms handler overhead at p95>` states a threshold but no measurement basis (tool, window, fixture), so the NFR claim remains weakly testable.",
+      "Fail-closed check is prose only; specify an executable assertion (e.g., retained negative test asserting the route is absent from app and OpenAPI) so rollback verification is automated."
+    ],
+    "SUMMARY": [
+      "Performance delta correctly scopes config reads to the decisions handler and adds an explicit latency budget, resolving both prior MINOR findings.",
+      "Rollback delta addresses prior MAJOR #2 by stating a fail-closed check, but the check covers only HTTP paths and test partitioning for the retained suite is unspecified.",
+      "Top risks: post-rollback suite greenness (guardrail 6) and residual non-HTTP append path remain the gating items before Gate 1.5 approval."
+    ]
+  },
+  "rereview_reason": "Delta for prior 02875e871b7d: green rollback, fail-closed check, scoped perf",
+  "rereview_reason_sha256": "74bf319bad8c7bea2a3191fc702e2dcfbba4ac4f60a96a5c54c2d3d03b8345a6"
+}

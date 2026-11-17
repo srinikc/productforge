@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "ac10b5b583a1",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-17T15:40:39.958150+00:00",
+  "review_scope": "delta",
+  "base_sha": "0a66641c0efa4b1e3e7d46f4a6c51f5638c3c581",
+  "head_sha": "554d9f3e9bb052abd88401daaac3012f68ac8898",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Module-level `os.environ.setdefault(\"PF_HIL_TOKEN\", ...)` mutates process-global state at import time, coupling this wrapper to import order within a shared pytest session (any test asserting token-absent startup behavior in the same process becomes order-dependent).",
+      "`setdefault` never overrides a `PF_HIL_TOKEN` already present in the ambient environment (dev shell/CI), so tests may exercise real token material instead of the deterministic fixture value, breaking test determinism.",
+      "Import-time side effect is undocumented (no comment on why the wrapper must inject the token); a fixture/`monkeypatch`-scoped setup would keep the mutation bounded and self-describing."
+    ],
+    "NIT": [
+      "Hardcoded `\"hil-tok\"` literal inline; a named constant would make intent and any future rotation obvious."
+    ],
+    "SUMMARY": [
+      "Delta is test-only env bootstrap for the wrapper; no shipped-code change, contract change, or language-rule violation, so nothing rises to BLOCKER/MAJOR.",
+      "Top risks are test isolation (global env mutation, import-order coupling) and silent absorption of a real ambient token; both are hardening-level for this delta."
+    ]
+  },
+  "rereview_reason": "Final delta for 9e6d021f8486 and prior findings: HIL token auth and startup validation",
+  "rereview_reason_sha256": "fa06e4ab9d773dcb5b9a1ede977bf53be66449d4274aa2d77585fbc413a68b5a"
+}

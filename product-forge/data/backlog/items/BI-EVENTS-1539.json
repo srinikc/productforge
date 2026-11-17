@@ -155,7 +155,398 @@
     "usage": {}
   },
   "created_at": "2026-11-17T11:06:14.934115",
-  "updated_at": "2026-11-17T11:06:38.394127",
+  "updated_at": "2026-11-17T17:48:52.986387",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-EVENTS-1539",
+    "outcome": "Outbox metrics and alerts expose backlog health.",
+    "actors": [
+      "operator",
+      "on-call"
+    ],
+    "scope": [
+      "metrics",
+      "alerts"
+    ],
+    "non_goals": [
+      "transport implementation"
+    ],
+    "assumptions": [
+      "Prometheus-compatible metrics owner exists"
+    ],
+    "dependencies": [
+      "event outbox"
+    ],
+    "domain": "eventing",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Expose an outbox_rows_current gauge by tenant/status and an EVENT_OUTBOX_BOUND_E",
+        "priority": "P0",
+        "source": "BI-EVENTS-1539",
+        "preconditions": "Event authority is deployed.",
+        "trigger": "Metrics are scraped or alert evaluated.",
+        "inputs": [
+          "outbox rows",
+          "projection result"
+        ],
+        "outputs": [
+          "metric/alert"
+        ],
+        "errors": [
+          "missing signal blocks release"
+        ],
+        "auth": "metrics read only",
+        "idempotency": "scrape idempotent",
+        "data_rules": [
+          "tenant/status labels"
+        ],
+        "edge_cases": [
+          "no rows"
+        ],
+        "acceptance": [
+          "Given event authority, when metrics are scraped, then outbox rows and bound rejections are visible."
+        ],
+        "verification": [
+          "metrics test"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Emit structured outbox prune and projection-failure signals through the existing",
+        "priority": "P0",
+        "source": "BI-EVENTS-1539",
+        "preconditions": "Event authority is deployed.",
+        "trigger": "Metrics are scraped or alert evaluated.",
+        "inputs": [
+          "outbox rows",
+          "projection result"
+        ],
+        "outputs": [
+          "metric/alert"
+        ],
+        "errors": [
+          "missing signal blocks release"
+        ],
+        "auth": "metrics read only",
+        "idempotency": "scrape idempotent",
+        "data_rules": [
+          "tenant/status labels"
+        ],
+        "edge_cases": [
+          "no rows"
+        ],
+        "acceptance": [
+          "Given event authority, when metrics are scraped, then outbox rows and bound rejections are visible."
+        ],
+        "verification": [
+          "metrics test"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "scrape",
+        "owner": "metrics",
+        "failure": "missing signal"
+      }
+    ],
+    "config_contract": {
+      "metrics": "existing"
+    },
+    "nfr": [
+      "low cardinality"
+    ],
+    "data_lifecycle": "metrics retained per platform",
+    "compatibility": "no breaking change",
+    "rollback": "remove metrics",
+    "observability": "outbox_rows_current and bound counter",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: implementation follows the existing metrics owner."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "542eaf3a5173"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-EVENTS-1539.md",
+    "design_ref": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metrics design",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no public API change"
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "existing outbox tables"
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metric config",
+        "artifact": "config/review-budget.json",
+        "sections": [
+          "checks"
+        ],
+        "evidence": [
+          "config/review-budget.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metric only"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "tenant labels",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "code revert only"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metric runbook",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no user interface"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metrics plan",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "test evidence",
+        "artifact": "tests/test_review_material_change.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "Expose an outbox_rows_current gauge by tenant/status and an EVENT_OUTBOX_BOUND_E",
+      "Emit structured outbox prune and projection-failure signals through the existing"
+    ],
+    "invariants": [
+      "metrics are tenant-scoped"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": "existing outbox",
+      "files": {
+        "metrics": "event outbox"
+      },
+      "config": {
+        "metrics": "existing"
+      }
+    },
+    "failure_matrix": [
+      {
+        "case": "missing metric",
+        "behavior": "release blocked",
+        "code": "METRIC_MISSING"
+      }
+    ],
+    "dependencies": [
+      "event outbox"
+    ],
+    "security": "tenant labels only",
+    "observability": "outbox_rows_current; bound counter",
+    "performance": "low cardinality",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "metrics test"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "metrics test"
+      }
+    ],
+    "rollout": "with next event release",
+    "rollback": "remove metrics",
+    "decisions": [
+      "Use existing metrics owner"
+    ],
+    "guardrails": [
+      "no high-cardinality tenant-id labels"
+    ],
+    "learnings": [
+      "BI-PF-1268"
+    ],
+    "design_areas": [
+      {
+        "area": "observability",
+        "status": "APPLICABLE",
+        "reason": "metrics scope",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-EVENTS-1539.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ],
+    "scope": [
+      "metrics",
+      "alerts"
+    ],
+    "non_goals": [
+      "new transport"
+    ],
+    "runtime_contract": {
+      "trigger": "scrape",
+      "entrypoint": "metrics exporter",
+      "call_sites": [
+        "outbox"
+      ],
+      "adapter": "existing",
+      "contract": "outbox metrics",
+      "failure_behavior": "missing signal blocks release",
+      "observable_result": "metrics"
+    },
+    "proof_plan": {
+      "failing_test": "metrics missing",
+      "red_evidence": "absent",
+      "green_evidence": "present"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "tests"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "tests"
+      }
+    ],
+    "stop_conditions": [
+      "high cardinality"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Metrics-only change; no API surface.",
+    "routes": []
+  }
 }

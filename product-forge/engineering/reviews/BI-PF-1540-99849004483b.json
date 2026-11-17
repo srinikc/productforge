@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "99849004483b",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:17:02.282896+00:00",
+  "review_scope": "delta",
+  "base_sha": "4aecbbd7b2bd8e51ea9b62e78f39558d93e22539",
+  "head_sha": "e407d9bd29d52653a25ddb1c123e5621f7ff6af0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta runtime_contract places enforcement in core/backlog.py and scripts/dev/review_budget.py, but AC affected_components/affected_files still list only api/routers/backlog.py, api/openapi.json, scripts/dev/architect_review.py and tests \u2014 scope/traceability rows are out of sync with the changed contract; AC/design must be updated together in this delta."
+    ],
+    "MINOR": [
+      "proof_plan green_evidence covers only missing-HIL 400 and non-reviewed-base rejection; AC-2's reason-cites-latest-SHA, arbitrary-SHA and non-ancestor rejections (and stop_condition \"Arbitrary SHA accepted\") have no red/green anchor.",
+      "red_evidence claims the endpoint \"accepts missing HIL before fix\", yet the decisions route is newly added \u2014 the red state for a new route is 404/missing, not permissive behavior; red evidence is not reproducible as written.",
+      "Operator-role authz and revision-guard 409 (AC-1 \"API auth/validation\", failure_matrix CONFLICT) remain unproven; the delta's route-level anchor exercises only the HIL path."
+    ],
+    "NIT": [
+      "call_sites shorthand \"POST /items/{id}/decisions\" diverges from contracts.api path \"/api/v1/backlog/items/{item_id}/decisions\"; use one canonical path."
+    ],
+    "SUMMARY": [
+      "Delta substantively resolves the prior proof-anchor and call-site-granularity findings, but their dispositions remain PENDING \u2014 per CL-006, Gate 1 approval is invalid until the main thread records them.",
+      "Top risks: AC scope rows not updated where enforcement logic now lands, and proof anchors narrower than AC-2's full rejection set."
+    ]
+  },
+  "rereview_reason": "Delta for prior c726719964f5: route and AC-2 proof anchors",
+  "rereview_reason_sha256": "d6a3b3a3f984fb8c6fb7ede12c259273a81d90f0272f531facf1417ee3365809"
+}

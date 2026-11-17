@@ -178,6 +178,7 @@
 | [`REVIEW-ATTRIBUTION.md`](REVIEW-ATTRIBUTION.md) | Implemented | 100% | Review finding attribution and loop-stop policy | — | — |
 | [`REVIEW-FOCUS.md`](REVIEW-FOCUS.md) | SSOT | 100% | Generated production-risk review checklist for the code-review agent (BI-PF-1066) | — | — |
 | [`REVIEW-GATES-LIFECYCLE.md`](REVIEW-GATES-LIFECYCLE.md) | SSOT | 100% | Binding backlog item lifecycle gates Gate1 -> Gate1.5 -> Gate2 -> Gate2.5 (second-model architect review) -> precheck -> merge -> closure -> DoD | — | — |
+| [`REVIEW-MATERIAL-CHANGE-DESIGN.md`](REVIEW-MATERIAL-CHANGE-DESIGN.md) | Design | 100% | BI-PF-1540: material-change decisions API and reviewed-ancestor delta base | — | — |
 | [`REVIEW-MODEL.md`](REVIEW-MODEL.md) | Implemented | 100% | Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070) | — | — |
 | [`REVIEW-TRIAGE-POLICY.md`](REVIEW-TRIAGE-POLICY.md) | Implemented | 100% | Review severity, scope, delta-only, and fix-evidence policy | — | — |
 | [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |

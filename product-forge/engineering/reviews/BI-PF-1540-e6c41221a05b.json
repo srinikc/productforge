@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "e6c41221a05b",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:55:24.548164+00:00",
+  "review_scope": "delta",
+  "base_sha": "0561099492740cf7adba94609c734e41ac9c59f0",
+  "head_sha": "fe50018effc3847fa55e6d8dfb54aa3aa20028cf",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`guardrail_answers.rollback`/`reversibility` claim the post-rollback suite \"stays green\" while only \"route/AC-2 tests\" are removed, but `test_decisions_api_route_exists` (FR-3/AC-3, named in proof_plan) will fail once the route is removed and `api/openapi.json` re-synced; enumerate AC-3's route test in both rollback rows or the stated rollback cannot pass.",
+      "`guardrail_answers.availability` is only \"fail closed; no partial write\" and never addresses the checklist's single-point-of-failure/alert-lead-time item for persistent 503/`DEPENDENCY_UNAVAILABLE` and 500/`CONFIG_INVALID` conditions; a dead backlog store or broken config yields an unalerted, indefinitely failing endpoint with no stated detection or recovery window."
+    ],
+    "MINOR": [
+      "`guardrail_answers.observability` asserts failures are diagnosable \"via API error-rate metrics\", but no metric name, emission point, or evidence in the delta/test matrix shows such metrics exist; the claim is unevidenced in this delta.",
+      "Prior MINOR on `startup_defence` is only partially resolved: per-request file read now defines change detection, but the row still names no log/event signal distinguishing `CONFIG_INVALID` 500s from ordinary handler failures.",
+      "`guardrail_answers.performance` promises \"constant-size config read\" per decision request with no cache/TTL stated, so an unreadable config path turns every decision request into a 500; note the failure mode explicitly or state the read is guarded."
+    ],
+    "NIT": [
+      "`guardrail_answers.invariants_ordering` and `authorization` duplicate the same operator+HIL ordering text; a single canonical row would avoid future drift like the rollback/reversibility mismatch."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior rollback/reversibility config-retention contradiction (both rows now retain the same artifacts) and defines per-request config reads, but the rollback plan still leaves the AC-3 route test failing and availability/observability claims remain unevidenced.",
+      "Top risks: incomplete rollback test enumeration (MAJOR) and no alerting/fail-closed signal for 503/500 conditions (MAJOR)."
+    ]
+  },
+  "rereview_reason": "Delta for prior e095e7c8dcb3: rollback/reversibility alignment, startup policy",
+  "rereview_reason_sha256": "f738b3e07cbedace2f07a8d32c59b7e015211d7d8ee1f80001c609b1366dcf00"
+}

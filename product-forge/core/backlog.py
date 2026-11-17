@@ -2215,5 +2215,77 @@ def _cli(argv=None) -> int:
     return 0
 
 
+def latest_review_sha(item_id: str, mode: str) -> str:
+    """Latest review evidence sha for an item+mode (BI-PF-1540)."""
+    import json as _json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    best = ("", "")
+    for rp in (root / "engineering" / "reviews").glob(f"{item_id}-*.json"):
+        if "-prev-" in rp.name:
+            continue
+        try:
+            d = _json.loads(rp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if str(d.get("mode") or "") != mode:
+            continue
+        at = str(d.get("at") or "")
+        if at >= best[0]:
+            best = (at, str(d.get("sha") or ""))
+    return best[1]
+
+
+def material_change_errors(item_id: str, body: dict) -> list[str]:
+    """Validate a MATERIAL_CHANGE decision (BI-PF-1540)."""
+    import json as _json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    decision = str(body.get("decision") or "").strip().upper()
+    mode = str(body.get("mode") or "").strip()
+    reason = str(body.get("reason") or "").strip()
+    by = str(body.get("by") or "").strip()
+    bad = []
+    if decision != "MATERIAL_CHANGE":
+        bad.append("decision must be MATERIAL_CHANGE")
+    if mode not in ("design", "diff"):
+        bad.append("mode must be design or diff")
+    if len(reason) < 20:
+        bad.append("reason must be concrete (>=20 chars)")
+    if body.get("hil_confirmed") is not True:
+        bad.append("hil_confirmed=true required")
+    actor = ""
+    try:
+        actor = str(_json.loads((root / "config" / "review-material-change.json").read_text(encoding="utf-8")).get("hil_actor") or "")
+    except Exception:
+        bad.append("HIL actor config unreadable")
+    if not actor or by != actor:
+        bad.append("by must match the configured HIL actor bound to the authenticated token")
+    latest = latest_review_sha(item_id, mode)
+    if not latest:
+        bad.append(f"no {mode} review evidence for item")
+    elif latest not in reason:
+        bad.append(f"reason must cite latest review sha {latest}")
+    return bad
+
+
+def review_material_change_config_errors() -> list[str]:
+    """Startup validation for the material-change HIL config (BI-PF-1540)."""
+    import json as _json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    try:
+        cfg = _json.loads((root / "config" / "review-material-change.json").read_text(encoding="utf-8"))
+    except Exception as e:
+        return [f"review-material-change config unreadable: {e}"]
+    out = []
+    if not str(cfg.get("hil_actor") or "").strip():
+        out.append("review-material-change config: hil_actor missing")
+    import os
+    if not os.environ.get("PF_HIL_TOKEN", "").strip():
+        out.append("PF_HIL_TOKEN missing/blank: set it in the deployment secret store for X-HIL-Token auth")
+    return out
+
+
 if __name__ == "__main__":
     raise SystemExit(_cli())

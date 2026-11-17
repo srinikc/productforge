@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "9e6d021f8486",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:45:07.124069+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Diff contains only `api/openapi.json`; no changes to `scripts/dev/architect_review.py` or `tests/test_review_material_change.py` are visible, so AC-2 (reviewed-ancestor `--since` + reason-cites-latest-SHA + reject arbitrary SHA) and AC-3 (auth/validation, persistence, ancestor-accept, arbitrary-SHA-reject tests) are not demonstrable from this diff.",
+      "New decisions route documents only 200/422, but the approved failure matrix requires 404 NOT_FOUND, 409 CONFLICT (revision guard), 503 DEPENDENCY_UNAVAILABLE, 500 CONFIG_INVALID \u2014 API contract (spec_pack `api_contract` = APPLICABLE, evidence `api/openapi.json`) is out of sync with the approved design.",
+      "Request body for `/api/v1/backlog/items/{item_id}/decisions` is an untyped `additionalProperties: true` object; no OpenAPI schema for `mode`/`reason`/`hil_confirmed`/`expected_revision`, so the contract does not express the HIL/revision-guard validation the AC requires."
+    ],
+    "MINOR": [
+      "No `security`/operator-role requirement is declared on the decisions operation; operator-only enforcement is not discoverable from the contract (relies solely on optional `authorization`/`x-roles` header params like every other route).",
+      "The diff re-sorts/reformats the entire 14k-line `openapi.json` (ordering, key order, description placement), producing enormous unrelated churn that obscures the single substantive addition and risks noisy future diffs."
+    ],
+    "NIT": [
+      "Route description (\"Append an append-only decision (BI-PF-1540)\") leaks the ticket ID into the public API surface; prefer a stable behavioral description.",
+      "`operationId` `add_item_decision_...` does not convey MATERIAL_CHANGE semantics; consider a name that reflects the allowlisted decision type."
+    ],
+    "SUMMARY": [
+      "The diff shows the decisions route added to the OpenAPI contract (AC-3 route-presence partially met) but provides no evidence for the architect_review delta-base change or the required tests, and the published schema/error contract diverges from the approved design's failure matrix and validation requirements.",
+      "Top risks: unverified AC-2/AC-3 implementation, incomplete 404/409/503/500 contract, and an untyped decision payload that does not encode the HIL/revision-guard invariants."
+    ]
+  }
+}

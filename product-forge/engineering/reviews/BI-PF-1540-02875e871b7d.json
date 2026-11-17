@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "02875e871b7d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:49:50.357379+00:00",
+  "review_scope": "delta",
+  "base_sha": "9e1d88917a0eac2bdcb551742a155ebb16ebea74",
+  "head_sha": "371b7152e980ebff5de705cc694887f58b8c60e1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Rollback retains `tests/test_review_material-change.py` \"audit tests\", but those include FR-3 route-existence/auth tests for `POST /items/{id}/decisions`; after route removal the retained suite fails, so post-rollback verification cannot pass (guardrail 6: rollback coverage must leave a green suite).",
+      "Rollback says \"no new decisions are accepted after rollback\" but defines no enforcement/verification step beyond route removal; if any alternate path (direct `core.backlog.update`, stale client) exists, the claim is unverifiable \u2014 state the fail-closed check."
+    ],
+    "MINOR": [
+      "`performance` states \"allowlist config is a tiny file read per request\" without scoping \"per request\" (decisions route only vs every backlog request); on a hot path the \"no measurable runtime impact\" claim needs an explicit route-scoped reading or a stated cache/TTL.",
+      "\"no measurable runtime impact\" is asserted without a stated measurement basis (latency budget/threshold); tie it to the NFR so the claim is testable."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta resolves the prior MAJOR (config file now retained on rollback) and the openapi/tests rollback MINORs (re-sync + retention explicitly stated); those dispositions look correct and should not be reopened.",
+      "Top residual risks: retained audit tests are inconsistent with route removal, and the rollback's \"no new decisions accepted\" guarantee lacks an explicit fail-closed verification step."
+    ]
+  },
+  "rereview_reason": "Delta for prior f592397af08a: rollback audit retention and config latency",
+  "rereview_reason_sha256": "0720608c38bdb9bd5925fe9dca5f557af32c25942d1fd5cda3c994747697b9bf"
+}

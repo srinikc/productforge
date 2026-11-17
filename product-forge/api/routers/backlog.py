@@ -427,7 +427,8 @@ def set_delivery(item_id: str, body: dict[str, Any], request: Request,
 _CONTEXT_FIELDS = ("objective", "acceptance_criteria", "in_scope", "out_of_scope",
                    "affected_components", "affected_files", "approach", "verification",
                    "risks", "rollback", "evidence", "owner", "summary", "brief", "verified_by",
-                   "review_dispositions")
+                   "review_dispositions", "functional_spec", "spec_pack", "design_pack",
+                   "fix_impact", "fix_evidence")
 
 
 @router.post("/items/{item_id}/context", dependencies=[Depends(require_operator)])
@@ -643,6 +644,37 @@ def set_item_execution(item_id: str, body: dict[str, Any], request: Request,
         raise ApiError("VALIDATION_FAILED", str(e)) from None
     if res is None:
         raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/decisions", dependencies=[Depends(require_operator)])
+def add_item_decision(item_id: str, body: dict[str, Any], request: Request,
+                      ctx: dict[str, Any] = Depends(require_operator)):
+    """Append an append-only decision (BI-PF-1540), including HIL MATERIAL_CHANGE."""
+    from core import backlog
+    from datetime import datetime, timezone
+    import os, secrets
+    expected_hil = os.environ.get("PF_HIL_TOKEN", "")
+    provided_hil = request.headers.get("X-HIL-Token", "")
+    if not expected_hil or not secrets.compare_digest(provided_hil, expected_hil):
+        raise ApiError("FORBIDDEN", "valid X-HIL-Token required")
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    decision = str(body.get("decision") or "").strip().upper()
+    mode = str(body.get("mode") or "").strip()
+    reason = str(body.get("reason") or "").strip()
+    by = str(body.get("by") or "").strip()
+    validation = backlog.material_change_errors(item_id, body)
+    if validation:
+        raise ApiError("VALIDATION_FAILED", "; ".join(validation))
+    item = backlog.get_epic(s, p, item_id)
+    if not item:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    rows = list(item.get("decisions") or [])
+    rows.append({"decision": decision, "mode": mode, "reason": reason, "by": by,
+                 "hil_confirmed": True, "sigs": list(body.get("sigs") or []),
+                 "at": str(body.get("at") or datetime.now(timezone.utc).isoformat())})
+    res = backlog.update(s, p, item_id, decisions=rows)
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 

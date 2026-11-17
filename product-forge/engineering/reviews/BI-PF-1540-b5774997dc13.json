@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "b5774997dc13",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-17T15:19:00.893291+00:00",
+  "review_scope": "delta",
+  "base_sha": "8a65261a43d926d4d21c201ea38aafe35ed626af",
+  "head_sha": "08a66a3315c43d2d40153a3a3e3c7f0927382c72",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Startup fail-closed check (`review_material_change_config_errors`) validates `hil_actor` only; the newly required `PF_HIL_TOKEN` is never checked at startup. If unset in a deployment, every decision POST returns 403 with no startup failure, log, or metric \u2014 guardrail-2 defence-in-depth (on-startup check) is incomplete for the new secret, so the AC-1 endpoint can be silently dead.",
+      "`PF_HIL_TOKEN` bypasses `config/env-flags.json`, which is the declared discoverability registry for PF_* auth flags (e.g. `PF_API_TOKEN`); a required security switch is invisible to operators and has no documented default/purpose/owner."
+    ],
+    "MINOR": [
+      "Approved invariant ordering is `authz -> revision -> HIL -> reason/SHA`; the delta inserts the `X-HIL-Token` check before `_guard_revision`, so a stale-revision request without a token returns 403 instead of the contract's 409 CONFLICT (failure-matrix mismatch).",
+      "`secrets.compare_digest(provided_hil, expected_hil)` raises `TypeError` for non-ASCII `X-HIL-Token` values, turning an attacker-supplied header into an unhandled 500 instead of a clean FORBIDDEN.",
+      "`material_change_errors` reports unreadable `review-material-change.json` as `VALIDATION_FAILED` (400), while the approved failure matrix specifies `CONFIG_INVALID` fail-closed 500 for missing/malformed HIL config.",
+      "New `review_material_change_config_errors()` and the `app.py` startup guard have no test, so the guardrail-2 fail-closed behaviour added in this delta is not fail-able/regressable.",
+      "Delta-base check extraction to `valid_delta_base()` keeps the reason-cites-latest-SHA requirement outside this helper; no assertion in the delta couples accepted `--since` with the citation check (AC-2 pairing relies on an untested seam)."
+    ],
+    "NIT": [
+      "`import os, secrets` executed inside the handler on every request; hoist to module scope for consistency with surrounding router imports.",
+      "`test_decisions_endpoint_rejects_without_hil` supplies a valid `X-HIL-Token` and only flips `hil_confirmed`, so the test name does not match the behaviour it asserts."
+    ],
+    "SUMMARY": [
+      "Delta correctly moves validation into `core.backlog` (reuse) and adds a constant-time HIL token gate plus a reviewed-ancestor helper with tests, but the new shared secret is neither startup-validated nor registered in the env-flag registry, leaving a silent-failure risk for AC-1.",
+      "Validation ordering deviates from the approved invariant/failure matrix (HIL before revision; config errors as 400 not 500), and the new startup guard is untested.",
+      "Prior MAJOR (self-asserted `by` not bound to `ctx`) and prior MINOR/NIT findings remain PENDING and unchanged; no blocker introduced."
+    ]
+  },
+  "rereview_reason": "Delta for prior 3930af56ceec and 9e6d021f8486: HIL token auth, core validation, proof tests",
+  "rereview_reason_sha256": "5656c2542c03959da568321f491b33ea0ce2fe14b66517965d63dca636db2c9a"
+}

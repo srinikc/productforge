@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "c726719964f5",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:13:54.881570+00:00",
+  "review_scope": "delta",
+  "base_sha": "cc324f5110aeb8c5b99f347ac741d4235c3b0e25",
+  "head_sha": "4aecbbd7b2bd8e51ea9b62e78f39558d93e22539",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "proof_plan now anchors only the AC-1 allowlist fix (core-level import); the AC-2 reviewed-ancestor/budget-exemption control, listed as P0 in the same delta and gated by stop_condition \"Arbitrary SHA accepted\", has no red/green fail-able anchor in proof_plan \u2014 only a generic test_matrix row.",
+      "proof_plan's failing test imports core.backlog.material_change_errors directly, so the operator/HIL authz boundary at api/routers/backlog.py (AC-1 \"API auth/validation\", AC-3) is not exercised by any red/green proof; test_matrix asserts coverage but the proof rows do not demonstrate the route-level rejection."
+    ],
+    "NIT": [
+      "runtime_contract.call_sites mixes granularities: \"review_budget.problems\" is an internal function while the other entries are user-facing commands/routes; name the invoking entrypoint (e.g. architect_review --rereview path) for consistency."
+    ],
+    "SUMMARY": [
+      "All four prior findings verify as resolved in this delta: failing_test now states the direct core.backlog import; red/green evidence is coherent and correctly ordered; scripts/dev/review_budget.py is added to design_pack.affected_files; and adapter now names review_guard as the ancestry/reason-citation enforcement anchor.",
+      "Design deltas (affected_files, proof_plan, runtime_contract) are internally consistent with each other, the ACs, the failure matrix, and the rollback retention clause; language rule satisfied (edits to shipped Python only, tooling Python allowed).",
+      "Residual gaps are proof-plan coverage of AC-2 and the route-level authz boundary, plus a call-site granularity nit \u2014 no contract, security, or rollback defects introduced by the delta."
+    ]
+  },
+  "rereview_reason": "Delta for prior 4799357712ae: proof plan and review_budget inventory",
+  "rereview_reason_sha256": "51e8945c4ac6711d0559ad908abfe0b141f87c89e4ac0487f16bef95462aea61"
+}
