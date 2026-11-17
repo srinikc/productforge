@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-11-16T23:48:25 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-17T17:36:18 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 135  |  **Closed:** 611
+- **Open:** 136  |  **Closed:** 612
 - `blocked`: 1
-- `executing`: 2
+- `executing`: 1
 - `in_progress`: 1
-- `new`: 131
+- `new`: 133
 
-### new, by category (131)
-**API / reports / HIL / misc** (15)
+### new, by category (133)
+**API / reports / HIL / misc** (17)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,6 +30,8 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
+| BI-EVENTS-1539 | Should | feature | Structured outbox metrics and alerting for event authority | Structured outbox metrics and alerting for event authority |
+| BI-PF-1540 | Should | feature | Review material-change decision API and correct delta-review base | Unblock legitimate fix deltas without weakening review-budget enforcement or requiring direct backlog mutation... |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -373,5 +375,5 @@
 ---
 
 ## Totals
-- backend: 135 open / 611 closed
+- backend: 136 open / 612 closed
 - dashboard: 146 open / 3 closed
