@@ -71,7 +71,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 2, 'NIT': 2}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 2, 'NIT': 1}"
   ],
   "risks": [
     "A permissive decisions endpoint could bypass review; restrict to MATERIAL_CHANGE, require hil_confirmed and hil:<actor>, keep revision guard.",
@@ -89,7 +89,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=5c7b2b648bda\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Delta declares `changed_fields: []` and an empty `delta`, so there are no new design fields to review and no new findings can be raised against this delta.\n  - The five prior findings remain disposition=PENDING; under CL-006 they must be resolved before Gate 1 approval, but they are not repeated here.\n  - No AC, contract, test, or control changed in this delta; the approved design and its risks stand as previously reviewed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f592397af08a\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback removes `config/review-material-change.json` while append-only MATERIAL_CHANGE decisions already persisted reference that fixed HIL actor; post-rollback re-verification behavior for existing decisions is undefined and could fail closed or silently void `review_budget` exemptions (integrity of stored decisions vs. policy).\nMINOR:\n  - `api/openapi.json` is a declared affected/checked-in file, but rollback only says \"remove the decisions route\"; without explicit contract re-sync, the documented path survives code removal (API contracts in sync, guardrail 8).\n  - HIL actor config is \"loaded and validated per request\" with no caching stated, while the NFR requires \"no added runtime latency\"; define a cache/TTL or explicitly justify the per-request file read.\n  - Rollback deletes `tests/test_review_material_change.py` and the design doc outright; retained append-only decisions then have no regression coverage or traceability for the audit records that remain.\nNIT:\n  - Security wording layers \"operator role AND fixed HIL actor on the token\"; note explicitly how a non-HIL operator acts (or is rejected) to avoid ambiguity for API consumers.\n  - Rollback list omits `api/openapi.json` regeneration step alongside the route removal.\nSUMMARY:\n  - Delta is coherent on the changed fields (security boundary, rollback, language rule) and satisfies the ACs as specified; language rule is respected (shipped Python API extension + tooling Python).\n  - Top risks: rollback leaves stored decisions referencing a deleted HIL config with undefined re-verification semantics, and openapi contract re-sync is not called out in rollback.\n  - No blocker-level AC, security, or data-loss defect found in the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=02875e871b7d\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback retains `tests/test_review_material-change.py` \"audit tests\", but those include FR-3 route-existence/auth tests for `POST /items/{id}/decisions`; after route removal the retained suite fails, so post-rollback verification cannot pass (guardrail 6: rollback coverage must leave a green suite).\n  - Rollback says \"no new decisions are accepted after rollback\" but defines no enforcement/verification step beyond route removal; if any alternate path (direct `core.backlog.update`, stale client) exists, the claim is unverifiable — state the fail-closed check.\nMINOR:\n  - `performance` states \"allowlist config is a tiny file read per request\" without scoping \"per request\" (decisions route only vs every backlog request); on a hot path the \"no measurable runtime impact\" claim needs an explicit route-scoped reading or a stated cache/TTL.\n  - \"no measurable runtime impact\" is asserted without a stated measurement basis (latency budget/threshold); tie it to the NFR so the claim is testable.\nNIT:\n  - none\nSUMMARY:\n  - Delta resolves the prior MAJOR (config file now retained on rollback) and the openapi/tests rollback MINORs (re-sync + retention explicitly stated); those dispositions look correct and should not be reopened.\n  - Top residual risks: retained audit tests are inconsistent with route removal, and the rollback's \"no new decisions accepted\" guarantee lacks an explicit fail-closed verification step.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=77b2aca80349\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback retains \"decision-validation/audit unit tests\" but does not state which module owns decision validation after route removal; if validation lives in the removed `api/routers/backlog.py` handler, the retained tests fail and post-rollback suite is not green (guardrail 6). New evidence: delta rollback text still assumes test separability without specifying the surviving target. (extends prior #1)\nMINOR:\n  - Fail-closed check is scoped to \"no HTTP path can append new decisions\"; the prior finding also cited a non-HTTP alternate path (`core.backlog.update` invoked directly by tooling), which remains outside the stated check — narrow the claim or cover it.\n  - Rollback says remove \"route-existence and endpoint-auth tests\" and retain \"audit tests\" but does not enumerate the partition within `tests/test_review_material_change.py`; ambiguous split risks a red or partially-removed suite at rollback time.\nNIT:\n  - `<1ms handler overhead at p95>` states a threshold but no measurement basis (tool, window, fixture), so the NFR claim remains weakly testable.\n  - Fail-closed check is prose only; specify an executable assertion (e.g., retained negative test asserting the route is absent from app and OpenAPI) so rollback verification is automated.\nSUMMARY:\n  - Performance delta correctly scopes config reads to the decisions handler and adds an explicit latency budget, resolving both prior MINOR findings.\n  - Rollback delta addresses prior MAJOR #2 by stating a fail-closed check, but the check covers only HTTP paths and test partitioning for the retained suite is unspecified.\n  - Top risks: post-rollback suite greenness (guardrail 6) and residual non-HTTP append path remain the gating items before Gate 1.5 approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=77b2aca80349\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback retains \"decision-validation/audit unit tests\" but does not state which module owns decision validation after route removal; if validation lives in the removed `api/routers/backlog.py` handler, the retained tests fail and post-rollback suite is not green (guardrail 6). New evidence: delta rollback text still assumes test separability without specifying the surviving target. (extends prior #1)\nMINOR:\n  - Fail-closed check is scoped to \"no HTTP path can append new decisions\"; the prior finding also cited a non-HTTP alternate path (`core.backlog.update` invoked directly by tooling), which remains outside the stated check — narrow the claim or cover it.\n  - Rollback says remove \"route-existence and endpoint-auth tests\" and retain \"audit tests\" but does not enumerate the partition within `tests/test_review_material_change.py`; ambiguous split risks a red or partially-removed suite at rollback time.\nNIT:\n  - `<1ms handler overhead at p95>` states a threshold but no measurement basis (tool, window, fixture), so the NFR claim remains weakly testable.\n  - Fail-closed check is prose only; specify an executable assertion (e.g., retained negative test asserting the route is absent from app and OpenAPI) so rollback verification is automated.\nSUMMARY:\n  - Performance delta correctly scopes config reads to the decisions handler and adds an explicit latency budget, resolving both prior MINOR findings.\n  - Rollback delta addresses prior MAJOR #2 by stating a fail-closed check, but the check covers only HTTP paths and test partitioning for the retained suite is unspecified.\n  - Top risks: post-rollback suite greenness (guardrail 6) and residual non-HTTP append path remain the gating items before Gate 1.5 approval.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f28dd975eec7\nBLOCKER:\n  - Delta adds shipped module `core/review_decisions.py` to affected_files while design_pack restates the language rule as \"extending shipped Python API is allowed\", dropping \"new shipped logic -> Go\"; the delta never states the module is an edit to existing shipped Python vs new logic, so language-rule compliance is unestablished before Gate 1.5.\nMAJOR:\n  - Delta adds `core/review_decisions.py` but `design_pack.contracts.files` (still only `api/routers/backlog.py`), `dependencies` (still `core.backlog`, `architect_review.py`) and `runtime_contract.entrypoint/adapter` were not updated in the same delta, breaking design-row sync for a new logic file.\n  - Rollback names `core/review_decisions.py` as the retained validation owner, but the delta never states the API handler in `api/routers/backlog.py` delegates HIL/SHA/reason validation to it; without a stated single source, pre-rollback duplicate validation paths can diverge (distinct from the prior post-rollback test-suite finding).\nMINOR:\n  - `config/review-material-change.json` is now in affected_files while spec_pack/config_contract describe it as the existing fixed-HIL config; state new vs modified vs read-only dependency so rollback and \"no data change\" claims stay accurate.\n  - Delta expands affected_files from the 4 files declared at item level to 7 (config, docs, core) without a matching scope/traceability note, leaving item-level and design-level file lists inconsistent.\nNIT:\n  - `docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` is listed as affected without indicating which sections change, giving reviewers no delta pointer inside the design doc.\nSUMMARY:\n  - Delta is a narrow file-list/rollback amendment and mostly improves rollback honesty (names `core/review_decisions.py`, adds fail-closed check), but it introduces a shipped `core/` module while restating the language rule permissively and leaves contract rows unsynced.\n  - Top risks: unverified Go-vs-Python compliance for `core/review_decisions.py`, and unstated single-source validation between the API handler and core (duplicate security checks).\n  - Note (process, CL-006): the prior Gate 1.5 MAJOR/MINOR/NIT findings remain disposition=PENDING with no dispositions recorded in this delta, so Gate 1 approval is invalid until the main thread records them.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -185,7 +186,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T17:33:23.034801",
-  "updated_at": "2026-11-17T18:23:46.784323",
+  "updated_at": "2026-11-17T18:28:20.623305",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -510,7 +511,7 @@
     "standards": [
       "AGENTS.md",
       "docs/ENGINEERING_OPERATING_STANDARD.md",
-      "language rule: extending shipped Python API is allowed; tooling Python is allowed"
+      "language rule: edit existing shipped Python (api/routers/backlog.py, core/backlog.py) is allowed; no new shipped module"
     ],
     "requirements": [
       "FR-1 decisions API",
@@ -527,7 +528,8 @@
       },
       "db": "N/A: existing backlog store",
       "files": {
-        "route": "api/routers/backlog.py"
+        "route": "api/routers/backlog.py",
+        "validation": "core/backlog.py:material_change_errors"
       },
       "config": {
         "allowlist": "config/review-material-change.json",
@@ -573,7 +575,8 @@
     ],
     "dependencies": [
       "core.backlog",
-      "architect_review.py"
+      "architect_review.py",
+      "review_budget.py"
     ],
     "security": "Operator-only endpoint; HIL actor is fixed by config/review-material-change.json and bound to the authenticated API token, not self-asserted. Item lookup is scope/project-scoped by _scope_project; no tenant header or caller-controlled tenant. HIL actor config is loaded and validated per request; missing/malformed config fails closed. API route requires operator role AND the fixed configured HIL actor bound to the authenticated token.",
     "observability": "Structured API error envelope; decision append is auditable through item history/trail; budget refusal messages identify mode and count.",
@@ -596,7 +599,7 @@
       }
     ],
     "rollout": "Enable with the API route; no data migration.",
-    "rollback": "Remove the decisions route and reviewed-ancestor exemption; re-sync api/openapi.json; remove route-existence/endpoint-auth tests. Retain core/review_decisions.py validation, config, design doc and decision-validation/audit tests, so the post-rollback suite stays green. Existing MATERIAL_CHANGE decisions remain historical evidence. Fail-closed check: route absent from app/OpenAPI; no HTTP append path.",
+    "rollback": "Remove the decisions route and reviewed-ancestor exemption; re-sync api/openapi.json; remove route-existence/endpoint-auth tests. Retain core.backlog validation, config, design doc and decision-validation/audit tests so the suite stays green. Existing decisions remain historical evidence.",
     "decisions": [
       "Bootstrap exception approved for 1540-first merge."
     ],
@@ -653,8 +656,8 @@
         "POST /items/{id}/decisions",
         "architect_review run --rereview"
       ],
-      "adapter": "core.backlog.update",
-      "contract": "append-only decision; reviewed ancestor accepted",
+      "adapter": "core.backlog.material_change_errors",
+      "contract": "validation delegated to core.backlog; append via core.backlog.update",
       "failure_behavior": "reject invalid HIL/SHA",
       "observable_result": "decision persisted; review budget exempted"
     },
@@ -697,7 +700,7 @@
       "tests/test_review_material_change.py",
       "config/review-material-change.json",
       "docs/REVIEW-MATERIAL-CHANGE-DESIGN.md",
-      "core/review_decisions.py"
+      "core/backlog.py"
     ]
   },
   "api_impact": {
@@ -949,6 +952,38 @@
         ]
       },
       "evidence": "BI-PF-1540-77b2aca80349.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "80db7d256bcda931bb1ae63a093a8e1ce876e65f",
+      "review_sha": "f28dd975eec7",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T12:57:35.438525+00:00",
+      "review_scope": "delta",
+      "base_sha": "53106c659a1bf59554ec699e90b652c52c6d9359",
+      "head_sha": "80db7d256bcda931bb1ae63a093a8e1ce876e65f",
+      "findings": {
+        "BLOCKER": [
+          "Delta adds shipped module `core/review_decisions.py` to affected_files while design_pack restates the language rule as \"extending shipped Python API is allowed\", dropping \"new shipped logic -> Go\"; the delta never states the module is an edit to existing shipped Python vs new logic, so language-rule compliance is unestablished before Gate 1.5."
+        ],
+        "MAJOR": [
+          "Delta adds `core/review_decisions.py` but `design_pack.contracts.files` (still only `api/routers/backlog.py`), `dependencies` (still `core.backlog`, `architect_review.py`) and `runtime_contract.entrypoint/adapter` were not updated in the same delta, breaking design-row sync for a new logic file.",
+          "Rollback names `core/review_decisions.py` as the retained validation owner, but the delta never states the API handler in `api/routers/backlog.py` delegates HIL/SHA/reason validation to it; without a stated single source, pre-rollback duplicate validation paths can diverge (distinct from the prior post-rollback test-suite finding)."
+        ],
+        "MINOR": [
+          "`config/review-material-change.json` is now in affected_files while spec_pack/config_contract describe it as the existing fixed-HIL config; state new vs modified vs read-only dependency so rollback and \"no data change\" claims stay accurate.",
+          "Delta expands affected_files from the 4 files declared at item level to 7 (config, docs, core) without a matching scope/traceability note, leaving item-level and design-level file lists inconsistent."
+        ],
+        "NIT": [
+          "`docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` is listed as affected without indicating which sections change, giving reviewers no delta pointer inside the design doc."
+        ],
+        "SUMMARY": [
+          "Delta is a narrow file-list/rollback amendment and mostly improves rollback honesty (names `core/review_decisions.py`, adds fail-closed check), but it introduces a shipped `core/` module while restating the language rule permissively and leaves contract rows unsynced.",
+          "Top risks: unverified Go-vs-Python compliance for `core/review_decisions.py`, and unstated single-source validation between the API handler and core (duplicate security checks).",
+          "Note (process, CL-006): the prior Gate 1.5 MAJOR/MINOR/NIT findings remain disposition=PENDING with no dispositions recorded in this delta, so Gate 1 approval is invalid until the main thread records them."
+        ]
+      },
+      "evidence": "BI-PF-1540-f28dd975eec7.json"
     }
   ],
   "fix_impact": [

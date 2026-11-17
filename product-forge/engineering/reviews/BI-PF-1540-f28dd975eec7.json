@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "f28dd975eec7",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:57:35.438525+00:00",
+  "review_scope": "delta",
+  "base_sha": "53106c659a1bf59554ec699e90b652c52c6d9359",
+  "head_sha": "80db7d256bcda931bb1ae63a093a8e1ce876e65f",
+  "findings": {
+    "BLOCKER": [
+      "Delta adds shipped module `core/review_decisions.py` to affected_files while design_pack restates the language rule as \"extending shipped Python API is allowed\", dropping \"new shipped logic -> Go\"; the delta never states the module is an edit to existing shipped Python vs new logic, so language-rule compliance is unestablished before Gate 1.5."
+    ],
+    "MAJOR": [
+      "Delta adds `core/review_decisions.py` but `design_pack.contracts.files` (still only `api/routers/backlog.py`), `dependencies` (still `core.backlog`, `architect_review.py`) and `runtime_contract.entrypoint/adapter` were not updated in the same delta, breaking design-row sync for a new logic file.",
+      "Rollback names `core/review_decisions.py` as the retained validation owner, but the delta never states the API handler in `api/routers/backlog.py` delegates HIL/SHA/reason validation to it; without a stated single source, pre-rollback duplicate validation paths can diverge (distinct from the prior post-rollback test-suite finding)."
+    ],
+    "MINOR": [
+      "`config/review-material-change.json` is now in affected_files while spec_pack/config_contract describe it as the existing fixed-HIL config; state new vs modified vs read-only dependency so rollback and \"no data change\" claims stay accurate.",
+      "Delta expands affected_files from the 4 files declared at item level to 7 (config, docs, core) without a matching scope/traceability note, leaving item-level and design-level file lists inconsistent."
+    ],
+    "NIT": [
+      "`docs/REVIEW-MATERIAL-CHANGE-DESIGN.md` is listed as affected without indicating which sections change, giving reviewers no delta pointer inside the design doc."
+    ],
+    "SUMMARY": [
+      "Delta is a narrow file-list/rollback amendment and mostly improves rollback honesty (names `core/review_decisions.py`, adds fail-closed check), but it introduces a shipped `core/` module while restating the language rule permissively and leaves contract rows unsynced.",
+      "Top risks: unverified Go-vs-Python compliance for `core/review_decisions.py`, and unstated single-source validation between the API handler and core (duplicate security checks).",
+      "Note (process, CL-006): the prior Gate 1.5 MAJOR/MINOR/NIT findings remain disposition=PENDING with no dispositions recorded in this delta, so Gate 1 approval is invalid until the main thread records them."
+    ]
+  },
+  "rereview_reason": "Delta for prior 77b2aca80349: core validation retained for green rollback",
+  "rereview_reason_sha256": "dd90291c48bc896603ef1fd72d2ca32d179a39c09ffca9caa6b1b0efa06a3885"
+}
