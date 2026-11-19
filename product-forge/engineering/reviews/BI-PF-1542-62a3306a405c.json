@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1542",
+  "sha": "62a3306a405c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T04:18:52.806379+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+  "findings": {
+    "BLOCKER": [
+      "Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.",
+      "No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet \u2014 deleting the injection wiring in `agent_runner` still passes the suite."
+    ],
+    "MAJOR": [
+      "Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.",
+      "Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.",
+      "Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix."
+    ],
+    "MINOR": [
+      "Tech-stack checks read from `config/implementation-controls.json` are wrapped in `except Exception: pass`; \"binding\" checks can vanish with no log/metric \u2014 weak observability for a fail-closed contract.",
+      "`design_spec_mandates(agent_id)` / `implementation_mandates(agent_id)` accept an ignored parameter, an API surface implying per-agent variation that never exists; callers pass it for nothing.",
+      "New shipped logic (`_implementation_controls_block`, mandate rendering) added in Python; sanctioned by the approved affected_files but in tension with the \"new shipped logic -> Go\" rule \u2014 keep this layer thin.",
+      "Local imports (`re` assumed module-level, `from core import backlog`, `import json`) inside the prompt hot path; a `NameError` would be swallowed by the same broad `except`, silently dropping content."
+    ],
+    "NIT": [
+      "`docs/PROMPT-MANDATES.md` duplicates the mandate wording verbatim; declare `prompt_builder` constants as the source of truth to prevent doc/code drift.",
+      "`.format(id=...)` shadows the builtin `id` and uses a different string style than the adjacent f-string.",
+      "`test_code_prompt_stops_without_control_matrix` relies on `BI-PF-9999` never resolving in any backlog backend (file or `PF_BACKLOG_DB=on`); a task string with no ID would be deterministic by construction.",
+      "Control-matrix fields are interpolated raw into the prompt with no sanitization; fine today (internally authored), but it contradicts the \"no caller-controlled inputs\" security claim if design-pack content ever becomes externally sourced."
+    ],
+    "SUMMARY": [
+      "Mandate text and the fail-closed warning exist and are partly tested, but the wiring is conditional and untested: implement/fix prompts on non-directive/template paths omit mandates entirely, and no test builds an actual prompt, so both ACs are only partially demonstrable.",
+      "Top risks: silent exception handling masking contract absence, brittle agent-id matching for design mandates, and zero coverage of the contract-present rendering path."
+    ]
+  }
+}
