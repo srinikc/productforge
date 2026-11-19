@@ -179,6 +179,18 @@ def check(item: dict) -> list[str]:
     for k in contracts_req:
         if k not in contracts:
             bad.append(f"design_pack.contracts.{k} missing")
+    try:
+        import implementation_readiness_check as _irc
+        _cutoff = str((_irc._config().get("enforce_from") or ""))
+    except Exception as e:
+        _cutoff = ""
+        bad.append(f"implementation-controls config error: {e}")
+    if _cutoff and str(item.get("created_at") or "") >= _cutoff:
+        try:
+            import implementation_readiness_check as _irc
+            bad += _irc.problems(item)
+        except Exception as e:
+            bad.append(f"implementation-controls check error: {e}")
     acs = item.get("acceptance_criteria") or []
     tests = pack.get("test_matrix") or []
     covered = {str(t.get("ac")) for t in tests if isinstance(t, dict)}

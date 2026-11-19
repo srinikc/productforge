@@ -10,7 +10,7 @@
   "title": "Design-pack write API",
   "body": "Add operator-only POST /api/v1/backlog/items/{item_id}/design-pack through core.backlog.update with revision guard and implementation_controls shape validation.",
   "source": "api",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -65,7 +65,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Design-pack write API"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 3, 'MAJOR': 3, 'MINOR': 3, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
@@ -73,7 +73,10 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1544): sig:4149e9298c2bf3d7 (20 lines)"
+    "Design guardrails applied (BI-PF-1544): sig:4149e9298c2bf3d7 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=1f2db2909976\nBLOCKER:\n  - AC-1 requires persistence but design_pack.contracts.db = 'N/A' and api = 'N/A'; no store, owner, or write path is specified, so the AC cannot be met as designed.\n  - AC-2 requires the endpoint in OpenAPI, yet api_contract spec_pack is marked 'N/A' ('no API change') — contract and AC directly contradict; needs_api is undecided.\n  - Design leaves in_scope/affected_components/affected_files/risks as 'Not specified.' — no declared files to review against; scope guard and CL-016 cannot pass.\nMAJOR:\n  - Language rule unresolved: new shipped endpoint logic must be Go, but test plan only names 'pytest focused tests'; design never states implementation language for the write API.\n  - Authorization is only 'tooling-only' / 'operator role' prose; no authn mechanism, authz enforcement point, tenant scoping, or RLS posture (CL-011 unaddressed).\n  - No idempotency/concurrency design for 'stale revisions' handling (optimistic concurrency, revision key, ordering invariant) despite FR-1 naming it; checklist item 5 unmet.\n  - 'does not introduce a duplicate store' AC has no named existing owner/port to reuse; reuse decision (checklist 10) is unspecified.\n  - Observability reduced to 'tests'; no metrics/logs/trace signals to diagnose write failures at runtime (checklist 10).\n  - Reversibility/rollback is only 'revert branch'; no statement on persisted data written by the endpoint if the change is reverted (checklist 1).\nMINOR:\n  - failure_matrix has a single case ('missing evidence' → EVIDENCE_MISSING); malformed pack, missing role, and stale revision failures are not enumerated (checklist 6/8).\n  - All traceability/evidence points at one doc (docs/IMPLEMENTATION-CONTROLS-DESIGN.md) for design, test, and evidence — weak separation of proof artifacts (CL-010).\n  - spec_pack marks rollback_dr, migration_backfill, and observability_runbook as N/A despite an endpoint that writes data; migration/backup path unaddressed (checklist 1/6).\nNIT:\n  - FR titles are truncated mid-sentence ('rejects malformed packs, missing operator ro'), reducing review clarity.\n  - functional_spec assumptions reference 'develop has shared review decisions API' as an undeclared dependency risk (risks = 'Not specified.').\nSUMMARY:\n  - Design is a placeholder shell: contracts say API/DB are 'N/A' while the ACs demand a persisted, OpenAPI-published endpoint — the approved AC cannot be met from this design.\n  - Top risks: undefined store and API contract, unspecified language (Go rule), absent authz/tenant/RLS posture, and no reuse/observability/rollback design for a data-writing endpoint.\n  - Recommend Gate-1 rejection until scope, affected files, API/DB contracts, auth boundary, and red proof for the real entrypoint are filled in.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=6117fa9abe23\nBLOCKER:\n  - No test persists a valid design pack; AC-1 \"persists a valid design pack\" is unproven (only malformed/auth paths tested).\n  - No test covers stale-revision rejection (`expected_revision`/`_guard_revision`) despite it being an explicit AC-1 clause.\n  - No test covers missing-operator-role rejection (403); only anonymous 401 is tested, so the role boundary is unverified.\nMAJOR:\n  - Pack validation is reimplemented inline in the router (dict-nonempty, controls-list only) instead of reusing the canonical `scripts/dev/design_pack.py` validator, risking rule drift from the design contract's required row fields.\n  - OpenAPI advertises only 200/422; `ApiError` outcomes (400/401/403/409) are undocumented, so clients cannot distinguish malformed pack vs stale revision vs forbidden.\n  - `require_operator` is declared twice (route `dependencies` and `ctx: Depends(...)`) with `ctx` unused — redundant boundary wiring that can mask intent during future authz changes.\nMINOR:\n  - Handler imports `core.backlog` inline instead of at module top, inconsistent with import conventions and hard to trace for dependency analysis.\n  - No log/metric emitted on write, validation failure, or stale-revision rejection (guardrail: minimum observability to diagnose failure).\n  - Request body schema is untyped `additionalProperties: true`, so the OpenAPI contract gives consumers no field-level validation guidance.\nNIT:\n  - Default scope string `\"product_forge\"` is hardcoded in the handler; centralize with other route scope defaults.\n  - Test wrapper's `assert _loaded > 0` fails opaquely if the canonical test file is renamed/moved.\nSUMMARY:\n  - Endpoint reuses `core.backlog.update` (no duplicate store) and is published in OpenAPI, satisfying AC-2 structurally, but AC-1 is not demonstrated: persistence, stale-revision, and operator-role behaviors lack tests.\n  - Top risks: untested authz/revision boundaries and router-local validation that can drift from the canonical design-pack validator.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "PR #365 merged to develop at 9ac854fb87bde475a833e96a311e8092a66ab9b9"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -167,7 +170,756 @@
     "usage": {}
   },
   "created_at": "2026-11-17T23:22:01.633112",
-  "updated_at": "2026-11-17T23:22:06.279194",
+  "updated_at": "2026-11-19T13:52:15.481645",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "Delivered via PR #365",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1544",
+    "outcome": "Split deliverable is implementable and testable on its own branch.",
+    "actors": [
+      "operator",
+      "reviewer"
+    ],
+    "scope": [
+      "split deliverable"
+    ],
+    "non_goals": [
+      "other split items"
+    ],
+    "assumptions": [
+      "develop has shared review decisions API"
+    ],
+    "dependencies": [
+      "BI-PF-1540"
+    ],
+    "domain": "delivery process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "The endpoint persists a valid design pack and rejects malformed packs, missing operator ro",
+        "priority": "P0",
+        "source": "BI-PF-1544",
+        "preconditions": "Split delivery item is implemented on its own branch.",
+        "trigger": "The owning gate or API runs.",
+        "inputs": [
+          "backlog item",
+          "gate/API input"
+        ],
+        "outputs": [
+          "validated behavior and evidence"
+        ],
+        "errors": [
+          "missing or invalid input blocks"
+        ],
+        "auth": "operator/tooling only",
+        "idempotency": "validation is idempotent",
+        "data_rules": [
+          "no partial writes"
+        ],
+        "edge_cases": [
+          "missing evidence"
+        ],
+        "acceptance": [
+          "Given the owning control, when exercised, then the behavior is observable and tested."
+        ],
+        "verification": [
+          "pytest focused tests"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "The endpoint appears in OpenAPI and does not introduce a duplicate store.",
+        "priority": "P0",
+        "source": "BI-PF-1544",
+        "preconditions": "Split delivery item is implemented on its own branch.",
+        "trigger": "The owning gate or API runs.",
+        "inputs": [
+          "backlog item",
+          "gate/API input"
+        ],
+        "outputs": [
+          "validated behavior and evidence"
+        ],
+        "errors": [
+          "missing or invalid input blocks"
+        ],
+        "auth": "operator/tooling only",
+        "idempotency": "validation is idempotent",
+        "data_rules": [
+          "no partial writes"
+        ],
+        "edge_cases": [
+          "missing evidence"
+        ],
+        "acceptance": [
+          "Given the owning control, when exercised, then the behavior is observable and tested."
+        ],
+        "verification": [
+          "pytest focused tests"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "validate",
+        "owner": "owning script",
+        "failure": "fail closed"
+      }
+    ],
+    "config_contract": {
+      "N/A": "no new config on develop"
+    },
+    "nfr": [
+      "no runtime impact"
+    ],
+    "data_lifecycle": "backlog evidence retained",
+    "compatibility": "independent branch",
+    "rollback": "revert branch",
+    "observability": "focused tests",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: deliverable is isolated."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "53745f57d8a2"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1544.md",
+    "design_ref": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1544",
+        "reason": "design source",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "split"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no API change in this lifecycle record"
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no data change"
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no config on develop"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no runtime SLO"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1544",
+        "reason": "security review source",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "branch revert only"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1544",
+        "reason": "test evidence",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no user interface"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1544",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1544",
+        "reason": "split plan",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "split"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1544",
+        "reason": "branch tests",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "tests"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "The endpoint persists a valid design pack and rejects malformed packs, missing operator ro",
+      "The endpoint appears in OpenAPI and does not introduce a duplicate store."
+    ],
+    "invariants": [
+      "one deliverable per branch"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": "N/A",
+      "files": {
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+      },
+      "config": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "missing evidence",
+        "behavior": "block",
+        "code": "EVIDENCE_MISSING"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1540"
+    ],
+    "security": "tooling-only",
+    "observability": "tests",
+    "performance": "no runtime impact",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "focused tests"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "focused tests"
+      }
+    ],
+    "rollout": "own branch",
+    "rollback": "revert branch",
+    "decisions": [
+      "split from BI-PF-1538"
+    ],
+    "guardrails": [
+      "independent branch"
+    ],
+    "learnings": [
+      "avoid multi-item branch"
+    ],
+    "design_areas": [
+      {
+        "area": "delivery-tooling",
+        "status": "APPLICABLE",
+        "reason": "split scope",
+        "sections": [
+          "split"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1544.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "focused tests",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "focused tests",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "scope": [
+      "split deliverable"
+    ],
+    "non_goals": [
+      "other split items"
+    ],
+    "runtime_contract": {
+      "trigger": "gate/API",
+      "entrypoint": "owning script",
+      "call_sites": [
+        "gate"
+      ],
+      "adapter": "script",
+      "contract": "validated behavior",
+      "failure_behavior": "fail closed",
+      "observable_result": "test evidence"
+    },
+    "proof_plan": {
+      "failing_test": "focused tests",
+      "red_evidence": "missing behavior",
+      "green_evidence": "tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+      }
+    ],
+    "stop_conditions": [
+      "missing evidence"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Lifecycle record only; code/API belongs to the item branch.",
+    "routes": []
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "84fd0e2f757a52d2cf47179b9c23397dcef912f0",
+      "review_sha": "1f2db2909976",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T08:05:01.422844+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "84fd0e2f757a52d2cf47179b9c23397dcef912f0",
+      "findings": {
+        "BLOCKER": [
+          "AC-1 requires persistence but design_pack.contracts.db = 'N/A' and api = 'N/A'; no store, owner, or write path is specified, so the AC cannot be met as designed.",
+          "AC-2 requires the endpoint in OpenAPI, yet api_contract spec_pack is marked 'N/A' ('no API change') — contract and AC directly contradict; needs_api is undecided.",
+          "Design leaves in_scope/affected_components/affected_files/risks as 'Not specified.' — no declared files to review against; scope guard and CL-016 cannot pass."
+        ],
+        "MAJOR": [
+          "Language rule unresolved: new shipped endpoint logic must be Go, but test plan only names 'pytest focused tests'; design never states implementation language for the write API.",
+          "Authorization is only 'tooling-only' / 'operator role' prose; no authn mechanism, authz enforcement point, tenant scoping, or RLS posture (CL-011 unaddressed).",
+          "No idempotency/concurrency design for 'stale revisions' handling (optimistic concurrency, revision key, ordering invariant) despite FR-1 naming it; checklist item 5 unmet.",
+          "'does not introduce a duplicate store' AC has no named existing owner/port to reuse; reuse decision (checklist 10) is unspecified.",
+          "Observability reduced to 'tests'; no metrics/logs/trace signals to diagnose write failures at runtime (checklist 10).",
+          "Reversibility/rollback is only 'revert branch'; no statement on persisted data written by the endpoint if the change is reverted (checklist 1)."
+        ],
+        "MINOR": [
+          "failure_matrix has a single case ('missing evidence' → EVIDENCE_MISSING); malformed pack, missing role, and stale revision failures are not enumerated (checklist 6/8).",
+          "All traceability/evidence points at one doc (docs/IMPLEMENTATION-CONTROLS-DESIGN.md) for design, test, and evidence — weak separation of proof artifacts (CL-010).",
+          "spec_pack marks rollback_dr, migration_backfill, and observability_runbook as N/A despite an endpoint that writes data; migration/backup path unaddressed (checklist 1/6)."
+        ],
+        "NIT": [
+          "FR titles are truncated mid-sentence ('rejects malformed packs, missing operator ro'), reducing review clarity.",
+          "functional_spec assumptions reference 'develop has shared review decisions API' as an undeclared dependency risk (risks = 'Not specified.')."
+        ],
+        "SUMMARY": [
+          "Design is a placeholder shell: contracts say API/DB are 'N/A' while the ACs demand a persisted, OpenAPI-published endpoint — the approved AC cannot be met from this design.",
+          "Top risks: undefined store and API contract, unspecified language (Go rule), absent authz/tenant/RLS posture, and no reuse/observability/rollback design for a data-writing endpoint.",
+          "Recommend Gate-1 rejection until scope, affected files, API/DB contracts, auth boundary, and red proof for the real entrypoint are filled in."
+        ]
+      },
+      "evidence": "BI-PF-1544-1f2db2909976.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "84fd0e2f757a52d2cf47179b9c23397dcef912f0",
+      "review_sha": "6117fa9abe23",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T08:07:01.650617+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "84fd0e2f757a52d2cf47179b9c23397dcef912f0",
+      "findings": {
+        "BLOCKER": [
+          "No test persists a valid design pack; AC-1 \"persists a valid design pack\" is unproven (only malformed/auth paths tested).",
+          "No test covers stale-revision rejection (`expected_revision`/`_guard_revision`) despite it being an explicit AC-1 clause.",
+          "No test covers missing-operator-role rejection (403); only anonymous 401 is tested, so the role boundary is unverified."
+        ],
+        "MAJOR": [
+          "Pack validation is reimplemented inline in the router (dict-nonempty, controls-list only) instead of reusing the canonical `scripts/dev/design_pack.py` validator, risking rule drift from the design contract's required row fields.",
+          "OpenAPI advertises only 200/422; `ApiError` outcomes (400/401/403/409) are undocumented, so clients cannot distinguish malformed pack vs stale revision vs forbidden.",
+          "`require_operator` is declared twice (route `dependencies` and `ctx: Depends(...)`) with `ctx` unused — redundant boundary wiring that can mask intent during future authz changes."
+        ],
+        "MINOR": [
+          "Handler imports `core.backlog` inline instead of at module top, inconsistent with import conventions and hard to trace for dependency analysis.",
+          "No log/metric emitted on write, validation failure, or stale-revision rejection (guardrail: minimum observability to diagnose failure).",
+          "Request body schema is untyped `additionalProperties: true`, so the OpenAPI contract gives consumers no field-level validation guidance."
+        ],
+        "NIT": [
+          "Default scope string `\"product_forge\"` is hardcoded in the handler; centralize with other route scope defaults.",
+          "Test wrapper's `assert _loaded > 0` fails opaquely if the canonical test file is renamed/moved."
+        ],
+        "SUMMARY": [
+          "Endpoint reuses `core.backlog.update` (no duplicate store) and is published in OpenAPI, satisfying AC-2 structurally, but AC-1 is not demonstrated: persistence, stale-revision, and operator-role behaviors lack tests.",
+          "Top risks: untested authz/revision boundaries and router-local validation that can drift from the canonical design-pack validator."
+        ]
+      },
+      "evidence": "BI-PF-1544-6117fa9abe23.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:572ef3683951da12": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:c7118f8addf23194": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:51c68ed1f9d4b4d6": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:bccfad5624110b74": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:f76827c11c4ca349": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:50134c13aa3dceb3": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:cd9b65b8593da37c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:e709c881ed1e95a4": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:cea671a7af4e8116": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:adccc01f1bd09456": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:28cbae21e781cc89": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:cceea6e7044a0abe": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:708bf415b2791eb7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      },
+      "sig:3e635c01f7973b10": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the design-pack API split deliverable."
+      }
+    },
+    "diff": {
+      "sig:1e5ef2f45982e3f0": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:94bade50165ee099": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:9f4bf84fd8dba9b8": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:ee33f31a15a2c91d": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:d6e69bfb702ba8d4": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:4cd33b6bab4afe8a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:50f9ec75db2e16a0": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:f9934016f284ab2b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:d99cb595b6bb360e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:0809bf196bca7bd7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      },
+      "sig:02ef15b60bf67726": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for design-pack API split deliverable."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:1e5ef2f45982e3f0",
+      "finding": "No test persists a valid design pack; AC-1 \"persists a valid design pack\" is unproven (only malformed/auth paths tested).",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_design_pack_api.py",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json",
+      "files": [
+        "api/routers/backlog.py",
+        "tests/test_design_pack_api.py"
+      ],
+      "rollback": "Revert BI-PF-1544.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:94bade50165ee099",
+      "finding": "No test covers stale-revision rejection (`expected_revision`/`_guard_revision`) despite it being an explicit AC-1 clause.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_design_pack_api.py",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json",
+      "files": [
+        "api/routers/backlog.py",
+        "tests/test_design_pack_api.py"
+      ],
+      "rollback": "Revert BI-PF-1544.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:9f4bf84fd8dba9b8",
+      "finding": "No test covers missing-operator-role rejection (403); only anonymous 401 is tested, so the role boundary is unverified.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_design_pack_api.py",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json",
+      "files": [
+        "api/routers/backlog.py",
+        "tests/test_design_pack_api.py"
+      ],
+      "rollback": "Revert BI-PF-1544.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:ee33f31a15a2c91d",
+      "finding": "Pack validation is reimplemented inline in the router (dict-nonempty, controls-list only) instead of reusing the canonical `scripts/dev/design_pack.py` validator, risking rule drift from the design contract's required row fields.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_design_pack_api.py",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json",
+      "files": [
+        "api/routers/backlog.py",
+        "tests/test_design_pack_api.py"
+      ],
+      "rollback": "Revert BI-PF-1544.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:d6e69bfb702ba8d4",
+      "finding": "OpenAPI advertises only 200/422; `ApiError` outcomes (400/401/403/409) are undocumented, so clients cannot distinguish malformed pack vs stale revision vs forbidden.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_design_pack_api.py",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json",
+      "files": [
+        "api/routers/backlog.py",
+        "tests/test_design_pack_api.py"
+      ],
+      "rollback": "Revert BI-PF-1544.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4cd33b6bab4afe8a",
+      "finding": "`require_operator` is declared twice (route `dependencies` and `ctx: Depends(...)`) with `ctx` unused — redundant boundary wiring that can mask intent during future authz changes.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_design_pack_api.py",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json",
+      "files": [
+        "api/routers/backlog.py",
+        "tests/test_design_pack_api.py"
+      ],
+      "rollback": "Revert BI-PF-1544.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:1e5ef2f45982e3f0",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_design_pack_api.py",
+      "controls_rerun": [
+        "pytest -q tests/test_design_pack_api.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json"
+    },
+    {
+      "finding_sig": "sig:94bade50165ee099",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_design_pack_api.py",
+      "controls_rerun": [
+        "pytest -q tests/test_design_pack_api.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json"
+    },
+    {
+      "finding_sig": "sig:9f4bf84fd8dba9b8",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_design_pack_api.py",
+      "controls_rerun": [
+        "pytest -q tests/test_design_pack_api.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json"
+    },
+    {
+      "finding_sig": "sig:ee33f31a15a2c91d",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_design_pack_api.py",
+      "controls_rerun": [
+        "pytest -q tests/test_design_pack_api.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json"
+    },
+    {
+      "finding_sig": "sig:d6e69bfb702ba8d4",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_design_pack_api.py",
+      "controls_rerun": [
+        "pytest -q tests/test_design_pack_api.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json"
+    },
+    {
+      "finding_sig": "sig:4cd33b6bab4afe8a",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_design_pack_api.py",
+      "controls_rerun": [
+        "pytest -q tests/test_design_pack_api.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1544-6117fa9abe23.json"
+    }
+  ],
+  "verified_by": "Srinikc HIL"
 }

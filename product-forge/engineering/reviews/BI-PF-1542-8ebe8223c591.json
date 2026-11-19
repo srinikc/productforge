@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1542",
+  "sha": "8ebe8223c591",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T04:46:17.638916+00:00",
+  "review_scope": "delta",
+  "base_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+  "head_sha": "559460ee03c8cf3a70bde24d6219c025ee96d695",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Test proxy re-exports any `test_*` name and asserts only `_loaded > 0`; nothing pins the AC-1/AC-2 tests, so renaming/removing the mandate tests in `tests/test_prompt_mandates.py` keeps the suite green while AC evidence silently disappears."
+    ],
+    "MINOR": [
+      "Wrapper (`test-framework/tests/test_prompt_mandates_wrapper.py`) and `gen_docs_index.py` are not in the approved `affected_files`; harmless tooling/test support, but the scope ledger should be updated (CL-016).",
+      "Cross-root `exec_module` loading of a `product-forge/tests` module from `test-framework/tests` depends on that tree's conftest/sys.path side effects, and the module is never registered in `sys.modules` (dataclass/typing edge failures possible); a load error surfaces as collection failure rather than a clear diagnostic.",
+      "If any runner also collects `product-forge/tests`, both the proxy and the original tests execute (double collection) with no de-duplication or marker."
+    ],
+    "NIT": [
+      "Load guards use module-level `assert`, which is stripped under `python -O`, silently disabling the wrapper's coverage guard.",
+      "`gen_docs_index.py` entry for `IMPLEMENTATION-CONTROLS-DESIGN.md` presumes the file exists; the diff adds no existence check, so a missing doc yields a dangling index link."
+    ],
+    "SUMMARY": [
+      "Delta is narrow and in-language (tooling/tests/docs Python): two docs-index registrations plus a test proxy that routes AC evidence into the test-framework runner; no blocker.",
+      "Top risk is AC-evidence fragility: the proxy proves \"some tests loaded\", not that the five-mandate design test and prompt-content implementation test are the ones running.",
+      "Secondary risk is undeclared-file drift and cross-tree import fragility; keep the proxy thin or collect the canonical file directly."
+    ]
+  },
+  "rereview_reason": "Delta for prior 62a3306a405c: test wrapper, lifecycle sync and fix evidence",
+  "rereview_reason_sha256": "005e6c9bbfaed0d848e3d38db9694c9a2848877d2d479d5a82a02e6e2fc992da"
+}
