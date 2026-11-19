@@ -159,7 +159,561 @@
     "usage": {}
   },
   "created_at": "2026-11-19T16:31:35.072954",
-  "updated_at": "2026-11-19T16:31:39.705959",
+  "updated_at": "2026-11-19T16:35:18.644823",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1546",
+    "outcome": "Dispatcher remediation closes accepted 1269 correctness findings.",
+    "actors": [
+      "dispatcher",
+      "operator"
+    ],
+    "scope": [
+      "dispatcher fixes",
+      "tests",
+      "ownership"
+    ],
+    "non_goals": [
+      "new transports",
+      "alert policy"
+    ],
+    "assumptions": [
+      "1269 schema exists"
+    ],
+    "dependencies": [
+      "BI-PF-1269"
+    ],
+    "domain": "eventing",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "DispatchOnce has fail-able tests for matching, dedupe, retry with backoff/status gating, DLQ after max attempts, cursor recovery and concurrent passes.",
+        "priority": "P0",
+        "source": "BI-PF-1546",
+        "preconditions": "1269 dispatcher is merged.",
+        "trigger": "Remediation behavior is exercised.",
+        "inputs": [
+          "subscription",
+          "event",
+          "delivery state"
+        ],
+        "outputs": [
+          "validated dispatch outcome"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant scoped",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "cursor and delivery commit together"
+        ],
+        "edge_cases": [
+          "failed delivery row"
+        ],
+        "acceptance": [
+          "Given retry/DLQ scenarios, when DispatchOnce runs, then backoff, cursor recovery and concurrency are tested."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Dispatcher applies filter semantics, isolates per-event failures, emits metrics/logs, and rejects cross-tenant subscription collisions instead of silently succeeding.",
+        "priority": "P0",
+        "source": "BI-PF-1546",
+        "preconditions": "1269 dispatcher is merged.",
+        "trigger": "Remediation behavior is exercised.",
+        "inputs": [
+          "subscription",
+          "event",
+          "delivery state"
+        ],
+        "outputs": [
+          "validated dispatch outcome"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant scoped",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "cursor and delivery commit together"
+        ],
+        "edge_cases": [
+          "failed delivery row"
+        ],
+        "acceptance": [
+          "Given filters, cross-tenant IDs and failures, when dispatched, then behavior is explicit and observable."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Event delivery/DLQ ownership is explicitly recorded (reuse or ADR amendment), store registry evidence is present, and migration rollback requires a verified backup.",
+        "priority": "P0",
+        "source": "BI-PF-1546",
+        "preconditions": "1269 dispatcher is merged.",
+        "trigger": "Remediation behavior is exercised.",
+        "inputs": [
+          "subscription",
+          "event",
+          "delivery state"
+        ],
+        "outputs": [
+          "validated dispatch outcome"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant scoped",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "cursor and delivery commit together"
+        ],
+        "edge_cases": [
+          "failed delivery row"
+        ],
+        "acceptance": [
+          "Given schema/rollback review, when merged, then ownership is recorded and backup is required."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "dispatch",
+        "owner": "edpdata",
+        "failure": "retry then DLQ"
+      }
+    ],
+    "config_contract": {
+      "N/A": "reuse dispatcher options"
+    },
+    "nfr": [
+      "bounded batch"
+    ],
+    "data_lifecycle": "deliveries/DLQ retained",
+    "compatibility": "additive migration 0026",
+    "rollback": "revert migration/code with backup",
+    "observability": "delivery metrics/logs",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: DLQ ownership decided in ADR-0012."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "8e5a3546154f"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1546.md",
+    "design_ref": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "remediation design",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "dispatch"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "no API change"
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "migration 0026",
+        "artifact": "migrations/0026_event_deliveries_created_at.up.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0026_event_deliveries_created_at.up.sql"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "no new config"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "bounded batch"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "tenant collision handling",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "add column",
+        "artifact": "migrations/0026_event_deliveries_created_at.up.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0026_event_deliveries_created_at.up.sql"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "down migration",
+        "artifact": "migrations/0026_event_deliveries_created_at.down.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0026_event_deliveries_created_at.down.sql"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "metrics/logs",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "go/edpdata/event_metrics_test.go"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "No user interface exists in this dispatcher remediation."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "dispatcher remediation",
+        "artifact": "go/edpdata/event_dispatcher.go",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "tests",
+        "artifact": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "DispatchOnce has fail-able tests for matching, dedupe, retry with backoff/status gating, DLQ after max attempts, cursor recovery and concurrent passes.",
+      "Dispatcher applies filter semantics, isolates per-event failures, emits metrics/logs, and rejects cross-tenant subscription collisions instead of silently succeeding.",
+      "Event delivery/DLQ ownership is explicitly recorded (reuse or ADR amendment), store registry evidence is present, and migration rollback requires a verified backup."
+    ],
+    "invariants": [
+      "cursor and delivery commit together"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": {
+        "migration": "0026"
+      },
+      "files": {
+        "dispatcher": "go/edpdata/event_dispatcher.go"
+      },
+      "config": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "transport failure",
+        "behavior": "retry then DLQ",
+        "code": "DELIVERY_FAILED"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1269"
+    ],
+    "security": "tenant RLS and collision errors",
+    "observability": "delivery metrics/logs",
+    "performance": "bounded batch",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/integration",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/integration",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/integration",
+        "test": "go test ./..."
+      }
+    ],
+    "rollout": "apply 0026 with backup",
+    "rollback": "run 0026 down with backup",
+    "decisions": [
+      "DLQ owner in ADR-0012"
+    ],
+    "guardrails": [
+      "no transport implementation"
+    ],
+    "learnings": [
+      "1269 accepted findings remediated"
+    ],
+    "design_areas": [
+      {
+        "area": "eventing",
+        "status": "APPLICABLE",
+        "reason": "remediation",
+        "sections": [
+          "dispatch"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1546.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ],
+    "scope": [
+      "dispatcher remediation"
+    ],
+    "non_goals": [
+      "new transports"
+    ],
+    "runtime_contract": {
+      "trigger": "dispatcher pass",
+      "entrypoint": "edpdata.EventStore.DispatchOnce",
+      "call_sites": [
+        "worker"
+      ],
+      "adapter": "Transport",
+      "contract": "backoff/status gating + cursor recovery",
+      "failure_behavior": "retry then DLQ",
+      "observable_result": "DispatchStats + metrics"
+    },
+    "proof_plan": {
+      "failing_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "red_evidence": "1269 findings",
+      "green_evidence": "remediation tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "go/edpdata/event_dispatcher_pg_integration_test.go"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "go/edpdata/event_dispatcher_pg_integration_test.go"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "go/edpdata/event_dispatcher_pg_integration_test.go"
+      }
+    ],
+    "stop_conditions": [
+      "transport implementation"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "failure",
+        "control": "dispatcher retry/backoff/DLQ and cursor recovery",
+        "symbol": "go/edpdata/event_dispatcher.go:DispatchOnce",
+        "positive_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "cross-tenant subscription collision rejected",
+        "symbol": "go/edpdata/event_subscriptions.go:UpsertSubscription",
+        "positive_test": "go/edpdata/event_dispatcher_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "observability",
+        "control": "delivery metrics emitted",
+        "symbol": "go/edpdata/event_metrics.go:EventMetrics",
+        "positive_test": "go/edpdata/event_metrics_test.go",
+        "negative_test": "go/edpdata/event_metrics_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "config",
+        "control": "DLQ ownership recorded in ADR-0012",
+        "symbol": "docs/ARCHITECTURE-DECISIONS.md",
+        "positive_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "tenant",
+        "control": "delivery/DLQ tables tenant-scoped",
+        "symbol": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "positive_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "negative_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "migration applied locally"
+      }
+    ],
+    "tech_stack_evidence": [
+      "go-format",
+      "go-vet",
+      "go-race",
+      "go-context-pool",
+      "go-errors",
+      "pg-transactions",
+      "pg-rls",
+      "pg-migration",
+      "object-store",
+      "api-auth-tenant",
+      "api-validation",
+      "config-fail-closed",
+      "observability",
+      "no-dead-code"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Dispatcher remediation only; no API surface change.",
+    "routes": []
+  }
 }
