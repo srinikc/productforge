@@ -2,12 +2,14 @@ package edpdata
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"productforge/datastore"
 )
 
-// Transport delivers one event. Implementations live outside this package (BI-PF-1270).
+// Transport delivers one event. Implementations live outside this package.
 type Transport interface {
 	Deliver(ctx context.Context, sub Subscription, ev Event) error
 }
@@ -17,6 +19,7 @@ type DispatchOptions struct {
 	Limit       int
 	MaxAttempts int
 	BaseBackoff time.Duration
+	StaleAfter  time.Duration
 	Now         func() time.Time
 }
 
@@ -28,6 +31,14 @@ type DispatchStats struct {
 	DeadLettered int
 }
 
+type deliveryAction int
+
+const (
+	actionDeliver deliveryAction = iota
+	actionSkip
+	actionAdvance
+)
+
 func (o DispatchOptions) normalize() DispatchOptions {
 	if o.Limit <= 0 {
 		o.Limit = 100
@@ -38,19 +49,39 @@ func (o DispatchOptions) normalize() DispatchOptions {
 	if o.BaseBackoff <= 0 {
 		o.BaseBackoff = time.Second
 	}
+	if o.StaleAfter <= 0 {
+		o.StaleAfter = 5 * time.Minute
+	}
 	if o.Now == nil {
 		o.Now = time.Now
 	}
 	return o
 }
 
+func matchesFilter(sub Subscription, ev Event) bool {
+	if len(sub.Filter) == 0 {
+		return true
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(ev.Payload, &payload); err != nil {
+		return false
+	}
+	for k, want := range sub.Filter {
+		got, ok := payload[k]
+		if !ok || fmt.Sprint(got) != want {
+			return false
+		}
+	}
+	return true
+}
+
 func matchesSubscription(sub Subscription, ev Event) bool {
 	if len(sub.EventTypes) == 0 {
-		return true
+		return matchesFilter(sub, ev)
 	}
 	for _, t := range sub.EventTypes {
 		if t == ev.Type {
-			return true
+			return matchesFilter(sub, ev)
 		}
 	}
 	return false
@@ -71,7 +102,8 @@ func backoff(base time.Duration, attempts int) time.Duration {
 }
 
 // DispatchOnce reads from the subscription cursor, dedupes by event_id and
-// delivers matching events at-least-once. Failures retry, then move to DLQ.
+// delivers matching events at-least-once. Cursor advancement and delivery rows
+// commit together; a failed delivery stops the pass to preserve event order.
 func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Transport,
 	opts DispatchOptions) (DispatchStats, error) {
 	opts = opts.normalize()
@@ -86,39 +118,47 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 				return st, err
 			}
 			st.Skipped++
+			s.metrics.DeliverySkipped(sub.TenantID, sub.ID)
 			continue
 		}
-		attempts, duplicate, err := s.beginDelivery(ctx, sub, ev, opts.Now())
+		attempts, action, err := s.beginDelivery(ctx, sub, ev, opts)
 		if err != nil {
 			return st, err
 		}
-		if duplicate {
+		switch action {
+		case actionAdvance:
+			if err := s.advanceCursor(ctx, sub, ev.Seq); err != nil {
+				return st, err
+			}
 			st.Skipped++
+			s.metrics.DeliverySkipped(sub.TenantID, sub.ID)
 			continue
+		case actionSkip:
+			st.Skipped++
+			s.metrics.DeliverySkipped(sub.TenantID, sub.ID)
+			return st, nil
 		}
-		sendErr := tr.Deliver(ctx, sub, ev)
-		if sendErr == nil {
-			if err := s.finishDelivery(ctx, sub, ev, true, attempts, ""); err != nil {
+		if err := tr.Deliver(ctx, sub, ev); err != nil {
+			if attempts >= opts.MaxAttempts {
+				if err := s.deadLetterDelivery(ctx, sub, ev, attempts, err.Error()); err != nil {
+					return st, err
+				}
+				st.DeadLettered++
+				s.metrics.DeliveryDeadLettered(sub.TenantID, sub.ID)
+				continue
+			}
+			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(backoff(opts.BaseBackoff, attempts)), err.Error()); err != nil {
 				return st, err
 			}
-			st.Delivered++
-			continue
+			st.Retried++
+			s.metrics.DeliveryRetried(sub.TenantID, sub.ID)
+			return st, nil
 		}
-		if attempts >= opts.MaxAttempts {
-			if err := s.finishDelivery(ctx, sub, ev, false, attempts, sendErr.Error()); err != nil {
-				return st, err
-			}
-			if err := s.dlq(ctx, sub, ev, attempts, sendErr.Error()); err != nil {
-				return st, err
-			}
-			st.DeadLettered++
-			continue
-		}
-		if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(backoff(opts.BaseBackoff, attempts)), sendErr.Error()); err != nil {
+		if err := s.completeDelivery(ctx, sub, ev, attempts); err != nil {
 			return st, err
 		}
-		st.Retried++
-		return st, nil
+		st.Delivered++
+		s.metrics.DeliveryDelivered(sub.TenantID, sub.ID)
 	}
 	return st, nil
 }
@@ -128,22 +168,28 @@ func (s *EventStore) advanceCursor(ctx context.Context, sub Subscription, seq in
 		if err := s.setTenant(ctx, tx, sub.TenantID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE event_subscriptions SET last_seq=$2, updated_at=now()
-			WHERE id=$1 AND tenant_id=$3 AND last_seq < $2`, sub.ID, seq, sub.TenantID)
-		return err
+		return advanceCursorTx(ctx, tx, sub, seq)
 	})
 }
 
-func (s *EventStore) beginDelivery(ctx context.Context, sub Subscription, ev Event, now time.Time) (int, bool, error) {
+func advanceCursorTx(ctx context.Context, tx datastore.Tx, sub Subscription, seq int64) error {
+	_, err := tx.Exec(ctx, `UPDATE event_subscriptions SET last_seq=$2, updated_at=now()
+		WHERE id=$1 AND tenant_id=$3 AND last_seq < $2`, sub.ID, seq, sub.TenantID)
+	return err
+}
+
+func (s *EventStore) beginDelivery(ctx context.Context, sub Subscription, ev Event,
+	opts DispatchOptions) (int, deliveryAction, error) {
 	var attempts int
-	duplicate := false
+	action := actionDeliver
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		if err := s.setTenant(ctx, tx, sub.TenantID); err != nil {
 			return err
 		}
+		now := opts.Now()
 		n, err := tx.Exec(ctx, `INSERT INTO event_deliveries
-			(subscription_id,tenant_id,event_id,status,attempts,available_at,updated_at)
-			VALUES ($1,$2,$3,'processing',1,$4,now())
+			(subscription_id,tenant_id,event_id,status,attempts,available_at,created_at,updated_at)
+			VALUES ($1,$2,$3,'processing',1,$4::timestamptz,now(),now())
 			ON CONFLICT (subscription_id,event_id) DO NOTHING`,
 			sub.ID, sub.TenantID, ev.EventID, now)
 		if err != nil {
@@ -153,50 +199,61 @@ func (s *EventStore) beginDelivery(ctx context.Context, sub Subscription, ev Eve
 			attempts = 1
 			return nil
 		}
-		duplicate = true
-		rows, err := tx.Query(ctx, `SELECT attempts,status FROM event_deliveries
-			WHERE subscription_id=$1 AND event_id=$2`, sub.ID, ev.EventID)
+		rows, err := tx.Query(ctx, `SELECT attempts,status,available_at,updated_at FROM event_deliveries
+			WHERE subscription_id=$1 AND event_id=$2 FOR UPDATE`, sub.ID, ev.EventID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
-		if rows.Next() {
-			var status string
-			if err := rows.Scan(&attempts, &status); err != nil {
-				return err
+		if !rows.Next() {
+			return fmt.Errorf("%w: delivery row missing after conflict", ErrEventInvalid)
+		}
+		var status string
+		var availableAt, updatedAt time.Time
+		if err := rows.Scan(&attempts, &status, &availableAt, &updatedAt); err != nil {
+			return err
+		}
+		switch status {
+		case "delivered", "failed":
+			action = actionAdvance
+		case "processing":
+			if updatedAt.After(now.Add(-opts.StaleAfter)) {
+				action = actionSkip
+				return nil
 			}
-			duplicate = status == "delivered" || status == "failed"
-			if !duplicate {
-				attempts++
-				_, err = tx.Exec(ctx, `UPDATE event_deliveries SET attempts=$3,status='processing',updated_at=now()
-					WHERE subscription_id=$1 AND event_id=$2`, sub.ID, ev.EventID, attempts)
+			attempts++
+			action = actionDeliver
+		case "retry":
+			if availableAt.After(now) {
+				action = actionSkip
+				return nil
 			}
+			attempts++
+			action = actionDeliver
+		default:
+			return fmt.Errorf("%w: unknown delivery status %q", ErrEventInvalid, status)
+		}
+		if action == actionDeliver {
+			_, err = tx.Exec(ctx, `UPDATE event_deliveries
+				SET attempts=$3,status='processing',updated_at=now()
+				WHERE subscription_id=$1 AND event_id=$2`, sub.ID, ev.EventID, attempts)
 		}
 		return err
 	})
-	return attempts, duplicate, err
+	return attempts, action, err
 }
 
-func (s *EventStore) finishDelivery(ctx context.Context, sub Subscription, ev Event, ok bool, attempts int, lastErr string) error {
+func (s *EventStore) completeDelivery(ctx context.Context, sub Subscription, ev Event, attempts int) error {
 	return s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		if err := s.setTenant(ctx, tx, sub.TenantID); err != nil {
 			return err
 		}
-		status, delivered := "failed", "failed"
-		if ok {
-			status, delivered = "delivered", "delivered"
-		}
-		if _, err := tx.Exec(ctx, `UPDATE event_deliveries SET status=$3,attempts=$4,last_error=$5,
-			delivered_at=CASE WHEN $3='delivered' THEN now() ELSE delivered_at END, updated_at=now()
-			WHERE subscription_id=$1 AND event_id=$2`, sub.ID, ev.EventID, status, attempts, lastErr); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE event_deliveries
+			SET status='delivered',attempts=$3,last_error='',delivered_at=now(),updated_at=now()
+			WHERE subscription_id=$1 AND event_id=$2`, sub.ID, ev.EventID, attempts); err != nil {
 			return err
 		}
-		if delivered == "delivered" {
-			_, err := tx.Exec(ctx, `UPDATE event_subscriptions SET last_seq=$2,updated_at=now()
-				WHERE id=$1 AND tenant_id=$3 AND last_seq < $2`, sub.ID, ev.Seq, sub.TenantID)
-			return err
-		}
-		return nil
+		return advanceCursorTx(ctx, tx, sub, ev.Seq)
 	})
 }
 
@@ -205,16 +262,21 @@ func (s *EventStore) retryDelivery(ctx context.Context, sub Subscription, ev Eve
 		if err := s.setTenant(ctx, tx, sub.TenantID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE event_deliveries SET status='retry',attempts=$3,available_at=$4,
+		_, err := tx.Exec(ctx, `UPDATE event_deliveries SET status='retry',attempts=$3,available_at=$4::timestamptz,
 			last_error=$5,updated_at=now() WHERE subscription_id=$1 AND event_id=$2`,
 			sub.ID, ev.EventID, attempts, at, lastErr)
 		return err
 	})
 }
 
-func (s *EventStore) dlq(ctx context.Context, sub Subscription, ev Event, attempts int, lastErr string) error {
+func (s *EventStore) deadLetterDelivery(ctx context.Context, sub Subscription, ev Event, attempts int, lastErr string) error {
 	return s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		if err := s.setTenant(ctx, tx, sub.TenantID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE event_deliveries SET status='failed',attempts=$3,
+			last_error=$4,updated_at=now() WHERE subscription_id=$1 AND event_id=$2`,
+			sub.ID, ev.EventID, attempts, lastErr); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO event_delivery_dlq
@@ -223,8 +285,6 @@ func (s *EventStore) dlq(ctx context.Context, sub Subscription, ev Event, attemp
 			sub.ID, sub.TenantID, ev.EventID, attempts, lastErr); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE event_subscriptions SET last_seq=$2,updated_at=now()
-			WHERE id=$1 AND tenant_id=$3 AND last_seq < $2`, sub.ID, ev.Seq, sub.TenantID)
-		return err
+		return advanceCursorTx(ctx, tx, sub, ev.Seq)
 	})
 }

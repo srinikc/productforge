@@ -32,7 +32,7 @@ func (s *EventStore) UpsertSubscription(ctx context.Context, sub Subscription) e
 		if err := s.setTenant(ctx, tx, sub.TenantID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO event_subscriptions
+		n, err := tx.Exec(ctx, `INSERT INTO event_subscriptions
 			(id,tenant_id,event_types,filter,transport,target,auth_ref,enabled,updated_at)
 			VALUES ($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,now())
 			ON CONFLICT (id) DO UPDATE SET
@@ -42,6 +42,9 @@ func (s *EventStore) UpsertSubscription(ctx context.Context, sub Subscription) e
 			WHERE event_subscriptions.tenant_id=EXCLUDED.tenant_id`,
 			sub.ID, sub.TenantID, string(types), string(filter), sub.Transport,
 			sub.Target, sub.AuthRef, sub.Enabled)
+		if err == nil && n == 0 {
+			return fmt.Errorf("%w: subscription id belongs to another tenant", ErrEventInvalid)
+		}
 		return err
 	})
 }

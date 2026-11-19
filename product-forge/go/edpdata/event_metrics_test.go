@@ -13,6 +13,10 @@ type recordingMetrics struct {
 	boundExceeded    int
 	pruned           int64
 	projectionFailed int
+	delivered        int
+	retried          int
+	deadLettered     int
+	skipped          int
 }
 
 func (m *recordingMetrics) OutboxRows(tenant, status string, count int64) {
@@ -22,7 +26,11 @@ func (m *recordingMetrics) OutboxBoundExceeded(string) { m.boundExceeded++ }
 func (m *recordingMetrics) OutboxPruned(_ string, n int64) {
 	m.pruned = n
 }
-func (m *recordingMetrics) ProjectionFailed(string) { m.projectionFailed++ }
+func (m *recordingMetrics) ProjectionFailed(string)             { m.projectionFailed++ }
+func (m *recordingMetrics) DeliveryDelivered(string, string)    { m.delivered++ }
+func (m *recordingMetrics) DeliveryRetried(string, string)      { m.retried++ }
+func (m *recordingMetrics) DeliveryDeadLettered(string, string) { m.deadLettered++ }
+func (m *recordingMetrics) DeliverySkipped(string, string)      { m.skipped++ }
 
 func TestOutboxBoundEmitsGaugeAndCounter(t *testing.T) {
 	f := &fakeStore{queries: [][][]any{{{int64(5)}}}}

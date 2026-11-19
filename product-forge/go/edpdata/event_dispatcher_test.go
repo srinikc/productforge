@@ -44,3 +44,16 @@ func TestDispatchOptionsDefaults(t *testing.T) {
 		t.Fatalf("defaults=%+v", o)
 	}
 }
+
+func TestFilterMatchesPayload(t *testing.T) {
+	sub := Subscription{Filter: map[string]string{"kind": "run"}}
+	if !matchesFilter(sub, Event{Payload: []byte(`{"kind":"run"}`)}) {
+		t.Fatal("expected filter match")
+	}
+	if matchesFilter(sub, Event{Payload: []byte(`{"kind":"other"}`)}) {
+		t.Fatal("unexpected filter match")
+	}
+	if matchesFilter(sub, Event{Payload: []byte(`not-json`)}) {
+		t.Fatal("invalid payload matched filter")
+	}
+}
