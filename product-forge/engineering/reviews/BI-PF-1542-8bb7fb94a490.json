@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1542",
+  "sha": "8bb7fb94a490",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T04:47:02.257204+00:00",
+  "review_scope": "delta",
+  "base_sha": "559460ee03c8cf3a70bde24d6219c025ee96d695",
+  "head_sha": "5cec9014f6176ee65c1bb95f5d970d8984f158d5",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Guard failure raises at module import, so a missing/renamed mandate test surfaces as an opaque collection error rather than a named test failure; consider reporting which required name is absent (observability of the AC-evidence guard)."
+    ],
+    "NIT": [
+      "`_loaded >= len(_required)` is redundant: the `_required <= {...}` subset assertion already implies it.",
+      "The hard-coded `_required` set duplicates test names from `tests/test_prompt_mandates.py`; a rename now breaks two files, but that coupling is the intended pin \u2014 keep in sync deliberately.",
+      "Prior NIT still applies to the changed lines: guards remain module-level `assert`, stripped under `python -O`."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior MAJOR: the wrapper now pins the three AC-mandate test names instead of asserting `_loaded > 0`, so renaming/removing them fails the suite.",
+      "No new blockers or contract regressions in this delta; scope/`-O`/double-collection concerns from the prior review remain as previously filed."
+    ]
+  },
+  "rereview_reason": "Delta for prior 8ebe8223c591 and 62a3306a405c: pin required prompt tests",
+  "rereview_reason_sha256": "25304bdf12bf1a2ac007d3ba92b4e10935560280ad7223d3c414eb6d0374dc84"
+}
