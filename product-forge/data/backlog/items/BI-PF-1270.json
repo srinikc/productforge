@@ -69,14 +69,15 @@
     "at": ""
   },
   "verification": [
-    "A subscriber receives via each transport; webhook verifies HMAC; email respects priority gate."
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 4, 'MAJOR': 6, 'MINOR': 4, 'NIT': 3}"
   ],
   "risks": [
     "Not specified."
   ],
   "rollback": "Revert the change.",
   "evidence": [
-    "pending"
+    "pending",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=ac0af4157448\nBLOCKER:\n  - CL-015 unmet: every `ac_evidence`/`coverage`/`traceability` entry cites `docs/EVENT-TRANSPORTS-DESIDE.md` with no candidate SHA; design doc is used as its own proof, so AC evidence is unverifiable.\n  - Language rule risk: `api_contract` artifact is `api/routers/events.py` for a new `POST /api/v1/notifications` endpoint; new shipped logic must be Go unless this is explicitly an edit to a shipped Python route (not stated).\n  - CL-011/checklist-3 unmet: all five implementation controls record `tenant_test: N/A: transport receives tenant-scoped subscription` — no proof of boundary authz, tenant binding, or NOSUPERUSER/NOBYPASSRLS posture for the transport/registry path.\n  - CL-013 not pinned: webhook HMAC verification does not specify constant-time comparison, nor per-subscription/tenant key binding (single `PF_WEBHOOK_HMAC_KEY` implies a shared secret).\nMAJOR:\n  - Checklist 8 incomplete: `needs_api` is implied but only `route` is given; method, authn, authz, validation, and tenant-scoping for `POST /api/v1/notifications` are undefined, so the API contract cannot be kept in sync.\n  - Contracts out of sync: functional_spec declares `PF_SMTP_*` while design_pack config lists `PF_WEBHOOK_HMAC_KEY, PF_NOTIFY_*`; email-threshold and SMTP keys are not reconciled to one config contract.\n  - Checklist 1/6 incomplete: rollback is \"remove transports/endpoint\" with no handling of stranded DLQ entries, in-flight retries, or subscriptions referencing a removed transport; no verified backup/restore path stated.\n  - Checklist 2 unaddressed: no on-startup defence-in-depth check, no statement of behaviour when dispatcher/worker/DB is down, and no alert lead-time for DLQ growth.\n  - Checklist 10 under-specified: observability is only the phrase \"delivery metrics/logs\" — no named metrics, DLQ-depth signal, or redaction rule for secrets/targets in logs.\n  - Failure classification incomplete relative to AC-2: `429` (and `Retry-After`) handling is absent from the failure matrix, and the \"4xx permanent except 401/403 bounded retry\" decision conflicts with \"permanent 4xx → DLQ\".\nMINOR:\n  - Checklist 5: ordering/dedup invariant across transports is unstated — only `event_id` idempotency is given; no cross-transport duplicate-delivery rule or sequence/ordering test.\n  - Checklist 9: retention/redaction for webhook target URLs, HMAC keys, and DLQ payloads is not specified beyond \"no secret logging\".\n  - AC-1 evidence lists only `go test ./... and API tests` with no dispatcher-integration test named for the notify path (C-3's negative test reuses `notify_test.go`).\n  - Config surface lacks a documented precedence/default for `PF_NOTIFY_EMAIL_MIN_PRIORITY` when unset (fail-open vs fail-closed).\nNIT:\n  - `traceability.test` and `test_matrix.test` use globs (`go/eventtransport/*_test.go`) rather than concrete test files, weakening Gate-2 pinning.\n  - `stop_conditions: ['SSE requested']` is a scope guard, not a delivery stop condition.\n  - `affected_components` / `affected_files` / `risks` in Gate-1 context are \"Not specified\", leaving the blast-radius review without declared files.\nSUMMARY:\n  - Direction is sound (single Transport interface, dispatcher-owned retry/DLQ, reuse of notification_system), but the design is not Gate-1.5-ready: evidence lacks candidate SHAs (CL-015), tenant/RLS posture is explicitly N/A'd (CL-011), and constant-time HMAC/tenant key binding is unpinned (CL-013).\n  - Top risks before proceeding: undefined API contract for the new notifications endpoint, unreconciled config contracts, and rollback that strands DLQ/in-flight events.\n  - Recommend returning to Gate 1 to close BLOCKERs and the API/config/rollback MAJORs; do not advance to coding until dispositions are recorded per CL-006.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "design",
@@ -157,7 +158,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:18.581774",
-  "updated_at": "2026-11-19T17:17:08.680458",
+  "updated_at": "2026-11-19T23:57:15.478886",
   "score": 0.5,
   "_note": "analysis updated",
   "api_impact": {
@@ -336,8 +337,17 @@
     ],
     "config_contract": {
       "PF_WEBHOOK_HMAC_KEY": "required for webhook",
-      "PF_NOTIFY_EMAIL_MIN_PRIORITY": "email threshold",
-      "PF_SMTP_*": "optional email provider"
+      "PF_WEBHOOK_ALLOW_HTTP": "default false",
+      "PF_WEBHOOK_ALLOW_PRIVATE": "default false",
+      "PF_WEBHOOK_TIMEOUT_SECONDS": "default 10",
+      "PF_NOTIFY_API_URL": "default local API",
+      "PF_NOTIFY_EMAIL_MIN_PRIORITY": "default medium",
+      "PF_SMTP_HOST": "required for email",
+      "PF_SMTP_PORT": "default 587",
+      "PF_SMTP_USER": "required for email",
+      "PF_SMTP_PASSWORD": "required for email",
+      "PF_SMTP_FROM": "required for email",
+      "PF_SMTP_TLS": "default true"
     },
     "nfr": [
       "bounded timeout",
@@ -354,7 +364,8 @@
         "test": "go/eventtransport/*_test.go",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "fr": "FR-2",
@@ -362,7 +373,8 @@
         "test": "go/eventtransport/*_test.go",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "fr": "FR-3",
@@ -370,7 +382,8 @@
         "test": "go/eventtransport/*_test.go",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "fr": "FR-4",
@@ -378,7 +391,8 @@
         "test": "go/eventtransport/*_test.go",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       }
     ],
     "open_questions": [
@@ -387,7 +401,7 @@
     "dod": [
       "Delivery Complete requires all five states"
     ],
-    "functional_sha": "5d81e5c0df9a"
+    "functional_sha": "fb3f4dbf8d7b"
   },
   "spec_pack": {
     "version": 1,
@@ -562,32 +576,70 @@
     ],
     "contracts": {
       "api": {
-        "route": "POST /api/v1/notifications"
+        "method": "POST",
+        "path": "/api/v1/notifications",
+        "auth": "operator/service",
+        "authz": "scope from API context",
+        "validation": "type/title/message/priority/length",
+        "tenant": "authenticated context only"
       },
       "db": "existing notification store",
       "files": {
         "design": "docs/EVENT-TRANSPORTS-DESIGN.md"
       },
-      "config": "PF_WEBHOOK_HMAC_KEY, PF_NOTIFY_*"
+      "config": {
+        "PF_WEBHOOK_HMAC_KEY": "required for webhook",
+        "PF_WEBHOOK_ALLOW_HTTP": "default false",
+        "PF_WEBHOOK_ALLOW_PRIVATE": "default false",
+        "PF_WEBHOOK_TIMEOUT_SECONDS": "default 10",
+        "PF_NOTIFY_API_URL": "default local API",
+        "PF_NOTIFY_EMAIL_MIN_PRIORITY": "default medium",
+        "PF_SMTP_HOST": "required for email",
+        "PF_SMTP_PORT": "default 587",
+        "PF_SMTP_USER": "required for email",
+        "PF_SMTP_PASSWORD": "required for email",
+        "PF_SMTP_FROM": "required for email",
+        "PF_SMTP_TLS": "default true"
+      }
     },
     "failure_matrix": [
       {
-        "case": "permanent 4xx",
-        "behavior": "DLQ",
+        "case": "429 Retry-After",
+        "behavior": "retry max(backoff,retry-after)",
+        "code": "RETRY"
+      },
+      {
+        "case": "400/404/410/422",
+        "behavior": "permanent DLQ",
         "code": "PERMANENT_DELIVERY"
       },
       {
-        "case": "SMTP missing",
-        "behavior": "in-app only",
-        "code": "EMAIL_SKIPPED"
+        "case": "401/403",
+        "behavior": "bounded retry then DLQ",
+        "code": "AUTH_RETRY"
+      },
+      {
+        "case": "409",
+        "behavior": "duplicate success",
+        "code": "DUPLICATE_OK"
+      },
+      {
+        "case": "5xx/timeout",
+        "behavior": "retry then DLQ",
+        "code": "RETRY"
+      },
+      {
+        "case": "missing HMAC key",
+        "behavior": "webhook disabled",
+        "code": "WEBHOOK_DISABLED"
       }
     ],
     "dependencies": [
       "BI-PF-1269",
       "BI-PF-1267"
     ],
-    "security": "HMAC, SSRF block, secrets env only",
-    "observability": "delivery metrics/logs",
+    "security": "Per-subscription HMAC key via auth_ref; constant-time hmac.Equal; timestamp+body; 5-minute skew; SSRF blocks; secrets never logged; tenant from subscription; runtime roles NOSUPERUSER/NOBYPASSRLS where DB-backed.",
+    "observability": "event_delivery_attempts_total, event_delivery_retry_age_seconds, event_delivery_dlq_depth, event_delivery_latency_seconds; redact targets/keys/signatures.",
     "performance": "bounded timeout",
     "test_matrix": [
       {
@@ -612,13 +664,15 @@
       }
     ],
     "rollout": "additive deployment",
-    "rollback": "remove transports/endpoint",
+    "rollback": "Remove transports/endpoint; disable subscriptions using removed transports; retain delivery/DLQ history; verified backup before destructive cleanup; no migration.",
     "decisions": [
       "email medium/high/critical; low in-app",
       "timestamp+body HMAC",
       "4xx permanent except 401/403 bounded retry"
     ],
     "guardrails": [
+      "startup validates webhook/SMTP config",
+      "DLQ depth/retry-age alert >5m",
       "no SSE",
       "no alert routing"
     ],
@@ -645,28 +699,32 @@
         "tests": "go tests",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "fr": "FR-2",
         "tests": "go tests",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "fr": "FR-3",
         "tests": "go tests",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "fr": "FR-4",
         "tests": "go tests",
         "evidence": [
           "docs/EVENT-TRANSPORTS-DESIGN.md"
-        ]
+        ],
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       }
     ],
     "scope": [
@@ -697,19 +755,23 @@
     "ac_evidence": [
       {
         "ac": "AC-1",
-        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "ac": "AC-2",
-        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "ac": "AC-3",
-        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       },
       {
         "ac": "AC-4",
-        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a"
       }
     ],
     "stop_conditions": [
@@ -725,7 +787,7 @@
         "symbol": "go/eventtransport/inproc.go:Inproc",
         "positive_test": "go/eventtransport/inproc_test.go",
         "negative_test": "go/eventtransport/webhook_test.go",
-        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "tenant_test": "go/eventtransport/registry_test.go cross-tenant rejection",
         "concurrency_test": "go/eventtransport/inproc_test.go",
         "observability": "delivery metrics/logs",
         "evidence": "go test ./... in eventtransport"
@@ -739,7 +801,7 @@
         "symbol": "go/eventtransport/webhook.go:Webhook",
         "positive_test": "go/eventtransport/webhook_test.go",
         "negative_test": "go/eventtransport/webhook_test.go",
-        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "tenant_test": "go/eventtransport/registry_test.go cross-tenant rejection",
         "concurrency_test": "go/eventtransport/inproc_test.go",
         "observability": "delivery metrics/logs",
         "evidence": "go test ./... in eventtransport"
@@ -753,7 +815,7 @@
         "symbol": "go/eventtransport/notify.go:Notify",
         "positive_test": "go/eventtransport/notify_test.go",
         "negative_test": "go/eventtransport/notify_test.go",
-        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "tenant_test": "go/eventtransport/registry_test.go cross-tenant rejection",
         "concurrency_test": "go/eventtransport/inproc_test.go",
         "observability": "delivery metrics/logs",
         "evidence": "go test ./... in eventtransport"
@@ -785,6 +847,20 @@
         "concurrency_test": "go/eventtransport/inproc_test.go",
         "observability": "delivery metrics/logs",
         "evidence": "go test ./... in eventtransport"
+      },
+      {
+        "id": "C-6",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "tenant",
+        "control": "transport registry rejects cross-tenant subscription lookup",
+        "symbol": "go/eventtransport/registry.go:Registry",
+        "positive_test": "go/eventtransport/registry_test.go",
+        "negative_test": "go/eventtransport/registry_test.go",
+        "tenant_test": "go/eventtransport/registry_test.go cross-tenant rejection",
+        "concurrency_test": "go/eventtransport/inproc_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in eventtransport"
       }
     ],
     "tech_stack_evidence": [
@@ -803,5 +879,50 @@
       "observability",
       "no-dead-code"
     ]
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "0c578b06c682c22429fca8570227430aafd4ce8a",
+      "review_sha": "ac0af4157448",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T11:48:49.308722+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "0c578b06c682c22429fca8570227430aafd4ce8a",
+      "findings": {
+        "BLOCKER": [
+          "CL-015 unmet: every `ac_evidence`/`coverage`/`traceability` entry cites `docs/EVENT-TRANSPORTS-DESIDE.md` with no candidate SHA; design doc is used as its own proof, so AC evidence is unverifiable.",
+          "Language rule risk: `api_contract` artifact is `api/routers/events.py` for a new `POST /api/v1/notifications` endpoint; new shipped logic must be Go unless this is explicitly an edit to a shipped Python route (not stated).",
+          "CL-011/checklist-3 unmet: all five implementation controls record `tenant_test: N/A: transport receives tenant-scoped subscription` — no proof of boundary authz, tenant binding, or NOSUPERUSER/NOBYPASSRLS posture for the transport/registry path.",
+          "CL-013 not pinned: webhook HMAC verification does not specify constant-time comparison, nor per-subscription/tenant key binding (single `PF_WEBHOOK_HMAC_KEY` implies a shared secret)."
+        ],
+        "MAJOR": [
+          "Checklist 8 incomplete: `needs_api` is implied but only `route` is given; method, authn, authz, validation, and tenant-scoping for `POST /api/v1/notifications` are undefined, so the API contract cannot be kept in sync.",
+          "Contracts out of sync: functional_spec declares `PF_SMTP_*` while design_pack config lists `PF_WEBHOOK_HMAC_KEY, PF_NOTIFY_*`; email-threshold and SMTP keys are not reconciled to one config contract.",
+          "Checklist 1/6 incomplete: rollback is \"remove transports/endpoint\" with no handling of stranded DLQ entries, in-flight retries, or subscriptions referencing a removed transport; no verified backup/restore path stated.",
+          "Checklist 2 unaddressed: no on-startup defence-in-depth check, no statement of behaviour when dispatcher/worker/DB is down, and no alert lead-time for DLQ growth.",
+          "Checklist 10 under-specified: observability is only the phrase \"delivery metrics/logs\" — no named metrics, DLQ-depth signal, or redaction rule for secrets/targets in logs.",
+          "Failure classification incomplete relative to AC-2: `429` (and `Retry-After`) handling is absent from the failure matrix, and the \"4xx permanent except 401/403 bounded retry\" decision conflicts with \"permanent 4xx → DLQ\"."
+        ],
+        "MINOR": [
+          "Checklist 5: ordering/dedup invariant across transports is unstated — only `event_id` idempotency is given; no cross-transport duplicate-delivery rule or sequence/ordering test.",
+          "Checklist 9: retention/redaction for webhook target URLs, HMAC keys, and DLQ payloads is not specified beyond \"no secret logging\".",
+          "AC-1 evidence lists only `go test ./... and API tests` with no dispatcher-integration test named for the notify path (C-3's negative test reuses `notify_test.go`).",
+          "Config surface lacks a documented precedence/default for `PF_NOTIFY_EMAIL_MIN_PRIORITY` when unset (fail-open vs fail-closed)."
+        ],
+        "NIT": [
+          "`traceability.test` and `test_matrix.test` use globs (`go/eventtransport/*_test.go`) rather than concrete test files, weakening Gate-2 pinning.",
+          "`stop_conditions: ['SSE requested']` is a scope guard, not a delivery stop condition.",
+          "`affected_components` / `affected_files` / `risks` in Gate-1 context are \"Not specified\", leaving the blast-radius review without declared files."
+        ],
+        "SUMMARY": [
+          "Direction is sound (single Transport interface, dispatcher-owned retry/DLQ, reuse of notification_system), but the design is not Gate-1.5-ready: evidence lacks candidate SHAs (CL-015), tenant/RLS posture is explicitly N/A'd (CL-011), and constant-time HMAC/tenant key binding is unpinned (CL-013).",
+          "Top risks before proceeding: undefined API contract for the new notifications endpoint, unreconciled config contracts, and rollback that strands DLQ/in-flight events.",
+          "Recommend returning to Gate 1 to close BLOCKERs and the API/config/rollback MAJORs; do not advance to coding until dispositions are recorded per CL-006."
+        ]
+      },
+      "evidence": "BI-PF-1270-ac0af4157448.json"
+    }
+  ]
 }
