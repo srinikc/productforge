@@ -1,0 +1,37 @@
+{
+  "item": "BI-EVENTS-1539",
+  "sha": "3bd78fc68352",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-19T09:13:41.674515+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "5149c260d175f7a498fbb00eb8d58952ab14479f",
+  "findings": {
+    "BLOCKER": [
+      "CL-010 violated: proof_plan red_evidence = 'absent'; no current-run red/failing proof for the real metrics exporter entrypoint \u2014 declared tests/prose are not proof.",
+      "AC-1 requires owner + alert threshold documented and tested; design names no threshold value and no accountable owner (only \"existing metrics owner\") \u2014 AC unverifiable as written."
+    ],
+    "MAJOR": [
+      "Evidence conflict: functional_spec traceability points AC-1/AC-2 to go/edpdata/event_metrics_test.go, design_pack coverage points to tests/test_review_material_change.py \u2014 neither is shown to assert the gauge, counter, or structured prune/projection-failure signals.",
+      "CL-001 unresolved: \"existing metrics owner\"/observability owner is never named or registered as single writer; no route-by-kind decision proving no duplicate exporter/registry is introduced.",
+      "Label cardinality contradiction: invariant \"metrics are tenant-scoped\" vs guardrail \"no high-cardinality tenant-id labels\" \u2014 tenant label set must be bounded (allow-list/registry) before Gate 1.5.",
+      "CL-012 not addressed: outbox_rows_current implies repeated row counts; runtime_contract pins no count bounding, refresh/cache interval, or statement_timeout for the scrape path."
+    ],
+    "MINOR": [
+      "Gate-1 context has affected_components/affected_files \"Not specified\" while design_pack declares 5 files \u2014 sync needed per CL-006.",
+      "Checklist items 1-6, 8-9 unanswered: no alert lead-time / exporter-down detection story; rollback is \"remove metrics\" with no cleanup of dashboards/alert rules.",
+      "out_of_scope and risks are \"Not specified\"; config_contract artifact is only config/review-budget.json with no metric-specific config key."
+    ],
+    "NIT": [
+      "FR-2 title truncated mid-sentence in functional_spec; failure_matrix covers only 'missing metric', not absence of prune/projection-failure signals.",
+      "spec_pack release_verification cites one generic test file as evidence for every APPLICABLE spec."
+    ],
+    "SUMMARY": [
+      "Not ready for Gate 1.5: missing red proof (CL-010) and undocumented owner/threshold make AC-1/AC-2 unverifiable as designed.",
+      "Top risks: contradictory test evidence, unresolved tenant-label cardinality, unnamed single-writer ownership, and unbounded scrape-time counting.",
+      "Direction is right (reuse existing metrics owner, Go-only files, low-cardinality guardrail); close the four MAJORs and answer the checklist before approval."
+    ]
+  }
+}
