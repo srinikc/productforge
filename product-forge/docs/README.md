@@ -161,6 +161,7 @@
 | [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN-updated.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
+| [`PROMPT-MANDATES.md`](PROMPT-MANDATES.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
 | [`PROVIDER-FALLBACK.md`](PROVIDER-FALLBACK.md) | Implemented | 100% | Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247) | — | — |
 | [`PROVIDER-HEALTH-DESIGN.md`](PROVIDER-HEALTH-DESIGN.md) | Design | 100% | Provider health tracking feeding routing (BI-PF-0279) | — | — |
 | [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |

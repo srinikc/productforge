@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-17T21:04:01 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-19T09:49:23 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 137  |  **Closed:** 612
+- **Open:** 141  |  **Closed:** 613
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
-- `new`: 134
+- `new`: 138
 
-### new, by category (134)
+### new, by category (138)
 **API / reports / HIL / misc** (17)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -31,14 +31,14 @@
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
 | BI-EVENTS-1539 | Should | feature | Structured outbox metrics and alerting for event authority | Structured outbox metrics and alerting for event authority |
-| BI-PF-1540 | Should | feature | Review material-change decision API and correct delta-review base | Unblock legitimate fix deltas without weakening review-budget enforcement or requiring direct backlog mutation... |
+| BI-PF-1544 | Should | feature | Design-pack write API | Design-pack write API |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (7)
+**Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -48,6 +48,7 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
+| BI-PF-1542 | Should | feature | Prompt mandate wiring for design and implementation agents | Prompt mandate wiring for design and implementation agents |
 
 **Dynamic pipeline / agents** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -91,7 +92,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (83)
+**Wiring / tech-debt / API** (86)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -176,7 +177,10 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
+| BI-PF-1538 | None | None | Mandatory implementation controls and tech-stack readiness gates |  |
 | BI-PF-1541 | Should | feature | Review decision guardrail runbook and alerting evidence | Review decision guardrail runbook and alerting evidence |
+| BI-PF-1543 | Should | feature | Implementation control matrix and readiness checker | Implementation control matrix and readiness checker |
+| BI-PF-1545 | Should | feature | Delivery state and RCCA gate | Delivery state and RCCA gate |
 
 ---
 
@@ -376,5 +380,5 @@
 ---
 
 ## Totals
-- backend: 137 open / 612 closed
+- backend: 141 open / 613 closed
 - dashboard: 146 open / 3 closed
