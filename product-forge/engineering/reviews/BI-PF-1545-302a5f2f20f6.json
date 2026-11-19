@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1545",
+  "sha": "302a5f2f20f6",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T08:34:10.294386+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "38669768d9a54febd4fbf8cccc5fdc80628ce6c6",
+  "findings": {
+    "BLOCKER": [
+      "FR-2/Gate 2 integration is untested: no test exercises `gate2_completion_check.completion_gaps` with `delivery_states`/escaped-defect RCCA input, so AC-2 (\"Gate 2 consumes delivery-state evidence\") is implemented but not demonstrably fail-able."
+    ],
+    "MAJOR": [
+      "`rcca.linked_item` is only checked for non-emptiness; any string passes. AC requires a *linked backlog item* \u2014 the check never resolves it via `backlog`, so a bogus link satisfies the gate.",
+      "No call site/CI wiring in the diff shows `delivery_state_check` blocking the Delivery Complete transition itself; only Gate 2 imports `problems()`, so the \"blocks Delivery Complete\" half of AC-1 has no demonstrated enforcement point."
+    ],
+    "MINOR": [
+      "Redundant logic: the `delivery_complete without <state>` branch re-detects conditions already reported by the first `STATES` loop, producing duplicate/noisy problem entries instead of one authoritative message.",
+      "`except Exception` around the `delivery_state_check` import converts any failure (path, syntax, signature) into a gap string with no traceback/logging \u2014 fail-closed but poor diagnosability for a gate.",
+      "The wrapper test re-loads `tests/test_delivery_state.py` via `importlib` and copies functions into `globals()`; fragile symbol-by-name mirroring that silently drops non-`test_` fixtures/helpers the source may later rely on."
+    ],
+    "NIT": [
+      "Module docstring cites BI-PF-1538 rather than the shipping item BI-PF-1545, weakening change traceability.",
+      "`STATES` is hard-coded in the script with no shared owner/config registration, so a future state-order change must be edited in multiple places."
+    ],
+    "SUMMARY": [
+      "The delivery-state predicate and Gate 2 hook are present and fail-closed, and tooling Python satisfies the language rule.",
+      "Top risks: AC-2 has zero tests at the Gate 2 boundary, RCCA `linked_item` is not validated as a real backlog reference, and nothing in the diff demonstrates an active block on the Delivery Complete transition.",
+      "Recommend adding a Gate 2 integration test, resolving `linked_item` through `backlog`, and showing the enforcement call site before merge."
+    ]
+  }
+}
