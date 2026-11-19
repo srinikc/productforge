@@ -7,14 +7,22 @@ type EventMetrics interface {
 	OutboxBoundExceeded(tenant string)
 	OutboxPruned(tenant string, count int64)
 	ProjectionFailed(tenant string)
+	DeliveryDelivered(tenant, subscription string)
+	DeliveryRetried(tenant, subscription string)
+	DeliveryDeadLettered(tenant, subscription string)
+	DeliverySkipped(tenant, subscription string)
 }
 
 type nopEventMetrics struct{}
 
-func (nopEventMetrics) OutboxRows(string, string, int64) {}
-func (nopEventMetrics) OutboxBoundExceeded(string)       {}
-func (nopEventMetrics) OutboxPruned(string, int64)       {}
-func (nopEventMetrics) ProjectionFailed(string)          {}
+func (nopEventMetrics) OutboxRows(string, string, int64)    {}
+func (nopEventMetrics) OutboxBoundExceeded(string)          {}
+func (nopEventMetrics) OutboxPruned(string, int64)          {}
+func (nopEventMetrics) ProjectionFailed(string)             {}
+func (nopEventMetrics) DeliveryDelivered(string, string)    {}
+func (nopEventMetrics) DeliveryRetried(string, string)      {}
+func (nopEventMetrics) DeliveryDeadLettered(string, string) {}
+func (nopEventMetrics) DeliverySkipped(string, string)      {}
 
 // WithMetrics attaches the observability owner.
 func (s *EventStore) WithMetrics(m EventMetrics) *EventStore {

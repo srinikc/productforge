@@ -625,3 +625,14 @@ parity checks); object/DB inconsistency (mitigated by sha256 reconciliation); br
 - Large payload round-trips via object reference with sha256 verification; DB row stays bounded.
 - Outbox redelivery is deduped by `event_id` and fail-closed on DLQ exhaustion.
 - No code path reads `events.jsonl` as authority; compatibility exports are labeled read-only.
+
+
+## ADR-0012: Event delivery DLQ is owned by the Go event authority
+
+- Status: Accepted (BI-PF-1546)
+- Context: `core/dead_letter_queue.py` is the pipeline-task DLQ (file-backed task records). Event
+  delivery needs transactional state tied to `event_deliveries` and tenant RLS.
+- Decision: `event_delivery_dlq` in PostgreSQL is the DLQ for event delivery. It is owned by
+  `go/edpdata` and is not the pipeline-task DLQ. Do not dual-write or merge the two stores.
+- Consequences: operators have two distinct DLQs with different schemas/owners. Alerting must name
+  the event-delivery DLQ explicitly. Reuse remains prohibited across the two domains.
