@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1543",
+  "sha": "9243b2c77ce6",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-19T07:06:58.408427+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "efc13cbb3d127c51adb41a8d28da5ed5e4168ebd",
+  "findings": {
+    "BLOCKER": [
+      "Declared affected_files is only `config/implementation-controls.json`, yet AC-2 requires `implementation_readiness_check` plus its tests; the checker script/test files are undeclared, so AC-2 cannot be delivered under this scope.",
+      "AC-1/AC-2 require named fail-closed cases (missing matrix, placeholder, missing symbol, tenant/concurrency) but design_pack.failure_matrix lists only `EVIDENCE_MISSING` and test_matrix has only two generic \"focused tests\" rows \u2014 the AC is not met as specified.",
+      "Language rule unaddressed: `implementation_readiness_check` is new shipped logic; design/verification imply pytest/Python without stating a tooling classification or Go implementation, risking a language-rule violation."
+    ],
+    "MAJOR": [
+      "config_contract declares `N/A: no new config on develop` while affected_files adds `config/implementation-controls.json`; the config contract must be reconciled or the item fails the config spec gate.",
+      "CL-015 not satisfied: `ac_evidence` and `coverage` entries carry no candidate SHA, so Gate 2 evidence pinning will fail closed.",
+      "Design guardrails checklist (reversibility/backup, availability/SPoF, authz-RLS posture, blast-radius/dry-run, invariants/ordering, tenant isolation) is not answered in the design pack, contrary to CL-008 which requires it before Gate 1.5.",
+      "AC-1 requires positive/negative/tenant/concurrency test rows plus observability and evidence per AC, but the design has no per-AC row schema (symbol, test kinds, observability fields) and no definition of placeholder detection rules.",
+      "`affected_components: [config]` omits the readiness-checker component, so ownership, review routing, and reuse of existing gate/script owners are undefined."
+    ],
+    "MINOR": [
+      "Observability is only \"focused tests\"; no log/metric or exit-code contract is specified for the checker, making production diagnosis of fail-closed runs difficult.",
+      "No schema/version field for `implementation-controls.json`, so future matrix evolution lacks a compatibility and migration path.",
+      "Rollback is \"Revert the change\" with no statement of how an interrupted/partial config edit is detected or recovered (checklist item 6).",
+      "Dependency on BI-PF-1540 and the assumption \"develop has shared review decisions API\" are unverified and carry no failure behavior if absent."
+    ],
+    "NIT": [
+      "`out_of_scope`, `risks` are \"Not specified\" placeholders; fill them to keep the gate record self-describing.",
+      "test_matrix could name concrete test ids instead of \"focused tests\" for traceability."
+    ],
+    "SUMMARY": [
+      "Verdict: not ready for Gate 1.5 \u2014 the approved ACs reference a checker and per-AC control rows that are absent from the declared file set, failure matrix, and test matrix.",
+      "Top risks: undeclared deliverable files (AC-2 unreachable), config-contract contradiction, unpinned evidence SHA, and unanswered design guardrails (CL-008/CL-015).",
+      "Re-check after the design declares the checker + tests, defines the control-row schema and placeholder rules, and pins evidence to a candidate SHA."
+    ]
+  }
+}
