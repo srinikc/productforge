@@ -79,6 +79,11 @@ def completion_gaps(item: dict) -> list[str]:
     import disposition_policy as dp
     for mode in ("design", "diff"):
         gaps += [f"DISPOSITION: {p}" for p in dp.problems(item, mode, lambda i: ar._get_item(i))]
+    try:
+        import delivery_state_check as dsc
+        gaps += [f"DELIVERY_STATE: {p}" for p in dsc.problems(item)]
+    except Exception as e:
+        gaps.append(f"DELIVERY_STATE: check error {e}")
     acs = item.get("ac_verification") or []
     if not acs or any(str(a.get("result") or "").upper() != "PASS" for a in acs):
         gaps.append("AC_VERIFICATION_INCOMPLETE")
