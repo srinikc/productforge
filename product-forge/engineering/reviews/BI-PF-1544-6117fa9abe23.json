@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1544",
+  "sha": "6117fa9abe23",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T08:07:01.650617+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "84fd0e2f757a52d2cf47179b9c23397dcef912f0",
+  "findings": {
+    "BLOCKER": [
+      "No test persists a valid design pack; AC-1 \"persists a valid design pack\" is unproven (only malformed/auth paths tested).",
+      "No test covers stale-revision rejection (`expected_revision`/`_guard_revision`) despite it being an explicit AC-1 clause.",
+      "No test covers missing-operator-role rejection (403); only anonymous 401 is tested, so the role boundary is unverified."
+    ],
+    "MAJOR": [
+      "Pack validation is reimplemented inline in the router (dict-nonempty, controls-list only) instead of reusing the canonical `scripts/dev/design_pack.py` validator, risking rule drift from the design contract's required row fields.",
+      "OpenAPI advertises only 200/422; `ApiError` outcomes (400/401/403/409) are undocumented, so clients cannot distinguish malformed pack vs stale revision vs forbidden.",
+      "`require_operator` is declared twice (route `dependencies` and `ctx: Depends(...)`) with `ctx` unused \u2014 redundant boundary wiring that can mask intent during future authz changes."
+    ],
+    "MINOR": [
+      "Handler imports `core.backlog` inline instead of at module top, inconsistent with import conventions and hard to trace for dependency analysis.",
+      "No log/metric emitted on write, validation failure, or stale-revision rejection (guardrail: minimum observability to diagnose failure).",
+      "Request body schema is untyped `additionalProperties: true`, so the OpenAPI contract gives consumers no field-level validation guidance."
+    ],
+    "NIT": [
+      "Default scope string `\"product_forge\"` is hardcoded in the handler; centralize with other route scope defaults.",
+      "Test wrapper's `assert _loaded > 0` fails opaquely if the canonical test file is renamed/moved."
+    ],
+    "SUMMARY": [
+      "Endpoint reuses `core.backlog.update` (no duplicate store) and is published in OpenAPI, satisfying AC-2 structurally, but AC-1 is not demonstrated: persistence, stale-revision, and operator-role behaviors lack tests.",
+      "Top risks: untested authz/revision boundaries and router-local validation that can drift from the canonical design-pack validator."
+    ]
+  }
+}
