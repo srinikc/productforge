@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-11-19T15:30:16 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-19T16:39:44 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 620
+- **Open:** 134  |  **Closed:** 621
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
 - `new`: 131
 
 ### new, by category (131)
-**API / reports / HIL / misc** (15)
+**API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,6 +30,7 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
+| BI-PF-1546 | Should | feature | Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership | Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -89,7 +90,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (82)
+**Wiring / tech-debt / API** (81)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -133,7 +134,6 @@
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
 | BI-PF-1265 | Should | epic | EPIC: Eventing & Alerting SSOT - Go-first event bus + subscriber/alert transports | One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable contracts ... |
-| BI-PF-1269 | Should | feature | Eventing SSOT (Go): subscriber registry + dispatcher (cursor, at-least-once, dedupe, retry->DLQ) | Persisted subscriber registry (single writer, store-registry entry) + a dispatcher that fans out with at-least... |
 | BI-PF-1270 | Should | feature | Eventing SSOT (Go): transports - inproc callbacks, webhook (HMAC+idempotency), notify/email | Pluggable transports behind one interface: inproc (callbacks), webhook (HTTP POST, HMAC signature, idempotency... |
 | BI-PF-1271 | Should | feature | Eventing SSOT (Go): alert policy - rules, throttle, escalation | A policy engine mapping event type/severity -> channels with throttle and escalation (reusing the policy map). |
 | BI-PF-1272 | Should | feature | Eventing SSOT: Python thin-client cutover of core/events.py over the A1 wire seam (edit-only) | core/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its pub... |
@@ -373,5 +373,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 620 closed
+- backend: 134 open / 621 closed
 - dashboard: 146 open / 3 closed
