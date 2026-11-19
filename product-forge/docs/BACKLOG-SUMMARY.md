@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-11-19T09:49:23 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-19T10:08:29 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -177,7 +177,7 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
-| BI-PF-1538 | None | None | Mandatory implementation controls and tech-stack readiness gates |  |
+| BI-PF-1538 | Should | task | Mandatory implementation controls and tech-stack readiness gates | Prevent happy-path-only implementation and fix-induced regressions by making every AC/control, test, tenant/RL... |
 | BI-PF-1541 | Should | feature | Review decision guardrail runbook and alerting evidence | Review decision guardrail runbook and alerting evidence |
 | BI-PF-1543 | Should | feature | Implementation control matrix and readiness checker | Implementation control matrix and readiness checker |
 | BI-PF-1545 | Should | feature | Delivery state and RCCA gate | Delivery state and RCCA gate |

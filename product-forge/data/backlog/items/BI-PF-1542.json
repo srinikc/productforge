@@ -176,7 +176,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T23:21:43.644134",
-  "updated_at": "2026-11-19T09:49:08.793440",
+  "updated_at": "2026-11-19T10:11:15.671953",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -740,5 +740,112 @@
         "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
       }
     }
-  }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:c823bc16f929ac62",
+      "finding": "Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4b4c5036867e3d73",
+      "finding": "No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet — deleting the injection wiring in `agent_runner` still passes the suite.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:d7995804b04e5daf",
+      "finding": "Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:152010406c329dd3",
+      "finding": "Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:1c89e966a268ae0e",
+      "finding": "Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ]
 }

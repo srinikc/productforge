@@ -107,6 +107,7 @@
 | [`GLOSSARY.md`](GLOSSARY.md) | SSOT | 100% | Pinned definitions (API=contract vs transport, service, caller classes, gates, dispositions, review terms, model-working terms) - define before building | — | — |
 | [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |
 | [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
+| [`IMPLEMENTATION-CONTROLS-DESIGN.md`](IMPLEMENTATION-CONTROLS-DESIGN.md) | Design | 100% | BI-PF-1538 implementation controls and prompt mandates | — | — |
 | [`INTAKE-AND-BACKLOG-DESIGN.md`](INTAKE-AND-BACKLOG-DESIGN.md) | Implemented | 100% | Intake & backlog design | — | — |
 | [`ISSUE-CLOSE-LOOP-DESIGN.md`](ISSUE-CLOSE-LOOP-DESIGN.md) | Design | 100% | Issue<->backlog bidirectional close loop (BI-PF-0271) | — | — |
 | [`LEARNING-PIPELINE-DESIGN.md`](LEARNING-PIPELINE-DESIGN.md) | Design | 100% | Evidence-gated learning pipeline (BI-PF-0293/0294/0295) | — | — |
@@ -161,7 +162,7 @@
 | [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN-updated.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
-| [`PROMPT-MANDATES.md`](PROMPT-MANDATES.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
+| [`PROMPT-MANDATES.md`](PROMPT-MANDATES.md) | Design | 100% | BI-PF-1542 design and implementation prompt mandates | — | — |
 | [`PROVIDER-FALLBACK.md`](PROVIDER-FALLBACK.md) | Implemented | 100% | Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247) | — | — |
 | [`PROVIDER-HEALTH-DESIGN.md`](PROVIDER-HEALTH-DESIGN.md) | Design | 100% | Provider health tracking feeding routing (BI-PF-0279) | — | — |
 | [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |
