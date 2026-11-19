@@ -39,11 +39,12 @@ type EventStore struct {
 	payloads    PayloadStore
 	inlineLimit int64
 	outboxMax   int64
+	metrics     EventMetrics
 }
 
 // NewEventStore returns an event store over db.
 func NewEventStore(db datastore.RelationalStore) *EventStore {
-	return &EventStore{db: db, timeout: defaultStatementTimeout, inlineLimit: 32 * 1024, outboxMax: 100_000}
+	return &EventStore{db: db, timeout: defaultStatementTimeout, inlineLimit: 32 * 1024, outboxMax: 100_000, metrics: nopEventMetrics{}}
 }
 
 // WithOutboxBound configures pending-outbox backpressure.
