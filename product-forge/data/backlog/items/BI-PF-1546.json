@@ -66,7 +66,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 3, 'MAJOR': 4, 'MINOR': 5, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
@@ -74,7 +74,9 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1546): sig:ab1f9d871fd2aff4 (20 lines)"
+    "Design guardrails applied (BI-PF-1546): sig:ab1f9d871fd2aff4 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=32056205cd98\nBLOCKER:\n  - AC-3 requires \"store registry evidence is present\"; neither spec_pack nor design_pack references any store registry artifact/entry — only migration and test files — so AC-3 is unmet as designed.\n  - AC-3 requires \"migration rollback requires a verified backup\"; rollout/rollback only say \"with backup\" with no verified backup/restore step, evidence, or restore test — data-loss exposure on 0026 down (guardrail 1).\nMAJOR:\n  - C-1/C-2 set `tenant_test: 'N/A: tenant RLS migration'` while AC-2 requires rejecting cross-tenant collisions; runtime role posture (NOSUPERUSER/NOBYPASSRLS) and tenant binding are never proven (CL-011, guardrail 3).\n  - C-5 uses `migrations/0025_...up.sql` as its own positive/negative/tenant \"test\" with evidence \"migration applied locally\" — not a fail-able test; AC-3's testability requirement is unsatisfied.\n  - observability_runbook is APPLICABLE but cites only a design doc and a unit test; no runbook artifact, alert ownership, probe backoff/cooldown, or dependency-down behavior (CL-014, guardrail 2 SPOF/alert lead-time).\n  - Guardrail 6: migration-interrupted/partial-apply recovery and rollback verification are not specified; \"Revert the change\" is not an operable rollback procedure.\n  - `affected_files`, `affected_components`, `risks` are \"Not specified\" while controls reference concrete files — declared scope and traceability are incomplete for gate review.\nMINOR:\n  - FR-1/2/3 all map to the same single test file and design doc; per-AC evidence granularity is too coarse for independent verification.\n  - `config_contract` is `{'N/A': 'reuse dispatcher options'}` without naming the reused options — drift risk against guardrail 10 reuse.\n  - `nfr_slo` marked N/A while `nfr: bounded batch` imposes a performance bound with no stated value or measurement.\nNIT:\n  - `stop_conditions: ['transport implementation']` and `out_of_scope: ['Not specified.']` are ambiguous/placeholder phrasing.\n  - `rollback: Revert the change` duplicates but conflicts in specificity with the design's \"run 0026 down with backup\" — consolidate to one authoritative statement.\nSUMMARY:\n  - Design covers backoff, DLQ, concurrency tests and metrics directionally, but AC-3 fails on two counts: no store-registry evidence and no verified backup/restore path for 0026.\n  - Top risks: tenant-collision controls ship without tenant/role tests (CL-011), C-5's \"test\" is a migration file, and no ops runbook/alert ownership exists for dispatcher/worker/DB failure.\n  - Gate should not pass until registry evidence, verified backup procedure, runtime role posture proof, and a real runbook artifact are added.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=d082f6deed5a\nBLOCKER:\n  - AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.\n  - DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.\n  - AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership.\nMAJOR:\n  - AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.\n  - Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass — head-of-line blocking up to StaleAfter (5m default) starves all later events.\n  - Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.\n  - Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration.\nMINOR:\n  - Deploy ordering risk: `beginDelivery` INSERT now references `created_at`; code-live-before-0026 (or 0026 rollback while code deployed) breaks every dispatch pass.\n  - `event_subscriptions.go` adds `fmt.Errorf` with no import hunk in the diff — verify the package builds.\n  - Confirm `EventStore.metrics` defaults to `nopEventMetrics` (or all constructors call `WithMetrics`); four new call sites in `DispatchOnce` panic if nil.\n  - `matchesFilter` uses `fmt.Sprint` coercion (`\"1\"` matches numeric `1`) and re-parses JSON per subscription per event; no test for type-coercion/nested-key semantics.\n  - Reclaimed/stale and DLQ'd-then-advanced rows are all counted/emitted as `DeliverySkipped`, muddying observability.\nNIT:\n  - `StaleAfter` is an undocumented knob (no comment on semantics/ops tuning) alongside `MaxAttempts`/`BaseBackoff`.\n  - `actionAdvance` on `failed` status increments `Skipped` rather than a distinct dedupe counter.\nSUMMARY:\n  - Behavior changes (state gating, atomic cursor+delivery, cross-tenant error) are directionally right, but AC-1 test coverage and AC-3 evidence are objectively missing, and AC-2's \"logs\" half is unimplemented.\n  - Top risks: skipping integration test masks DLQ proof in CI; pass-halting on retry/stale rows threatens availability; missing backup procedure for a destructive rollback.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -159,7 +161,7 @@
     "usage": {}
   },
   "created_at": "2026-11-19T16:31:35.072954",
-  "updated_at": "2026-11-19T16:35:18.644823",
+  "updated_at": "2026-11-19T16:39:40.852493",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -715,5 +717,401 @@
     "needs_api": false,
     "reason": "Dispatcher remediation only; no API surface change.",
     "routes": []
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "review_sha": "32056205cd98",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T11:06:11.189166+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 requires \"store registry evidence is present\"; neither spec_pack nor design_pack references any store registry artifact/entry — only migration and test files — so AC-3 is unmet as designed.",
+          "AC-3 requires \"migration rollback requires a verified backup\"; rollout/rollback only say \"with backup\" with no verified backup/restore step, evidence, or restore test — data-loss exposure on 0026 down (guardrail 1)."
+        ],
+        "MAJOR": [
+          "C-1/C-2 set `tenant_test: 'N/A: tenant RLS migration'` while AC-2 requires rejecting cross-tenant collisions; runtime role posture (NOSUPERUSER/NOBYPASSRLS) and tenant binding are never proven (CL-011, guardrail 3).",
+          "C-5 uses `migrations/0025_...up.sql` as its own positive/negative/tenant \"test\" with evidence \"migration applied locally\" — not a fail-able test; AC-3's testability requirement is unsatisfied.",
+          "observability_runbook is APPLICABLE but cites only a design doc and a unit test; no runbook artifact, alert ownership, probe backoff/cooldown, or dependency-down behavior (CL-014, guardrail 2 SPOF/alert lead-time).",
+          "Guardrail 6: migration-interrupted/partial-apply recovery and rollback verification are not specified; \"Revert the change\" is not an operable rollback procedure.",
+          "`affected_files`, `affected_components`, `risks` are \"Not specified\" while controls reference concrete files — declared scope and traceability are incomplete for gate review."
+        ],
+        "MINOR": [
+          "FR-1/2/3 all map to the same single test file and design doc; per-AC evidence granularity is too coarse for independent verification.",
+          "`config_contract` is `{'N/A': 'reuse dispatcher options'}` without naming the reused options — drift risk against guardrail 10 reuse.",
+          "`nfr_slo` marked N/A while `nfr: bounded batch` imposes a performance bound with no stated value or measurement."
+        ],
+        "NIT": [
+          "`stop_conditions: ['transport implementation']` and `out_of_scope: ['Not specified.']` are ambiguous/placeholder phrasing.",
+          "`rollback: Revert the change` duplicates but conflicts in specificity with the design's \"run 0026 down with backup\" — consolidate to one authoritative statement."
+        ],
+        "SUMMARY": [
+          "Design covers backoff, DLQ, concurrency tests and metrics directionally, but AC-3 fails on two counts: no store-registry evidence and no verified backup/restore path for 0026.",
+          "Top risks: tenant-collision controls ship without tenant/role tests (CL-011), C-5's \"test\" is a migration file, and no ops runbook/alert ownership exists for dispatcher/worker/DB failure.",
+          "Gate should not pass until registry evidence, verified backup procedure, runtime role posture proof, and a real runbook artifact are added."
+        ]
+      },
+      "evidence": "BI-PF-1546-32056205cd98.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "review_sha": "d082f6deed5a",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T11:09:25.339567+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "findings": {
+        "BLOCKER": [
+          "AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.",
+          "DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.",
+          "AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership."
+        ],
+        "MAJOR": [
+          "AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.",
+          "Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass — head-of-line blocking up to StaleAfter (5m default) starves all later events.",
+          "Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.",
+          "Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration."
+        ],
+        "MINOR": [
+          "Deploy ordering risk: `beginDelivery` INSERT now references `created_at`; code-live-before-0026 (or 0026 rollback while code deployed) breaks every dispatch pass.",
+          "`event_subscriptions.go` adds `fmt.Errorf` with no import hunk in the diff — verify the package builds.",
+          "Confirm `EventStore.metrics` defaults to `nopEventMetrics` (or all constructors call `WithMetrics`); four new call sites in `DispatchOnce` panic if nil.",
+          "`matchesFilter` uses `fmt.Sprint` coercion (`\"1\"` matches numeric `1`) and re-parses JSON per subscription per event; no test for type-coercion/nested-key semantics.",
+          "Reclaimed/stale and DLQ'd-then-advanced rows are all counted/emitted as `DeliverySkipped`, muddying observability."
+        ],
+        "NIT": [
+          "`StaleAfter` is an undocumented knob (no comment on semantics/ops tuning) alongside `MaxAttempts`/`BaseBackoff`.",
+          "`actionAdvance` on `failed` status increments `Skipped` rather than a distinct dedupe counter."
+        ],
+        "SUMMARY": [
+          "Behavior changes (state gating, atomic cursor+delivery, cross-tenant error) are directionally right, but AC-1 test coverage and AC-3 evidence are objectively missing, and AC-2's \"logs\" half is unimplemented.",
+          "Top risks: skipping integration test masks DLQ proof in CI; pass-halting on retry/stale rows threatens availability; missing backup procedure for a destructive rollback."
+        ]
+      },
+      "evidence": "BI-PF-1546-d082f6deed5a.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:cfc633831a59a50c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:e68850da6c0ea08a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:9ad945f88c81c260": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:c15cd3e91ca073d7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:185a822550cdb2fe": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:daa62b601f3781e2": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:cede75512e6748cd": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:9b5dcc525cc964aa": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:ae5d10f043263817": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:dec58849b5b1e0b1": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:e80fc674372f226b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:bfcc8bd95d762145": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      }
+    },
+    "diff": {
+      "sig:8bbfcd8513dfab7f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:356b3c7e86c5ca83": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:7779b90a355a67b9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:eaac08205439ae9a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:e7c189d007faab98": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:622c470d825fdd78": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:4a57d5e537cde692": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:5be4158681750c7e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:3187f44fab773411": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:042cb23816f0c877": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:cd95f954b3e78f3f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:c04035f611cb2022": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:67f7e583fcb05aff": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:9a030f7dd55e0b51": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:8bbfcd8513dfab7f",
+      "finding": "AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:356b3c7e86c5ca83",
+      "finding": "DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:7779b90a355a67b9",
+      "finding": "AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:eaac08205439ae9a",
+      "finding": "AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:e7c189d007faab98",
+      "finding": "Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass — head-of-line blocking up to StaleAfter (5m default) starves all later events.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:622c470d825fdd78",
+      "finding": "Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4a57d5e537cde692",
+      "finding": "Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:8bbfcd8513dfab7f",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:356b3c7e86c5ca83",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:7779b90a355a67b9",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:eaac08205439ae9a",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:e7c189d007faab98",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:622c470d825fdd78",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:4a57d5e537cde692",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    }
+  ]
 }

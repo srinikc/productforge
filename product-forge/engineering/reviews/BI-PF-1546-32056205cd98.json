@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1546",
+  "sha": "32056205cd98",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-19T11:06:11.189166+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+  "findings": {
+    "BLOCKER": [
+      "AC-3 requires \"store registry evidence is present\"; neither spec_pack nor design_pack references any store registry artifact/entry \u2014 only migration and test files \u2014 so AC-3 is unmet as designed.",
+      "AC-3 requires \"migration rollback requires a verified backup\"; rollout/rollback only say \"with backup\" with no verified backup/restore step, evidence, or restore test \u2014 data-loss exposure on 0026 down (guardrail 1)."
+    ],
+    "MAJOR": [
+      "C-1/C-2 set `tenant_test: 'N/A: tenant RLS migration'` while AC-2 requires rejecting cross-tenant collisions; runtime role posture (NOSUPERUSER/NOBYPASSRLS) and tenant binding are never proven (CL-011, guardrail 3).",
+      "C-5 uses `migrations/0025_...up.sql` as its own positive/negative/tenant \"test\" with evidence \"migration applied locally\" \u2014 not a fail-able test; AC-3's testability requirement is unsatisfied.",
+      "observability_runbook is APPLICABLE but cites only a design doc and a unit test; no runbook artifact, alert ownership, probe backoff/cooldown, or dependency-down behavior (CL-014, guardrail 2 SPOF/alert lead-time).",
+      "Guardrail 6: migration-interrupted/partial-apply recovery and rollback verification are not specified; \"Revert the change\" is not an operable rollback procedure.",
+      "`affected_files`, `affected_components`, `risks` are \"Not specified\" while controls reference concrete files \u2014 declared scope and traceability are incomplete for gate review."
+    ],
+    "MINOR": [
+      "FR-1/2/3 all map to the same single test file and design doc; per-AC evidence granularity is too coarse for independent verification.",
+      "`config_contract` is `{'N/A': 'reuse dispatcher options'}` without naming the reused options \u2014 drift risk against guardrail 10 reuse.",
+      "`nfr_slo` marked N/A while `nfr: bounded batch` imposes a performance bound with no stated value or measurement."
+    ],
+    "NIT": [
+      "`stop_conditions: ['transport implementation']` and `out_of_scope: ['Not specified.']` are ambiguous/placeholder phrasing.",
+      "`rollback: Revert the change` duplicates but conflicts in specificity with the design's \"run 0026 down with backup\" \u2014 consolidate to one authoritative statement."
+    ],
+    "SUMMARY": [
+      "Design covers backoff, DLQ, concurrency tests and metrics directionally, but AC-3 fails on two counts: no store-registry evidence and no verified backup/restore path for 0026.",
+      "Top risks: tenant-collision controls ship without tenant/role tests (CL-011), C-5's \"test\" is a migration file, and no ops runbook/alert ownership exists for dispatcher/worker/DB failure.",
+      "Gate should not pass until registry evidence, verified backup procedure, runtime role posture proof, and a real runbook artifact are added."
+    ]
+  }
+}
