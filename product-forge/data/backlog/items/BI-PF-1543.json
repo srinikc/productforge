@@ -65,7 +65,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Implementation control matrix and readiness checker"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 3, 'MINOR': 4, 'NIT': 3}"
   ],
   "risks": [
     "Not specified."
@@ -73,7 +73,9 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1543): sig:1a867a4208d154d4 (20 lines)"
+    "Design guardrails applied (BI-PF-1543): sig:1a867a4208d154d4 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=9243b2c77ce6\nBLOCKER:\n  - Declared affected_files is only `config/implementation-controls.json`, yet AC-2 requires `implementation_readiness_check` plus its tests; the checker script/test files are undeclared, so AC-2 cannot be delivered under this scope.\n  - AC-1/AC-2 require named fail-closed cases (missing matrix, placeholder, missing symbol, tenant/concurrency) but design_pack.failure_matrix lists only `EVIDENCE_MISSING` and test_matrix has only two generic \"focused tests\" rows — the AC is not met as specified.\n  - Language rule unaddressed: `implementation_readiness_check` is new shipped logic; design/verification imply pytest/Python without stating a tooling classification or Go implementation, risking a language-rule violation.\nMAJOR:\n  - config_contract declares `N/A: no new config on develop` while affected_files adds `config/implementation-controls.json`; the config contract must be reconciled or the item fails the config spec gate.\n  - CL-015 not satisfied: `ac_evidence` and `coverage` entries carry no candidate SHA, so Gate 2 evidence pinning will fail closed.\n  - Design guardrails checklist (reversibility/backup, availability/SPoF, authz-RLS posture, blast-radius/dry-run, invariants/ordering, tenant isolation) is not answered in the design pack, contrary to CL-008 which requires it before Gate 1.5.\n  - AC-1 requires positive/negative/tenant/concurrency test rows plus observability and evidence per AC, but the design has no per-AC row schema (symbol, test kinds, observability fields) and no definition of placeholder detection rules.\n  - `affected_components: [config]` omits the readiness-checker component, so ownership, review routing, and reuse of existing gate/script owners are undefined.\nMINOR:\n  - Observability is only \"focused tests\"; no log/metric or exit-code contract is specified for the checker, making production diagnosis of fail-closed runs difficult.\n  - No schema/version field for `implementation-controls.json`, so future matrix evolution lacks a compatibility and migration path.\n  - Rollback is \"Revert the change\" with no statement of how an interrupted/partial config edit is detected or recovered (checklist item 6).\n  - Dependency on BI-PF-1540 and the assumption \"develop has shared review decisions API\" are unverified and carry no failure behavior if absent.\nNIT:\n  - `out_of_scope`, `risks` are \"Not specified\" placeholders; fill them to keep the gate record self-describing.\n  - test_matrix could name concrete test ids instead of \"focused tests\" for traceability.\nSUMMARY:\n  - Verdict: not ready for Gate 1.5 — the approved ACs reference a checker and per-AC control rows that are absent from the declared file set, failure matrix, and test matrix.\n  - Top risks: undeclared deliverable files (AC-2 unreachable), config-contract contradiction, unpinned evidence SHA, and unanswered design guardrails (CL-008/CL-015).\n  - Re-check after the design declares the checker + tests, defines the control-row schema and placeholder rules, and pins evidence to a candidate SHA.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=98acbf7e275d\nBLOCKER:\n  - AC2 requires tests for placeholder and missing-symbol rejection; `tests/test_implementation_controls_checker.py` only covers accept, missing matrix, missing design pack, tooling controls and config keys — no placeholder test, no final-mode missing-symbol test.\n  - Final mode only validates symbols/tests/evidence that match `PATHLIKE`; a row with a bare symbol (e.g. `problems` or `BuildMatrix`) or a Go `pkg.Func` symbol never gets existence-checked, so \"declared symbols resolve in working tree\" can silently pass.\nMAJOR:\n  - `design_pack.py` gate applies the cutoff with `created_at >= cutoff`, so an item with missing/empty `created_at` skips enforcement entirely (fail-open), while `all_problems` fails closed on the same condition — inconsistent enforcement contract.\n  - AC coverage is count-based (`len(covered) < ac_count`), not membership-based: rows referencing non-existent AC ids (e.g. one AC, row `ac: \"AC-99\"`) pass the \"every AC has a control row\" AC.\n  - No test exercises final-mode path resolution at all (existing path accept + missing path reject), so the `--final` branch that AC2 names is untested.\nMINOR:\n  - `problems()` computes `cfg = root / \"config\" / \"implementation-controls.json\"` but never uses it; config is re-read via `_config()`, and the surrounding `try/except` is dead for `cfg`.\n  - `design_pack.py` imports `implementation_readiness_check` twice and relies on implicit `sys.path` including `scripts/dev`; import failure is reported as a config error, conflating environment setup with control failure.\n  - `_config()` swallows all exceptions returning `{}`, so a corrupt config in `--item` mode yields only \"no checks\" rather than a precise unreadable-config error (the `all_problems` path handles it better).\n  - Final-mode N/A reason check only inspects `negative_test`/`tenant_test`/`concurrency_test`; `observability` N/A-without-reason (explicitly required by design) is not validated.\nNIT:\n  - Identical \"Mandatory 360? Design & Functional Specification\" block is triplicated across `DESIGN-PACK.md`, `FUNCTIONAL-SPEC.md`, `SPEC-PACK.md` — three places to keep in sync.\n  - \"360?\" appears to be a mangled `360°` encoding in all three templates.\n  - Test wrapper re-injects test functions via `globals()` instead of importing/collection by path — fragile if the source module is renamed.\nSUMMARY:\n  - Verdict: does not yet satisfy AC2 — the required placeholder and missing-symbol tests are absent, and final-mode symbol validation is bypassable for non-path-like symbols.\n  - Secondary risks: fail-open cutoff handling on missing `created_at`, count-based AC coverage that accepts wrong AC ids, and zero test coverage of the `--final` branch.\n  - Enforcement logic and templates otherwise align with the approved design and language rule (tooling Python).\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -168,7 +170,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T23:21:52.477225",
-  "updated_at": "2026-11-19T10:04:54.523836",
+  "updated_at": "2026-11-19T12:37:53.921921",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -550,5 +552,349 @@
     "needs_api": false,
     "reason": "Lifecycle record only; code/API belongs to the item branch.",
     "routes": []
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "efc13cbb3d127c51adb41a8d28da5ed5e4168ebd",
+      "review_sha": "9243b2c77ce6",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T07:06:58.408427+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "efc13cbb3d127c51adb41a8d28da5ed5e4168ebd",
+      "findings": {
+        "BLOCKER": [
+          "Declared affected_files is only `config/implementation-controls.json`, yet AC-2 requires `implementation_readiness_check` plus its tests; the checker script/test files are undeclared, so AC-2 cannot be delivered under this scope.",
+          "AC-1/AC-2 require named fail-closed cases (missing matrix, placeholder, missing symbol, tenant/concurrency) but design_pack.failure_matrix lists only `EVIDENCE_MISSING` and test_matrix has only two generic \"focused tests\" rows — the AC is not met as specified.",
+          "Language rule unaddressed: `implementation_readiness_check` is new shipped logic; design/verification imply pytest/Python without stating a tooling classification or Go implementation, risking a language-rule violation."
+        ],
+        "MAJOR": [
+          "config_contract declares `N/A: no new config on develop` while affected_files adds `config/implementation-controls.json`; the config contract must be reconciled or the item fails the config spec gate.",
+          "CL-015 not satisfied: `ac_evidence` and `coverage` entries carry no candidate SHA, so Gate 2 evidence pinning will fail closed.",
+          "Design guardrails checklist (reversibility/backup, availability/SPoF, authz-RLS posture, blast-radius/dry-run, invariants/ordering, tenant isolation) is not answered in the design pack, contrary to CL-008 which requires it before Gate 1.5.",
+          "AC-1 requires positive/negative/tenant/concurrency test rows plus observability and evidence per AC, but the design has no per-AC row schema (symbol, test kinds, observability fields) and no definition of placeholder detection rules.",
+          "`affected_components: [config]` omits the readiness-checker component, so ownership, review routing, and reuse of existing gate/script owners are undefined."
+        ],
+        "MINOR": [
+          "Observability is only \"focused tests\"; no log/metric or exit-code contract is specified for the checker, making production diagnosis of fail-closed runs difficult.",
+          "No schema/version field for `implementation-controls.json`, so future matrix evolution lacks a compatibility and migration path.",
+          "Rollback is \"Revert the change\" with no statement of how an interrupted/partial config edit is detected or recovered (checklist item 6).",
+          "Dependency on BI-PF-1540 and the assumption \"develop has shared review decisions API\" are unverified and carry no failure behavior if absent."
+        ],
+        "NIT": [
+          "`out_of_scope`, `risks` are \"Not specified\" placeholders; fill them to keep the gate record self-describing.",
+          "test_matrix could name concrete test ids instead of \"focused tests\" for traceability."
+        ],
+        "SUMMARY": [
+          "Verdict: not ready for Gate 1.5 — the approved ACs reference a checker and per-AC control rows that are absent from the declared file set, failure matrix, and test matrix.",
+          "Top risks: undeclared deliverable files (AC-2 unreachable), config-contract contradiction, unpinned evidence SHA, and unanswered design guardrails (CL-008/CL-015).",
+          "Re-check after the design declares the checker + tests, defines the control-row schema and placeholder rules, and pins evidence to a candidate SHA."
+        ]
+      },
+      "evidence": "BI-PF-1543-9243b2c77ce6.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "efc13cbb3d127c51adb41a8d28da5ed5e4168ebd",
+      "review_sha": "98acbf7e275d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T07:07:37.609164+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "efc13cbb3d127c51adb41a8d28da5ed5e4168ebd",
+      "findings": {
+        "BLOCKER": [
+          "AC2 requires tests for placeholder and missing-symbol rejection; `tests/test_implementation_controls_checker.py` only covers accept, missing matrix, missing design pack, tooling controls and config keys — no placeholder test, no final-mode missing-symbol test.",
+          "Final mode only validates symbols/tests/evidence that match `PATHLIKE`; a row with a bare symbol (e.g. `problems` or `BuildMatrix`) or a Go `pkg.Func` symbol never gets existence-checked, so \"declared symbols resolve in working tree\" can silently pass."
+        ],
+        "MAJOR": [
+          "`design_pack.py` gate applies the cutoff with `created_at >= cutoff`, so an item with missing/empty `created_at` skips enforcement entirely (fail-open), while `all_problems` fails closed on the same condition — inconsistent enforcement contract.",
+          "AC coverage is count-based (`len(covered) < ac_count`), not membership-based: rows referencing non-existent AC ids (e.g. one AC, row `ac: \"AC-99\"`) pass the \"every AC has a control row\" AC.",
+          "No test exercises final-mode path resolution at all (existing path accept + missing path reject), so the `--final` branch that AC2 names is untested."
+        ],
+        "MINOR": [
+          "`problems()` computes `cfg = root / \"config\" / \"implementation-controls.json\"` but never uses it; config is re-read via `_config()`, and the surrounding `try/except` is dead for `cfg`.",
+          "`design_pack.py` imports `implementation_readiness_check` twice and relies on implicit `sys.path` including `scripts/dev`; import failure is reported as a config error, conflating environment setup with control failure.",
+          "`_config()` swallows all exceptions returning `{}`, so a corrupt config in `--item` mode yields only \"no checks\" rather than a precise unreadable-config error (the `all_problems` path handles it better).",
+          "Final-mode N/A reason check only inspects `negative_test`/`tenant_test`/`concurrency_test`; `observability` N/A-without-reason (explicitly required by design) is not validated."
+        ],
+        "NIT": [
+          "Identical \"Mandatory 360? Design & Functional Specification\" block is triplicated across `DESIGN-PACK.md`, `FUNCTIONAL-SPEC.md`, `SPEC-PACK.md` — three places to keep in sync.",
+          "\"360?\" appears to be a mangled `360°` encoding in all three templates.",
+          "Test wrapper re-injects test functions via `globals()` instead of importing/collection by path — fragile if the source module is renamed."
+        ],
+        "SUMMARY": [
+          "Verdict: does not yet satisfy AC2 — the required placeholder and missing-symbol tests are absent, and final-mode symbol validation is bypassable for non-path-like symbols.",
+          "Secondary risks: fail-open cutoff handling on missing `created_at`, count-based AC coverage that accepts wrong AC ids, and zero test coverage of the `--final` branch.",
+          "Enforcement logic and templates otherwise align with the approved design and language rule (tooling Python)."
+        ]
+      },
+      "evidence": "BI-PF-1543-98acbf7e275d.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:59164caf8884e8b6": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:0a6db9f63940f0be": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:be9509280c885840": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:6e6abd0fa4522162": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:dd2deedbea614e11": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:a2debb71ac3f9d2a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:d709e82bf16dc7ab": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:cf171d8d36fac32b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:432409c1987fe448": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:c9331941c1598cee": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:67ce2678c919a58b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:75b6969b3a873e21": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:e1e3438c38955368": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      },
+      "sig:cbbbab60f0cf112a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the split checker deliverable; broader policy tracked separately."
+      }
+    },
+    "diff": {
+      "sig:75199ca6c6aa40a5": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:1402d1d9dd18c22e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:918c39f5c9116949": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:9f290dd9e06c04f0": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:fe55b9c0cee750b5": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:e94c3f28405ae96f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:1843f670d43facdf": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:2b88e10831d58241": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:4393d4bebe9de50c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:a82c82eac959eaa9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:31d6b41f9c7f0be7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      },
+      "sig:557e1224838e9908": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split checker deliverable."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:75199ca6c6aa40a5",
+      "finding": "AC2 requires tests for placeholder and missing-symbol rejection; `tests/test_implementation_controls_checker.py` only covers accept, missing matrix, missing design pack, tooling controls and config keys — no placeholder test, no final-mode missing-symbol test.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls_checker.py"
+      ],
+      "rollback": "Revert BI-PF-1543.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:1402d1d9dd18c22e",
+      "finding": "Final mode only validates symbols/tests/evidence that match `PATHLIKE`; a row with a bare symbol (e.g. `problems` or `BuildMatrix`) or a Go `pkg.Func` symbol never gets existence-checked, so \"declared symbols resolve in working tree\" can silently pass.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls_checker.py"
+      ],
+      "rollback": "Revert BI-PF-1543.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:918c39f5c9116949",
+      "finding": "`design_pack.py` gate applies the cutoff with `created_at >= cutoff`, so an item with missing/empty `created_at` skips enforcement entirely (fail-open), while `all_problems` fails closed on the same condition — inconsistent enforcement contract.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls_checker.py"
+      ],
+      "rollback": "Revert BI-PF-1543.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:9f290dd9e06c04f0",
+      "finding": "AC coverage is count-based (`len(covered) < ac_count`), not membership-based: rows referencing non-existent AC ids (e.g. one AC, row `ac: \"AC-99\"`) pass the \"every AC has a control row\" AC.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls_checker.py"
+      ],
+      "rollback": "Revert BI-PF-1543.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:fe55b9c0cee750b5",
+      "finding": "No test exercises final-mode path resolution at all (existing path accept + missing path reject), so the `--final` branch that AC2 names is untested.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls_checker.py"
+      ],
+      "rollback": "Revert BI-PF-1543.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:75199ca6c6aa40a5",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls_checker.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json"
+    },
+    {
+      "finding_sig": "sig:1402d1d9dd18c22e",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls_checker.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json"
+    },
+    {
+      "finding_sig": "sig:918c39f5c9116949",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls_checker.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json"
+    },
+    {
+      "finding_sig": "sig:9f290dd9e06c04f0",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls_checker.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json"
+    },
+    {
+      "finding_sig": "sig:fe55b9c0cee750b5",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_implementation_controls_checker.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls_checker.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1543-98acbf7e275d.json"
+    }
+  ]
 }

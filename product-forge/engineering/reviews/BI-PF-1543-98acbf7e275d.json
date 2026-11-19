@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1543",
+  "sha": "98acbf7e275d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T07:07:37.609164+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "efc13cbb3d127c51adb41a8d28da5ed5e4168ebd",
+  "findings": {
+    "BLOCKER": [
+      "AC2 requires tests for placeholder and missing-symbol rejection; `tests/test_implementation_controls_checker.py` only covers accept, missing matrix, missing design pack, tooling controls and config keys \u2014 no placeholder test, no final-mode missing-symbol test.",
+      "Final mode only validates symbols/tests/evidence that match `PATHLIKE`; a row with a bare symbol (e.g. `problems` or `BuildMatrix`) or a Go `pkg.Func` symbol never gets existence-checked, so \"declared symbols resolve in working tree\" can silently pass."
+    ],
+    "MAJOR": [
+      "`design_pack.py` gate applies the cutoff with `created_at >= cutoff`, so an item with missing/empty `created_at` skips enforcement entirely (fail-open), while `all_problems` fails closed on the same condition \u2014 inconsistent enforcement contract.",
+      "AC coverage is count-based (`len(covered) < ac_count`), not membership-based: rows referencing non-existent AC ids (e.g. one AC, row `ac: \"AC-99\"`) pass the \"every AC has a control row\" AC.",
+      "No test exercises final-mode path resolution at all (existing path accept + missing path reject), so the `--final` branch that AC2 names is untested."
+    ],
+    "MINOR": [
+      "`problems()` computes `cfg = root / \"config\" / \"implementation-controls.json\"` but never uses it; config is re-read via `_config()`, and the surrounding `try/except` is dead for `cfg`.",
+      "`design_pack.py` imports `implementation_readiness_check` twice and relies on implicit `sys.path` including `scripts/dev`; import failure is reported as a config error, conflating environment setup with control failure.",
+      "`_config()` swallows all exceptions returning `{}`, so a corrupt config in `--item` mode yields only \"no checks\" rather than a precise unreadable-config error (the `all_problems` path handles it better).",
+      "Final-mode N/A reason check only inspects `negative_test`/`tenant_test`/`concurrency_test`; `observability` N/A-without-reason (explicitly required by design) is not validated."
+    ],
+    "NIT": [
+      "Identical \"Mandatory 360? Design & Functional Specification\" block is triplicated across `DESIGN-PACK.md`, `FUNCTIONAL-SPEC.md`, `SPEC-PACK.md` \u2014 three places to keep in sync.",
+      "\"360?\" appears to be a mangled `360\u00b0` encoding in all three templates.",
+      "Test wrapper re-injects test functions via `globals()` instead of importing/collection by path \u2014 fragile if the source module is renamed."
+    ],
+    "SUMMARY": [
+      "Verdict: does not yet satisfy AC2 \u2014 the required placeholder and missing-symbol tests are absent, and final-mode symbol validation is bypassable for non-path-like symbols.",
+      "Secondary risks: fail-open cutoff handling on missing `created_at`, count-based AC coverage that accepts wrong AC ids, and zero test coverage of the `--final` branch.",
+      "Enforcement logic and templates otherwise align with the approved design and language rule (tooling Python)."
+    ]
+  }
+}
