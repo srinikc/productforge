@@ -37,7 +37,9 @@ func (s *EventStore) EnforceOutboxBound(ctx context.Context, tenant string, maxP
 	if err != nil {
 		return err
 	}
+	s.metrics.OutboxRows(tenant, "pending", n)
 	if n > maxPending {
+		s.metrics.OutboxBoundExceeded(tenant)
 		log.Printf("EVENT_OUTBOX_BOUND_EXCEEDED tenant=%s pending=%d max=%d", tenant, n, maxPending)
 		return fmt.Errorf("%w: pending=%d max=%d", ErrOutboxBound, n, maxPending)
 	}
@@ -64,5 +66,8 @@ func (s *EventStore) PruneOutbox(ctx context.Context, tenant string, retention t
 			AND created_at < now() - $2::interval`, tenant, fmt.Sprintf("%d seconds", int(retention.Seconds())))
 		return err
 	})
+	if err == nil {
+		s.metrics.OutboxPruned(tenant, n)
+	}
 	return n, err
 }

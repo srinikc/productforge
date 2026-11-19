@@ -4,7 +4,7 @@
 - **Status:** approved
 - **Owner:** Srinikc
 - **Source:** BI-EVENTS-1539
-- **Functional SHA:** 542eaf3a5173
+- **Functional SHA:** 398ed853b17c
 - **Linked design:** 
 
 ## 1. Outcome
@@ -88,8 +88,8 @@ outbox_rows_current and bound counter
 ## 15. Traceability
 | FR | Design | Test | Evidence |
 |---|---|---|---|
-| FR-1 | docs/IMPLEMENTATION-CONTROLS-DESIGN.md | tests/test_review_material_change.py | tests/test_review_material_change.py |
-| FR-2 | docs/IMPLEMENTATION-CONTROLS-DESIGN.md | tests/test_review_material_change.py | tests/test_review_material_change.py |
+| FR-1 | docs/IMPLEMENTATION-CONTROLS-DESIGN.md | go/edpdata/event_metrics_test.go | go/edpdata/event_metrics_test.go |
+| FR-2 | docs/IMPLEMENTATION-CONTROLS-DESIGN.md | go/edpdata/event_metrics_test.go | go/edpdata/event_metrics_test.go |
 
 ## 16. Open questions
 - No open questions: implementation follows the existing metrics owner.

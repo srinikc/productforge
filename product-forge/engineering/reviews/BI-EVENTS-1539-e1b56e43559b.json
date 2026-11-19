@@ -1,0 +1,39 @@
+{
+  "item": "BI-EVENTS-1539",
+  "sha": "e1b56e43559b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T09:15:27.629015+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "5149c260d175f7a498fbb00eb8d58952ab14479f",
+  "findings": {
+    "BLOCKER": [
+      "AC-1 not met: no real metrics implementation or registration anywhere in the diff \u2014 `EventMetrics` only has a `nopEventMetrics` default and no shipped caller of `WithMetrics`, so `outbox_rows_current` / `EVENT_OUTBOX_BOUND_EXCEEDED` are never exposed to any scraper (spec's failure matrix: \"missing signal blocks release\").",
+      "AC-1 \"owner and alert threshold documented\" unmet: the diff contains no documentation change (no runbook/design doc) stating the metric owner or the alert threshold; `docs/EVENTING-ALERTING-SSOT-DESIGN.md` is cited as evidence but is not in the diff."
+    ],
+    "MAJOR": [
+      "New `EventMetrics` interface invented inside `edpdata` instead of reusing the existing Prometheus-compatible observability owner the design assumes (\"Use existing metrics owner\", CL-001 single-writer/ownership) \u2014 parallel metric owners and duplicated registration risk.",
+      "Gauge is emitted only as a side effect inside `EnforceOutboxBound`, not via a scrape-time collector: tenants/paths that don't run bound enforcement report no or stale gauge, so \"when metrics are scraped, then outbox rows are visible\" fails.",
+      "Only the hardcoded status `\"pending\"` label is ever produced; AC-1 requires the gauge by tenant/status, other statuses are never reported.",
+      "Tests only assert calls into a local `recordingMetrics` stub; nothing verifies the real owner exposes an `outbox_rows_current` gauge or a counter named/evented `EVENT_OUTBOX_BOUND_EXCEEDED`, so AC \"tested\" is against a fake contract.",
+      "AC-2 \"not ad-hoc stderr logging\": `log.Printf(\"EVENT_OUTBOX_BOUND_EXCEEDED ...\")` is retained in `EnforceOutboxBound` alongside the new metric, leaving two divergent emission paths for the same signal."
+    ],
+    "MINOR": [
+      "`OutboxBoundExceeded(tenant)` discards pending/max values carried by the log line, so the structured signal is strictly less diagnosable than the log it is meant to replace.",
+      "`ProjectionFailed(tenant)` drops the error/reason; the detail remains only in the response body (`projection_error`), reducing post-hoc diagnosis.",
+      "`WithMetrics` mutates a live `EventStore` field without synchronization; racy if attached after the store is serving (interface itself demands concurrency safety).",
+      "`OutboxPruned` is skipped whenever `err != nil`, so partially-applied prunes (n > 0 with error) produce no signal."
+    ],
+    "NIT": [
+      "`recordingMetrics` counters are not concurrency-safe despite the interface contract; harmless today but will mask races if tests go parallel.",
+      "`nopEventMetrics` methods could be grouped, and `RecordProjectionFailure` is a one-line wrapper only used at a single call site."
+    ],
+    "SUMMARY": [
+      "Direction (interface-based observability owner in Go, tenant-scoped signals, unit tests) is right, but the AC is not delivered: no real metric implementation/wiring, no owner/threshold documentation, and gauge semantics are push-on-demand rather than scrape-time.",
+      "Top risks: release-blocking \"missing signal\", a second metrics owner alongside the assumed Prometheus one, and tests that only prove the stub contract.",
+      "Recommend blocking until a real owner is wired, documentation lands, and tests assert the exported metric names/labels."
+    ]
+  }
+}

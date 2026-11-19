@@ -245,6 +245,7 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 		projPath := projectionPath(tenant)
 		result := map[string]any{"seq": recorded.Seq, "record": ev}
 		if err := st.RegenerateProjection(ctx, tenant, projPath); err != nil {
+			st.RecordProjectionFailure(tenant)
 			result["projection_error"] = err.Error()
 		}
 		return result, ""

@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-19T13:56:43 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-19T14:30:36 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 138  |  **Closed:** 616
+- **Open:** 135  |  **Closed:** 619
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
-- `new`: 135
+- `new`: 132
 
-### new, by category (135)
+### new, by category (132)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -90,7 +90,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (85)
+**Wiring / tech-debt / API** (82)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -175,9 +175,6 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
-| BI-PF-1538 | Should | task | Mandatory implementation controls and tech-stack readiness gates | Prevent happy-path-only implementation and fix-induced regressions by making every AC/control, test, tenant/RL... |
-| BI-PF-1541 | Should | feature | Review decision guardrail runbook and alerting evidence | Review decision guardrail runbook and alerting evidence |
-| BI-PF-1545 | Should | feature | Delivery state and RCCA gate | Delivery state and RCCA gate |
 
 ---
 
@@ -377,5 +374,5 @@
 ---
 
 ## Totals
-- backend: 138 open / 616 closed
+- backend: 135 open / 619 closed
 - dashboard: 146 open / 3 closed
