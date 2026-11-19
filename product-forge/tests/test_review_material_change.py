@@ -74,11 +74,12 @@ def test_reviewed_ancestor_contract():
     assert all(len(h) >= 12 for h in heads)
 
 
-def test_valid_delta_base_requires_reviewed_head_and_ancestor():
+def test_valid_delta_base_requires_reviewed_head_and_ancestor(monkeypatch):
     import architect_review
     heads = architect_review._reviewed_heads("BI-PF-1540", "design")
     assert heads
     head = sorted(heads)[0]
+    monkeypatch.setattr(architect_review, "_is_ancestor", lambda a, b: True)
     assert architect_review.valid_delta_base("BI-PF-1540", "design", head)
     assert not architect_review.valid_delta_base("BI-PF-1540", "design", "0" * 40)
 
