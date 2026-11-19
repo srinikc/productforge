@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1269",
+  "sha": "6dce05cf59d1",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-19T10:03:25.784896+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "c30d4425733ddb5ca360a9ff865dc684fd2261e0",
+  "findings": {
+    "BLOCKER": [
+      "affected_files lists only `store-registry.json`, yet the contract ships `migrations/0025_event_subscriptions_dispatch.up.sql`, its down file, and `go/edpdata/event_dispatcher.go`; the declared change surface does not match the approved artifacts (traceability/rollback cannot be verified against declared files).",
+      "CL-015: `ac_evidence`/`coverage` entries for AC-1 and AC-2 carry no candidate SHA; evidence is unpinned, so Gate-2 verification of the exactly-once-effective and single-writer ACs is unprovable.",
+      "Single-writer invariant (AC-2/FR-2) has no stated enforcement mechanism (lease/advisory lock/ownership gate) for `event_subscriptions` upserts; \"one writer\" is asserted, not designed or tested, so the P0 AC cannot be met as specified."
+    ],
+    "MAJOR": [
+      "AC-1 \"exactly-once-effective\" depends on idempotent transport behavior, but transports (E5) are out of scope; the design must state how the AC is satisfied with a fake/adapter contract, otherwise the AC is untestable end-to-end.",
+      "Dispatcher cursor/checkpoint persistence is unspecified; where the read cursor lives risks becoming a de-facto second event store, conflicting with the \"no second event store\" data rule.",
+      "Rollback is inconsistent: gate says \"Revert the change\", spec says \"drop new tables\" / run 0025 down \u2014 destructive rollback drops `event_deliveries`/`event_delivery_dlq`, losing retained delivery and DLQ data with no stated backup verification step (guardrail 1).",
+      "No ordering/idempotency invariant statement for cursor advancement vs delivery-row commit (at-least-once window), and no migration-interrupted recovery path (guardrails 5, 6).",
+      "`affected_components`, `risks` are \"Not specified\"; failure/blast-radius (scheduler/worker/DB down, DLQ growth, alert ownership per CL-014) is not addressed."
+    ],
+    "MINOR": [
+      "Observability is only \"EventMetrics signals + delivery status\": no concrete metric names/labels (subscription_id, outcome, retry age, DLQ depth) or runbook pointer for diagnosing stuck dispatch.",
+      "Authz boundary for the operator upsert path (FR-2) is not defined beyond \"tenant-scoped store\"; no explicit statement that runtime DB roles are subject to RLS (no BYPASSRLS).",
+      "`data_lifecycle` says \"DLQ retained\" with no retention/redaction policy or cleanup owner.",
+      "Test matrix lists only `go test ./...`; no explicit concurrency test or backoff/DLQ-bound test named in coverage despite being in `approach`."
+    ],
+    "NIT": [
+      "`config_contract: 'N/A': 'no new env'` \u2014 but bounded batch size and retry/backoff schedule need a documented default; \"no new env\" should say where those are fixed.",
+      "Traceability maps both FR-1 and FR-2 to the same single test file; separate evidence per AC would tighten Gate-2 verification."
+    ],
+    "SUMMARY": [
+      "Design is directionally right (reuse edpdata, additive migration, no second store) but not review-ready: declared files omit the migration and dispatcher, AC evidence lacks candidate SHA, and the single-writer invariant has no enforcement mechanism.",
+      "Top risks: unpinned/unverifiable AC evidence, destructive rollback losing DLQ/delivery data, and exactly-once-effective claimed while transports are out of scope.",
+      "Require correction of file/SHA traceability and an explicit writer-arbitration + cursor-storage design before Gate 1.5."
+    ]
+  }
+}

@@ -68,15 +68,16 @@
     "at": ""
   },
   "verification": [
-    "A registered subscription receives matching events exactly-once-effective; failures retry then DLQ.",
-    "Registry has one writer; no second event store."
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 5, 'MINOR': 5, 'NIT': 3}"
   ],
   "risks": [
     "Not specified."
   ],
   "rollback": "Revert the change.",
   "evidence": [
-    "pending"
+    "pending",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6dce05cf59d1\nBLOCKER:\n  - affected_files lists only `store-registry.json`, yet the contract ships `migrations/0025_event_subscriptions_dispatch.up.sql`, its down file, and `go/edpdata/event_dispatcher.go`; the declared change surface does not match the approved artifacts (traceability/rollback cannot be verified against declared files).\n  - CL-015: `ac_evidence`/`coverage` entries for AC-1 and AC-2 carry no candidate SHA; evidence is unpinned, so Gate-2 verification of the exactly-once-effective and single-writer ACs is unprovable.\n  - Single-writer invariant (AC-2/FR-2) has no stated enforcement mechanism (lease/advisory lock/ownership gate) for `event_subscriptions` upserts; \"one writer\" is asserted, not designed or tested, so the P0 AC cannot be met as specified.\nMAJOR:\n  - AC-1 \"exactly-once-effective\" depends on idempotent transport behavior, but transports (E5) are out of scope; the design must state how the AC is satisfied with a fake/adapter contract, otherwise the AC is untestable end-to-end.\n  - Dispatcher cursor/checkpoint persistence is unspecified; where the read cursor lives risks becoming a de-facto second event store, conflicting with the \"no second event store\" data rule.\n  - Rollback is inconsistent: gate says \"Revert the change\", spec says \"drop new tables\" / run 0025 down — destructive rollback drops `event_deliveries`/`event_delivery_dlq`, losing retained delivery and DLQ data with no stated backup verification step (guardrail 1).\n  - No ordering/idempotency invariant statement for cursor advancement vs delivery-row commit (at-least-once window), and no migration-interrupted recovery path (guardrails 5, 6).\n  - `affected_components`, `risks` are \"Not specified\"; failure/blast-radius (scheduler/worker/DB down, DLQ growth, alert ownership per CL-014) is not addressed.\nMINOR:\n  - Observability is only \"EventMetrics signals + delivery status\": no concrete metric names/labels (subscription_id, outcome, retry age, DLQ depth) or runbook pointer for diagnosing stuck dispatch.\n  - Authz boundary for the operator upsert path (FR-2) is not defined beyond \"tenant-scoped store\"; no explicit statement that runtime DB roles are subject to RLS (no BYPASSRLS).\n  - `data_lifecycle` says \"DLQ retained\" with no retention/redaction policy or cleanup owner.\n  - Test matrix lists only `go test ./...`; no explicit concurrency test or backoff/DLQ-bound test named in coverage despite being in `approach`.\nNIT:\n  - `config_contract: 'N/A': 'no new env'` — but bounded batch size and retry/backoff schedule need a documented default; \"no new env\" should say where those are fixed.\n  - Traceability maps both FR-1 and FR-2 to the same single test file; separate evidence per AC would tighten Gate-2 verification.\nSUMMARY:\n  - Design is directionally right (reuse edpdata, additive migration, no second store) but not review-ready: declared files omit the migration and dispatcher, AC evidence lacks candidate SHA, and the single-writer invariant has no enforcement mechanism.\n  - Top risks: unpinned/unverifiable AC evidence, destructive rollback losing DLQ/delivery data, and exactly-once-effective claimed while transports are out of scope.\n  - Require correction of file/SHA traceability and an explicit writer-arbitration + cursor-storage design before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=05e88ea288d0\nBLOCKER:\n  - Approved `affected_files: ['store-registry.json']` and in_scope \"Subscription store registered in store-registry.json\" — the diff never touches store-registry.json; the registry registration/ownership entry (AC-2 evidence) is absent.\n  - No test exercises `DispatchOnce` at all: design requires \"Retry/DLQ test; dedupe test; concurrency test\", yet event_dispatcher_test.go only covers matching/backoff/validation/defaults, so AC-1 (exactly-once-effective, retry→DLQ) is not demonstrably met or fail-able.\nMAJOR:\n  - Backoff is not enforced: `retryDelivery` sets `available_at`, but `DispatchOnce` re-reads purely from `last_seq` cursor and never filters on `available_at`/`status`, so retries fire immediately on the next pass and `idx_event_deliveries_attention` is dead weight.\n  - Duplicate skip does not advance the cursor: if a delivery row exists as `failed` with `seq > last_seq` (crash between `finishDelivery(false)` and `dlq`), `duplicate=true` → `Skipped++` with no cursor advance → permanently stuck stream, events never DLQ'd (AC-1 failure path).\n  - No concurrency control despite \"concurrency test\" in the approved approach: no `FOR UPDATE`/advisory lock, and `beginDelivery` treats existing `processing` rows as non-duplicates, so two passes can both deliver the same event, defeating the dedupe/exactly-once-effective intent.\n  - Design in_scope mandates \"retry/backoff -> core/dead_letter_queue\"; implementation invents a new `event_delivery_dlq` table instead of reusing the existing owner (CL-001 reuse/single-writer).\n  - Observability contract (\"EventMetrics signals\", \"EventMetrics + delivery status\") is unmet: no metrics or logs are emitted anywhere in the dispatcher; only an in-memory `DispatchStats` return.\nMINOR:\n  - `Subscription.Filter` is persisted and migrated but never applied in `matchesSubscription`, so registered filter semantics silently do nothing.\n  - `UpsertSubscription`'s `ON CONFLICT ... WHERE tenant_id=EXCLUDED.tenant_id` silently no-ops on a cross-tenant id collision while returning success to the caller.\n  - `event_deliveries` has no `created_at`, so the declared \"deliveries retained / DLQ retained\" lifecycle has no timestamp to enforce retention against.\n  - First retry aborts the whole pass (`return st, nil`), head-of-line blocking the remaining bounded batch behind one failing event.\n  - `beginDelivery` can return `attempts=0, duplicate=false` when the conflict row is missing, proceeding to deliver with no attempt recorded.\nNIT:\n  - `finishDelivery` declares redundant `status`/`delivered` variables holding the same value (readability only).\n  - Cursor-advance SQL is duplicated verbatim in `advanceCursor`, `finishDelivery`, and `dlq` — a single helper would guard the `last_seq` invariant in one place.\n  - `beginDelivery` reads attempts/status without a lock or `RETURNING`, leaving a narrow window between conflict-check and update.\nSUMMARY:\n  - Solid additive schema with RLS and a Go implementation per the language rule, but the two acceptance gates are not evidenced: the approved store-registry.json change is missing and no test drives dispatch/retry/DLQ/dedupe/concurrency.\n  - Top risks: an unenforced backoff (`available_at` ignored) and a duplicate-skip path that can stall the cursor forever, plus no concurrency guard on delivery.\n  - Design deviations on DLQ ownership (core/dead_letter_queue vs new table) and missing EventMetrics must be reconciled before this can close AC-1/AC-2.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "design",
@@ -171,12 +172,652 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:13.621978",
-  "updated_at": "2026-10-15T19:52:12.527792",
+  "updated_at": "2026-11-19T15:37:03.786853",
   "score": 0.31,
   "_note": "analysis updated",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
+    "reason": "Dispatcher/store only; no public API in this item.",
     "routes": []
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1269",
+    "outcome": "Persisted subscriptions and at-least-once dispatch with dedupe/retry/DLQ.",
+    "actors": [
+      "dispatcher",
+      "operator"
+    ],
+    "scope": [
+      "subscription store",
+      "dispatcher"
+    ],
+    "non_goals": [
+      "transport implementations",
+      "alert policy"
+    ],
+    "assumptions": [
+      "event store and outbox exist"
+    ],
+    "dependencies": [
+      "BI-PF-1268",
+      "BI-EVENTS-1539"
+    ],
+    "domain": "eventing",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Subscriber registry and dispatcher",
+        "priority": "P0",
+        "source": "BI-PF-1269",
+        "preconditions": "Event authority and outbox are deployed.",
+        "trigger": "dispatcher pass runs",
+        "inputs": [
+          "subscription rows",
+          "events cursor"
+        ],
+        "outputs": [
+          "delivered/retried/DLQ outcomes"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant-scoped store",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "one event store"
+        ],
+        "edge_cases": [
+          "duplicate delivery"
+        ],
+        "acceptance": [
+          "Given a matching event, when dispatched, then it is delivered once-effective and failures retry then DLQ."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Single-writer registry",
+        "priority": "P0",
+        "source": "BI-PF-1269",
+        "preconditions": "Event authority and outbox are deployed.",
+        "trigger": "subscription is upserted",
+        "inputs": [
+          "subscription payload"
+        ],
+        "outputs": [
+          "persisted subscription"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant-scoped store",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "one event store"
+        ],
+        "edge_cases": [
+          "duplicate delivery"
+        ],
+        "acceptance": [
+          "Given a subscription, when upserted, then the event store is the only writer and no second event store exists."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "dispatch",
+        "owner": "edpdata",
+        "failure": "retry then DLQ"
+      }
+    ],
+    "config_contract": {
+      "N/A": "no new env"
+    },
+    "nfr": [
+      "bounded batch",
+      "at-least-once"
+    ],
+    "data_lifecycle": "deliveries retained; DLQ retained",
+    "compatibility": "additive migration",
+    "rollback": "drop new tables",
+    "observability": "EventMetrics signals",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_test.go"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: transports are out of scope."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "58d067a73273"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1269.md",
+    "design_ref": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "eventing design",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "dispatch"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1269",
+        "reason": "no public API"
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "new tables",
+        "artifact": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0025_event_subscriptions_dispatch.up.sql"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1269",
+        "reason": "no new config"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1269",
+        "reason": "bounded batch"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "tenant RLS",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "additive migration",
+        "artifact": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0025_event_subscriptions_dispatch.up.sql"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "down migration",
+        "artifact": "migrations/0025_event_subscriptions_dispatch.down.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0025_event_subscriptions_dispatch.down.sql"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "metrics",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1269",
+        "reason": "no UI"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1269",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "dispatcher plan",
+        "artifact": "go/edpdata/event_dispatcher.go",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_test.go"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1269",
+        "reason": "tests",
+        "artifact": "go/edpdata/event_dispatcher_test.go",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_test.go"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "Subscriber registry and dispatcher",
+      "Single-writer registry"
+    ],
+    "invariants": [
+      "one event store",
+      "dedupe by subscription_id,event_id"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": {
+        "tables": [
+          "event_subscriptions",
+          "event_deliveries",
+          "event_delivery_dlq"
+        ]
+      },
+      "files": {
+        "dispatcher": "go/edpdata/event_dispatcher.go"
+      },
+      "config": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "delivery failure",
+        "behavior": "retry then DLQ",
+        "code": "DELIVERY_FAILED"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1268",
+      "BI-EVENTS-1539"
+    ],
+    "security": "tenant RLS on all tables",
+    "observability": "EventMetrics + delivery status",
+    "performance": "bounded batch limit",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "go test ./..."
+      }
+    ],
+    "rollout": "apply migration 0025 with backup",
+    "rollback": "run 0025 down after backup",
+    "decisions": [
+      "reuse edpdata, no second event store"
+    ],
+    "guardrails": [
+      "no transport implementation in this item"
+    ],
+    "learnings": [
+      "split from 1538"
+    ],
+    "design_areas": [
+      {
+        "area": "eventing",
+        "status": "APPLICABLE",
+        "reason": "dispatcher scope",
+        "sections": [
+          "dispatch"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1269.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_test.go"
+        ]
+      }
+    ],
+    "scope": [
+      "subscription store",
+      "dispatcher"
+    ],
+    "non_goals": [
+      "transports",
+      "alert policy"
+    ],
+    "runtime_contract": {
+      "trigger": "dispatcher pass",
+      "entrypoint": "edpdata.EventStore.DispatchOnce",
+      "call_sites": [
+        "worker"
+      ],
+      "adapter": "Transport interface",
+      "contract": "at-least-once + dedupe",
+      "failure_behavior": "retry then DLQ",
+      "observable_result": "DispatchStats + delivery rows"
+    },
+    "proof_plan": {
+      "failing_test": "go/edpdata/event_dispatcher_test.go",
+      "red_evidence": "matching/backoff/validation absent",
+      "green_evidence": "unit tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "go/edpdata/event_dispatcher_test.go"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "go/edpdata/event_dispatcher_test.go"
+      }
+    ],
+    "stop_conditions": [
+      "transport implementation requested"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "failure",
+        "control": "dispatcher reads cursor, dedupes by event_id, retries then DLQs",
+        "symbol": "go/edpdata/event_dispatcher.go:DispatchOnce",
+        "positive_test": "go/edpdata/event_dispatcher_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: dispatcher is tenant-scoped by RLS migration",
+        "concurrency_test": "N/A: single dispatcher pass per subscription",
+        "observability": "delivery status + metrics",
+        "evidence": "go test ./... in go/edpdata"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "observability",
+        "control": "delivery outcomes and projection/outbox signals emitted",
+        "symbol": "go/edpdata/event_metrics.go:EventMetrics",
+        "positive_test": "go/edpdata/event_metrics_test.go",
+        "negative_test": "go/edpdata/event_metrics_test.go",
+        "tenant_test": "N/A: dispatcher is tenant-scoped by RLS migration",
+        "concurrency_test": "N/A: single dispatcher pass per subscription",
+        "observability": "delivery status + metrics",
+        "evidence": "go test ./... in go/edpdata"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "config",
+        "control": "single-writer subscription upsert validates required fields",
+        "symbol": "go/edpdata/event_subscriptions.go:UpsertSubscription",
+        "positive_test": "go/edpdata/event_dispatcher_test.go::test_subscription_validation",
+        "negative_test": "go/edpdata/event_dispatcher_test.go::test_subscription_validation",
+        "tenant_test": "N/A: dispatcher is tenant-scoped by RLS migration",
+        "concurrency_test": "N/A: single dispatcher pass per subscription",
+        "observability": "delivery status + metrics",
+        "evidence": "go test ./... in go/edpdata"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "tenant RLS on subscriptions, deliveries and DLQ",
+        "symbol": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "positive_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "negative_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "tenant_test": "N/A: dispatcher is tenant-scoped by RLS migration",
+        "concurrency_test": "N/A: single dispatcher pass per subscription",
+        "observability": "delivery status + metrics",
+        "evidence": "migration applied locally"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "tenant",
+        "control": "all delivery tables are tenant-scoped with forced RLS",
+        "symbol": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "positive_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "negative_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "tenant_test": "N/A: dispatcher is tenant-scoped by RLS migration",
+        "concurrency_test": "N/A: single dispatcher pass per subscription",
+        "observability": "delivery status + metrics",
+        "evidence": "migration applied locally"
+      }
+    ],
+    "tech_stack_evidence": [
+      "go-format",
+      "go-vet",
+      "go-race",
+      "go-context-pool",
+      "go-errors",
+      "pg-transactions",
+      "pg-rls",
+      "pg-migration",
+      "object-store",
+      "api-auth-tenant",
+      "api-validation",
+      "config-fail-closed",
+      "observability",
+      "no-dead-code"
+    ]
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "c30d4425733ddb5ca360a9ff865dc684fd2261e0",
+      "review_sha": "6dce05cf59d1",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T10:03:25.784896+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "c30d4425733ddb5ca360a9ff865dc684fd2261e0",
+      "findings": {
+        "BLOCKER": [
+          "affected_files lists only `store-registry.json`, yet the contract ships `migrations/0025_event_subscriptions_dispatch.up.sql`, its down file, and `go/edpdata/event_dispatcher.go`; the declared change surface does not match the approved artifacts (traceability/rollback cannot be verified against declared files).",
+          "CL-015: `ac_evidence`/`coverage` entries for AC-1 and AC-2 carry no candidate SHA; evidence is unpinned, so Gate-2 verification of the exactly-once-effective and single-writer ACs is unprovable.",
+          "Single-writer invariant (AC-2/FR-2) has no stated enforcement mechanism (lease/advisory lock/ownership gate) for `event_subscriptions` upserts; \"one writer\" is asserted, not designed or tested, so the P0 AC cannot be met as specified."
+        ],
+        "MAJOR": [
+          "AC-1 \"exactly-once-effective\" depends on idempotent transport behavior, but transports (E5) are out of scope; the design must state how the AC is satisfied with a fake/adapter contract, otherwise the AC is untestable end-to-end.",
+          "Dispatcher cursor/checkpoint persistence is unspecified; where the read cursor lives risks becoming a de-facto second event store, conflicting with the \"no second event store\" data rule.",
+          "Rollback is inconsistent: gate says \"Revert the change\", spec says \"drop new tables\" / run 0025 down — destructive rollback drops `event_deliveries`/`event_delivery_dlq`, losing retained delivery and DLQ data with no stated backup verification step (guardrail 1).",
+          "No ordering/idempotency invariant statement for cursor advancement vs delivery-row commit (at-least-once window), and no migration-interrupted recovery path (guardrails 5, 6).",
+          "`affected_components`, `risks` are \"Not specified\"; failure/blast-radius (scheduler/worker/DB down, DLQ growth, alert ownership per CL-014) is not addressed."
+        ],
+        "MINOR": [
+          "Observability is only \"EventMetrics signals + delivery status\": no concrete metric names/labels (subscription_id, outcome, retry age, DLQ depth) or runbook pointer for diagnosing stuck dispatch.",
+          "Authz boundary for the operator upsert path (FR-2) is not defined beyond \"tenant-scoped store\"; no explicit statement that runtime DB roles are subject to RLS (no BYPASSRLS).",
+          "`data_lifecycle` says \"DLQ retained\" with no retention/redaction policy or cleanup owner.",
+          "Test matrix lists only `go test ./...`; no explicit concurrency test or backoff/DLQ-bound test named in coverage despite being in `approach`."
+        ],
+        "NIT": [
+          "`config_contract: 'N/A': 'no new env'` — but bounded batch size and retry/backoff schedule need a documented default; \"no new env\" should say where those are fixed.",
+          "Traceability maps both FR-1 and FR-2 to the same single test file; separate evidence per AC would tighten Gate-2 verification."
+        ],
+        "SUMMARY": [
+          "Design is directionally right (reuse edpdata, additive migration, no second store) but not review-ready: declared files omit the migration and dispatcher, AC evidence lacks candidate SHA, and the single-writer invariant has no enforcement mechanism.",
+          "Top risks: unpinned/unverifiable AC evidence, destructive rollback losing DLQ/delivery data, and exactly-once-effective claimed while transports are out of scope.",
+          "Require correction of file/SHA traceability and an explicit writer-arbitration + cursor-storage design before Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1269-6dce05cf59d1.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "c30d4425733ddb5ca360a9ff865dc684fd2261e0",
+      "review_sha": "05e88ea288d0",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T10:05:20.456364+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "c30d4425733ddb5ca360a9ff865dc684fd2261e0",
+      "findings": {
+        "BLOCKER": [
+          "Approved `affected_files: ['store-registry.json']` and in_scope \"Subscription store registered in store-registry.json\" — the diff never touches store-registry.json; the registry registration/ownership entry (AC-2 evidence) is absent.",
+          "No test exercises `DispatchOnce` at all: design requires \"Retry/DLQ test; dedupe test; concurrency test\", yet event_dispatcher_test.go only covers matching/backoff/validation/defaults, so AC-1 (exactly-once-effective, retry→DLQ) is not demonstrably met or fail-able."
+        ],
+        "MAJOR": [
+          "Backoff is not enforced: `retryDelivery` sets `available_at`, but `DispatchOnce` re-reads purely from `last_seq` cursor and never filters on `available_at`/`status`, so retries fire immediately on the next pass and `idx_event_deliveries_attention` is dead weight.",
+          "Duplicate skip does not advance the cursor: if a delivery row exists as `failed` with `seq > last_seq` (crash between `finishDelivery(false)` and `dlq`), `duplicate=true` → `Skipped++` with no cursor advance → permanently stuck stream, events never DLQ'd (AC-1 failure path).",
+          "No concurrency control despite \"concurrency test\" in the approved approach: no `FOR UPDATE`/advisory lock, and `beginDelivery` treats existing `processing` rows as non-duplicates, so two passes can both deliver the same event, defeating the dedupe/exactly-once-effective intent.",
+          "Design in_scope mandates \"retry/backoff -> core/dead_letter_queue\"; implementation invents a new `event_delivery_dlq` table instead of reusing the existing owner (CL-001 reuse/single-writer).",
+          "Observability contract (\"EventMetrics signals\", \"EventMetrics + delivery status\") is unmet: no metrics or logs are emitted anywhere in the dispatcher; only an in-memory `DispatchStats` return."
+        ],
+        "MINOR": [
+          "`Subscription.Filter` is persisted and migrated but never applied in `matchesSubscription`, so registered filter semantics silently do nothing.",
+          "`UpsertSubscription`'s `ON CONFLICT ... WHERE tenant_id=EXCLUDED.tenant_id` silently no-ops on a cross-tenant id collision while returning success to the caller.",
+          "`event_deliveries` has no `created_at`, so the declared \"deliveries retained / DLQ retained\" lifecycle has no timestamp to enforce retention against.",
+          "First retry aborts the whole pass (`return st, nil`), head-of-line blocking the remaining bounded batch behind one failing event.",
+          "`beginDelivery` can return `attempts=0, duplicate=false` when the conflict row is missing, proceeding to deliver with no attempt recorded."
+        ],
+        "NIT": [
+          "`finishDelivery` declares redundant `status`/`delivered` variables holding the same value (readability only).",
+          "Cursor-advance SQL is duplicated verbatim in `advanceCursor`, `finishDelivery`, and `dlq` — a single helper would guard the `last_seq` invariant in one place.",
+          "`beginDelivery` reads attempts/status without a lock or `RETURNING`, leaving a narrow window between conflict-check and update."
+        ],
+        "SUMMARY": [
+          "Solid additive schema with RLS and a Go implementation per the language rule, but the two acceptance gates are not evidenced: the approved store-registry.json change is missing and no test drives dispatch/retry/DLQ/dedupe/concurrency.",
+          "Top risks: an unenforced backoff (`available_at` ignored) and a duplicate-skip path that can stall the cursor forever, plus no concurrency guard on delivery.",
+          "Design deviations on DLQ ownership (core/dead_letter_queue vs new table) and missing EventMetrics must be reconciled before this can close AC-1/AC-2."
+        ]
+      },
+      "evidence": "BI-PF-1269-05e88ea288d0.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:f51a96d050fa77db": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:e56b9c1c6025537e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:f812054e1965c5b7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:799249d6bd628cf6": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:38727073fe6c887b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:e3c682776d96ca96": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:c551895a06f31000": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:7fdc9698ea293be7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:12166a36806d20f0": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:ba00fcf354496fe8": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:430f6da00b5b3af5": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:624cf7f645f16ddd": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:90fe280e849f338d": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      },
+      "sig:b2417e2c6a994a73": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for subscriber/dispatcher split deliverable."
+      }
+    }
   }
 }

@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1269",
+  "sha": "05e88ea288d0",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T10:05:20.456364+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "c30d4425733ddb5ca360a9ff865dc684fd2261e0",
+  "findings": {
+    "BLOCKER": [
+      "Approved `affected_files: ['store-registry.json']` and in_scope \"Subscription store registered in store-registry.json\" \u2014 the diff never touches store-registry.json; the registry registration/ownership entry (AC-2 evidence) is absent.",
+      "No test exercises `DispatchOnce` at all: design requires \"Retry/DLQ test; dedupe test; concurrency test\", yet event_dispatcher_test.go only covers matching/backoff/validation/defaults, so AC-1 (exactly-once-effective, retry\u2192DLQ) is not demonstrably met or fail-able."
+    ],
+    "MAJOR": [
+      "Backoff is not enforced: `retryDelivery` sets `available_at`, but `DispatchOnce` re-reads purely from `last_seq` cursor and never filters on `available_at`/`status`, so retries fire immediately on the next pass and `idx_event_deliveries_attention` is dead weight.",
+      "Duplicate skip does not advance the cursor: if a delivery row exists as `failed` with `seq > last_seq` (crash between `finishDelivery(false)` and `dlq`), `duplicate=true` \u2192 `Skipped++` with no cursor advance \u2192 permanently stuck stream, events never DLQ'd (AC-1 failure path).",
+      "No concurrency control despite \"concurrency test\" in the approved approach: no `FOR UPDATE`/advisory lock, and `beginDelivery` treats existing `processing` rows as non-duplicates, so two passes can both deliver the same event, defeating the dedupe/exactly-once-effective intent.",
+      "Design in_scope mandates \"retry/backoff -> core/dead_letter_queue\"; implementation invents a new `event_delivery_dlq` table instead of reusing the existing owner (CL-001 reuse/single-writer).",
+      "Observability contract (\"EventMetrics signals\", \"EventMetrics + delivery status\") is unmet: no metrics or logs are emitted anywhere in the dispatcher; only an in-memory `DispatchStats` return."
+    ],
+    "MINOR": [
+      "`Subscription.Filter` is persisted and migrated but never applied in `matchesSubscription`, so registered filter semantics silently do nothing.",
+      "`UpsertSubscription`'s `ON CONFLICT ... WHERE tenant_id=EXCLUDED.tenant_id` silently no-ops on a cross-tenant id collision while returning success to the caller.",
+      "`event_deliveries` has no `created_at`, so the declared \"deliveries retained / DLQ retained\" lifecycle has no timestamp to enforce retention against.",
+      "First retry aborts the whole pass (`return st, nil`), head-of-line blocking the remaining bounded batch behind one failing event.",
+      "`beginDelivery` can return `attempts=0, duplicate=false` when the conflict row is missing, proceeding to deliver with no attempt recorded."
+    ],
+    "NIT": [
+      "`finishDelivery` declares redundant `status`/`delivered` variables holding the same value (readability only).",
+      "Cursor-advance SQL is duplicated verbatim in `advanceCursor`, `finishDelivery`, and `dlq` \u2014 a single helper would guard the `last_seq` invariant in one place.",
+      "`beginDelivery` reads attempts/status without a lock or `RETURNING`, leaving a narrow window between conflict-check and update."
+    ],
+    "SUMMARY": [
+      "Solid additive schema with RLS and a Go implementation per the language rule, but the two acceptance gates are not evidenced: the approved store-registry.json change is missing and no test drives dispatch/retry/DLQ/dedupe/concurrency.",
+      "Top risks: an unenforced backoff (`available_at` ignored) and a duplicate-skip path that can stall the cursor forever, plus no concurrency guard on delivery.",
+      "Design deviations on DLQ ownership (core/dead_letter_queue vs new table) and missing EventMetrics must be reconciled before this can close AC-1/AC-2."
+    ]
+  }
+}

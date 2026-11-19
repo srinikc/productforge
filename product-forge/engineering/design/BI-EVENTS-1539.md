@@ -3,11 +3,11 @@
 - **Item:** BI-EVENTS-1539
 - **Title:** Structured outbox metrics and alerting for event authority
 - **Version:** 1
-- **Status:** new
+- **Status:** completed
 - **Gate 1.5 review SHA:** 
 - **Functional spec:** engineering/specs/BI-EVENTS-1539.md
 - **Conditional spec pack:** engineering/specs/BI-EVENTS-1539-spec-pack.md
-- **Generated:** 2026-11-19T08:59:53.293553+00:00
+- **Generated:** 2026-11-19T10:03:00.321062+00:00
 
 ## 1. Standards applied
 - AGENTS.md
