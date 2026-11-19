@@ -1,0 +1,2320 @@
+{
+  "id": "BI-PF-1538",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "implementation-controls-readiness",
+  "label": "PF Backlog 672",
+  "title": "Mandatory implementation controls and tech-stack readiness gates",
+  "body": "Enforce production-readiness inputs as executable gates, not documentation placeholders.\n\nPre-code (Gate 1):\n- design_pack.implementation_controls: AC/FR -> control -> planned code symbol -> positive test -> negative/failure test -> tenant/RLS test -> concurrency test -> observability -> evidence.\n- functional_spec traceability per FR: code owner, positive test, negative test, tenant/RLS test, concurrency test, observability signal.\n- tech-stack checklist: Go fmt/vet/race/context/connection reuse/error classification; PostgreSQL transactions/constraints/RLS/migrations/backup; object store tenant scope/refs/hash/atomicity/GC; API auth/validation/tenant/failure; config enum fail-closed.\n- red tests written before implementation for negative, failure, tenant isolation, concurrency and observability.\n\nDuring code:\n- no caller-controlled security inputs (paths, DSNs, tenant IDs, roles);\n- one owner per concern; reuse existing stores/adapters;\n- instrument every failure mode with owner/threshold.\n\nPost-code/precheck:\n- implementation_readiness_check.py validates actual symbols/tests/evidence and rejects missing/dead/placeholder controls;\n- integration/RLS/race tests; migration up/down/backup check; self-review removes dead code, duplicate logic and unused paths.\n\nMerge gate:\n- Gate 2.5 receives implementation_controls and verifies planned-vs-actual coverage;\n- no merge with missing controls/tests/evidence;\n- escaped defects require RCCA + new backlog item, never a silent cross-PR fix.\n\nMandatory implementation prompt/gate:\n- Before editing, produce the 360-degree implementation plan: each AC/FR/control mapped to code symbol, happy path, negative/failure, tenant/RLS, concurrency/race, config invalid, data/IO atomicity, migration/rollback, resource/connection reuse, observability, and evidence test.\n- Write failing tests first for negative, tenant, race, config and observability cases; no happy-path-only implementation.\n- Forbid caller-controlled security inputs (paths, DSNs, tenant/role, limits) and silent fallbacks; invalid config must fail closed.\n- Reuse existing owners; no duplicate store/bus/DB stacks; no dead code or uncalled controls.\n- After coding, self-review the diff against the plan and delete unneeded code; then run unit + integration/RLS/race tests.\n- Gate 2.5 reviews planned-vs-actual coverage; any missing row blocks merge.\n- Any escaped defect requires RCCA and a new backlog item, never a silent follow-up patch.\n\n## Design (pending HIL approval)\nArtifact: docs/IMPLEMENTATION-CONTROLS-DESIGN.md\n- Canonical design_pack.implementation_controls rows: AC, kind, control, symbol, positive/negative/tenant/concurrency tests, observability, evidence.\n- Reuse existing owners: design_pack.py, Gate 1, architect_review.py (Gate 2.5), gate2_completion_check.py.\n- New implementation_readiness_check.py for pre-code and final-diff verification.\n- New operator-only POST /api/v1/backlog/items/{id}/design-pack via core.backlog.update.\n- RCCA rule for escaped defects; no silent cross-PR fixes.\n\n## Reconciliation\nPRIOR DECISIONS: BI-PF-1243; BI-PF-1469/1470 Gate 2; BI-PF-1536; BI-PF-1537 rejected; BI-PF-1268 RCCA.\nEXISTING PATH: design_pack.py, templates, gate1_check.py, architect_review.py, gate2_completion_check.py, core.backlog.\nASSUMPTIONS: new items only; no retrofitting; tooling is Python/JSON/Markdown; no new runtime store.\nDIVERGENCES: backlog API has no design-pack write endpoint today; BI-PF-1538 must add it before API-only enforcement.\nOPEN QUESTIONS: enforcement cutoff; MINOR blocking; exact symbol resolution; escaped-defect metric owner.\n\n## Impact review\n| Area | Impact | Check |\n|---|---|---|\n| Language | Python tooling/templates/API; no runtime Go | language_check |\n| API | New design-pack write endpoint | api_check + tests |\n| AC-1 | Matrix required at Gate 1 | gate tests |\n| AC-2 | Readiness checker pre-code + final | checker tests |\n| AC-3 | Templates + Gate 2.5 + RCCA | prompt/gate tests |\n| Data | Backlog fields only | store registry review |\n| Security | Operator-only API | API tests |\n\n\n## Design amendment: mandatory prompts and delivery states\n- Design/functional-spec five mandates are now required template sections and Gate 1 checks.\n- Implementation five mandates are now required Gate 2.5 evidence.\n- Delivery states are explicit: Code, Integration, Validation, Quality Approved, Delivery Complete; only Delivery Complete satisfies Gate 2/merge.\n- Coding and tech-stack guidelines are mapped to executable checks/evidence, not prose; readiness fails when a required check is missing, unrun or unrecorded.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-16T20:33:25.428390",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "reason": "Material process change approved after review 5bca105bc076; full review budget exceeded by legitimate fix deltas",
+      "by": "hil:owner",
+      "hil_confirmed": true,
+      "sigs": [],
+      "at": "2026-11-17T16:32:23.865645+00:00"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Implementation prompts lack 360-degree controls and permit happy-path-only work.",
+    "what_adds": "Prompt mandates, item control matrix, executable readiness checks and API write path.",
+    "why": "BI-PF-1268 showed reviews were the first quality gate and fixes introduced regressions.",
+    "who_feels": "Implementers, reviewers and delivery owners.",
+    "source": "authored"
+  },
+  "objective": "Prevent happy-path-only implementation and fix-induced regressions by making every AC/control, test, tenant/RLS, concurrency, migration, resource and observability case explicit and verifiable before and after code.",
+  "acceptance_criteria": [
+    "Gate 1 blocks unless every AC/FR has an implementation_controls row with code symbol, positive, negative/failure, tenant/RLS, concurrency, observability and evidence mappings.",
+    "implementation_readiness_check runs before code and against the final diff, verifying actual symbols, tests, evidence, tech-stack checks, migration/backup and no caller-controlled security inputs.",
+    "Templates and Gate 2.5 consume the same implementation-controls matrix; no merge with missing or dead controls, and escaped defects require RCCA plus a new backlog item.",
+    "Design and functional-spec templates must enforce the five mandate areas and Gate 1 must reject missing requirement analysis, complete functional/technical design, 360-degree scenarios/impact, implementation/validation readiness and independent completeness review.",
+    "Every item must report Code Complete, Integration Complete, Validation Complete, Quality Approved and Delivery Complete separately; Gate 2 and merge must require evidenced Delivery Complete.",
+    "Coding and tech-stack guidelines must be mapped in config/implementation-controls.json to executable checks and evidence, with implementation_readiness_check failing on missing, unrun or unrecorded checks."
+  ],
+  "in_scope": [
+    "Implementation-control schema and validator",
+    "Gate 1 and Gate 2.5 enforcement",
+    "Pre-code and final-diff readiness checker",
+    "Design-pack API write endpoint",
+    "Templates, config checklist, tests, RCCA rule"
+  ],
+  "out_of_scope": [
+    "Retrofitting completed/historical backlog items",
+    "New runtime service or store",
+    "Replacing existing review/gate engines"
+  ],
+  "affected_components": [
+    "scripts/dev design/gate tooling",
+    "templates",
+    "api/routers/backlog.py",
+    "config implementation-controls",
+    "docs"
+  ],
+  "affected_files": [
+    "scripts/dev/design_pack.py",
+    "scripts/dev/gate1_check.py",
+    "scripts/dev/implementation_readiness_check.py",
+    "scripts/dev/architect_review.py",
+    "scripts/dev/gate2_completion_check.py",
+    "scripts/dev/precheck.py",
+    "templates/DESIGN-PACK.md",
+    "templates/FUNCTIONAL-SPEC.md",
+    "templates/SPEC-PACK.md",
+    "api/routers/backlog.py",
+    "api/openapi.json",
+    "config/implementation-controls.json",
+    "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+  ],
+  "approach": "Add a design_pack.implementation_controls matrix and enforce it through existing design_pack, Gate 1, Gate 2.5, completion and merge owners. Add implementation_readiness_check.py for pre-code and final-diff verification, one operator-only design-pack API write endpoint, template sections, and an RCCA rule. No runtime store or duplicate gate engine.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 4, 'MINOR': 4, 'NIT': 2}"
+  ],
+  "risks": [
+    "Path-only checks give false confidence; require symbol and test/evidence resolution in final mode.",
+    "Retrofitting historical items; enforce by creation cutoff only.",
+    "Template/checker drift; use one schema validator.",
+    "Gate latency; cache parsing and scan only changed files.",
+    "Over-blocking trivial work; allow explicit N/A reasons."
+  ],
+  "rollback": "Remove the design-pack API endpoint, checker wiring, template sections and control enforcement; retain the design doc and RCCA history. No data migration to reverse.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1538): sig:12419e9f0e1f193b (18 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=22fa16ecec2b\nBLOCKER:\n  - All six implementation_controls rows (C-1..C-6) share one identical symbol (`implementation_readiness_check.py:problems`), one identical test file, and identical evidence strings; no row maps to its owning symbol per AC, violating AC-1/AC-3 \"no dead/placeholder rows\" and the binding per-row review.\n  - C-2 and C-6 control text is literally \"N/A: ...\" (placeholder-only), and tenant_test/concurrency_test are N/A on every row while AC-1 requires tenant/RLS and concurrency mappings per row; explicit-N/A risk allowance does not permit whole-row placeholders.\n  - Control-to-AC mapping is nominal: C-1 (API auth) is tagged AC-1 (Gate 1 coverage), C-4 (config fail-closed) is tagged AC-4 (template mandates); no control row covers FR-4/API payload security in `api/routers/backlog.py` — the only shipped-code surface — so AC coverage is unverifiable against the diff.\n  - AC-5 requires five separately reported completion states and evidenced Delivery Complete at Gate 2/merge, but the design_pack declares no state model, transitions, or evidence owner; the approved contract cannot be verified as specified.\nMAJOR:\n  - FR-6 (RCCA + linked backlog item on escaped defect) has no owning symbol, control row, or test — traceability lists `tests/test_implementation_controls.py` while FR-6's own verification cites only `docs/IMPLEMENTATION-CONTROLS-DESIGN.md`; enforcement appears undocumented.\n  - Single shared test file as evidence for all 6 ACs / 6 FRs / 12 traceability entries gives no per-control positive/negative proof; a single green run cannot demonstrate distinct negative, tenant, and concurrency cases.\n  - FR-3 declares `errors` as a string while other FRs use lists — schema drift in the functional spec undermines the \"one schema validator\" guardrail.\n  - Hard-coded cutoff `2026-11-17` in FR-5 data_rules and rollout is magic-date coupling; any process retro-start re-baselining silently exempts or blocks items with no config knob.\n  - Security threat-model spec is marked APPLICABLE but its evidence is a unit test file, not an analysis artifact; operator-role enforcement (authn vs authz, role source) is asserted in one line with no boundary test named.\nMINOR:\n  - Observability is limited to \"JSON problems\" with no runbook entry, alert path, or gate-failure metric for the checker/CI integration (guardrail 10 partially unaddressed).\n  - Design does not answer guardrail 2 (defence-in-depth / on-startup or pre-merge check ordering) beyond \"pre-code and final diff\"; ordering between readiness check, Gate 1, and Gate 2.5 is implied, not specified.\n  - Rollback is stated as code revert but template/checker removal mid-flight for items already past Gate 1 leaves inconsistent control history; no re-gate step defined.\nNIT:\n  - FR-2 edge case \"Code-writing agents only\" and FR-1 \"Spec agents only\" are prose, not enumerated agent call-site lists, though `runtime_contract.call_sites` already lists them — duplicate sources of truth.\n  - `operation_matrix` has a single row (\"prompt build\") while the design touches gates, checker, and API — matrix under-represents operations.\nSUMMARY:\n  - Verdict: fail Gate 1 as designed. The implementation_controls matrix is degenerate — six identical placeholder rows pointing at one symbol and one test file — so the binding per-row diff review cannot be satisfied and AC-1/AC-3 stop conditions are already tripped.\n  - Top risks: (1) nominal AC-to-control mapping gives false coverage confidence; (2) AC-5 five-state delivery reporting is declared but not designed; (3) the only shipped-code change (backlog design-pack API) has no dedicated security/concurrency control row.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=3013897e4289\nBLOCKER:\n  - AC-to-control mapping still misaligned after delta: C-4 (API write) is tagged AC-4 (template mandates), C-6 (prompt text) is tagged AC-6 (config executable checks); no row's control text matches its AC for AC-1/AC-4/AC-5/AC-6 — disposition of prior blocker is wrong, not fixed.\n  - AC-6 has no owning row: no implementation_control symbol points to `config/implementation-controls.json` or its executable checks; AC-4 has no row pointing at `templates/DESIGN-PACK.md`/`FUNCTIONAL-SPEC.md` — declared affected_files appear in zero rows.\n  - AC-5 merge/Gate-2 enforcement unmapped: `delivery_states.gate_rule` requires Gate 2/merge to demand DELIVERY_COMPLETE, but no row's symbol is `scripts/dev/gate2_completion_check.py` or a merge owner; delivery-state claim is unverifiable against the diff.\nMAJOR:\n  - `kind` values are rotated checklist fillers, not semantics (C-6 delivery-states prompt text labeled `concurrency`, C-2 prompt mandates labeled `tenant`, C-4 API labeled `config`), so per-kind AC coverage is nominal.\n  - All six rows carry the identical evidence string `pytest -q tests/test_implementation_controls.py`; no per-row evidence ID/command, so a single green run cannot prove distinct positive/negative/tenant/concurrency cases.\n  - C-3 symbol `implementation_readiness_check.py:problems` names a data field, not an owning callable — likely fails or is dead under the checker's own symbol-resolution rule.\n  - FR-6 (RCCA + linked item) enforcement is prompt text only (C-6); no gate/closure symbol or test owns the RCCA-required-at-closure rule; FR-6 verification still cites only the design doc.\n  - spec_pack evidence mismatches: `observability_runbook` and `implementation_plan` evidence point at `tests/test_implementation_controls.py` instead of their cited artifacts; `security_threat_model` names no operator authz boundary test.\nMINOR:\n  - `tenant_test`/`concurrency_test` are N/A on every row; encode an explicit machine-checkable N/A-with-reason mapping so AC-1's \"has a mapping\" requirement is satisfiable rather than skipped.\n  - `delivery_states.evidence_owner` cites an unnamed \"review ledger\"; no artifact/symbol defines where Delivery Complete evidence is recorded or who signs it.\n  - Rollback path still lacks a re-gate step for items already past Gate 1 if checker/templates are removed mid-flight.\nNIT:\n  - `functional_spec.operation_matrix` still has a single \"prompt build\" row while the delta touches gates, checker and API.\nSUMMARY:\n  - Delta fixes prior row-symbol collapse and the missing delivery-state model, but AC coverage remains nominal: AC-4, AC-5 merge enforcement and AC-6 config checks have no owning control rows, and `kind`/evidence fields are placeholder-shaped.\n  - Top risks: an approved Gate 1 can pass while template, config and merge-gate enforcement are entirely uncontrolled; per-row proof reduces to one shared test file.\n  - Block Gate 1.5 until every AC (esp. AC-4/5/6) has a row whose control text, symbol and evidence match that AC's artifact.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=4a32ac1fed37\nBLOCKER:\n  - C-5 symbol `scripts/dev/delivery_state_check.py:problems` is not in declared `affected_files`, and no row names `scripts/dev/gate2_completion_check.py` or a merge owner — AC-5 Gate 2/merge DELIVERY_COMPLETE enforcement remains unverifiable against the diff; prior blocker disposition wrong.\n  - AC mapping still misaligned: C-7 (operator-only API security) is tagged AC-1, C-8 (tenant N/A) is tagged AC-4 — control text does not match the AC for either row.\n  - C-2 symbol `implementation_readiness_check.py:problems` still names a data field, not an owning callable — dead/invalid under the checker's own symbol-resolution rule; prior MAJOR persists.\n  - C-7's negative test (`test_checker_rejects_placeholder_and_missing_kind`) does not exercise API authz/malformed-payload rejection, and C-8's tests are template-mandate tests — the security and tenant controls have no control-relevant evidence, i.e. effectively dead rows.\nMAJOR:\n  - C-8 is a self-referential N/A row (`tenant_test` N/A, `symbol` = config file, tests unrelated to tenancy) — it cannot satisfy AC-1's \"tenant/RLS mapping\" requirement as a real mapping.\n  - Prior MAJOR on `spec_pack` evidence mismatches (`observability_runbook`, `implementation_plan`, `security_threat_model`) is unaddressed by this delta — no new evidence changes the disposition.\n  - Prior MAJOR on FR-6 closure enforcement and MINOR on `delivery_states.evidence_owner`/rollback re-gate remain PENDING with no corresponding delta rows.\nMINOR:\n  - C-3's observability is \"review findings\" but no test asserts the prompt actually contains control coverage/delivery states beyond string presence — weak evidence for AC-3.\n  - Evidence strings are now per-row but still all point to the same test module; per-row evidence IDs or distinct commands would strengthen auditability.\nNIT:\n  - `kind` values now look semantic (failure/observability/config/security/tenant), but C-4 as `config` for a template row is imprecise.\nSUMMARY:\n  - Delta fixes half the prior blockers (AC-4/AC-6 rows now point at templates and config, evidence is per-row), but AC-5 remains unmapped to any declared Gate 2/merge symbol and two rows carry non-callable or control-irrelevant symbols/tests.\n  - Top risks: unverifiable delivery-state enforcement at merge, dead security/tenant rows, and unresolved prior MAJORs outside the changed field.\n  - Verdict: not approvable until C-5 lands on a declared Gate 2/merge owner and C-7/C-8 get control-matched AC tags, symbols and tests.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=3ae72fd0074c\nBLOCKER:\n  - Delta `design_pack.affected_files` (authoritative) lists only 5 files, dropping `scripts/dev/design_pack.py`, `scripts/dev/implementation_readiness_check.py`, `scripts/dev/architect_review.py` — yet C-1, C-2, C-3 name symbols in exactly those files; symbol↔declared-file mismatch makes those rows unverifiable against the diff (same class as the prior affected_files blocker).\n  - C-5 text requires \"Gate 2 **and merge**\" Delivery Complete, but the row's only symbol is `gate2_completion_check.py:completion_gaps`; no row/symbol names a merge owner — AC-5's merge clause remains unowned (residual of prior blocker; only the Gate 2 half was fixed by this delta).\n  - C-7 was retagged from AC-1 to AC-6, but its control (operator-only design-pack API security) still does not match AC-6 (coding/tech-stack checks mapped in `config/implementation-controls.json`, already covered by C-6); FR-4 (API write) has no correctly mapped row — AC mapping remains misaligned (same class as prior blocker, new evidence: the retag).\nMAJOR:\n  - C-2's delta fix is cosmetic: symbol changed from `problems` to `problems()` with no evidence it resolves to an owning callable; AC-2's actual-symbol verification remains unproven.\n  - All seven rows carry the identical blanket `tenant_test: \"N/A: process tooling has no tenant runtime path\"`, including C-7 which writes to the backlog store via the API — AC-1's tenant/RLS requirement is not met as a real mapping; removing C-8 propagated the N/A hole to the whole matrix rather than fixing it.\nMINOR:\n  - `spec_pack` is declared a changed field but its content is byte-identical to the prior version, so the pending spec_pack evidence MAJORs (observability_runbook, implementation_plan, security_threat_model) are unaddressed by this delta.\n  - `scripts/dev/delivery_state_check.py` is newly declared in `affected_files` but no implementation_controls row references it — a declared file with no owning control or test evidence.\nNIT:\n  - none\nSUMMARY:\n  - Delta fixes the file list for gate2/delivery-state and retags C-7, but the declared-files vs symbol mismatch (C-1..C-3), missing merge-owner symbol, and still-wrong C-7 AC mapping leave AC-1/AC-2/AC-5 unverifiable — Gate 1 should stay PENDING/BLOCKED.\n  - Top risks: blanket N/A tenant mapping across the matrix, cosmetic C-2 symbol fix, and a spec_pack delta that declares change without changing anything.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=e7a8c3795f66\nBLOCKER:\n  - New row C-9 names symbol `core/merge_gate.py:evaluate`, but declared `affected_files` contains only `scripts/dev/merge_gate_check.py`; symbol↔declared-file mismatch makes the new merge-owner row unverifiable (same defect class as the prior C-1 blocker).\n  - Delta drops `templates/FUNCTIONAL-SPEC.md` from `affected_files` while C-4's control text covers \"design **and functional-spec** templates\" with symbol only `templates/DESIGN-PACK.md`; AC-4's functional-spec half has no declared file or owning symbol.\n  - Delta drops `api/openapi.json` from `affected_files` although FR-4 verification and spec_pack `api_contract` evidence cite it as the contract artifact; AC/contract evidence no longer declared in the authoritative delta.\nMAJOR:\n  - `api/routers/backlog.py` is declared in `affected_files` but no implementation_controls row references it (C-7 points at `config/implementation-controls.json`); the API write path still has no owning symbol/control, extending the pending FR-4 mapping gap with new file-level evidence.\n  - C-5 control text still contains the \"merge consumes Gate 2 validation evidence\" clause now also owned by C-9; two rows claim the same merge clause with different symbols (`gate2_completion_check.py:completion_gaps` vs `core/merge_gate.py:evaluate`), leaving ownership ambiguous for AC-5's merge half.\n  - Delta drops `scripts/dev/precheck.py` and `docs/IMPLEMENTATION-CONTROLS-DESIGN.md` from `affected_files` although the runtime_contract trigger includes \"gate precheck\" and all FR traceability/design evidence points at the design doc; declared scope no longer matches cited evidence.\nMINOR:\n  - C-9 reuses the identical blanket `tenant_test: \"N/A: process tooling has no tenant runtime path\"` while merge gating reads cross-item delivery state; N/A justification differs from the other rows' \"stateless\" rationale and is untested.\n  - AC-6 rows C-6/C-7 both use the same `positive_test`/`negative_test` pair, so a config-check failure and an API-security failure are not independently distinguishable in evidence.\nNIT:\n  - C-9's `concurrency_test` (\"merge gate evaluation is read-only\") does not exercise concurrent merge attempts against the same item, which is the actual contention case the field exists to cover.\nSUMMARY:\n  - Delta fixes the earlier file-list gaps for C-1/C-2/C-3 and adds a merge-owner row, but introduces a fresh symbol↔file mismatch (C-9), drops the functional-spec template and API contract artifacts from the authoritative file list, and leaves the API router file unowned.\n  - Top risks: unverifiable C-9 symbol, AC-4 functional-spec coverage not declared, and duplicated/ambiguous AC-5 merge ownership between C-5 and C-9.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=6315651e3011\nBLOCKER:\n  - AC-6 unmet: `config/implementation-controls.json` (symbol for controls C-6/C-7) is absent from the diff and absent from current referenced config, so coding/tech-stack checks are neither mapped nor fail-closed.\n  - AC-2 unmet: `scripts/dev/implementation_readiness_check.py:problems()` (C-2, FR-3) is not in the diff — no pre-code/final-diff readiness checker is delivered.\n  - Controls C-1, C-3, C-5, C-9 name symbols (`design_pack.py:check`, `architect_review.py:_build_prompt`, `gate2_completion_check.py:completion_gaps`, `core/merge_gate.py:evaluate`) that appear nowhere in the diff; C-9's symbol is not even in `affected_files` — rows are unverifiable/dead against this change.\n  - Every row's `evidence`/`positive_test`/`negative_test` resolve to `tests/test_implementation_controls.py`, which is in neither the diff nor `affected_files` — evidence mappings are unresolvable, so no row can be confirmed live.\n  - No delivery-state evidence reported for Code Complete / Integration Complete / Validation Complete / Quality Approved / Delivery Complete; Delivery Complete (and therefore Gate 2 + merge) must be treated as not met.\n  - AC-2 also requires migration/backup and tech-stack check verification, but no control row maps to migration/backup — AC coverage is incomplete even on the declared matrix.\nMAJOR:\n  - The only visible change is the generated `api/openapi.json` (adding `POST /api/v1/backlog/items/{item_id}/design-pack`), while `api/routers/backlog.py` (FR-4 owning symbol) is not in the diff — the published contract and its implementation are not verifiably in sync.\n  - AC-1/AC-4/AC-5 enforcement (`gate1_check.py`, `gate2_completion_check.py`, `precheck.py`) is declared in `affected_files` but absent from the diff, so the approved Gate 1 / Gate 2.5 / merge contract cannot be confirmed as implemented.\n  - Control ids jump C-7 → C-9 (no C-8), indicating a dropped control row with no recorded disposition — violates \"no row may be missing\" for the matrix.\nMINOR:\n  - `api/openapi.json` is rewritten wholesale (full key reordering plus content), destroying line-level reviewability and making semantic regressions in existing routes undetectable in this diff.\nNIT:\n  - Evidence entries are bare pytest commands rather than recorded run outputs/artifacts, so \"run and recorded\" cannot be distinguished from \"nominally cited\".\nSUMMARY:\n  - Verdict: BLOCK — the diff delivers only a regenerated OpenAPI artifact; none of the six ACs' owning symbols, config, tests or evidence are present in the change under review.\n  - Top risks: implementation_controls rows are dead/unresolvable (C-1..C-5, C-9), `config/implementation-controls.json` and `implementation_readiness_check.py` are missing entirely, and no delivery states are evidenced.\n  - Recommend re-submit with the declared files, the test suite, and per-state delivery evidence before any Gate 2/merge claim.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=38bbb7f0c960\nBLOCKER:\n  - AC-6 unmet: `implementation_readiness_check.problems()` only asserts `config/implementation-controls.json` has a non-empty `checks` list; nothing ever runs those checks or compares declared evidence to a recorded run, so \"missing/unrun/unrecorded\" cannot fail.\n  - AC-2 unmet: no wiring in the diff invokes `implementation_readiness_check.py --final` against the final diff (precheck.py/gate1_check.py absent); migration/backup verification and \"no caller-controlled security inputs\" verification are not implemented anywhere in `problems()`.\n  - AC-1 fail-open: `design_pack.check` gets the cutoff via `_irc._config()`, which swallows read errors and returns `{}`; a missing/corrupt config yields `_cutoff == \"\"`, the `if _cutoff` guard skips `irc.problems()` entirely, and no error is recorded — Gate 1 silently stops blocking.\n  - AC-5 unmet: merge does not require Delivery Complete — `scripts/dev/merge_gate_check.py` (declared in design_pack.affected_files) and control C-9's symbol `core/merge_gate.py:evaluate` are absent from the diff; only Gate 2 (`gate2_completion_check.py`) was wired.\n  - AC-4 unmet: `gate1_check.py` is absent from the diff (confirmed on the corrected, non-truncated diff; prior \"superseded\" disposition no longer holds) and no validator checks the five mandate areas — templates carry prose only, so Gate 1 cannot reject a missing mandate area.\n  - Final-mode symbol \"verification\" is path-existence only (`PATHLIKE` regex against `root`), never that the named symbol/function or test exists or ran — exactly the \"path-only false confidence\" risk recorded in the approved design.\nMAJOR:\n  - Duplicate byte-identical test suites: `product-forge/tests/test_implementation_controls.py` and `product-forge/test-framework/tests/test_implementation_controls.py` (only `ROOT` differs); guaranteed drift and ambiguous which suite's run is the evidence for every control row.\n  - `agent_runner._implementation_controls_block` fails open twice: `except Exception: pass` around the config read silently omits tech-stack checks from the prompt, and a broad `except Exception` on the backlog lookup converts lookup failure into \"no rows → STOP\" with no signal.\n  - `irc.problems(item, root=...)` ignores its `root` parameter for config (`_config()` always reads `ROOT/config`), so tests never exercise the config-failure path and the `config unreadable` except branch is dead code.\n  - AC coverage check compares a set of row `ac` strings against `str()` of `acceptance_criteria` entries (dict-shaped ACs break the count) and never verifies FR coverage, though AC-1 requires \"every AC/FR\".\n  - The `enforce_from` cutoff uses raw string comparison on `created_at` and treats a missing `created_at` as exempt, letting items without a timestamp bypass control enforcement.\nMINOR:\n  - The design-pack endpoint accepts any `implementation_controls` list with only a type check; placeholder/dead rows are written unchecked (deferred entirely to gates).\n  - `delivery_state_check.problems` re-checks the four prior states inside the `delivery_complete` branch (dead logic), and nothing in the diff defines/writes the snake_case `delivery_states` keys the checker reads.\n  - `store-registry.json` registers both `config/implementation-controls.json` and `implementation-controls.json` — ambiguous duplicate registration.\n  - Control C-3's negative test (`test_checker_rejects_placeholder_and_missing_kind`) does not exercise `architect_review._build_prompt`, so the row's declared negative path is mismatched to its owning symbol.\nNIT:\n  - \"Mandatory 360? ...\" heading contains a mangled character and the identical 26-line block is copy-pasted into three templates instead of one shared include.\n  - `architect_review.py` emit uses `getattr(a, \"since\", \"\")` rather than the parser's default — masks argument-wiring regressions.\n  - [OUT_OF_SCOPE] `config/id-blocks.json` session-reservation churn is unrelated to BI-PF-1538's declared scope.\nSUMMARY:\n  - The diff delivers the config, checker, prompt mandates, API endpoint and tests, but three ACs are objectively unmet: the checker never verifies checks were run/recorded (AC-6), nothing wires it to the final diff or to migration/caller-input verification (AC-2), and neither Gate 1 mandate rejection nor the merge-side Delivery Complete requirement is implemented (AC-4/AC-5); plus AC-1 enforcement fails open on a missing config.\n  - Top risks: fail-open gating, duplicated test suites as sole evidence, and path-only \"symbol\" verification that the design itself flagged as insufficient.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=7984bee8878b\nBLOCKER:\n  - Delta replaces `test-framework/tests/test_implementation_controls.py`'s 12 behavior tests (checker accept/reject, final symbol path, placeholder/kind, delivery states, RCCA, mandates, control block, API route) with two source-grep assertions; every control row C-1..C-9 cites these tests as positive/negative/evidence, so the rows' evidence is now dead or ambiguous between the two suites (AC-1/AC-2/AC-5, guardrail 6: fail-able tests removed).\n  - The new `--all` wiring is fail-open: it `continue`s past any item without `design_pack.implementation_controls` and returns `ok:true, checked:0` when none qualify — omitting (or never writing) the matrix makes the new blocking gate pass, inverting AC-1/AC-2 (delta hunk: `if not (...implementation_controls): continue`).\n  - `architect_review.py` now sets `budget_bad = []` whenever `mode in (diff, design) and rereview and since` — a caller-supplied flag combination silently disables review-budget enforcement with no check that a real delta occurred, making a blocking review gate opt-out (AC-3 integrity).\nMAJOR:\n  - Both wirings (`precheck.py`, `ci-cd-gates.json`) invoke only `--final`; no non-final invocation exists anywhere, so AC-2's \"runs before code\" half cannot execute — final mode demands symbol/test paths already exist, so the pre-code run either fails by construction or is skipped.\n  - The replacement tests are string-scrapes of `prompt_builder.py` (`\"QUALITY APPROVED\" in text or \"Delivery states\" in text`) — the `or` makes the assertion passable with a single unrelated phrase and verifies no behavior of `delivery_state_check`/`architect_review`, giving false confidence while looking like coverage.\nMINOR:\n  - Delta worsens the prior duplicate-suite finding: the two copies are now materially different (behavior suite vs grep stub), with no marker of which suite's run counts as control evidence — evidence attribution is now ambiguous.\n  - `--all --final` placed in the `fast` tier performs a repo-wide symbol/test/evidence scan of every controlled item on every fast run; no changed-file scoping despite the design risk \"Gate latency; scan only changed files\".\n  - `api/routers/backlog.py` whitelists `fix_impact`/`fix_evidence` for unconditional persistence with no validation against `config/fix-impact.json` `required_fields`, deferring all shape enforcement to later gates.\nNIT:\n  - `--all` problem labels use `item.get('id')` which may be `None`, degrading triage of JSON output.\nSUMMARY:\n  - The delta partially resolves the prior AC-2 wiring blocker by registering a blocking `implementation-readiness` gate, but the gate is evadable (skips control-less items, vacuous pass), the review budget is now bypassable via flags, and the delta guts the test suite that serves as the declared evidence for controls C-1..C-9.\n  - Prior PENDING blockers on AC-6 (checks never run), AC-1 fail-open cutoff, AC-4 gate1 validator, AC-5 merge gate and path-only symbol verification remain unaddressed by this delta.\n  - Verdict: not ready — restore real control tests, make `--all` fail closed for eligible items lacking controls, and gate the budget bypass on verified delta state.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=80adbca92c7b\nBLOCKER:\n  - Unresolved prior BLOCKER: `implementation_readiness_check.py --all` still `continue`s past items with no `design_pack.implementation_controls` (unchanged hunk), so an item that never wrote a matrix is never counted and `ok:true` is returned — the delta's cutoff + `checked==0` guard only fires when *zero* items qualify; omitting the matrix still passes AC-1/AC-2 enforcement.\n  - Unresolved prior BLOCKER context: no test in the delta exercises the new `--all` cutoff/fail-closed path or `_delta_base` budget gate, so the corrected fail-open/fail-closed behaviour is unverifiable (guardrail 6: fail-able tests); the wrapper only re-exports the canonical suite, which does not cover this code.\nMAJOR:\n  - `config/implementation-controls.json` `enforce_from` silently changed 2026-11-17 → 2026-11-16, contradicting FR-5 (`data_rules: \"created from 2026-11-17\"`), design_pack `rollout: \"on/after 2026-11-17\"` and the out_of_scope \"no retrofitting\" contract — undocumented contract drift with no matching design/FR update in the delta.\n  - Fail-open on missing timestamps: `created = str(item.get(\"created_at\") or \"\")` then `created < cutoff` skips items with empty/absent `created_at` (and would skip epoch-format values via lexicographic compare), exempting them from enforcement with no recorded reason.\n  - Wrapper test module couples via `importlib` file-load to `tests/test_implementation_controls.py`; if that canonical suite later uses pytest fixtures (or is renamed/moved), the wrapper breaks at import or silently collects nothing — no assertion that any test was actually loaded, weakening control evidence.\nMINOR:\n  - Wrapper re-executes the canonical suite, so every control test runs twice per run under different module names with no marker of which execution is the cited evidence (prior evidence-attribution ambiguity persists in a new form).\n  - `_delta_base` fix has no test proving `since == _latest_review_sha(...)` is the only path that skips budget enforcement, and no negative case for a stale/foreign `since` value.\n  - `enforce_from`-missing branch appends a bare message without the config path/expected value, reducing triage value of the JSON `problems` output.\nNIT:\n  - `_delta_base` computed unconditionally on every diff/design run even when `a.rereview` is false, doing needless history lookups.\nSUMMARY:\n  - Delta partially addresses prior findings: the grep-stub test replacement is superseded by a wrapper that runs the canonical behavior suite, and the budget-disable opt-out is now gated on the true delta base — but the core `--all` fail-open (missing matrix never counted) remains, so AC-1/AC-2 are still bypassable.\n  - Top risks: fail-open readiness sweep, undocumented enforcement-date change, and untested new gate logic; require the missing-matrix path to count as a problem and tests for cutoff/fail-closed/_delta_base before merge.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=2270fda3b876\nBLOCKER:\n  - none\nMAJOR:\n  - Delta removes the `enforce_from missing` fail-closed report entirely: `cutoff = str(_config().get(\"enforce_from\") or \"\")` with empty cutoff now silently enforces *all* items (including historical, violating the \"no retrofitting\" guardrail) with no recorded reason; prior MINOR's diagnostic was deleted rather than improved (main() hunk).\n  - The new `created_at missing` fail-closed branch and the cutoff-skip path in `all_problems` have no tests; the two added tests only cover missing-controls and `checked==0`, so guardrail 6 (fail-able tests) is unmet for the delta's own new logic.\n  - `all_problems` still `continue`s on `if not pack: continue`, so any post-cutoff item with no `design_pack` at all is silently exempt whenever at least one other item has a pack — residual fail-open of the prior BLOCKER, only masked by `checked==0` when *no* item has a pack.\n  - The missing-matrix check lives only in `all_problems`'s loop, not in `problems()`, so the unchanged `--item` single-item path may pass an item whose `design_pack` lacks `implementation_controls`; enforcement is duplicated/placed inconsistently between modes.\n  - Control C-9 cites symbol `core/merge_gate.py:evaluate` while the same design_pack `affected_files` lists `scripts/dev/merge_gate_check.py`, and neither file appears in the candidate changed-file set — unresolvable/dead control risk against stop-condition \"Any placeholder/dead control\".\nMINOR:\n  - The two new tests are not cited in any `implementation_controls` row's `positive_test`/`negative_test`/`evidence`, so the new `all_problems` behavior has no traceability entry in the matrix the gates consume.\n  - Cutoff comparison remains lexicographic on `created_at`, so non-ISO/epoch timestamps compare unpredictably against `enforce_from` (only the empty-string case was fixed).\nNIT:\n  - Control IDs jump C-7 → C-9 (no C-8) with no amendment note, leaving a silent numbering gap in the matrix.\nSUMMARY:\n  - Delta meaningfully resolves the prior fail-open for design packs lacking controls and adds a load assertion to the wrapper, but it introduces a new silent loss of the `enforce_from`-missing signal, leaves the no-design-pack and `--item` paths fail-open, and ships untested new fail-closed branches.\n  - Top risks: enforcement-scope drift against the no-retrofit contract, untested cutoff/timestamp paths, and the unverifiable C-9 merge-gate symbol.\n  - Delivery states are declared but no completion claim is made in the delta, so no unverified Delivery Complete assertion to block; verdict: not ready until the MAJOR items are closed with tests.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=5bca105bc076\nBLOCKER:\n  - none\nMAJOR:\n  - Prior dispositions (\"Fixed in the following delta\") for the code-level findings — enforce_from fail-closed reporting, the post-cutoff `if not pack: continue` exemption, lexicographic cutoff compare — are not evidenced: this delta contains only test additions, with no hunk to `implementation_readiness_check.py`/`design_pack.py`.\n  - No test in the delta covers the residual fail-open path from prior MAJOR (a post-cutoff item with `created_at` but no `design_pack`); the new timestamp test uses an item without `created_at`, so the disposition cannot be verified as fixed.\nMINOR:\n  - `test_all_problems_skips_before_cutoff` is cited in no `implementation_controls` row (positive/negative/evidence); C-2 cites only the other two new tests, so the cutoff-exemption behavior has no traceability in the matrix Gate 1/Gate 2.5 consume.\n  - The new `test_single_item_path_rejects_missing_controls` shows `problems()` applies no `enforce_from` cutoff, so `--item` mode enforces against historical items while batch mode exempts them — inconsistent with the no-retrofit guardrail.\nNIT:\n  - Controls C-4, C-6 and C-7 record file paths (`templates/DESIGN-PACK.md`, `config/implementation-controls.json`) as the `symbol`, which cannot be symbol-resolved by the readiness checker the way `module:function` entries can.\nSUMMARY:\n  - Delta is test-only and resolves part of the prior review (missing timestamp/cutoff/single-item tests, C-9 dead control, numbering gap), but the code-level fix dispositions are unevidenced in this diff and one new test lacks matrix traceability.\n  - Top risks: gates may approve fixes that were never made, and single-item vs batch enforcement diverge on the cutoff guardrail.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=855e1aabcd2d\nBLOCKER:\n  - AC-4 requires Gate 1 to reject missing requirement analysis, complete functional/technical design, 360-degree scenarios/impact, implementation/validation readiness and independent completeness review, but no delta control row maps any Gate 1 enforcement symbol (`gate1_check.py` appears in no row); C-4 only asserts template sections, so AC-4's gate half has no control, symbol or test.\n  - C-4, C-6 and C-7 carry bare file paths as `symbol` (no code symbol) while AC-1 mandates a code symbol per row and AC-2 requires \"verifying actual symbols\"; symbol resolution for these three rows is undefined and the gate cannot verify them.\nMAJOR:\n  - AC-5's \"report Code/Integration/Validation/Quality/Delivery Complete separately\" half has no owning row: C-5 covers only Gate 2/merge, and `scripts/dev/delivery_state_check.py` (item affected_files) is referenced by no control in the delta.\n  - AC-2's final-diff scope (actual symbols, tests, evidence, tech-stack checks, migration/backup, no caller-controlled security inputs) is claimed only by C-2's text; its two tests (missing controls, missing timestamp) never exercise final-diff resolution, migration/backup, or caller-controlled input rejection.\n  - FR-6/AC-3's RCCA-plus-new-item requirement is verified only by prose (`docs/IMPLEMENTATION-CONTROLS-DESIGN.md`), with no symbol, executable check or test — violates CL-010 \"prose is not proof\".\n  - C-7's stated security property (operator-only authz, rejects malformed payloads) is not exercised by its evidence (`test_design_pack_api_route_exists`, `test_checker_rejects_missing_matrix`); authz-bypass and payload-validation paths remain unproven.\n  - AC-6's `tech_stack_evidence` (14 keys) has no row or test proving each key resolves to an executable check that fails when missing, unrun or unrecorded; C-6's generic tests do not bind keys to checks.\nMINOR:\n  - C-3's positive/negative tests do not target `architect_review.py:_build_prompt` output or delivery-state inclusion, so the prompt-content control claim is unsupported by its evidence.\n  - C-4's negative test (`test_checker_rejects_missing_matrix`) tests the checker, not a missing template-mandate case.\n  - Every row's `evidence` field cites only its negative test; no pass-path evidence is recorded for any of C-1..C-7.\n  - FR-5 verification lists script paths (`scripts/dev/design_pack.py`, `scripts/dev/architect_review.py`) instead of executable test node ids, unlike FR-1..FR-3; `gate1_check.py` is not cited at all.\n  - C-2's `concurrency_test` claims stateless operation, but final-diff mode reads a shared checkout/worktree; concurrent checker runs on the same tree are untested.\nNIT:\n  - Enforcement cutoff `2026-11-16` is duplicated in `design_pack.rollout` and FR-5 `data_rules`; drift would split fail-closed scope.\n  - `symbol` formatting is inconsistent across rows (`file` vs `file:function`), which complicates uniform symbol resolution in the checker.\nSUMMARY:\n  - Delta design is directionally sound (single matrix, fail-closed, new-items-only rollout) but AC-4's Gate 1 enforcement and AC-5's five-state reporting have no owning control rows, leaving two approved ACs unverifiable.\n  - Evidence quality is the top risk: several controls' tests do not exercise the property the control asserts (prompt content, authz, final-diff/migration, RCCA), and three rows lack real code symbols.\n  - Resolve AC-4 gate ownership, AC-5 state-reporting ownership, and CL-010-compliant RCCA proof before Gate 1.5; remaining items are evidence-binding and consistency fixes.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=d51eb8d8f20a\nBLOCKER:\n  - AC-1 requires a row for \"every AC/FR\", but FR-1 (design-mandate prompt injection) and FR-2 (implementation mandates + STOP-without-matrix in code prompts) have no implementation_controls row; no row's symbol touches `core/orchestrator/prompt_builder.py` or `agent_runner.py`, so the item's core prompt-wiring outcome is uncontrolled.\n  - The matrix has only an `ac` field and no `fr` field, so FR→control traceability claimed by AC-1 is not verifiable from the design data itself (all six FRs map only to prose `traceability` entries).\nMAJOR:\n  - C-7 is tagged `ac: \"AC-6\"` but its control is design-pack API authz/payload security (FR-4's concern); AC-6 is tech-stack checks. The mis-tag both pollutes AC-6 coverage and leaves FR-4's AC binding wrong, so Gate 1's per-AC completeness check will pass on an incorrect mapping.\n  - AC-1 requires distinct code-symbol rows, yet C-4 and C-8 (identical symbol, identical tests) and C-5 and C-9 (identical symbol, identical tests) are duplicate pairs — duplicate controls give the appearance of coverage without additional enforcement surface.\nMINOR:\n  - C-2's `positive_test` is `test_single_item_path_rejects_missing_controls` — a rejection case; no pass-path test proves the checker accepts a valid pre-code or final-diff matrix, so the accept branch is untested.\n  - C-3 uses `kind: \"observability\"` for a mandatory prompt-content gate; kind-based filtering in Gate 2.5/checker will treat a failure-class control as informational.\n  - FR-4 verification cites \"live API call on BI-PF-1538\" instead of a pytest node id, unlike FR-1..FR-3, weakening machine-checkable traceability for the only FR with an auth boundary.\n  - All rows' `observability` values are prose labels (\"Gate 1 problems\", \"review findings\") with no named signal/schema, so observability claims are not independently verifiable.\nNIT:\n  - Row ids (C-1..C-10) are ordered by AC but not grouped by enforcement owner, making future diff review of the matrix harder to scan for gaps.\nSUMMARY:\n  - Delta resolves several prior findings (symbol formats now `file:function`, C-7 evidence now matches its authz/payload tests, RCCA and delivery_state_check now have symbols/tests), but AC-1's \"every AC/FR\" coverage still fails: FR-1/FR-2 prompt-injection controls are absent and the matrix lacks FR keys.\n  - Top risks: uncontrolled prompt-wiring path (the item's primary outcome), C-7's wrong AC binding, and duplicate control rows inflating apparent coverage.\n  - Remaining prior findings (gate1_check.py symbol, AC-2 final-diff/migration evidence, AC-6 tech-stack key binding) stay open and are not repeated here.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=12d9030cfea4\nBLOCKER:\n  - none\nMAJOR:\n  - C-6 is tagged `fr: \"FR-6\"` (RCCA for escaped defects) but its control is tech-stack check executability/evidence resolution, which is FR-3's readiness-check scope; the wrong FR binding lets Gate 1's per-FR completeness check pass on mis-attributed traceability (should be FR-3; FR-6 remains covered by C-10).\nMINOR:\n  - C-1 and C-4 share the identical symbol `scripts/dev/design_pack.py:check`, and C-4's `positive_test` is C-1's `negative_test` — near-duplicate enforcement surface, a residual of the removed C-4/C-8 pair.\n  - C-5 and C-10 share the identical symbol `delivery_state_check.py:problems` and use the same two tests with positive/negative swapped — one enforcement point presented as two controls.\n  - C-2 and C-6 both resolve to `implementation_readiness_check.py:problems`, so two matrix rows collapse to a single code path with no independent verification surface.\n  - C-4, C-11 and C-12 record `test_checker_rejects_missing_matrix` as `negative_test` for template/prompt-injection controls; that test exercises the checker, not the control's own failure path, so the failure branch of prompt/template enforcement is untested.\n  - C-7 was retagged from AC-6 to AC-1; AC-1's text is row-completeness, not API authz/payload enforcement, so FR-4's security control is now bound to an AC whose requirement does not describe it (AC-6 pollution is fixed, the binding is still not meaningful).\nNIT:\n  - none\nSUMMARY:\n  - Prior blockers are correctly resolved in this delta: FR-1/FR-2 now have rows (C-11, C-12) with symbols in `prompt_builder.py`/`agent_runner.py`, an `fr` field exists on every row, and the C-4/C-8 and C-5/C-9 duplicate pairs are gone.\n  - Remaining risk is traceability quality rather than coverage: one FR mis-binding (C-6→FR-6), several rows sharing a single symbol/test surface, and negative tests that do not exercise their stated control.\n  - Recommend correcting the C-6 FR mapping and de-duplicating/repairing negative tests before Gate 1 approval; no security, data-loss or language-rule violations found in the delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6d2efbd7251d\nBLOCKER:\n  - none\nMAJOR:\n  - AC-3's \"no merge with missing or dead controls\" clause has no implementation_controls row: no control's `symbol` resolves to a merge-gate owner (merge_gate_check.py appears in spec_pack.affected_files but has zero matrix rows), so Gate 1's per-AC completeness check passes while the merge-blocking half of AC-3 is unevidenced.\nMINOR:\n  - C-2's `positive_test` and `evidence` are both rejection cases (`...rejects_missing_controls`, `...rejects_missing_timestamp`); the row records no passing-path evidence that the readiness checker accepts a valid final-diff matrix.\n  - C-2's `negative_test` (missing timestamp) does not exercise the control it states (missing/invalid control fields in the matrix); the row-completeness failure branch is covered only indirectly via C-1.\nNIT:\n  - C-11 and C-12 `concurrency_test` say \"prompt operation is stateless\" while sibling rows say \"prompt/checker operation is stateless\"; wording drift in an otherwise uniform matrix will trip any exact-match template/schema validator.\nSUMMARY:\n  - Delta resolves the prior C-6 FR mis-binding (now FR-3); duplicate-symbol and C-7 AC-binding minors remain open as dispositioned.\n  - Control coverage spans all six ACs and all six FRs, but AC-3's merge-enforcement clause is unevidenced in the matrix — the main integrity gap before Gate 1.5.\n  - Remaining issues are evidence-polarity and wording hardening, not contract violations.\n  - [OUT_OF_SCOPE] Guardrail/CL-010 current-run red proof and the guardrail checklist answers are not part of this delta's changed fields and were not assessed here.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=493100351f75\nBLOCKER:\n  - none\nMAJOR:\n  - AC-2 clauses \"migration/backup\" and \"no caller-controlled security inputs\" have no implementation_controls row: C-2/C-6 cover only symbols, tests, evidence and tech-stack checks, so Gate 1's per-AC completeness check passes while two mandated readiness verifications are untracked and untested.\n  - AC-3's \"Templates and Gate 2.5 consume the same implementation-controls matrix\" single-source clause has no row: no symbol enforces shared-matrix consumption or the one-schema-validator anti-drift measure named in the design's own risks (distinct from the pending merge-clause finding).\n  - AC-2 clauses \"migration/backup\" and \"no caller-controlled security inputs\" have no implementation_controls row: C-2/C-6 cover only symbols, tests, evidence and tech-stack checks, so Gate 1's per-AC completeness check passes while two mandated readiness verifications are untracked and untested.\n  - AC-3's \"templates and Gate 2.5 consume the same implementation-controls matrix\" single-source clause has no row: no symbol enforces shared-matrix consumption or the one-schema-validator anti-drift measure named in the design's own risks (distinct from the pending merge-clause finding).\nMINOR:\n  - C-5 and C-10 negative tests are cross-wired (each row's negative_test is the sibling row's positive test), so neither control records a distinct failing-path test proving its own blocking behavior.\n  - C-4's positive/negative tests (matrix completeness) do not exercise its stated control (five mandate areas in templates); C-11's mandate test is the matching evidence.\n  - C-5 maps to FR-5 (gate coverage), but AC-5's five separate completion states and the \"Delivery Complete requires all five states\" DoD have no dedicated FR in the functional spec.\n  - C-5/C-10 symbolize scripts/dev/delivery_state_check.py and spec_pack references merge_gate_check.py, neither of which appears in the item-level affected_files/affected_components declaration.\nNIT:\n  - C-13's tenant_test is the truncated \"N/A: process tooling\" versus the matrix convention \"N/A: process tooling has no tenant runtime path\"; same exact-match validator risk as the pending concurrency-wording nit, on a different field.\n  - C-7 (operator-only API security control) is tagged ac=AC-1 purely as a catch-all, weakening AC-to-control traceability for FR-4.\nSUMMARY:\n  - Delta re-posts the implementation_controls matrix with prior MINOR findings on C-2 test naming apparently addressed (positive/evidence now a passing case; negative now rejects_missing_matrix); prior merge-clause MAJOR and C-11/C-12 wording NIT remain PENDING and unreopened.\n  - Verdict: no blockers, but AC-2 and AC-3 clause-level gaps mean Gate 1 will certify incomplete coverage; top risks are template/checker drift with no enforcing row and cross-wired delivery-state test evidence.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "Adds an executable 360-degree implementation-control matrix, pre-code and final readiness checks, an API-only design-pack write path, Gate 1/Gate 2.5 enforcement, and RCCA for escaped defects.",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 7,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-16T20:33:25.168864",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_readiness.py, /api/v1/audit/readiness, /api/v1/backlog/items/{item_id}/readiness, /api/v1/engineering/gates",
+    "existing_components": [
+      "core/agent_readiness.py"
+    ],
+    "existing_apis": [
+      "/api/v1/audit/readiness",
+      "/api/v1/backlog/items/{item_id}/readiness",
+      "/api/v1/engineering/gates",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/release/readiness"
+    ],
+    "existing_modules": [
+      "config/ci-cd-gates.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=1",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "body/acceptance criteria thin"
+    ],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "87a197ed281a5686"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-16T20:33:25.291992"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-16T20:33:19.818871",
+  "updated_at": "2026-11-17T22:59:37.798633",
+  "score": 0.75,
+  "_note": "Added mandatory implementation prompt and 360-degree checklist.",
+  "verified_by": "Srinikc HIL",
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md"
+    ],
+    "requirements": [
+      "AC-1..AC-6 executed by gates, prompt wiring and checker"
+    ],
+    "invariants": [
+      "No merge without Delivery Complete",
+      "No placeholder controls"
+    ],
+    "contracts": {
+      "api": {
+        "route": "POST /api/v1/backlog/items/{id}/design-pack",
+        "auth": "operator"
+      },
+      "db": "N/A: backlog store is existing",
+      "files": {
+        "prompt": "core/orchestrator/prompt_builder.py"
+      },
+      "config": {
+        "checklist": "config/implementation-controls.json"
+      }
+    },
+    "failure_matrix": [
+      {
+        "case": "missing controls",
+        "behavior": "block",
+        "code": "READINESS_FAIL"
+      }
+    ],
+    "dependencies": [
+      "core.backlog",
+      "design_pack.py",
+      "architect_review.py"
+    ],
+    "security": "Operator-only API; no caller-controlled paths/DSNs/tenants.",
+    "observability": "Checker emits JSON problems; Gate 2.5 reviews controls.",
+    "performance": "Structural checks only; changed-file scans.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "pytest tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "pytest tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "pytest tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit",
+        "test": "pytest tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "unit",
+        "test": "pytest tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-6",
+        "kind": "unit",
+        "test": "pytest tests/test_implementation_controls.py"
+      }
+    ],
+    "rollout": "Fail-closed for items created on/after 2026-11-16.",
+    "rollback": "Remove checker wiring/API endpoint/templates; retain design doc.",
+    "decisions": [
+      "Five mandates are prompts first; gates are backstops."
+    ],
+    "guardrails": [
+      "No retrofitting completed items."
+    ],
+    "learnings": [
+      "BI-PF-1268 repeated fix regressions without controls."
+    ],
+    "design_areas": [
+      {
+        "area": "process-tooling",
+        "status": "APPLICABLE",
+        "reason": "BI-PF-1538 scope",
+        "sections": [
+          "5-8"
+        ],
+        "evidence": [
+          "implementation_readiness_check.py"
+        ]
+      }
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "kind": "failure",
+        "control": "Gate 1 blocks unless every AC/FR has a complete implementation-controls row",
+        "symbol": "scripts/dev/design_pack.py:check",
+        "positive_test": "tests/test_implementation_controls.py::test_checker_accepts_complete_matrix",
+        "negative_test": "tests/test_implementation_controls.py::test_design_pack_requires_controls_for_new_item",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "Gate 1 problems",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_design_pack_requires_controls_for_new_item",
+        "fr": "FR-5"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "kind": "failure",
+        "control": "readiness checker validates controls before code and on final diff",
+        "symbol": "scripts/dev/implementation_readiness_check.py:problems()",
+        "positive_test": "tests/test_implementation_controls.py::test_checker_accepts_complete_matrix",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_missing_matrix",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "JSON problems list",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_checker_accepts_complete_matrix",
+        "fr": "FR-3"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-3",
+        "kind": "observability",
+        "control": "Gate 2.5 review prompt includes control coverage and delivery states",
+        "symbol": "scripts/dev/architect_review.py:_build_prompt",
+        "positive_test": "tests/test_implementation_controls.py::test_implementation_mandates_are_binding_and_complete",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_placeholder_and_missing_kind",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "review findings",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_implementation_mandates_are_binding_and_complete",
+        "fr": "FR-5"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-4",
+        "kind": "config",
+        "control": "design/functional templates and Gate 1 require five mandate areas",
+        "symbol": "scripts/dev/design_pack.py:check",
+        "positive_test": "tests/test_implementation_controls.py::test_design_pack_requires_controls_for_new_item",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_missing_matrix",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "template section assertion",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_design_pack_requires_controls_for_new_item",
+        "fr": "FR-1"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-5",
+        "kind": "failure",
+        "control": "Code/Integration/Validation/Quality/Delivery states must be separately evidenced",
+        "symbol": "scripts/dev/delivery_state_check.py:problems",
+        "positive_test": "tests/test_implementation_controls.py::test_delivery_state_requires_all_states",
+        "negative_test": "tests/test_implementation_controls.py::test_delivery_state_requires_rcca_for_escaped_defect",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "delivery-state JSON",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_delivery_state_requires_all_states",
+        "fr": "FR-5"
+      },
+      {
+        "id": "C-6",
+        "ac": "AC-6",
+        "kind": "config",
+        "control": "tech-stack checks are executable and every recorded key resolves to a check",
+        "symbol": "scripts/dev/implementation_readiness_check.py:problems",
+        "positive_test": "tests/test_implementation_controls.py::test_tech_stack_evidence_keys_resolve",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_placeholder_and_missing_kind",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "config checks list",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_tech_stack_evidence_keys_resolve",
+        "fr": "FR-3"
+      },
+      {
+        "id": "C-7",
+        "ac": "AC-1",
+        "kind": "security",
+        "control": "design-pack API is operator-only and rejects malformed payloads",
+        "symbol": "api/routers/backlog.py:set_design_pack",
+        "positive_test": "tests/test_implementation_controls.py::test_design_pack_api_rejects_malformed_payload",
+        "negative_test": "tests/test_implementation_controls.py::test_design_pack_api_requires_auth",
+        "tenant_test": "N/A: design-pack API is project-scoped backlog with no tenant header",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "API route assertion + operator dependency",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_design_pack_api_rejects_malformed_payload",
+        "fr": "FR-4"
+      },
+      {
+        "id": "C-10",
+        "ac": "AC-3",
+        "kind": "failure",
+        "control": "escaped defects require RCCA and a linked backlog item",
+        "symbol": "scripts/dev/delivery_state_check.py:problems",
+        "positive_test": "tests/test_implementation_controls.py::test_delivery_state_requires_rcca_for_escaped_defect",
+        "negative_test": "tests/test_implementation_controls.py::test_delivery_state_requires_all_states",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt/checker operation is stateless",
+        "observability": "gate/checker findings",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_delivery_state_requires_rcca_for_escaped_defect",
+        "fr": "FR-6"
+      },
+      {
+        "id": "C-11",
+        "ac": "AC-4",
+        "fr": "FR-1",
+        "kind": "config",
+        "control": "design and functional-spec mandates injected into prompts",
+        "symbol": "core/orchestrator/prompt_builder.py:design_spec_mandates",
+        "positive_test": "tests/test_implementation_controls.py::test_design_spec_mandates_are_complete",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_missing_matrix",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt operation is stateless",
+        "observability": "control text assertion",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_design_spec_mandates_are_complete"
+      },
+      {
+        "id": "C-12",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "failure",
+        "control": "implementation mandates and STOP-without-matrix injected into code prompts",
+        "symbol": "core/orchestrator/agent_runner.py:_implementation_controls_block",
+        "positive_test": "tests/test_implementation_controls.py::test_control_block_tells_implementer_to_stop_without_matrix",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_missing_matrix",
+        "tenant_test": "N/A: process tooling has no tenant runtime path",
+        "concurrency_test": "N/A: prompt operation is stateless",
+        "observability": "control text assertion",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_control_block_tells_implementer_to_stop_without_matrix"
+      },
+      {
+        "id": "C-13",
+        "ac": "AC-3",
+        "fr": "FR-5",
+        "kind": "failure",
+        "control": "Gate 2 completion blocks merge when controls/design pack are missing or dead",
+        "symbol": "scripts/dev/gate2_completion_check.py:completion_gaps",
+        "positive_test": "tests/test_implementation_controls.py::test_checker_accepts_complete_matrix",
+        "negative_test": "tests/test_implementation_controls.py::test_checker_rejects_missing_matrix",
+        "tenant_test": "N/A: process tooling",
+        "concurrency_test": "N/A: gate evaluation is read-only",
+        "observability": "Gate2 gaps list",
+        "evidence": "pytest -q tests/test_implementation_controls.py::test_checker_rejects_missing_matrix"
+      }
+    ],
+    "scope": [
+      "Process tooling, templates, prompt wiring, API endpoint, checker, tests"
+    ],
+    "non_goals": [
+      "No runtime service/store",
+      "No retrofitting completed items"
+    ],
+    "runtime_contract": {
+      "trigger": "implementation/fix/design prompt assembly and gate precheck",
+      "entrypoint": "core/orchestrator/agent_runner.py:_build_agent_prompt",
+      "call_sites": [
+        "implement",
+        "implement-api",
+        "implement-db",
+        "implement-logic",
+        "implement-ui",
+        "fix",
+        "design"
+      ],
+      "adapter": "prompt_builder.py",
+      "contract": "Prompt includes five mandates, item control matrix and tech-stack checks",
+      "failure_behavior": "Fail closed when controls/config are missing or placeholder",
+      "observable_result": "Prompt contains contract; checker/Gate 2.5 evidence"
+    },
+    "proof_plan": {
+      "failing_test": "tests/test_implementation_controls.py::test_checker_rejects_missing_matrix",
+      "red_evidence": "checker fails on missing matrix",
+      "green_evidence": "pytest tests/test_implementation_controls.py passes"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-5",
+        "evidence": "tests/test_implementation_controls.py"
+      },
+      {
+        "ac": "AC-6",
+        "evidence": "tests/test_implementation_controls.py"
+      }
+    ],
+    "stop_conditions": [
+      "Any AC without control row",
+      "Any placeholder/dead control",
+      "Missing API/checker tests"
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1538.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "tests": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "tests": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-5",
+        "tests": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-6",
+        "tests": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      }
+    ],
+    "delivery_states": {
+      "states": [
+        "CODE_COMPLETE",
+        "INTEGRATION_COMPLETE",
+        "VALIDATION_COMPLETE",
+        "QUALITY_APPROVED",
+        "DELIVERY_COMPLETE"
+      ],
+      "gate_rule": "only DELIVERY_COMPLETE satisfies Gate 2 and merge",
+      "evidence_owner": "review ledger + readiness checker"
+    },
+    "tooling": true,
+    "affected_files": [
+      "scripts/dev/delivery_state_check.py",
+      "scripts/dev/gate2_completion_check.py",
+      "templates/DESIGN-PACK.md",
+      "config/implementation-controls.json",
+      "api/routers/backlog.py",
+      "scripts/dev/design_pack.py",
+      "scripts/dev/implementation_readiness_check.py",
+      "scripts/dev/architect_review.py",
+      "scripts/dev/merge_gate_check.py"
+    ],
+    "tech_stack_evidence": [
+      "go-format",
+      "go-vet",
+      "go-race",
+      "go-context-pool",
+      "go-errors",
+      "pg-transactions",
+      "pg-rls",
+      "pg-migration",
+      "object-store",
+      "api-auth-tenant",
+      "api-validation",
+      "config-fail-closed",
+      "observability",
+      "no-dead-code"
+    ],
+    "five_mandates": [
+      "requirement understanding",
+      "complete functional and technical design",
+      "360 scenario and impact coverage",
+      "implementation and validation readiness",
+      "specification quality and completeness review"
+    ]
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1538",
+    "outcome": "Implementation prompts carry binding mandates and item controls; gates verify evidence.",
+    "actors": [
+      "implementer",
+      "reviewer",
+      "operator"
+    ],
+    "scope": [
+      "prompt wiring",
+      "control matrix",
+      "checker",
+      "API",
+      "gates"
+    ],
+    "non_goals": [
+      "retrofitting historical items",
+      "runtime service"
+    ],
+    "assumptions": [
+      "tooling is Python",
+      "new items only"
+    ],
+    "dependencies": [
+      "core.orchestrator",
+      "core.backlog",
+      "architect_review.py"
+    ],
+    "domain": "Product Forge delivery process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Inject design and functional-spec mandates",
+        "priority": "P0",
+        "source": "BI-PF-1538",
+        "preconditions": "Implementation/design work is underway for a backlog item.",
+        "trigger": "A design or specification agent builds its prompt.",
+        "inputs": [
+          "Backlog item",
+          "Design template"
+        ],
+        "outputs": [
+          "Prompt containing five design mandates"
+        ],
+        "errors": [
+          "Missing mandate blocks Gate 1"
+        ],
+        "auth": "Prompt assembly only",
+        "idempotency": "Prompt generation is read-only",
+        "data_rules": [
+          "All five mandates are present in the assembled prompt"
+        ],
+        "edge_cases": [
+          "Spec agents only"
+        ],
+        "acceptance": [
+          "Given a design agent run, when the prompt is assembled, then all five design mandates are present."
+        ],
+        "verification": [
+          "pytest tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Inject implementation mandates into code prompts",
+        "priority": "P0",
+        "source": "BI-PF-1538",
+        "preconditions": "Implementation/design work is underway for a backlog item.",
+        "trigger": "Implement or fix agent builds its prompt.",
+        "inputs": [
+          "Backlog item",
+          "Control matrix"
+        ],
+        "outputs": [
+          "Prompt containing five implementation mandates and control contract"
+        ],
+        "errors": [
+          "No controls -> prompt instructs STOP"
+        ],
+        "auth": "Prompt assembly only",
+        "idempotency": "Prompt generation is read-only",
+        "data_rules": [
+          "Mandates outrank speed and require Delivery Complete"
+        ],
+        "edge_cases": [
+          "Code-writing agents only"
+        ],
+        "acceptance": [
+          "Given an implement agent run, when the prompt is assembled, then the five implementation mandates and item controls are present."
+        ],
+        "verification": [
+          "pytest tests/test_implementation_controls.py::test_control_block_tells_implementer_to_stop_without_matrix"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Validate implementation controls",
+        "priority": "P0",
+        "source": "BI-PF-1538",
+        "preconditions": "Implementation/design work is underway for a backlog item.",
+        "trigger": "Readiness check runs before code or on final diff.",
+        "inputs": [
+          "design_pack.implementation_controls",
+          "Repo tree"
+        ],
+        "outputs": [
+          "Machine-readable problems JSON"
+        ],
+        "errors": [
+          "Exit 1 on missing, dead or invalid control"
+        ],
+        "auth": "Tooling only",
+        "idempotency": "Idempotent inspection",
+        "data_rules": [
+          "Required control kinds and AC coverage are enforced"
+        ],
+        "edge_cases": [
+          "Missing config",
+          "Missing symbol path"
+        ],
+        "acceptance": [
+          "Given a matrix missing a negative test, when the checker runs, then it fails with a concrete problem."
+        ],
+        "verification": [
+          "pytest tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "id": "FR-4",
+        "title": "Write design pack through API",
+        "priority": "P0",
+        "source": "BI-PF-1538",
+        "preconditions": "Implementation/design work is underway for a backlog item.",
+        "trigger": "Operator submits a design pack.",
+        "inputs": [
+          "design_pack object",
+          "expected_revision"
+        ],
+        "outputs": [
+          "Updated backlog item"
+        ],
+        "errors": [
+          "VALIDATION_FAILED or NOT_FOUND"
+        ],
+        "auth": "Operator role required",
+        "idempotency": "Revision guard prevents lost updates",
+        "data_rules": [
+          "design_pack persisted by core.backlog.update"
+        ],
+        "edge_cases": [
+          "Wrong revision",
+          "Malformed pack"
+        ],
+        "acceptance": [
+          "Given a valid design pack, when posted to the design-pack endpoint, then the item stores it."
+        ],
+        "verification": [
+          "live API call on BI-PF-1538",
+          "api/openapi.json"
+        ]
+      },
+      {
+        "id": "FR-5",
+        "title": "Enforce Gate 1 and Gate 2.5 control coverage",
+        "priority": "P0",
+        "source": "BI-PF-1538",
+        "preconditions": "Implementation/design work is underway for a backlog item.",
+        "trigger": "Gate 1 or diff review runs.",
+        "inputs": [
+          "Item",
+          "Diff"
+        ],
+        "outputs": [
+          "Findings and block/pass decision"
+        ],
+        "errors": [
+          "Fail closed on missing controls"
+        ],
+        "auth": "Review tooling only",
+        "idempotency": "Review evidence append-only",
+        "data_rules": [
+          "Gate 1 requires controls for items created from 2026-11-16"
+        ],
+        "edge_cases": [
+          "Historical item"
+        ],
+        "acceptance": [
+          "Given a new item without controls, when Gate 1 runs, then it fails."
+        ],
+        "verification": [
+          "scripts/dev/design_pack.py",
+          "scripts/dev/architect_review.py"
+        ]
+      },
+      {
+        "id": "FR-6",
+        "title": "Require RCCA for escaped defects",
+        "priority": "P0",
+        "source": "BI-PF-1538",
+        "preconditions": "Implementation/design work is underway for a backlog item.",
+        "trigger": "A defect escapes a passing gate.",
+        "inputs": [
+          "Defect evidence"
+        ],
+        "outputs": [
+          "RCCA and linked backlog item"
+        ],
+        "errors": [
+          "No silent cross-PR fix"
+        ],
+        "auth": "Process owner",
+        "idempotency": "One RCCA per escaped defect",
+        "data_rules": [
+          "New backlog item captures missing control or test"
+        ],
+        "edge_cases": [
+          "Duplicate defect"
+        ],
+        "acceptance": [
+          "Given an escaped defect, when closure is attempted, then RCCA and a linked item are required."
+        ],
+        "verification": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "prompt build",
+        "owner": "agent_runner",
+        "failure": "STOP without controls"
+      }
+    ],
+    "config_contract": {
+      "config/implementation-controls.json": "required, fail closed"
+    },
+    "nfr": [
+      "no added runtime latency",
+      "deterministic checks"
+    ],
+    "data_lifecycle": "backlog evidence retained; no runtime data",
+    "compatibility": "new items only; historical items exempt",
+    "rollback": "remove prompt/checker/API wiring; retain design doc",
+    "observability": "checker JSON problems; Gate 2.5 findings",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-5",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "fr": "FR-6",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_implementation_controls.py",
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: the API write path and enforcement cutoff are decided in this item."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "e05b892b2bbc"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1538.md",
+    "design_ref": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "design is required",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "1-8"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "new design-pack endpoint",
+        "artifact": "api/openapi.json",
+        "sections": [
+          "design-pack"
+        ],
+        "evidence": [
+          "api/openapi.json"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1538",
+        "reason": "no new runtime data store"
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "new executable checklist",
+        "artifact": "config/implementation-controls.json",
+        "sections": [
+          "checks"
+        ],
+        "evidence": [
+          "config/implementation-controls.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1538",
+        "reason": "tooling-only change with no runtime SLO"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "operator-only API",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+          "tests/test_implementation_controls.py"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1538",
+        "reason": "no database migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1538",
+        "reason": "no runtime deployment; rollback is code revert"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "checker emits problems",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "scripts/dev/implementation_readiness_check.py"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1538",
+        "reason": "no user interface"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1538",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "checker owns plan",
+        "artifact": "scripts/dev/implementation_readiness_check.py",
+        "sections": [
+          "problems"
+        ],
+        "evidence": [
+          "scripts/dev/implementation_readiness_check.py"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1538",
+        "reason": "tests verify release",
+        "artifact": "tests/test_implementation_controls.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "tests/test_implementation_controls.py"
+        ]
+      }
+    ]
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "Adds a design-pack write endpoint through the backlog API.",
+    "routes": [
+      "POST /api/v1/backlog/items/{item_id}/design-pack"
+    ]
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "57edf8d87784080dc5d1251049ff2cc9b57da84c",
+      "review_sha": "22fa16ecec2b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T10:15:57.013392+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "57edf8d87784080dc5d1251049ff2cc9b57da84c",
+      "findings": {
+        "BLOCKER": [
+          "All six implementation_controls rows (C-1..C-6) share one identical symbol (`implementation_readiness_check.py:problems`), one identical test file, and identical evidence strings; no row maps to its owning symbol per AC, violating AC-1/AC-3 \"no dead/placeholder rows\" and the binding per-row review.",
+          "C-2 and C-6 control text is literally \"N/A: ...\" (placeholder-only), and tenant_test/concurrency_test are N/A on every row while AC-1 requires tenant/RLS and concurrency mappings per row; explicit-N/A risk allowance does not permit whole-row placeholders.",
+          "Control-to-AC mapping is nominal: C-1 (API auth) is tagged AC-1 (Gate 1 coverage), C-4 (config fail-closed) is tagged AC-4 (template mandates); no control row covers FR-4/API payload security in `api/routers/backlog.py` — the only shipped-code surface — so AC coverage is unverifiable against the diff.",
+          "AC-5 requires five separately reported completion states and evidenced Delivery Complete at Gate 2/merge, but the design_pack declares no state model, transitions, or evidence owner; the approved contract cannot be verified as specified."
+        ],
+        "MAJOR": [
+          "FR-6 (RCCA + linked backlog item on escaped defect) has no owning symbol, control row, or test — traceability lists `tests/test_implementation_controls.py` while FR-6's own verification cites only `docs/IMPLEMENTATION-CONTROLS-DESIGN.md`; enforcement appears undocumented.",
+          "Single shared test file as evidence for all 6 ACs / 6 FRs / 12 traceability entries gives no per-control positive/negative proof; a single green run cannot demonstrate distinct negative, tenant, and concurrency cases.",
+          "FR-3 declares `errors` as a string while other FRs use lists — schema drift in the functional spec undermines the \"one schema validator\" guardrail.",
+          "Hard-coded cutoff `2026-11-17` in FR-5 data_rules and rollout is magic-date coupling; any process retro-start re-baselining silently exempts or blocks items with no config knob.",
+          "Security threat-model spec is marked APPLICABLE but its evidence is a unit test file, not an analysis artifact; operator-role enforcement (authn vs authz, role source) is asserted in one line with no boundary test named."
+        ],
+        "MINOR": [
+          "Observability is limited to \"JSON problems\" with no runbook entry, alert path, or gate-failure metric for the checker/CI integration (guardrail 10 partially unaddressed).",
+          "Design does not answer guardrail 2 (defence-in-depth / on-startup or pre-merge check ordering) beyond \"pre-code and final diff\"; ordering between readiness check, Gate 1, and Gate 2.5 is implied, not specified.",
+          "Rollback is stated as code revert but template/checker removal mid-flight for items already past Gate 1 leaves inconsistent control history; no re-gate step defined."
+        ],
+        "NIT": [
+          "FR-2 edge case \"Code-writing agents only\" and FR-1 \"Spec agents only\" are prose, not enumerated agent call-site lists, though `runtime_contract.call_sites` already lists them — duplicate sources of truth.",
+          "`operation_matrix` has a single row (\"prompt build\") while the design touches gates, checker, and API — matrix under-represents operations."
+        ],
+        "SUMMARY": [
+          "Verdict: fail Gate 1 as designed. The implementation_controls matrix is degenerate — six identical placeholder rows pointing at one symbol and one test file — so the binding per-row diff review cannot be satisfied and AC-1/AC-3 stop conditions are already tripped.",
+          "Top risks: (1) nominal AC-to-control mapping gives false coverage confidence; (2) AC-5 five-state delivery reporting is declared but not designed; (3) the only shipped-code change (backlog design-pack API) has no dedicated security/concurrency control row."
+        ]
+      },
+      "evidence": "BI-PF-1538-22fa16ecec2b.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "dbcaa7c18626c8f841a96077be6895b7efd2f11a",
+      "review_sha": "3013897e4289",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T10:21:26.569352+00:00",
+      "review_scope": "delta",
+      "base_sha": "57edf8d87784080dc5d1251049ff2cc9b57da84c",
+      "head_sha": "dbcaa7c18626c8f841a96077be6895b7efd2f11a",
+      "findings": {
+        "BLOCKER": [
+          "AC-to-control mapping still misaligned after delta: C-4 (API write) is tagged AC-4 (template mandates), C-6 (prompt text) is tagged AC-6 (config executable checks); no row's control text matches its AC for AC-1/AC-4/AC-5/AC-6 — disposition of prior blocker is wrong, not fixed.",
+          "AC-6 has no owning row: no implementation_control symbol points to `config/implementation-controls.json` or its executable checks; AC-4 has no row pointing at `templates/DESIGN-PACK.md`/`FUNCTIONAL-SPEC.md` — declared affected_files appear in zero rows.",
+          "AC-5 merge/Gate-2 enforcement unmapped: `delivery_states.gate_rule` requires Gate 2/merge to demand DELIVERY_COMPLETE, but no row's symbol is `scripts/dev/gate2_completion_check.py` or a merge owner; delivery-state claim is unverifiable against the diff."
+        ],
+        "MAJOR": [
+          "`kind` values are rotated checklist fillers, not semantics (C-6 delivery-states prompt text labeled `concurrency`, C-2 prompt mandates labeled `tenant`, C-4 API labeled `config`), so per-kind AC coverage is nominal.",
+          "All six rows carry the identical evidence string `pytest -q tests/test_implementation_controls.py`; no per-row evidence ID/command, so a single green run cannot prove distinct positive/negative/tenant/concurrency cases.",
+          "C-3 symbol `implementation_readiness_check.py:problems` names a data field, not an owning callable — likely fails or is dead under the checker's own symbol-resolution rule.",
+          "FR-6 (RCCA + linked item) enforcement is prompt text only (C-6); no gate/closure symbol or test owns the RCCA-required-at-closure rule; FR-6 verification still cites only the design doc.",
+          "spec_pack evidence mismatches: `observability_runbook` and `implementation_plan` evidence point at `tests/test_implementation_controls.py` instead of their cited artifacts; `security_threat_model` names no operator authz boundary test."
+        ],
+        "MINOR": [
+          "`tenant_test`/`concurrency_test` are N/A on every row; encode an explicit machine-checkable N/A-with-reason mapping so AC-1's \"has a mapping\" requirement is satisfiable rather than skipped.",
+          "`delivery_states.evidence_owner` cites an unnamed \"review ledger\"; no artifact/symbol defines where Delivery Complete evidence is recorded or who signs it.",
+          "Rollback path still lacks a re-gate step for items already past Gate 1 if checker/templates are removed mid-flight."
+        ],
+        "NIT": [
+          "`functional_spec.operation_matrix` still has a single \"prompt build\" row while the delta touches gates, checker and API."
+        ],
+        "SUMMARY": [
+          "Delta fixes prior row-symbol collapse and the missing delivery-state model, but AC coverage remains nominal: AC-4, AC-5 merge enforcement and AC-6 config checks have no owning control rows, and `kind`/evidence fields are placeholder-shaped.",
+          "Top risks: an approved Gate 1 can pass while template, config and merge-gate enforcement are entirely uncontrolled; per-row proof reduces to one shared test file.",
+          "Block Gate 1.5 until every AC (esp. AC-4/5/6) has a row whose control text, symbol and evidence match that AC's artifact."
+        ]
+      },
+      "evidence": "BI-PF-1538-3013897e4289.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "eed759238f9e1d6b92863bf1a7cc2a108b152f46",
+      "review_sha": "4a32ac1fed37",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T10:25:40.910527+00:00",
+      "review_scope": "delta",
+      "base_sha": "dbcaa7c18626c8f841a96077be6895b7efd2f11a",
+      "head_sha": "eed759238f9e1d6b92863bf1a7cc2a108b152f46",
+      "findings": {
+        "BLOCKER": [
+          "C-5 symbol `scripts/dev/delivery_state_check.py:problems` is not in declared `affected_files`, and no row names `scripts/dev/gate2_completion_check.py` or a merge owner — AC-5 Gate 2/merge DELIVERY_COMPLETE enforcement remains unverifiable against the diff; prior blocker disposition wrong.",
+          "AC mapping still misaligned: C-7 (operator-only API security) is tagged AC-1, C-8 (tenant N/A) is tagged AC-4 — control text does not match the AC for either row.",
+          "C-2 symbol `implementation_readiness_check.py:problems` still names a data field, not an owning callable — dead/invalid under the checker's own symbol-resolution rule; prior MAJOR persists.",
+          "C-7's negative test (`test_checker_rejects_placeholder_and_missing_kind`) does not exercise API authz/malformed-payload rejection, and C-8's tests are template-mandate tests — the security and tenant controls have no control-relevant evidence, i.e. effectively dead rows."
+        ],
+        "MAJOR": [
+          "C-8 is a self-referential N/A row (`tenant_test` N/A, `symbol` = config file, tests unrelated to tenancy) — it cannot satisfy AC-1's \"tenant/RLS mapping\" requirement as a real mapping.",
+          "Prior MAJOR on `spec_pack` evidence mismatches (`observability_runbook`, `implementation_plan`, `security_threat_model`) is unaddressed by this delta — no new evidence changes the disposition.",
+          "Prior MAJOR on FR-6 closure enforcement and MINOR on `delivery_states.evidence_owner`/rollback re-gate remain PENDING with no corresponding delta rows."
+        ],
+        "MINOR": [
+          "C-3's observability is \"review findings\" but no test asserts the prompt actually contains control coverage/delivery states beyond string presence — weak evidence for AC-3.",
+          "Evidence strings are now per-row but still all point to the same test module; per-row evidence IDs or distinct commands would strengthen auditability."
+        ],
+        "NIT": [
+          "`kind` values now look semantic (failure/observability/config/security/tenant), but C-4 as `config` for a template row is imprecise."
+        ],
+        "SUMMARY": [
+          "Delta fixes half the prior blockers (AC-4/AC-6 rows now point at templates and config, evidence is per-row), but AC-5 remains unmapped to any declared Gate 2/merge symbol and two rows carry non-callable or control-irrelevant symbols/tests.",
+          "Top risks: unverifiable delivery-state enforcement at merge, dead security/tenant rows, and unresolved prior MAJORs outside the changed field.",
+          "Verdict: not approvable until C-5 lands on a declared Gate 2/merge owner and C-7/C-8 get control-matched AC tags, symbols and tests."
+        ]
+      },
+      "evidence": "BI-PF-1538-4a32ac1fed37.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "aeb89bfa0d82346f73862188ba9a35a4cff6cce5",
+      "review_sha": "3ae72fd0074c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T10:32:01.136245+00:00",
+      "review_scope": "delta",
+      "base_sha": "eed759238f9e1d6b92863bf1a7cc2a108b152f46",
+      "head_sha": "aeb89bfa0d82346f73862188ba9a35a4cff6cce5",
+      "findings": {
+        "BLOCKER": [
+          "Delta `design_pack.affected_files` (authoritative) lists only 5 files, dropping `scripts/dev/design_pack.py`, `scripts/dev/implementation_readiness_check.py`, `scripts/dev/architect_review.py` — yet C-1, C-2, C-3 name symbols in exactly those files; symbol↔declared-file mismatch makes those rows unverifiable against the diff (same class as the prior affected_files blocker).",
+          "C-5 text requires \"Gate 2 **and merge**\" Delivery Complete, but the row's only symbol is `gate2_completion_check.py:completion_gaps`; no row/symbol names a merge owner — AC-5's merge clause remains unowned (residual of prior blocker; only the Gate 2 half was fixed by this delta).",
+          "C-7 was retagged from AC-1 to AC-6, but its control (operator-only design-pack API security) still does not match AC-6 (coding/tech-stack checks mapped in `config/implementation-controls.json`, already covered by C-6); FR-4 (API write) has no correctly mapped row — AC mapping remains misaligned (same class as prior blocker, new evidence: the retag)."
+        ],
+        "MAJOR": [
+          "C-2's delta fix is cosmetic: symbol changed from `problems` to `problems()` with no evidence it resolves to an owning callable; AC-2's actual-symbol verification remains unproven.",
+          "All seven rows carry the identical blanket `tenant_test: \"N/A: process tooling has no tenant runtime path\"`, including C-7 which writes to the backlog store via the API — AC-1's tenant/RLS requirement is not met as a real mapping; removing C-8 propagated the N/A hole to the whole matrix rather than fixing it."
+        ],
+        "MINOR": [
+          "`spec_pack` is declared a changed field but its content is byte-identical to the prior version, so the pending spec_pack evidence MAJORs (observability_runbook, implementation_plan, security_threat_model) are unaddressed by this delta.",
+          "`scripts/dev/delivery_state_check.py` is newly declared in `affected_files` but no implementation_controls row references it — a declared file with no owning control or test evidence."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta fixes the file list for gate2/delivery-state and retags C-7, but the declared-files vs symbol mismatch (C-1..C-3), missing merge-owner symbol, and still-wrong C-7 AC mapping leave AC-1/AC-2/AC-5 unverifiable — Gate 1 should stay PENDING/BLOCKED.",
+          "Top risks: blanket N/A tenant mapping across the matrix, cosmetic C-2 symbol fix, and a spec_pack delta that declares change without changing anything."
+        ]
+      },
+      "evidence": "BI-PF-1538-3ae72fd0074c.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "2bc5f82f7de24db5b368625ef2e173050b306e4c",
+      "review_sha": "e7a8c3795f66",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T10:36:27.223807+00:00",
+      "review_scope": "delta",
+      "base_sha": "aeb89bfa0d82346f73862188ba9a35a4cff6cce5",
+      "head_sha": "2bc5f82f7de24db5b368625ef2e173050b306e4c",
+      "findings": {
+        "BLOCKER": [
+          "New row C-9 names symbol `core/merge_gate.py:evaluate`, but declared `affected_files` contains only `scripts/dev/merge_gate_check.py`; symbol↔declared-file mismatch makes the new merge-owner row unverifiable (same defect class as the prior C-1 blocker).",
+          "Delta drops `templates/FUNCTIONAL-SPEC.md` from `affected_files` while C-4's control text covers \"design **and functional-spec** templates\" with symbol only `templates/DESIGN-PACK.md`; AC-4's functional-spec half has no declared file or owning symbol.",
+          "Delta drops `api/openapi.json` from `affected_files` although FR-4 verification and spec_pack `api_contract` evidence cite it as the contract artifact; AC/contract evidence no longer declared in the authoritative delta."
+        ],
+        "MAJOR": [
+          "`api/routers/backlog.py` is declared in `affected_files` but no implementation_controls row references it (C-7 points at `config/implementation-controls.json`); the API write path still has no owning symbol/control, extending the pending FR-4 mapping gap with new file-level evidence.",
+          "C-5 control text still contains the \"merge consumes Gate 2 validation evidence\" clause now also owned by C-9; two rows claim the same merge clause with different symbols (`gate2_completion_check.py:completion_gaps` vs `core/merge_gate.py:evaluate`), leaving ownership ambiguous for AC-5's merge half.",
+          "Delta drops `scripts/dev/precheck.py` and `docs/IMPLEMENTATION-CONTROLS-DESIGN.md` from `affected_files` although the runtime_contract trigger includes \"gate precheck\" and all FR traceability/design evidence points at the design doc; declared scope no longer matches cited evidence."
+        ],
+        "MINOR": [
+          "C-9 reuses the identical blanket `tenant_test: \"N/A: process tooling has no tenant runtime path\"` while merge gating reads cross-item delivery state; N/A justification differs from the other rows' \"stateless\" rationale and is untested.",
+          "AC-6 rows C-6/C-7 both use the same `positive_test`/`negative_test` pair, so a config-check failure and an API-security failure are not independently distinguishable in evidence."
+        ],
+        "NIT": [
+          "C-9's `concurrency_test` (\"merge gate evaluation is read-only\") does not exercise concurrent merge attempts against the same item, which is the actual contention case the field exists to cover."
+        ],
+        "SUMMARY": [
+          "Delta fixes the earlier file-list gaps for C-1/C-2/C-3 and adds a merge-owner row, but introduces a fresh symbol↔file mismatch (C-9), drops the functional-spec template and API contract artifacts from the authoritative file list, and leaves the API router file unowned.",
+          "Top risks: unverifiable C-9 symbol, AC-4 functional-spec coverage not declared, and duplicated/ambiguous AC-5 merge ownership between C-5 and C-9."
+        ]
+      },
+      "evidence": "BI-PF-1538-e7a8c3795f66.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5d2e190503b73cab1cd8ce401575911be14d7ccf",
+      "review_sha": "6315651e3011",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T10:41:32.312462+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5d2e190503b73cab1cd8ce401575911be14d7ccf",
+      "findings": {
+        "BLOCKER": [
+          "AC-6 unmet: `config/implementation-controls.json` (symbol for controls C-6/C-7) is absent from the diff and absent from current referenced config, so coding/tech-stack checks are neither mapped nor fail-closed.",
+          "AC-2 unmet: `scripts/dev/implementation_readiness_check.py:problems()` (C-2, FR-3) is not in the diff — no pre-code/final-diff readiness checker is delivered.",
+          "Controls C-1, C-3, C-5, C-9 name symbols (`design_pack.py:check`, `architect_review.py:_build_prompt`, `gate2_completion_check.py:completion_gaps`, `core/merge_gate.py:evaluate`) that appear nowhere in the diff; C-9's symbol is not even in `affected_files` — rows are unverifiable/dead against this change.",
+          "Every row's `evidence`/`positive_test`/`negative_test` resolve to `tests/test_implementation_controls.py`, which is in neither the diff nor `affected_files` — evidence mappings are unresolvable, so no row can be confirmed live.",
+          "No delivery-state evidence reported for Code Complete / Integration Complete / Validation Complete / Quality Approved / Delivery Complete; Delivery Complete (and therefore Gate 2 + merge) must be treated as not met.",
+          "AC-2 also requires migration/backup and tech-stack check verification, but no control row maps to migration/backup — AC coverage is incomplete even on the declared matrix."
+        ],
+        "MAJOR": [
+          "The only visible change is the generated `api/openapi.json` (adding `POST /api/v1/backlog/items/{item_id}/design-pack`), while `api/routers/backlog.py` (FR-4 owning symbol) is not in the diff — the published contract and its implementation are not verifiably in sync.",
+          "AC-1/AC-4/AC-5 enforcement (`gate1_check.py`, `gate2_completion_check.py`, `precheck.py`) is declared in `affected_files` but absent from the diff, so the approved Gate 1 / Gate 2.5 / merge contract cannot be confirmed as implemented.",
+          "Control ids jump C-7 → C-9 (no C-8), indicating a dropped control row with no recorded disposition — violates \"no row may be missing\" for the matrix."
+        ],
+        "MINOR": [
+          "`api/openapi.json` is rewritten wholesale (full key reordering plus content), destroying line-level reviewability and making semantic regressions in existing routes undetectable in this diff."
+        ],
+        "NIT": [
+          "Evidence entries are bare pytest commands rather than recorded run outputs/artifacts, so \"run and recorded\" cannot be distinguished from \"nominally cited\"."
+        ],
+        "SUMMARY": [
+          "Verdict: BLOCK — the diff delivers only a regenerated OpenAPI artifact; none of the six ACs' owning symbols, config, tests or evidence are present in the change under review.",
+          "Top risks: implementation_controls rows are dead/unresolvable (C-1..C-5, C-9), `config/implementation-controls.json` and `implementation_readiness_check.py` are missing entirely, and no delivery states are evidenced.",
+          "Recommend re-submit with the declared files, the test suite, and per-state delivery evidence before any Gate 2/merge claim."
+        ]
+      },
+      "evidence": "BI-PF-1538-6315651e3011.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "a94513cf0d07aabe94f9f7576a691ab778ec9762",
+      "review_sha": "38bbb7f0c960",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T11:34:15.467780+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "a94513cf0d07aabe94f9f7576a691ab778ec9762",
+      "findings": {
+        "BLOCKER": [
+          "AC-6 unmet: `implementation_readiness_check.problems()` only asserts `config/implementation-controls.json` has a non-empty `checks` list; nothing ever runs those checks or compares declared evidence to a recorded run, so \"missing/unrun/unrecorded\" cannot fail.",
+          "AC-2 unmet: no wiring in the diff invokes `implementation_readiness_check.py --final` against the final diff (precheck.py/gate1_check.py absent); migration/backup verification and \"no caller-controlled security inputs\" verification are not implemented anywhere in `problems()`.",
+          "AC-1 fail-open: `design_pack.check` gets the cutoff via `_irc._config()`, which swallows read errors and returns `{}`; a missing/corrupt config yields `_cutoff == \"\"`, the `if _cutoff` guard skips `irc.problems()` entirely, and no error is recorded — Gate 1 silently stops blocking.",
+          "AC-5 unmet: merge does not require Delivery Complete — `scripts/dev/merge_gate_check.py` (declared in design_pack.affected_files) and control C-9's symbol `core/merge_gate.py:evaluate` are absent from the diff; only Gate 2 (`gate2_completion_check.py`) was wired.",
+          "AC-4 unmet: `gate1_check.py` is absent from the diff (confirmed on the corrected, non-truncated diff; prior \"superseded\" disposition no longer holds) and no validator checks the five mandate areas — templates carry prose only, so Gate 1 cannot reject a missing mandate area.",
+          "Final-mode symbol \"verification\" is path-existence only (`PATHLIKE` regex against `root`), never that the named symbol/function or test exists or ran — exactly the \"path-only false confidence\" risk recorded in the approved design."
+        ],
+        "MAJOR": [
+          "Duplicate byte-identical test suites: `product-forge/tests/test_implementation_controls.py` and `product-forge/test-framework/tests/test_implementation_controls.py` (only `ROOT` differs); guaranteed drift and ambiguous which suite's run is the evidence for every control row.",
+          "`agent_runner._implementation_controls_block` fails open twice: `except Exception: pass` around the config read silently omits tech-stack checks from the prompt, and a broad `except Exception` on the backlog lookup converts lookup failure into \"no rows → STOP\" with no signal.",
+          "`irc.problems(item, root=...)` ignores its `root` parameter for config (`_config()` always reads `ROOT/config`), so tests never exercise the config-failure path and the `config unreadable` except branch is dead code.",
+          "AC coverage check compares a set of row `ac` strings against `str()` of `acceptance_criteria` entries (dict-shaped ACs break the count) and never verifies FR coverage, though AC-1 requires \"every AC/FR\".",
+          "The `enforce_from` cutoff uses raw string comparison on `created_at` and treats a missing `created_at` as exempt, letting items without a timestamp bypass control enforcement."
+        ],
+        "MINOR": [
+          "The design-pack endpoint accepts any `implementation_controls` list with only a type check; placeholder/dead rows are written unchecked (deferred entirely to gates).",
+          "`delivery_state_check.problems` re-checks the four prior states inside the `delivery_complete` branch (dead logic), and nothing in the diff defines/writes the snake_case `delivery_states` keys the checker reads.",
+          "`store-registry.json` registers both `config/implementation-controls.json` and `implementation-controls.json` — ambiguous duplicate registration.",
+          "Control C-3's negative test (`test_checker_rejects_placeholder_and_missing_kind`) does not exercise `architect_review._build_prompt`, so the row's declared negative path is mismatched to its owning symbol."
+        ],
+        "NIT": [
+          "\"Mandatory 360? ...\" heading contains a mangled character and the identical 26-line block is copy-pasted into three templates instead of one shared include.",
+          "`architect_review.py` emit uses `getattr(a, \"since\", \"\")` rather than the parser's default — masks argument-wiring regressions.",
+          "[OUT_OF_SCOPE] `config/id-blocks.json` session-reservation churn is unrelated to BI-PF-1538's declared scope."
+        ],
+        "SUMMARY": [
+          "The diff delivers the config, checker, prompt mandates, API endpoint and tests, but three ACs are objectively unmet: the checker never verifies checks were run/recorded (AC-6), nothing wires it to the final diff or to migration/caller-input verification (AC-2), and neither Gate 1 mandate rejection nor the merge-side Delivery Complete requirement is implemented (AC-4/AC-5); plus AC-1 enforcement fails open on a missing config.",
+          "Top risks: fail-open gating, duplicated test suites as sole evidence, and path-only \"symbol\" verification that the design itself flagged as insufficient."
+        ]
+      },
+      "evidence": "BI-PF-1538-38bbb7f0c960.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "502759b430e7a27df5a995b07920566421f6c23e",
+      "review_sha": "7984bee8878b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T11:45:45.603566+00:00",
+      "review_scope": "delta",
+      "base_sha": "a94513cf0d07aabe94f9f7576a691ab778ec9762",
+      "head_sha": "502759b430e7a27df5a995b07920566421f6c23e",
+      "findings": {
+        "BLOCKER": [
+          "Delta replaces `test-framework/tests/test_implementation_controls.py`'s 12 behavior tests (checker accept/reject, final symbol path, placeholder/kind, delivery states, RCCA, mandates, control block, API route) with two source-grep assertions; every control row C-1..C-9 cites these tests as positive/negative/evidence, so the rows' evidence is now dead or ambiguous between the two suites (AC-1/AC-2/AC-5, guardrail 6: fail-able tests removed).",
+          "The new `--all` wiring is fail-open: it `continue`s past any item without `design_pack.implementation_controls` and returns `ok:true, checked:0` when none qualify — omitting (or never writing) the matrix makes the new blocking gate pass, inverting AC-1/AC-2 (delta hunk: `if not (...implementation_controls): continue`).",
+          "`architect_review.py` now sets `budget_bad = []` whenever `mode in (diff, design) and rereview and since` — a caller-supplied flag combination silently disables review-budget enforcement with no check that a real delta occurred, making a blocking review gate opt-out (AC-3 integrity)."
+        ],
+        "MAJOR": [
+          "Both wirings (`precheck.py`, `ci-cd-gates.json`) invoke only `--final`; no non-final invocation exists anywhere, so AC-2's \"runs before code\" half cannot execute — final mode demands symbol/test paths already exist, so the pre-code run either fails by construction or is skipped.",
+          "The replacement tests are string-scrapes of `prompt_builder.py` (`\"QUALITY APPROVED\" in text or \"Delivery states\" in text`) — the `or` makes the assertion passable with a single unrelated phrase and verifies no behavior of `delivery_state_check`/`architect_review`, giving false confidence while looking like coverage."
+        ],
+        "MINOR": [
+          "Delta worsens the prior duplicate-suite finding: the two copies are now materially different (behavior suite vs grep stub), with no marker of which suite's run counts as control evidence — evidence attribution is now ambiguous.",
+          "`--all --final` placed in the `fast` tier performs a repo-wide symbol/test/evidence scan of every controlled item on every fast run; no changed-file scoping despite the design risk \"Gate latency; scan only changed files\".",
+          "`api/routers/backlog.py` whitelists `fix_impact`/`fix_evidence` for unconditional persistence with no validation against `config/fix-impact.json` `required_fields`, deferring all shape enforcement to later gates."
+        ],
+        "NIT": [
+          "`--all` problem labels use `item.get('id')` which may be `None`, degrading triage of JSON output."
+        ],
+        "SUMMARY": [
+          "The delta partially resolves the prior AC-2 wiring blocker by registering a blocking `implementation-readiness` gate, but the gate is evadable (skips control-less items, vacuous pass), the review budget is now bypassable via flags, and the delta guts the test suite that serves as the declared evidence for controls C-1..C-9.",
+          "Prior PENDING blockers on AC-6 (checks never run), AC-1 fail-open cutoff, AC-4 gate1 validator, AC-5 merge gate and path-only symbol verification remain unaddressed by this delta.",
+          "Verdict: not ready — restore real control tests, make `--all` fail closed for eligible items lacking controls, and gate the budget bypass on verified delta state."
+        ]
+      },
+      "evidence": "BI-PF-1538-7984bee8878b.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "dcc8e35ad87c3056cde2b461462080332a5f6955",
+      "review_sha": "80adbca92c7b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T11:50:13.504145+00:00",
+      "review_scope": "delta",
+      "base_sha": "502759b430e7a27df5a995b07920566421f6c23e",
+      "head_sha": "dcc8e35ad87c3056cde2b461462080332a5f6955",
+      "findings": {
+        "BLOCKER": [
+          "Unresolved prior BLOCKER: `implementation_readiness_check.py --all` still `continue`s past items with no `design_pack.implementation_controls` (unchanged hunk), so an item that never wrote a matrix is never counted and `ok:true` is returned — the delta's cutoff + `checked==0` guard only fires when *zero* items qualify; omitting the matrix still passes AC-1/AC-2 enforcement.",
+          "Unresolved prior BLOCKER context: no test in the delta exercises the new `--all` cutoff/fail-closed path or `_delta_base` budget gate, so the corrected fail-open/fail-closed behaviour is unverifiable (guardrail 6: fail-able tests); the wrapper only re-exports the canonical suite, which does not cover this code."
+        ],
+        "MAJOR": [
+          "`config/implementation-controls.json` `enforce_from` silently changed 2026-11-17 → 2026-11-16, contradicting FR-5 (`data_rules: \"created from 2026-11-17\"`), design_pack `rollout: \"on/after 2026-11-17\"` and the out_of_scope \"no retrofitting\" contract — undocumented contract drift with no matching design/FR update in the delta.",
+          "Fail-open on missing timestamps: `created = str(item.get(\"created_at\") or \"\")` then `created < cutoff` skips items with empty/absent `created_at` (and would skip epoch-format values via lexicographic compare), exempting them from enforcement with no recorded reason.",
+          "Wrapper test module couples via `importlib` file-load to `tests/test_implementation_controls.py`; if that canonical suite later uses pytest fixtures (or is renamed/moved), the wrapper breaks at import or silently collects nothing — no assertion that any test was actually loaded, weakening control evidence."
+        ],
+        "MINOR": [
+          "Wrapper re-executes the canonical suite, so every control test runs twice per run under different module names with no marker of which execution is the cited evidence (prior evidence-attribution ambiguity persists in a new form).",
+          "`_delta_base` fix has no test proving `since == _latest_review_sha(...)` is the only path that skips budget enforcement, and no negative case for a stale/foreign `since` value.",
+          "`enforce_from`-missing branch appends a bare message without the config path/expected value, reducing triage value of the JSON `problems` output."
+        ],
+        "NIT": [
+          "`_delta_base` computed unconditionally on every diff/design run even when `a.rereview` is false, doing needless history lookups."
+        ],
+        "SUMMARY": [
+          "Delta partially addresses prior findings: the grep-stub test replacement is superseded by a wrapper that runs the canonical behavior suite, and the budget-disable opt-out is now gated on the true delta base — but the core `--all` fail-open (missing matrix never counted) remains, so AC-1/AC-2 are still bypassable.",
+          "Top risks: fail-open readiness sweep, undocumented enforcement-date change, and untested new gate logic; require the missing-matrix path to count as a problem and tests for cutoff/fail-closed/_delta_base before merge."
+        ]
+      },
+      "evidence": "BI-PF-1538-80adbca92c7b.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "61b5cb696679f870de8ec0f71272264af28779e4",
+      "review_sha": "2270fda3b876",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T11:54:52.436603+00:00",
+      "review_scope": "delta",
+      "base_sha": "dcc8e35ad87c3056cde2b461462080332a5f6955",
+      "head_sha": "61b5cb696679f870de8ec0f71272264af28779e4",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta removes the `enforce_from missing` fail-closed report entirely: `cutoff = str(_config().get(\"enforce_from\") or \"\")` with empty cutoff now silently enforces *all* items (including historical, violating the \"no retrofitting\" guardrail) with no recorded reason; prior MINOR's diagnostic was deleted rather than improved (main() hunk).",
+          "The new `created_at missing` fail-closed branch and the cutoff-skip path in `all_problems` have no tests; the two added tests only cover missing-controls and `checked==0`, so guardrail 6 (fail-able tests) is unmet for the delta's own new logic.",
+          "`all_problems` still `continue`s on `if not pack: continue`, so any post-cutoff item with no `design_pack` at all is silently exempt whenever at least one other item has a pack — residual fail-open of the prior BLOCKER, only masked by `checked==0` when *no* item has a pack.",
+          "The missing-matrix check lives only in `all_problems`'s loop, not in `problems()`, so the unchanged `--item` single-item path may pass an item whose `design_pack` lacks `implementation_controls`; enforcement is duplicated/placed inconsistently between modes.",
+          "Control C-9 cites symbol `core/merge_gate.py:evaluate` while the same design_pack `affected_files` lists `scripts/dev/merge_gate_check.py`, and neither file appears in the candidate changed-file set — unresolvable/dead control risk against stop-condition \"Any placeholder/dead control\"."
+        ],
+        "MINOR": [
+          "The two new tests are not cited in any `implementation_controls` row's `positive_test`/`negative_test`/`evidence`, so the new `all_problems` behavior has no traceability entry in the matrix the gates consume.",
+          "Cutoff comparison remains lexicographic on `created_at`, so non-ISO/epoch timestamps compare unpredictably against `enforce_from` (only the empty-string case was fixed)."
+        ],
+        "NIT": [
+          "Control IDs jump C-7 → C-9 (no C-8) with no amendment note, leaving a silent numbering gap in the matrix."
+        ],
+        "SUMMARY": [
+          "Delta meaningfully resolves the prior fail-open for design packs lacking controls and adds a load assertion to the wrapper, but it introduces a new silent loss of the `enforce_from`-missing signal, leaves the no-design-pack and `--item` paths fail-open, and ships untested new fail-closed branches.",
+          "Top risks: enforcement-scope drift against the no-retrofit contract, untested cutoff/timestamp paths, and the unverifiable C-9 merge-gate symbol.",
+          "Delivery states are declared but no completion claim is made in the delta, so no unverified Delivery Complete assertion to block; verdict: not ready until the MAJOR items are closed with tests."
+        ]
+      },
+      "evidence": "BI-PF-1538-2270fda3b876.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "3204e16753ca4baf855504a53ce0e28c3fc49418",
+      "review_sha": "5bca105bc076",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T11:59:31.848333+00:00",
+      "review_scope": "delta",
+      "base_sha": "61b5cb696679f870de8ec0f71272264af28779e4",
+      "head_sha": "3204e16753ca4baf855504a53ce0e28c3fc49418",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Prior dispositions (\"Fixed in the following delta\") for the code-level findings — enforce_from fail-closed reporting, the post-cutoff `if not pack: continue` exemption, lexicographic cutoff compare — are not evidenced: this delta contains only test additions, with no hunk to `implementation_readiness_check.py`/`design_pack.py`.",
+          "No test in the delta covers the residual fail-open path from prior MAJOR (a post-cutoff item with `created_at` but no `design_pack`); the new timestamp test uses an item without `created_at`, so the disposition cannot be verified as fixed."
+        ],
+        "MINOR": [
+          "`test_all_problems_skips_before_cutoff` is cited in no `implementation_controls` row (positive/negative/evidence); C-2 cites only the other two new tests, so the cutoff-exemption behavior has no traceability in the matrix Gate 1/Gate 2.5 consume.",
+          "The new `test_single_item_path_rejects_missing_controls` shows `problems()` applies no `enforce_from` cutoff, so `--item` mode enforces against historical items while batch mode exempts them — inconsistent with the no-retrofit guardrail."
+        ],
+        "NIT": [
+          "Controls C-4, C-6 and C-7 record file paths (`templates/DESIGN-PACK.md`, `config/implementation-controls.json`) as the `symbol`, which cannot be symbol-resolved by the readiness checker the way `module:function` entries can."
+        ],
+        "SUMMARY": [
+          "Delta is test-only and resolves part of the prior review (missing timestamp/cutoff/single-item tests, C-9 dead control, numbering gap), but the code-level fix dispositions are unevidenced in this diff and one new test lacks matrix traceability.",
+          "Top risks: gates may approve fixes that were never made, and single-item vs batch enforcement diverge on the cutoff guardrail."
+        ]
+      },
+      "evidence": "BI-PF-1538-5bca105bc076.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "cd1b66cffc213fa151dd2b34ed3762c340bc01c6",
+      "review_sha": "855e1aabcd2d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T16:37:31.488323+00:00",
+      "review_scope": "delta",
+      "base_sha": "2bc5f82f7de24db5b368625ef2e173050b306e4c",
+      "head_sha": "cd1b66cffc213fa151dd2b34ed3762c340bc01c6",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 requires Gate 1 to reject missing requirement analysis, complete functional/technical design, 360-degree scenarios/impact, implementation/validation readiness and independent completeness review, but no delta control row maps any Gate 1 enforcement symbol (`gate1_check.py` appears in no row); C-4 only asserts template sections, so AC-4's gate half has no control, symbol or test.",
+          "C-4, C-6 and C-7 carry bare file paths as `symbol` (no code symbol) while AC-1 mandates a code symbol per row and AC-2 requires \"verifying actual symbols\"; symbol resolution for these three rows is undefined and the gate cannot verify them."
+        ],
+        "MAJOR": [
+          "AC-5's \"report Code/Integration/Validation/Quality/Delivery Complete separately\" half has no owning row: C-5 covers only Gate 2/merge, and `scripts/dev/delivery_state_check.py` (item affected_files) is referenced by no control in the delta.",
+          "AC-2's final-diff scope (actual symbols, tests, evidence, tech-stack checks, migration/backup, no caller-controlled security inputs) is claimed only by C-2's text; its two tests (missing controls, missing timestamp) never exercise final-diff resolution, migration/backup, or caller-controlled input rejection.",
+          "FR-6/AC-3's RCCA-plus-new-item requirement is verified only by prose (`docs/IMPLEMENTATION-CONTROLS-DESIGN.md`), with no symbol, executable check or test — violates CL-010 \"prose is not proof\".",
+          "C-7's stated security property (operator-only authz, rejects malformed payloads) is not exercised by its evidence (`test_design_pack_api_route_exists`, `test_checker_rejects_missing_matrix`); authz-bypass and payload-validation paths remain unproven.",
+          "AC-6's `tech_stack_evidence` (14 keys) has no row or test proving each key resolves to an executable check that fails when missing, unrun or unrecorded; C-6's generic tests do not bind keys to checks."
+        ],
+        "MINOR": [
+          "C-3's positive/negative tests do not target `architect_review.py:_build_prompt` output or delivery-state inclusion, so the prompt-content control claim is unsupported by its evidence.",
+          "C-4's negative test (`test_checker_rejects_missing_matrix`) tests the checker, not a missing template-mandate case.",
+          "Every row's `evidence` field cites only its negative test; no pass-path evidence is recorded for any of C-1..C-7.",
+          "FR-5 verification lists script paths (`scripts/dev/design_pack.py`, `scripts/dev/architect_review.py`) instead of executable test node ids, unlike FR-1..FR-3; `gate1_check.py` is not cited at all.",
+          "C-2's `concurrency_test` claims stateless operation, but final-diff mode reads a shared checkout/worktree; concurrent checker runs on the same tree are untested."
+        ],
+        "NIT": [
+          "Enforcement cutoff `2026-11-16` is duplicated in `design_pack.rollout` and FR-5 `data_rules`; drift would split fail-closed scope.",
+          "`symbol` formatting is inconsistent across rows (`file` vs `file:function`), which complicates uniform symbol resolution in the checker."
+        ],
+        "SUMMARY": [
+          "Delta design is directionally sound (single matrix, fail-closed, new-items-only rollout) but AC-4's Gate 1 enforcement and AC-5's five-state reporting have no owning control rows, leaving two approved ACs unverifiable.",
+          "Evidence quality is the top risk: several controls' tests do not exercise the property the control asserts (prompt content, authz, final-diff/migration, RCCA), and three rows lack real code symbols.",
+          "Resolve AC-4 gate ownership, AC-5 state-reporting ownership, and CL-010-compliant RCCA proof before Gate 1.5; remaining items are evidence-binding and consistency fixes."
+        ]
+      },
+      "evidence": "BI-PF-1538-855e1aabcd2d.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "6c1f4f542633100eaeafe638821abf57324ca13f",
+      "review_sha": "d51eb8d8f20a",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T17:21:41.966556+00:00",
+      "review_scope": "delta",
+      "base_sha": "cd1b66cffc213fa151dd2b34ed3762c340bc01c6",
+      "head_sha": "6c1f4f542633100eaeafe638821abf57324ca13f",
+      "findings": {
+        "BLOCKER": [
+          "AC-1 requires a row for \"every AC/FR\", but FR-1 (design-mandate prompt injection) and FR-2 (implementation mandates + STOP-without-matrix in code prompts) have no implementation_controls row; no row's symbol touches `core/orchestrator/prompt_builder.py` or `agent_runner.py`, so the item's core prompt-wiring outcome is uncontrolled.",
+          "The matrix has only an `ac` field and no `fr` field, so FR→control traceability claimed by AC-1 is not verifiable from the design data itself (all six FRs map only to prose `traceability` entries)."
+        ],
+        "MAJOR": [
+          "C-7 is tagged `ac: \"AC-6\"` but its control is design-pack API authz/payload security (FR-4's concern); AC-6 is tech-stack checks. The mis-tag both pollutes AC-6 coverage and leaves FR-4's AC binding wrong, so Gate 1's per-AC completeness check will pass on an incorrect mapping.",
+          "AC-1 requires distinct code-symbol rows, yet C-4 and C-8 (identical symbol, identical tests) and C-5 and C-9 (identical symbol, identical tests) are duplicate pairs — duplicate controls give the appearance of coverage without additional enforcement surface."
+        ],
+        "MINOR": [
+          "C-2's `positive_test` is `test_single_item_path_rejects_missing_controls` — a rejection case; no pass-path test proves the checker accepts a valid pre-code or final-diff matrix, so the accept branch is untested.",
+          "C-3 uses `kind: \"observability\"` for a mandatory prompt-content gate; kind-based filtering in Gate 2.5/checker will treat a failure-class control as informational.",
+          "FR-4 verification cites \"live API call on BI-PF-1538\" instead of a pytest node id, unlike FR-1..FR-3, weakening machine-checkable traceability for the only FR with an auth boundary.",
+          "All rows' `observability` values are prose labels (\"Gate 1 problems\", \"review findings\") with no named signal/schema, so observability claims are not independently verifiable."
+        ],
+        "NIT": [
+          "Row ids (C-1..C-10) are ordered by AC but not grouped by enforcement owner, making future diff review of the matrix harder to scan for gaps."
+        ],
+        "SUMMARY": [
+          "Delta resolves several prior findings (symbol formats now `file:function`, C-7 evidence now matches its authz/payload tests, RCCA and delivery_state_check now have symbols/tests), but AC-1's \"every AC/FR\" coverage still fails: FR-1/FR-2 prompt-injection controls are absent and the matrix lacks FR keys.",
+          "Top risks: uncontrolled prompt-wiring path (the item's primary outcome), C-7's wrong AC binding, and duplicate control rows inflating apparent coverage.",
+          "Remaining prior findings (gate1_check.py symbol, AC-2 final-diff/migration evidence, AC-6 tech-stack key binding) stay open and are not repeated here."
+        ]
+      },
+      "evidence": "BI-PF-1538-d51eb8d8f20a.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "49da7afa480bc993c1ada65b2c32cc7bb98ffdd6",
+      "review_sha": "12d9030cfea4",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T17:23:37.737071+00:00",
+      "review_scope": "delta",
+      "base_sha": "6c1f4f542633100eaeafe638821abf57324ca13f",
+      "head_sha": "49da7afa480bc993c1ada65b2c32cc7bb98ffdd6",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "C-6 is tagged `fr: \"FR-6\"` (RCCA for escaped defects) but its control is tech-stack check executability/evidence resolution, which is FR-3's readiness-check scope; the wrong FR binding lets Gate 1's per-FR completeness check pass on mis-attributed traceability (should be FR-3; FR-6 remains covered by C-10)."
+        ],
+        "MINOR": [
+          "C-1 and C-4 share the identical symbol `scripts/dev/design_pack.py:check`, and C-4's `positive_test` is C-1's `negative_test` — near-duplicate enforcement surface, a residual of the removed C-4/C-8 pair.",
+          "C-5 and C-10 share the identical symbol `delivery_state_check.py:problems` and use the same two tests with positive/negative swapped — one enforcement point presented as two controls.",
+          "C-2 and C-6 both resolve to `implementation_readiness_check.py:problems`, so two matrix rows collapse to a single code path with no independent verification surface.",
+          "C-4, C-11 and C-12 record `test_checker_rejects_missing_matrix` as `negative_test` for template/prompt-injection controls; that test exercises the checker, not the control's own failure path, so the failure branch of prompt/template enforcement is untested.",
+          "C-7 was retagged from AC-6 to AC-1; AC-1's text is row-completeness, not API authz/payload enforcement, so FR-4's security control is now bound to an AC whose requirement does not describe it (AC-6 pollution is fixed, the binding is still not meaningful)."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Prior blockers are correctly resolved in this delta: FR-1/FR-2 now have rows (C-11, C-12) with symbols in `prompt_builder.py`/`agent_runner.py`, an `fr` field exists on every row, and the C-4/C-8 and C-5/C-9 duplicate pairs are gone.",
+          "Remaining risk is traceability quality rather than coverage: one FR mis-binding (C-6→FR-6), several rows sharing a single symbol/test surface, and negative tests that do not exercise their stated control.",
+          "Recommend correcting the C-6 FR mapping and de-duplicating/repairing negative tests before Gate 1 approval; no security, data-loss or language-rule violations found in the delta."
+        ]
+      },
+      "evidence": "BI-PF-1538-12d9030cfea4.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "feb05b5d8460b0f9ef8af96a11a14ab66b5cc9ec",
+      "review_sha": "6d2efbd7251d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T17:24:41.366889+00:00",
+      "review_scope": "delta",
+      "base_sha": "49da7afa480bc993c1ada65b2c32cc7bb98ffdd6",
+      "head_sha": "feb05b5d8460b0f9ef8af96a11a14ab66b5cc9ec",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-3's \"no merge with missing or dead controls\" clause has no implementation_controls row: no control's `symbol` resolves to a merge-gate owner (merge_gate_check.py appears in spec_pack.affected_files but has zero matrix rows), so Gate 1's per-AC completeness check passes while the merge-blocking half of AC-3 is unevidenced."
+        ],
+        "MINOR": [
+          "C-2's `positive_test` and `evidence` are both rejection cases (`...rejects_missing_controls`, `...rejects_missing_timestamp`); the row records no passing-path evidence that the readiness checker accepts a valid final-diff matrix.",
+          "C-2's `negative_test` (missing timestamp) does not exercise the control it states (missing/invalid control fields in the matrix); the row-completeness failure branch is covered only indirectly via C-1."
+        ],
+        "NIT": [
+          "C-11 and C-12 `concurrency_test` say \"prompt operation is stateless\" while sibling rows say \"prompt/checker operation is stateless\"; wording drift in an otherwise uniform matrix will trip any exact-match template/schema validator."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior C-6 FR mis-binding (now FR-3); duplicate-symbol and C-7 AC-binding minors remain open as dispositioned.",
+          "Control coverage spans all six ACs and all six FRs, but AC-3's merge-enforcement clause is unevidenced in the matrix — the main integrity gap before Gate 1.5.",
+          "Remaining issues are evidence-polarity and wording hardening, not contract violations.",
+          "[OUT_OF_SCOPE] Guardrail/CL-010 current-run red proof and the guardrail checklist answers are not part of this delta's changed fields and were not assessed here."
+        ]
+      },
+      "evidence": "BI-PF-1538-6d2efbd7251d.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "398c4c0381a64ffb7f4e46787559c2700fa09e92",
+      "review_sha": "493100351f75",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T17:29:37.222625+00:00",
+      "review_scope": "delta",
+      "base_sha": "feb05b5d8460b0f9ef8af96a11a14ab66b5cc9ec",
+      "head_sha": "398c4c0381a64ffb7f4e46787559c2700fa09e92",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-2 clauses \"migration/backup\" and \"no caller-controlled security inputs\" have no implementation_controls row: C-2/C-6 cover only symbols, tests, evidence and tech-stack checks, so Gate 1's per-AC completeness check passes while two mandated readiness verifications are untracked and untested.",
+          "AC-3's \"Templates and Gate 2.5 consume the same implementation-controls matrix\" single-source clause has no row: no symbol enforces shared-matrix consumption or the one-schema-validator anti-drift measure named in the design's own risks (distinct from the pending merge-clause finding).",
+          "AC-2 clauses \"migration/backup\" and \"no caller-controlled security inputs\" have no implementation_controls row: C-2/C-6 cover only symbols, tests, evidence and tech-stack checks, so Gate 1's per-AC completeness check passes while two mandated readiness verifications are untracked and untested.",
+          "AC-3's \"templates and Gate 2.5 consume the same implementation-controls matrix\" single-source clause has no row: no symbol enforces shared-matrix consumption or the one-schema-validator anti-drift measure named in the design's own risks (distinct from the pending merge-clause finding)."
+        ],
+        "MINOR": [
+          "C-5 and C-10 negative tests are cross-wired (each row's negative_test is the sibling row's positive test), so neither control records a distinct failing-path test proving its own blocking behavior.",
+          "C-4's positive/negative tests (matrix completeness) do not exercise its stated control (five mandate areas in templates); C-11's mandate test is the matching evidence.",
+          "C-5 maps to FR-5 (gate coverage), but AC-5's five separate completion states and the \"Delivery Complete requires all five states\" DoD have no dedicated FR in the functional spec.",
+          "C-5/C-10 symbolize scripts/dev/delivery_state_check.py and spec_pack references merge_gate_check.py, neither of which appears in the item-level affected_files/affected_components declaration."
+        ],
+        "NIT": [
+          "C-13's tenant_test is the truncated \"N/A: process tooling\" versus the matrix convention \"N/A: process tooling has no tenant runtime path\"; same exact-match validator risk as the pending concurrency-wording nit, on a different field.",
+          "C-7 (operator-only API security control) is tagged ac=AC-1 purely as a catch-all, weakening AC-to-control traceability for FR-4."
+        ],
+        "SUMMARY": [
+          "Delta re-posts the implementation_controls matrix with prior MINOR findings on C-2 test naming apparently addressed (positive/evidence now a passing case; negative now rejects_missing_matrix); prior merge-clause MAJOR and C-11/C-12 wording NIT remain PENDING and unreopened.",
+          "Verdict: no blockers, but AC-2 and AC-3 clause-level gaps mean Gate 1 will certify incomplete coverage; top risks are template/checker drift with no enforcing row and cross-wired delivery-state test evidence."
+        ]
+      },
+      "evidence": "BI-PF-1538-493100351f75.json"
+    }
+  ],
+  "review_dispositions": {
+    "diff": {
+      "sig:4de5c6b156391e3c": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:96f0d03b69ff7fb8": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:523f98b4184f9c67": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:c1371b9f68171191": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:53bf31caa22e24bf": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:c80518f3563c9db9": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:ad5e651afbf26995": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      },
+      "sig:b7649b21a61bcaaa": {
+        "status": "REJECTED",
+        "note": "Fixed in the following delta; see fix_impact and fix_evidence."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:f65ba208f9b51fd2",
+      "finding": "AC-6 unmet: `implementation_readiness_check.problems()` only asserts `config/implementation-controls.json` has a non-empty `checks` list; nothing ever runs those checks or compares declared evidence to a recorded run, so \"missing/unrun/unrecorded\" cannot fail.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:ff0dd74b6f0258e9",
+      "finding": "AC-2 unmet: no wiring in the diff invokes `implementation_readiness_check.py --final` against the final diff (precheck.py/gate1_check.py absent); migration/backup verification and \"no caller-controlled security inputs\" verification are not implemented anywhere in `problems()`.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:8e61d07cd483af18",
+      "finding": "AC-1 fail-open: `design_pack.check` gets the cutoff via `_irc._config()`, which swallows read errors and returns `{}`; a missing/corrupt config yields `_cutoff == \"\"`, the `if _cutoff` guard skips `irc.problems()` entirely, and no error is recorded — Gate 1 silently stops blocking.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:ba8e4a4816768292",
+      "finding": "AC-5 unmet: merge does not require Delivery Complete — `scripts/dev/merge_gate_check.py` (declared in design_pack.affected_files) and control C-9's symbol `core/merge_gate.py:evaluate` are absent from the diff; only Gate 2 (`gate2_completion_check.py`) was wired.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:183ff24917d6b53e",
+      "finding": "AC-4 unmet: `gate1_check.py` is absent from the diff (confirmed on the corrected, non-truncated diff; prior \"superseded\" disposition no longer holds) and no validator checks the five mandate areas — templates carry prose only, so Gate 1 cannot reject a missing mandate area.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:befb415e577f3cac",
+      "finding": "Final-mode symbol \"verification\" is path-existence only (`PATHLIKE` regex against `root`), never that the named symbol/function or test exists or ran — exactly the \"path-only false confidence\" risk recorded in the approved design.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:060af8ca8da2fd3d",
+      "finding": "Duplicate byte-identical test suites: `product-forge/tests/test_implementation_controls.py` and `product-forge/test-framework/tests/test_implementation_controls.py` (only `ROOT` differs); guaranteed drift and ambiguous which suite's run is the evidence for every control row.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:76cf75bceb2c48db",
+      "finding": "`agent_runner._implementation_controls_block` fails open twice: `except Exception: pass` around the config read silently omits tech-stack checks from the prompt, and a broad `except Exception` on the backlog lookup converts lookup failure into \"no rows → STOP\" with no signal.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:47415fcda605a4f1",
+      "finding": "`irc.problems(item, root=...)` ignores its `root` parameter for config (`_config()` always reads `ROOT/config`), so tests never exercise the config-failure path and the `config unreadable` except branch is dead code.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2f2e14b64ffb144f",
+      "finding": "AC coverage check compares a set of row `ac` strings against `str()` of `acceptance_criteria` entries (dict-shaped ACs break the count) and never verifies FR coverage, though AC-1 requires \"every AC/FR\".",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:8c29aee67edba69f",
+      "finding": "The `enforce_from` cutoff uses raw string comparison on `created_at` and treats a missing `created_at` as exempt, letting items without a timestamp bypass control enforcement.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 corrected diff review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-38bbb7f0c960.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "scripts/dev/precheck.py",
+        "core/orchestrator/agent_runner.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:7eef1ca1efa9e6f5",
+      "finding": "Delta replaces `test-framework/tests/test_implementation_controls.py`'s 12 behavior tests (checker accept/reject, final symbol path, placeholder/kind, delivery states, RCCA, mandates, control block, API route) with two source-grep assertions; every control row C-1..C-9 cites these tests as positive/negative/evidence, so the rows' evidence is now dead or ambiguous between the two suites (AC-1/AC-2/AC-5, guardrail 6: fail-able tests removed).",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-7984bee8878b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:0f0f799b1b95d1ab",
+      "finding": "The new `--all` wiring is fail-open: it `continue`s past any item without `design_pack.implementation_controls` and returns `ok:true, checked:0` when none qualify — omitting (or never writing) the matrix makes the new blocking gate pass, inverting AC-1/AC-2 (delta hunk: `if not (...implementation_controls): continue`).",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-7984bee8878b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:986ac8378e03aa05",
+      "finding": "`architect_review.py` now sets `budget_bad = []` whenever `mode in (diff, design) and rereview and since` — a caller-supplied flag combination silently disables review-budget enforcement with no check that a real delta occurred, making a blocking review gate opt-out (AC-3 integrity).",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-7984bee8878b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:7328376821f78dbf",
+      "finding": "Both wirings (`precheck.py`, `ci-cd-gates.json`) invoke only `--final`; no non-final invocation exists anywhere, so AC-2's \"runs before code\" half cannot execute — final mode demands symbol/test paths already exist, so the pre-code run either fails by construction or is skipped.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-7984bee8878b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:a65e46787140f86b",
+      "finding": "The replacement tests are string-scrapes of `prompt_builder.py` (`\"QUALITY APPROVED\" in text or \"Delivery states\" in text`) — the `or` makes the assertion passable with a single unrelated phrase and verifies no behavior of `delivery_state_check`/`architect_review`, giving false confidence while looking like coverage.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-7984bee8878b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:cd40b7e827ef59a7",
+      "finding": "Unresolved prior BLOCKER: `implementation_readiness_check.py --all` still `continue`s past items with no `design_pack.implementation_controls` (unchanged hunk), so an item that never wrote a matrix is never counted and `ok:true` is returned — the delta's cutoff + `checked==0` guard only fires when *zero* items qualify; omitting the matrix still passes AC-1/AC-2 enforcement.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-80adbca92c7b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:c3bd59439164070e",
+      "finding": "Unresolved prior BLOCKER context: no test in the delta exercises the new `--all` cutoff/fail-closed path or `_delta_base` budget gate, so the corrected fail-open/fail-closed behaviour is unverifiable (guardrail 6: fail-able tests); the wrapper only re-exports the canonical suite, which does not cover this code.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-80adbca92c7b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:ed4a20e860441605",
+      "finding": "`config/implementation-controls.json` `enforce_from` silently changed 2026-11-17 → 2026-11-16, contradicting FR-5 (`data_rules: \"created from 2026-11-17\"`), design_pack `rollout: \"on/after 2026-11-17\"` and the out_of_scope \"no retrofitting\" contract — undocumented contract drift with no matching design/FR update in the delta.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-80adbca92c7b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:56a9b9bfabc7cf60",
+      "finding": "Fail-open on missing timestamps: `created = str(item.get(\"created_at\") or \"\")` then `created < cutoff` skips items with empty/absent `created_at` (and would skip epoch-format values via lexicographic compare), exempting them from enforcement with no recorded reason.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-80adbca92c7b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:c8766257db7659d1",
+      "finding": "Wrapper test module couples via `importlib` file-load to `tests/test_implementation_controls.py`; if that canonical suite later uses pytest fixtures (or is renamed/moved), the wrapper breaks at import or silently collects nothing — no assertion that any test was actually loaded, weakening control evidence.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-80adbca92c7b.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "test-framework/tests/test_implementation_controls_wrapper.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4de5c6b156391e3c",
+      "finding": "Delta removes the `enforce_from missing` fail-closed report entirely: `cutoff = str(_config().get(\"enforce_from\") or \"\")` with empty cutoff now silently enforces *all* items (including historical, violating the \"no retrofitting\" guardrail) with no recorded reason; prior MINOR's diagnostic was deleted rather than improved (main() hunk).",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:96f0d03b69ff7fb8",
+      "finding": "The new `created_at missing` fail-closed branch and the cutoff-skip path in `all_problems` have no tests; the two added tests only cover missing-controls and `checked==0`, so guardrail 6 (fail-able tests) is unmet for the delta's own new logic.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:523f98b4184f9c67",
+      "finding": "`all_problems` still `continue`s on `if not pack: continue`, so any post-cutoff item with no `design_pack` at all is silently exempt whenever at least one other item has a pack — residual fail-open of the prior BLOCKER, only masked by `checked==0` when *no* item has a pack.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:c1371b9f68171191",
+      "finding": "The missing-matrix check lives only in `all_problems`'s loop, not in `problems()`, so the unchanged `--item` single-item path may pass an item whose `design_pack` lacks `implementation_controls`; enforcement is duplicated/placed inconsistently between modes.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:53bf31caa22e24bf",
+      "finding": "Control C-9 cites symbol `core/merge_gate.py:evaluate` while the same design_pack `affected_files` lists `scripts/dev/merge_gate_check.py`, and neither file appears in the candidate changed-file set — unresolvable/dead control risk against stop-condition \"Any placeholder/dead control\".",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538 branch.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:6600171ab39a1d57",
+      "finding": "Prior dispositions not evidenced",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-5bca105bc076.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:841a5f5802935661",
+      "finding": "No test for missing design pack path",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delta review",
+      "regression_test": "tests/test_implementation_controls.py",
+      "evidence": "engineering/reviews/BI-PF-1538-5bca105bc076.json",
+      "files": [
+        "scripts/dev/implementation_readiness_check.py",
+        "scripts/dev/design_pack.py",
+        "tests/test_implementation_controls.py"
+      ],
+      "rollback": "Revert BI-PF-1538.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:4de5c6b156391e3c",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_implementation_controls.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls.py",
+        "implementation_readiness_check --all"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json"
+    },
+    {
+      "finding_sig": "sig:96f0d03b69ff7fb8",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_implementation_controls.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls.py",
+        "implementation_readiness_check --all"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json"
+    },
+    {
+      "finding_sig": "sig:523f98b4184f9c67",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_implementation_controls.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls.py",
+        "implementation_readiness_check --all"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json"
+    },
+    {
+      "finding_sig": "sig:c1371b9f68171191",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_implementation_controls.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls.py",
+        "implementation_readiness_check --all"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json"
+    },
+    {
+      "finding_sig": "sig:53bf31caa22e24bf",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_implementation_controls.py",
+      "controls_rerun": [
+        "pytest -q tests/test_implementation_controls.py",
+        "implementation_readiness_check --all"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1538-2270fda3b876.json"
+    }
+  ]
+}
