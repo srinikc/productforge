@@ -145,3 +145,85 @@ Response: notification_id, stored=true, email_eligible.
 | Email provider outage | in-app first; email retried/DLQ |
 | Hardcoded priority policy | configurable `PF_NOTIFY_EMAIL_MIN_PRIORITY` |
 | Transport complexity | one registry, small interfaces, no new store |
+
+
+## Gate 1 corrections
+
+### API contract (complete)
+
+- Route: `POST /api/v1/notifications` added by editing existing `api/routers/events.py`; no new Python module.
+- Auth: operator or service role.
+- Authz: scope/project resolved by existing API context; no caller-controlled tenant.
+- Validation: notification_type enum, non-empty title/message, priority in low/medium/high/critical, bounded lengths.
+- Tenant scoping: request tenant comes from authenticated context; notification store remains project-scoped.
+- Response: notification_id, stored=true, email_eligible.
+- Language rule: Python is only a thin wrapper over `core.notification_system`; all transport/email/HMAC logic is Go.
+
+### Config contract (one table)
+
+| Variable | Required | Default |
+|---|---|---|
+| `PF_WEBHOOK_HMAC_KEY` | for webhook | unset disables webhook |
+| `PF_WEBHOOK_ALLOW_HTTP` | no | false |
+| `PF_WEBHOOK_ALLOW_PRIVATE` | no | false |
+| `PF_WEBHOOK_TIMEOUT_SECONDS` | no | 10 |
+| `PF_NOTIFY_API_URL` | no | local API |
+| `PF_NOTIFY_EMAIL_MIN_PRIORITY` | no | medium |
+| `PF_SMTP_HOST` | for email | unset |
+| `PF_SMTP_PORT` | for email | 587 |
+| `PF_SMTP_USER` | for email | unset |
+| `PF_SMTP_PASSWORD` | for email | unset |
+| `PF_SMTP_FROM` | for email | unset |
+| `PF_SMTP_TLS` | no | true |
+
+### Tenant/RLS and runtime roles
+
+- Transport registry is scoped by tenant subscription; cross-tenant subscription lookup is rejected.
+- Webhook/inproc/notify transports never receive caller-supplied tenant IDs; tenant comes from the subscription.
+- Where DB-backed, runtime role remains NOSUPERUSER/NOBYPASSRLS; RLS posture is unchanged from 1268/1269.
+- Tests must cover cross-tenant subscription collision and tenant-scoped delivery.
+
+### Webhook security
+
+- HMAC key is resolved per subscription through `auth_ref` from the secret store/environment; no shared global secret is required.
+- Comparison uses `hmac.Equal` (constant time).
+- Signature input is `timestamp + "." + rawBody`.
+- Timestamp skew is bounded to 5 minutes.
+- Secret/key values are never logged.
+
+### Failure matrix completion
+
+| Case | Behaviour |
+|---|---|
+| 429 with `Retry-After` | retry using max(backoff, Retry-After) |
+| 400/404/410/422 | permanent ? DLQ |
+| 401/403 | bounded retry for credential rotation, then DLQ |
+| 409 | duplicate success |
+| 5xx/timeout/network | retry, then DLQ |
+| missing HMAC key | webhook disabled/fail closed |
+
+### Availability and startup
+
+- Startup validates webhook/SMTP config shape; missing webhook key disables webhook explicitly.
+- Dispatcher/DB unavailable: no partial sends; retry by dispatcher.
+- DLQ depth alert threshold: >0 entries or >5 minutes retry age; owner is eventing on-call runbook.
+
+### Observability names
+
+- `event_delivery_attempts_total{transport,outcome}`
+- `event_delivery_retry_age_seconds{transport}`
+- `event_delivery_dlq_depth{transport}`
+- `event_delivery_latency_seconds{transport}`
+- Logs redact target credentials, HMAC keys and signatures.
+
+### Rollback
+
+- Remove transports and notification endpoint.
+- Disable subscriptions using removed transports; do not delete delivery/DLQ history.
+- Stranded DLQ entries remain exportable and require verified backup before any destructive cleanup.
+- No migration in this item.
+
+### AC evidence
+
+- Candidate design SHA: `0c578b06c682c22429fca8570227430aafd4ce8a`.
+- Implementation evidence will be pinned at the implementation SHA; design rows use this candidate SHA.
