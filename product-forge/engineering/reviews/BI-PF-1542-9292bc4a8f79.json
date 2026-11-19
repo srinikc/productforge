@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1542",
+  "sha": "9292bc4a8f79",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T18:00:32.300744+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Failure semantics conflict: design_pack.failure_matrix says missing mandate = \"prompt build blocked / MANDATE_MISSING\", runtime_contract.failure_behavior says \"fails test\", AC-2 requires a \"fail-closed warning when absent\". Three incompatible contracts; AC-2 cannot be verified against a single defined behavior.",
+      "Ownership contradiction (CL-001): functional_spec assumes \"prompt_builder is the prompt owner\" while operation_matrix.owner = 'agent_runner' and runtime_contract.entrypoint = 'agent_runner._build_agent_prompt'; no single-writer statement for who owns mandate injection.",
+      "AC evidence not pinned to a candidate SHA (CL-015): ac_evidence/coverage/traceability carry file paths only, so Gate 2 cannot bind evidence to a change.",
+      "Design does not answer the DESIGN GUARDRAILS checklist (CL-008): reversibility/backup, availability/SPOF, authz, blast-radius/dry-run, invariants, and reuse/observability are unstated (implicitly N/A but not declared), so the pre-Gate-1.5 contract is incomplete."
+    ],
+    "MINOR": [
+      "Design scope fields are placeholders: in_scope/out_of_scope/affected_components/risks = \"Not specified\", and prerequisites are not separated from changed files (CL-016).",
+      "Traceability drift: functional_spec.traceability/design_ref point to docs/IMPLEMENTATION-CONTROLS-DESIGN.md while affected_files/spec_pack use docs/PROMPT-MANDATES.md; two design sources for the same mandate set.",
+      "Observability is test-only (\"prompt content tests\"); no runtime signal (log/metric) when mandate injection is skipped or contract absent, despite observability_runbook marked APPLICABLE.",
+      "Rollback stated as \"Revert the change / remove mandate injection\" with no verified restore path or pre-change snapshot (guardrail 1).",
+      "security_threat_model APPLICABLE but reduced to a single prompt-doc section with no threat/abuse cases for mandate bypass (guardrail 3/9 largely N/A yet undeclared)."
+    ],
+    "NIT": [
+      "config_contract uses literal key 'N/A' instead of an empty/omitted contract object; weakens machine checks.",
+      "'learnings': ['1538 split'] is an opaque cross-reference with no link to the learning artifact."
+    ],
+    "SUMMARY": [
+      "Verdict: Gate-1 design is directionally right (prompt-owned mandates with tests) but the approved contract is not yet unambiguous: failure behavior, ownership, and evidence pinning are contradictory or missing.",
+      "Top risks: (1) three divergent failure semantics make AC-2 untestable as written; (2) no single owner declared for mandate injection; (3) no SHA-pinned AC evidence for Gate 2; (4) guardrail checklist unanswered.",
+      "Language rule is satisfied (edits to shipped Python + Python tests/docs); no blocker-level security or data issue identified."
+    ]
+  }
+}

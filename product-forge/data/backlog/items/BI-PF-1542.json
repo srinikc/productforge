@@ -68,7 +68,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Prompt mandate wiring for design and implementation agents"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 3, 'MINOR': 4, 'NIT': 4}"
   ],
   "risks": [
     "Not specified."
@@ -76,7 +76,9 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1542): sig:5f901988d8381cd8 (20 lines)"
+    "Design guardrails applied (BI-PF-1542): sig:5f901988d8381cd8 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=9292bc4a8f79\nBLOCKER:\n  - none\nMAJOR:\n  - Failure semantics conflict: design_pack.failure_matrix says missing mandate = \"prompt build blocked / MANDATE_MISSING\", runtime_contract.failure_behavior says \"fails test\", AC-2 requires a \"fail-closed warning when absent\". Three incompatible contracts; AC-2 cannot be verified against a single defined behavior.\n  - Ownership contradiction (CL-001): functional_spec assumes \"prompt_builder is the prompt owner\" while operation_matrix.owner = 'agent_runner' and runtime_contract.entrypoint = 'agent_runner._build_agent_prompt'; no single-writer statement for who owns mandate injection.\n  - AC evidence not pinned to a candidate SHA (CL-015): ac_evidence/coverage/traceability carry file paths only, so Gate 2 cannot bind evidence to a change.\n  - Design does not answer the DESIGN GUARDRAILS checklist (CL-008): reversibility/backup, availability/SPOF, authz, blast-radius/dry-run, invariants, and reuse/observability are unstated (implicitly N/A but not declared), so the pre-Gate-1.5 contract is incomplete.\nMINOR:\n  - Design scope fields are placeholders: in_scope/out_of_scope/affected_components/risks = \"Not specified\", and prerequisites are not separated from changed files (CL-016).\n  - Traceability drift: functional_spec.traceability/design_ref point to docs/IMPLEMENTATION-CONTROLS-DESIGN.md while affected_files/spec_pack use docs/PROMPT-MANDATES.md; two design sources for the same mandate set.\n  - Observability is test-only (\"prompt content tests\"); no runtime signal (log/metric) when mandate injection is skipped or contract absent, despite observability_runbook marked APPLICABLE.\n  - Rollback stated as \"Revert the change / remove mandate injection\" with no verified restore path or pre-change snapshot (guardrail 1).\n  - security_threat_model APPLICABLE but reduced to a single prompt-doc section with no threat/abuse cases for mandate bypass (guardrail 3/9 largely N/A yet undeclared).\nNIT:\n  - config_contract uses literal key 'N/A' instead of an empty/omitted contract object; weakens machine checks.\n  - 'learnings': ['1538 split'] is an opaque cross-reference with no link to the learning artifact.\nSUMMARY:\n  - Verdict: Gate-1 design is directionally right (prompt-owned mandates with tests) but the approved contract is not yet unambiguous: failure behavior, ownership, and evidence pinning are contradictory or missing.\n  - Top risks: (1) three divergent failure semantics make AC-2 untestable as written; (2) no single owner declared for mandate injection; (3) no SHA-pinned AC evidence for Gate 2; (4) guardrail checklist unanswered.\n  - Language rule is satisfied (edits to shipped Python + Python tests/docs); no blocker-level security or data issue identified.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=62a3306a405c\nBLOCKER:\n  - Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.\n  - No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet — deleting the injection wiring in `agent_runner` still passes the suite.\nMAJOR:\n  - Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.\n  - Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.\n  - Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix.\nMINOR:\n  - Tech-stack checks read from `config/implementation-controls.json` are wrapped in `except Exception: pass`; \"binding\" checks can vanish with no log/metric — weak observability for a fail-closed contract.\n  - `design_spec_mandates(agent_id)` / `implementation_mandates(agent_id)` accept an ignored parameter, an API surface implying per-agent variation that never exists; callers pass it for nothing.\n  - New shipped logic (`_implementation_controls_block`, mandate rendering) added in Python; sanctioned by the approved affected_files but in tension with the \"new shipped logic -> Go\" rule — keep this layer thin.\n  - Local imports (`re` assumed module-level, `from core import backlog`, `import json`) inside the prompt hot path; a `NameError` would be swallowed by the same broad `except`, silently dropping content.\nNIT:\n  - `docs/PROMPT-MANDATES.md` duplicates the mandate wording verbatim; declare `prompt_builder` constants as the source of truth to prevent doc/code drift.\n  - `.format(id=...)` shadows the builtin `id` and uses a different string style than the adjacent f-string.\n  - `test_code_prompt_stops_without_control_matrix` relies on `BI-PF-9999` never resolving in any backlog backend (file or `PF_BACKLOG_DB=on`); a task string with no ID would be deterministic by construction.\n  - Control-matrix fields are interpolated raw into the prompt with no sanitization; fine today (internally authored), but it contradicts the \"no caller-controlled inputs\" security claim if design-pack content ever becomes externally sourced.\nSUMMARY:\n  - Mandate text and the fail-closed warning exist and are partly tested, but the wiring is conditional and untested: implement/fix prompts on non-directive/template paths omit mandates entirely, and no test builds an actual prompt, so both ACs are only partially demonstrable.\n  - Top risks: silent exception handling masking contract absence, brittle agent-id matching for design mandates, and zero coverage of the contract-present rendering path.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -174,7 +176,7 @@
     "usage": {}
   },
   "created_at": "2026-11-17T23:21:43.644134",
-  "updated_at": "2026-11-17T23:29:46.338623",
+  "updated_at": "2026-11-19T09:49:08.793440",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -560,5 +562,183 @@
     "needs_api": false,
     "reason": "Prompt-only change; no API surface.",
     "routes": []
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "review_sha": "9292bc4a8f79",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T18:00:32.300744+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Failure semantics conflict: design_pack.failure_matrix says missing mandate = \"prompt build blocked / MANDATE_MISSING\", runtime_contract.failure_behavior says \"fails test\", AC-2 requires a \"fail-closed warning when absent\". Three incompatible contracts; AC-2 cannot be verified against a single defined behavior.",
+          "Ownership contradiction (CL-001): functional_spec assumes \"prompt_builder is the prompt owner\" while operation_matrix.owner = 'agent_runner' and runtime_contract.entrypoint = 'agent_runner._build_agent_prompt'; no single-writer statement for who owns mandate injection.",
+          "AC evidence not pinned to a candidate SHA (CL-015): ac_evidence/coverage/traceability carry file paths only, so Gate 2 cannot bind evidence to a change.",
+          "Design does not answer the DESIGN GUARDRAILS checklist (CL-008): reversibility/backup, availability/SPOF, authz, blast-radius/dry-run, invariants, and reuse/observability are unstated (implicitly N/A but not declared), so the pre-Gate-1.5 contract is incomplete."
+        ],
+        "MINOR": [
+          "Design scope fields are placeholders: in_scope/out_of_scope/affected_components/risks = \"Not specified\", and prerequisites are not separated from changed files (CL-016).",
+          "Traceability drift: functional_spec.traceability/design_ref point to docs/IMPLEMENTATION-CONTROLS-DESIGN.md while affected_files/spec_pack use docs/PROMPT-MANDATES.md; two design sources for the same mandate set.",
+          "Observability is test-only (\"prompt content tests\"); no runtime signal (log/metric) when mandate injection is skipped or contract absent, despite observability_runbook marked APPLICABLE.",
+          "Rollback stated as \"Revert the change / remove mandate injection\" with no verified restore path or pre-change snapshot (guardrail 1).",
+          "security_threat_model APPLICABLE but reduced to a single prompt-doc section with no threat/abuse cases for mandate bypass (guardrail 3/9 largely N/A yet undeclared)."
+        ],
+        "NIT": [
+          "config_contract uses literal key 'N/A' instead of an empty/omitted contract object; weakens machine checks.",
+          "'learnings': ['1538 split'] is an opaque cross-reference with no link to the learning artifact."
+        ],
+        "SUMMARY": [
+          "Verdict: Gate-1 design is directionally right (prompt-owned mandates with tests) but the approved contract is not yet unambiguous: failure behavior, ownership, and evidence pinning are contradictory or missing.",
+          "Top risks: (1) three divergent failure semantics make AC-2 untestable as written; (2) no single owner declared for mandate injection; (3) no SHA-pinned AC evidence for Gate 2; (4) guardrail checklist unanswered.",
+          "Language rule is satisfied (edits to shipped Python + Python tests/docs); no blocker-level security or data issue identified."
+        ]
+      },
+      "evidence": "BI-PF-1542-9292bc4a8f79.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "review_sha": "62a3306a405c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T04:18:52.806379+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "findings": {
+        "BLOCKER": [
+          "Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.",
+          "No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet — deleting the injection wiring in `agent_runner` still passes the suite."
+        ],
+        "MAJOR": [
+          "Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.",
+          "Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.",
+          "Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix."
+        ],
+        "MINOR": [
+          "Tech-stack checks read from `config/implementation-controls.json` are wrapped in `except Exception: pass`; \"binding\" checks can vanish with no log/metric — weak observability for a fail-closed contract.",
+          "`design_spec_mandates(agent_id)` / `implementation_mandates(agent_id)` accept an ignored parameter, an API surface implying per-agent variation that never exists; callers pass it for nothing.",
+          "New shipped logic (`_implementation_controls_block`, mandate rendering) added in Python; sanctioned by the approved affected_files but in tension with the \"new shipped logic -> Go\" rule — keep this layer thin.",
+          "Local imports (`re` assumed module-level, `from core import backlog`, `import json`) inside the prompt hot path; a `NameError` would be swallowed by the same broad `except`, silently dropping content."
+        ],
+        "NIT": [
+          "`docs/PROMPT-MANDATES.md` duplicates the mandate wording verbatim; declare `prompt_builder` constants as the source of truth to prevent doc/code drift.",
+          "`.format(id=...)` shadows the builtin `id` and uses a different string style than the adjacent f-string.",
+          "`test_code_prompt_stops_without_control_matrix` relies on `BI-PF-9999` never resolving in any backlog backend (file or `PF_BACKLOG_DB=on`); a task string with no ID would be deterministic by construction.",
+          "Control-matrix fields are interpolated raw into the prompt with no sanitization; fine today (internally authored), but it contradicts the \"no caller-controlled inputs\" security claim if design-pack content ever becomes externally sourced."
+        ],
+        "SUMMARY": [
+          "Mandate text and the fail-closed warning exist and are partly tested, but the wiring is conditional and untested: implement/fix prompts on non-directive/template paths omit mandates entirely, and no test builds an actual prompt, so both ACs are only partially demonstrable.",
+          "Top risks: silent exception handling masking contract absence, brittle agent-id matching for design mandates, and zero coverage of the contract-present rendering path."
+        ]
+      },
+      "evidence": "BI-PF-1542-62a3306a405c.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:cb5850b175b3b0c3": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:8ec81f4792b1a26f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:f250c08bfed0a3f5": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:a4f80a8c2e95029f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:9ca045a3ff00b803": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:fe56ebfa152644d8": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:158c253fd880bc64": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:0b63d294c2419f27": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:db0ba837b3a091d8": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:4052fb6a73c90286": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:da8848563323ce8e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      }
+    },
+    "diff": {
+      "sig:c823bc16f929ac62": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:4b4c5036867e3d73": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:d7995804b04e5daf": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:152010406c329dd3": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:1c89e966a268ae0e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:d00e24e29226df0b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:cf7f6ad6b2eeea28": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:2d1fefb910f924db": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:54570e4b444e6e9a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:3ea380569ffb36bf": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:2dcae12b6b856f1a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:ad13de8cf96d9306": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:a9d58b8fffe1a180": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      }
+    }
   }
 }
