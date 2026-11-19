@@ -7,7 +7,7 @@
 - **Gate 1.5 review SHA:** 
 - **Functional spec:** engineering/specs/BI-EVENTS-1539.md
 - **Conditional spec pack:** engineering/specs/BI-EVENTS-1539-spec-pack.md
-- **Generated:** 2026-11-19T07:03:25.149226+00:00
+- **Generated:** 2026-11-19T08:59:53.293553+00:00
 
 ## 1. Standards applied
 - AGENTS.md
@@ -35,7 +35,7 @@ N/A
 ### Database / persistence
 existing outbox
 ### Files / stores / config
-{'metrics': 'event outbox'}
+{'metrics': 'go/edpdata/event_metrics.go'}
 {'metrics': 'existing'}
 
 ## 6. Failure matrix
