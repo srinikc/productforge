@@ -38,7 +38,10 @@
   },
   "objective": "Pluggable transports behind one interface: inproc (callbacks), webhook (HTTP POST, HMAC signature,\nidempotency key), notify/email (reuse notification_system + alerts).",
   "acceptance_criteria": [
-    "A subscriber receives via each transport; webhook verifies HMAC; email respects priority gate."
+    "A subscriber receives events through inproc, webhook and notify/email transports with dispatcher-owned retry/DLQ.",
+    "Webhook requests carry timestamp+body HMAC, event_id idempotency key, reject invalid signatures, and classify 4xx/409/429/5xx correctly.",
+    "Notify always stores in-app notifications and sends email only for eligible priorities when SMTP is configured; missing SMTP does not fail in-app delivery.",
+    "Transports enforce target/security policy, use one registry, emit observability, and are covered by unit plus dispatcher integration tests."
   ],
   "in_scope": [
     "inproc transport (compat with event_bus.on); webhook transport (signing + retry); notify/email adapter."
@@ -154,12 +157,651 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:18.581774",
-  "updated_at": "2026-10-15T19:52:12.270463",
+  "updated_at": "2026-11-19T17:17:08.680458",
   "score": 0.5,
   "_note": "analysis updated",
   "api_impact": {
-    "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "needs_api": true,
+    "reason": "Adds POST /api/v1/notifications for in-app notification storage.",
+    "routes": [
+      "POST /api/v1/notifications"
+    ]
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1270",
+    "outcome": "Pluggable transports deliver events through the existing dispatcher.",
+    "actors": [
+      "dispatcher",
+      "operator"
+    ],
+    "scope": [
+      "inproc",
+      "webhook",
+      "notify/email"
+    ],
+    "non_goals": [
+      "SSE",
+      "alert routing"
+    ],
+    "assumptions": [
+      "SMTP is the first email provider"
+    ],
+    "dependencies": [
+      "BI-PF-1269",
+      "BI-PF-1267"
+    ],
+    "domain": "eventing",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "In-process and webhook transports",
+        "priority": "P0",
+        "source": "BI-PF-1270",
+        "preconditions": "Dispatcher and event store are live.",
+        "trigger": "dispatcher sends an event",
+        "inputs": [
+          "subscription",
+          "event"
+        ],
+        "outputs": [
+          "callback invoked / webhook POST"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant-scoped subscription",
+        "idempotency": "event_id idempotency key",
+        "data_rules": [
+          "no second event store"
+        ],
+        "edge_cases": [
+          "missing SMTP",
+          "409 duplicate"
+        ],
+        "acceptance": [
+          "Given a subscriber, when dispatched via inproc or webhook, then delivery is attempted and failures follow dispatcher retry/DLQ."
+        ],
+        "verification": [
+          "go test ./... and API tests"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Notify/email transport and API",
+        "priority": "P0",
+        "source": "BI-PF-1270",
+        "preconditions": "Dispatcher and event store are live.",
+        "trigger": "dispatcher sends notify event",
+        "inputs": [
+          "event",
+          "priority"
+        ],
+        "outputs": [
+          "in-app notification and optional email"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant-scoped subscription",
+        "idempotency": "event_id idempotency key",
+        "data_rules": [
+          "no second event store"
+        ],
+        "edge_cases": [
+          "missing SMTP",
+          "409 duplicate"
+        ],
+        "acceptance": [
+          "Given a notify event, when delivered, then in-app is stored and email follows the priority gate."
+        ],
+        "verification": [
+          "go test ./... and API tests"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Permanent failure classification",
+        "priority": "P0",
+        "source": "BI-PF-1270",
+        "preconditions": "Dispatcher and event store are live.",
+        "trigger": "transport returns an error",
+        "inputs": [
+          "HTTP status/error"
+        ],
+        "outputs": [
+          "retry or immediate DLQ"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant-scoped subscription",
+        "idempotency": "event_id idempotency key",
+        "data_rules": [
+          "no second event store"
+        ],
+        "edge_cases": [
+          "missing SMTP",
+          "409 duplicate"
+        ],
+        "acceptance": [
+          "Given a permanent webhook failure, when dispatched, then it goes to DLQ without retry."
+        ],
+        "verification": [
+          "go test ./... and API tests"
+        ]
+      },
+      {
+        "id": "FR-4",
+        "title": "Security and observability",
+        "priority": "P0",
+        "source": "BI-PF-1270",
+        "preconditions": "Dispatcher and event store are live.",
+        "trigger": "transport handles a target/secret",
+        "inputs": [
+          "URL",
+          "HMAC key"
+        ],
+        "outputs": [
+          "validated delivery and metrics"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant-scoped subscription",
+        "idempotency": "event_id idempotency key",
+        "data_rules": [
+          "no second event store"
+        ],
+        "edge_cases": [
+          "missing SMTP",
+          "409 duplicate"
+        ],
+        "acceptance": [
+          "Given a target or HMAC key, when validated, then SSRF/secret rules apply and signals are emitted."
+        ],
+        "verification": [
+          "go test ./... and API tests"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "deliver",
+        "owner": "eventtransport",
+        "failure": "retry then DLQ"
+      }
+    ],
+    "config_contract": {
+      "PF_WEBHOOK_HMAC_KEY": "required for webhook",
+      "PF_NOTIFY_EMAIL_MIN_PRIORITY": "email threshold",
+      "PF_SMTP_*": "optional email provider"
+    },
+    "nfr": [
+      "bounded timeout",
+      "no secret logging"
+    ],
+    "data_lifecycle": "in-app notifications retained by existing store",
+    "compatibility": "additive API/transport",
+    "rollback": "remove transports/endpoint",
+    "observability": "delivery metrics/logs and transport errors",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "test": "go/eventtransport/*_test.go",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "test": "go/eventtransport/*_test.go",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "test": "go/eventtransport/*_test.go",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "test": "go/eventtransport/*_test.go",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      }
+    ],
+    "open_questions": [
+      "SMTP deployment values are supplied by environment."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "5d81e5c0df9a"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1270.md",
+    "design_ref": "docs/EVENT-TRANSPORTS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "transport design",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "notification endpoint",
+        "artifact": "api/routers/events.py",
+        "sections": [
+          "notifications"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "existing notification store",
+        "artifact": "core/notification_system.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "env flags",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "configuration"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "timeouts",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "risks"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "HMAC/SSRF/secrets",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1270",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "additive rollback",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "rollout"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "transport signals",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "failure matrix"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1270",
+        "reason": "no user interface"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1270",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "transport plan",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1270",
+        "reason": "tests",
+        "artifact": "docs/EVENT-TRANSPORTS-DESIGN.md",
+        "sections": [
+          "tests"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "In-process and webhook transports",
+      "Notify/email transport and API",
+      "Permanent failure classification",
+      "Security and observability"
+    ],
+    "invariants": [
+      "no second event store",
+      "dispatcher owns retry/DLQ"
+    ],
+    "contracts": {
+      "api": {
+        "route": "POST /api/v1/notifications"
+      },
+      "db": "existing notification store",
+      "files": {
+        "design": "docs/EVENT-TRANSPORTS-DESIGN.md"
+      },
+      "config": "PF_WEBHOOK_HMAC_KEY, PF_NOTIFY_*"
+    },
+    "failure_matrix": [
+      {
+        "case": "permanent 4xx",
+        "behavior": "DLQ",
+        "code": "PERMANENT_DELIVERY"
+      },
+      {
+        "case": "SMTP missing",
+        "behavior": "in-app only",
+        "code": "EMAIL_SKIPPED"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1269",
+      "BI-PF-1267"
+    ],
+    "security": "HMAC, SSRF block, secrets env only",
+    "observability": "delivery metrics/logs",
+    "performance": "bounded timeout",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/integration",
+        "test": "go/eventtransport tests"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/integration",
+        "test": "go/eventtransport tests"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/integration",
+        "test": "go/eventtransport tests"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit/integration",
+        "test": "go/eventtransport tests"
+      }
+    ],
+    "rollout": "additive deployment",
+    "rollback": "remove transports/endpoint",
+    "decisions": [
+      "email medium/high/critical; low in-app",
+      "timestamp+body HMAC",
+      "4xx permanent except 401/403 bounded retry"
+    ],
+    "guardrails": [
+      "no SSE",
+      "no alert routing"
+    ],
+    "learnings": [
+      "1269 remediation"
+    ],
+    "design_areas": [
+      {
+        "area": "eventing",
+        "status": "APPLICABLE",
+        "reason": "transports",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1270.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "go tests",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "go tests",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "tests": "go tests",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "tests": "go tests",
+        "evidence": [
+          "docs/EVENT-TRANSPORTS-DESIGN.md"
+        ]
+      }
+    ],
+    "scope": [
+      "inproc",
+      "webhook",
+      "notify/email"
+    ],
+    "non_goals": [
+      "SSE",
+      "alert routing"
+    ],
+    "runtime_contract": {
+      "trigger": "dispatcher delivery",
+      "entrypoint": "eventtransport.Registry",
+      "call_sites": [
+        "DispatchOnce"
+      ],
+      "adapter": "Transport implementations",
+      "contract": "delivery attempt",
+      "failure_behavior": "retry/DLQ",
+      "observable_result": "metrics/logs/DispatchStats"
+    },
+    "proof_plan": {
+      "failing_test": "go/eventtransport tests",
+      "red_evidence": "transports absent",
+      "green_evidence": "tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "docs/EVENT-TRANSPORTS-DESIGN.md"
+      }
+    ],
+    "stop_conditions": [
+      "SSE requested"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "failure",
+        "control": "inproc callbacks and webhook delivery share one Transport contract",
+        "symbol": "go/eventtransport/inproc.go:Inproc",
+        "positive_test": "go/eventtransport/inproc_test.go",
+        "negative_test": "go/eventtransport/webhook_test.go",
+        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "concurrency_test": "go/eventtransport/inproc_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in eventtransport"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "webhook HMAC timestamp+body and idempotency key",
+        "symbol": "go/eventtransport/webhook.go:Webhook",
+        "positive_test": "go/eventtransport/webhook_test.go",
+        "negative_test": "go/eventtransport/webhook_test.go",
+        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "concurrency_test": "go/eventtransport/inproc_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in eventtransport"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "config",
+        "control": "notify stores in-app and gates email by priority",
+        "symbol": "go/eventtransport/notify.go:Notify",
+        "positive_test": "go/eventtransport/notify_test.go",
+        "negative_test": "go/eventtransport/notify_test.go",
+        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "concurrency_test": "go/eventtransport/inproc_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in eventtransport"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "failure",
+        "control": "permanent webhook errors bypass retry and go to DLQ",
+        "symbol": "go/edpdata/event_dispatcher.go:DispatchOnce",
+        "positive_test": "go/eventtransport/webhook_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "concurrency_test": "go/eventtransport/inproc_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./..."
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "observability",
+        "control": "transport failures and deliveries emit metrics/logs",
+        "symbol": "go/eventtransport/registry.go:Registry",
+        "positive_test": "go/eventtransport/registry_test.go",
+        "negative_test": "go/eventtransport/webhook_test.go",
+        "tenant_test": "N/A: transport receives tenant-scoped subscription",
+        "concurrency_test": "go/eventtransport/inproc_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in eventtransport"
+      }
+    ],
+    "tech_stack_evidence": [
+      "go-format",
+      "go-vet",
+      "go-race",
+      "go-context-pool",
+      "go-errors",
+      "pg-transactions",
+      "pg-rls",
+      "pg-migration",
+      "object-store",
+      "api-auth-tenant",
+      "api-validation",
+      "config-fail-closed",
+      "observability",
+      "no-dead-code"
+    ]
   }
 }
