@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "701977cb6d5f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-20T05:17:16.470561+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "9b26c7ba87674754185eced3ddbc99c550e8fe45",
+  "findings": {
+    "BLOCKER": [
+      "`webhook.go` calls `ResolveHMACKey`, but `go/eventtransport/secrets.go` (declared in design `affected_files`) is absent from the diff \u2192 the new package does not compile and its tests cannot run; AC-2 evidence is unverifiable.",
+      "No production wiring: `Registry` and the three transports have zero call sites outside tests, and nothing constructs/registers them for `DispatchOnce` \u2192 AC-1 (subscriber actually receives events via inproc/webhook/notify with dispatcher retry/DLQ) is not met (\"wire fully\").",
+      "AC-4 observability unmet: no `event_delivery_attempts_total` / retry-age / dlq-depth / latency metrics or redacted logs are emitted anywhere in the diff, including the modified dispatcher path.",
+      "FR-3/AC-1 verification gap: the new `IsPermanent` immediate-DLQ branch in `DispatchOnce` has no unit or dispatcher integration test in the diff (the referenced `event_dispatcher_pg_integration_test.go` evidence file is not present)."
+    ],
+    "MAJOR": [
+      "SSRF bypass: `validateTarget` only blocks literal localhost/private IPs and the string `localhost`; a DNS name resolving to a loopback/private address passes when `PF_WEBHOOK_ALLOW_PRIVATE=false`, violating the approved security contract.",
+      "Registry provides no tenant scoping: `Get(name)` cannot reject cross-tenant lookup (control C-6), and `TestRegistryTenantLookup` asserts nothing tenant-related.",
+      "429 `Retry-After` is not honored (failure matrix requires `retry max(backoff, retry-after)`); 429 is returned as an undifferentiated transient error.",
+      "Notify idempotency/ordering: email failure after a successful in-app POST returns an error \u2192 dispatcher retry re-POSTs and creates duplicate in-app notifications; the server ignores the `Idempotency-Key` header it sends (FR-2 idempotency unmet).",
+      "Email recipient is hard-coded to `SMTP.From` (self): no subscriber/tenant recipient is derived, so the notify/email transport never informs an actual subscriber (AC-3 half-met).",
+      "New flags (`PF_WEBHOOK_*`, `PF_NOTIFY_*`, `PF_SMTP_*`) are not declared in `config/env-flags.json` (a declared affected file absent from the diff), and the guardrail \"startup validates config shape; missing HMAC disables webhook only\" is not implemented (missing key instead DLQs every delivery).",
+      "`docs/EVENT-TRANSPORTS-DESIGN.md` (referenced by `gen_docs_index.py` and all traceability evidence) and the traceability test files (`inproc_test.go`, `webhook_test.go`, `notify_test.go`, `registry_test.go`) are missing from the diff."
+    ],
+    "MINOR": [
+      "401/403 returns a plain `fmt.Errorf`, indistinguishable from 5xx in logs/stats; no `AUTH_RETRY` classification/observability per failure matrix.",
+      "API response `email_eligible` is computed from a hard-coded `(\"medium\",\"high\",\"critical\")` set and ignores `PF_NOTIFY_EMAIL_MIN_PRIORITY`, so it can disagree with the transport's actual gate.",
+      "`create_notification` declares `require_operator` twice (route dependency and `ctx` param) and `ctx` is unused.",
+      "`priorityOf` uses substring matching (`strings.Contains(type,\"high\"/\"low\")`) \u2014 brittle misclassification for unrelated event type names.",
+      "Design guardrail \"bounded title/message length\" is implemented as silent truncation (`title[:200]`, `message[:4000]`) rather than a validation error; `openapi.json` body schema is `additionalProperties: true` with no documented field validation (contract drift)."
+    ],
+    "NIT": [
+      "`var _ = strings.TrimSpace` dead-code shim in `webhook.go` exists only to justify the `strings` import; contradicts the `no-dead-code` tech-stack evidence.",
+      "`products/product_forge/notifications.json` commits generated runtime notification data (future timestamps, missing trailing newline) into the repo.",
+      "`test_notifications_api_wrapper.py` uses `importlib` file-loading indirection to re-export tests instead of normal test discovery."
+    ],
+    "SUMMARY": [
+      "The change is well-scoped (Go transports, additive endpoint, dispatcher-owned permanent-error DLQ) but is not wired or observable: missing `secrets.go`, an unused registry, no metrics, and no test for the new dispatcher DLQ path mean AC-1/AC-4 and parts of AC-2/AC-3 are not demonstrably met.",
+      "Top risks: package build failure, SSRF DNS bypass, duplicate in-app notifications on retry (no server-side idempotency), email sent only to the operator's own address, and undeclared env flags/design docs breaking the config and traceability contracts."
+    ]
+  }
+}
