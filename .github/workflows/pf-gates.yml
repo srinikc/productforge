@@ -37,5 +37,12 @@ jobs:
           pip install httpx requests pyyaml jsonschema
       - name: Fetch integration base
         run: git fetch origin develop:refs/remotes/origin/develop --force
-      - name: Full precheck
-        run: python scripts/dev/precheck.py --full
+      - name: Run precheck
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Running diff-scoped fast precheck for pull request..."
+            python scripts/dev/precheck.py
+          else
+            echo "Running exhaustive full precheck for ${{ github.event_name }}..."
+            python scripts/dev/precheck.py --full
+          fi

@@ -141,13 +141,15 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
    sign-off)** · technical details (files/tests) · a **Recommendation** banner (APPROVE / APPROVE WITH
    ATTENTION / NEEDS REVIEW) · the exact decisions requested.
 3. **Language-rule assessment at take-up.** During backlog review / Gate 1 (BEFORE implementing), run
-   `python scripts/dev/language_rule_review.py <item>` and cite the verdict: new logic in **Go** vs **edits**
+   `python scripts/dev/language_rule_review.py <item>` and cite the verdict: new logic in **Go by default** vs **edits**
    to existing shipped Python (allowed) vs **new shipped Python needing an allowlist entry** (needs approval).
    This is the SAME policy precheck enforces (`scripts/dev/language_rule_check.py`, fast band) — decide it once,
    up front, so it is not re-asked during implementation. If the item carries an **approximate**
    `planned_change` = `{path: {added, removed, new_defs, new_branches}}`, the SAME run also gives the **size**
    verdict (a large edit to shipped Python is new logic → Go) — an estimate is fine at Gate 1; the enforcing
    gate still evaluates the real `git diff`.
+4. **Single-pass spec and design authoring.** Functional specs (`engineering/specs/<ID>.md`) and durable
+   design packs (`engineering/design/<ID>.md`) are authored synchronously in a single pass before Gate 1.5.
 
 ## Review gates (binding — full chain in `docs/REVIEW-GATES-LIFECYCLE.md`)
 
@@ -163,7 +165,7 @@ is not an approval.
 **Gate 1.5 (design review)** → Gate 1 (design/HIL approval, *informed by 1.5*) → implement →
 **Gate 2.5 (second-model Architect delivery review** — fresh context, configurable model default `mimo-v2.6-flash`/
 rotatable, advisory-vs-blocking split, results stored as evidence) → Gate 2 (delivery review + independent AC
-verification, *informed by 2.5*) → precheck fast → PR/CI → merge gate → **closure guard** → delivery provenance → DoD.
+verification, *informed by 2.5*) → precheck fast (PR CI) → merge gate → **closure guard** → 1-hr develop sweep → DoD.
 
 **Gate 2.5 is a HARD rule (BI-PF-1428):** the *model run* stays out of precheck, but precheck fast runs
 `scripts/dev/architect_review_check.py` (deterministic/offline) — a **code / schema / security** change **fails
@@ -240,11 +242,10 @@ For every item, before merge:
 3. **Lint/static** — `python scripts/dev/lint_check.py` clean (ruff, scoped to changed files). It is **advisory**
    today because the legacy tree predates lint; it flips to `--strict` (fatal) once the changed-file debt is
    cleared, and is part of `precheck` either way.
-4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (fast default; `--full` at merge/CI; `--release`
-   for the periodic full-tree secret sweep — the per-merge secret scan is diff-scoped, BI-PF-0385) (compile,
-   wired-audit, api-contract/governance,
-   engineering-flow/task-contract/scheduler/vcs-worktree/worker/github/intent-trace, backlog-e2e, docs-fresh,
-   secret-scan, pipeline tests).
+4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (fast default, diff-scoped; PR CI runs fast tier;
+   exhaustive `--full` runs on a 1-hour scheduled GitHub Actions sweep on `develop` with automated issue logging).
+   Atomic finalization (`python scripts/dev/finalize_item.py --item <ID> --auto-bundle`) stamps AC verification,
+   DoD, and trail milestones in one command.
 5. **Link evidence** on the backlog item (artifact/test descriptors) so `intent_trace_check` verifies it.
 6. **Merge to `develop`** with a controlled merge **immediately** after green — do not leave completed work
    stranded on a side branch.

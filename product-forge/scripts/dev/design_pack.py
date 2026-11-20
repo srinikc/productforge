@@ -307,10 +307,34 @@ def fresh(item: dict) -> bool:
     return _norm(p.read_text(encoding="utf-8")) == _norm(render(item))
 
 
+def changed_item_ids(base: str = "") -> set[str]:
+    """Detect item IDs affected by changes in the current branch diff or working tree."""
+    import re
+    import subprocess
+    ids = set()
+    base = base or "origin/develop"
+    for cmd in (
+        ["git", "diff", "--name-only", f"{base}...HEAD"],
+        ["git", "diff", "--name-only", "HEAD"],
+        ["git", "diff", "--name-only", "--cached"],
+    ):
+        try:
+            r = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, errors="ignore")
+            for line in (r.stdout or "").splitlines():
+                line = line.strip().replace("\\", "/")
+                m = re.search(r"(?:^|/)(?:data/backlog/items|engineering/design)/(BI-[A-Za-z0-9_-]+)\.(?:json|md)", line)
+                if m:
+                    ids.add(m.group(1))
+        except Exception:
+            pass
+    return ids
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Design pack check/render")
     ap.add_argument("--item", default="")
     ap.add_argument("--all", action="store_true", help="check items created on/after enforce_from")
+    ap.add_argument("--changed", action="store_true", help="evaluate only items/designs changed in git diff (fast tier)")
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--fresh", action="store_true", help="generated MD must match item.design_pack")
@@ -318,9 +342,32 @@ def main(argv=None) -> int:
     if not a.render and not a.check and not a.fresh:
         print("design-pack: choose --render and/or --check", file=sys.stderr)
         return 2
-    if a.all and (a.item or a.render):
-        print("design-pack: --all cannot be combined with --item/--render", file=sys.stderr)
+    if a.all and (a.item or a.render or a.changed):
+        print("design-pack: --all cannot be combined with --item/--render/--changed", file=sys.stderr)
         return 2
+    if a.changed:
+        try:
+            cfg = _cfg()
+            if not cfg.get("enforce_from"):
+                raise RuntimeError("enforce_from missing")
+            _parse_date(cfg.get("enforce_from"))
+        except Exception as e:
+            print(f"design-pack: FAIL - {e}")
+            return 1
+        changed = changed_item_ids()
+        bad = []
+        for iid in sorted(changed):
+            item = backlog.get_epic("product_forge", None, iid)
+            if not item:
+                continue
+            for p in evaluate(iid, item=item):
+                bad.append(f"{iid}: {p}")
+            if a.fresh and should_enforce(item, cfg) and not fresh(item):
+                bad.append(f"{iid}: generated design MD is stale")
+        print("design-pack: " + ("OK" if not bad else "FAIL") + f" ({len(changed)} changed items checked)")
+        for x in bad:
+            print("  - " + x)
+        return 1 if bad else 0
     if a.all:
         try:
             cfg = _cfg()
@@ -332,7 +379,7 @@ def main(argv=None) -> int:
             return 1
         bad = []
         for item in backlog.list_items("product_forge", None):
-            for p in evaluate(str(item.get("id") or "")):
+            for p in evaluate(str(item.get("id") or ""), item=item):
                 bad.append(f"{item.get('id')}: {p}")
             if a.fresh and should_enforce(item, cfg) and not fresh(item):
                 bad.append(f"{item.get('id')}: generated design MD is stale")
@@ -341,7 +388,7 @@ def main(argv=None) -> int:
             print("  - " + x)
         return 1 if bad else 0
     if not a.item:
-        print("design-pack: --item is required unless --all", file=sys.stderr)
+        print("design-pack: --item is required unless --all or --changed", file=sys.stderr)
         return 2
     item = backlog.get_epic("product_forge", None, a.item) or {}
     bad = evaluate(a.item, item=item)

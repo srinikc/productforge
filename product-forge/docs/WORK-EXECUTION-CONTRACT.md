@@ -26,7 +26,8 @@ owns executable design requirements.
 - Read and apply the relevant language/database/API/test guide selected by `config/coding-guidelines.json` before writing code.
 - Reuse existing owners first; keep the surface minimal; delete unused code/imports/duplication.
 - Scope to the change; unrelated debt becomes a backlog item.
-- New shipped/sensitive logic is Go; Python is for tooling/tests/config/docs.
+- New shipped/sensitive logic is Go by default; Python is for existing module edits, tooling/scripts, tests, config, and docs.
+- Single-pass design and spec authoring: author functional specifications (`engineering/specs/<ID>.md`) and durable design packs (`engineering/design/<ID>.md`) synchronously before Gate 1.5.
 
 ## 3. Decisions, issues, risks
 
@@ -36,10 +37,12 @@ owns executable design requirements.
 - Decision-ready summary required: epic #, backlog #, title, change, why, language check, API check,
   AC, impact table, risks/mitigations, and the exact approval requested.
 
-## 4. Delivery
+## 4. Delivery and CI
 
 - Sync with develop often; merge, never rebase/reset.
-- Run precheck/CI, full-candidate review, and the merge gate.
+- PR CI runs fast-tier diff-scoped precheck (< 1 min) on pull requests.
+- Scheduled full sweep runs precheck --full on `develop` every 1 hour with automated failure logging to `core/issues.py`.
+- Atomic finalization: run `python scripts/dev/finalize_item.py --item <ID> --auto-bundle` to stamp AC verification, DoD, and trail milestones in one command.
 - Push/merge to `develop` only through the delivery lane.
 - No OpenCode runtime dependency in product code; the dashboard is legacy and must not gain new references.
 - Before acting, state one line of context: designing / implementing / fixing / running precheck / CI / merge.
@@ -58,4 +61,4 @@ owns executable design requirements.
 ## 6. Gate order
 
 Gate 0 reconciliation/contract → Gate 1.5 design review → Gate 1 HIL → implement red-first → Gate 2.5
-full-candidate review → Gate 2 HIL → precheck/CI → merge → closure.
+full-candidate review → Gate 2 HIL → precheck fast / PR CI → merge → 1-hr develop sweep → closure.
