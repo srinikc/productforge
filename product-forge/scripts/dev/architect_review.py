@@ -1033,7 +1033,7 @@ def main(argv: list[str]) -> int:
     if a.cmd == "emit":
         item = _get_item(a.item)
         print(f"Reviewer model: {a.model}\n")
-        print(_build_prompt(item, a.item, a.mode, a.since))
+        print(_build_prompt(item, a.item, a.mode, getattr(a, "since", "")))
         return 0
     if a.cmd == "ingest":
         return _ingest(a.item, Path(a.file).read_text(encoding="utf-8"), a.model, a.apply)
