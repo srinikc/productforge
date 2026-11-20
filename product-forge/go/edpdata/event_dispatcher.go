@@ -139,7 +139,7 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 			return st, nil
 		}
 		if err := tr.Deliver(ctx, sub, ev); err != nil {
-			if attempts >= opts.MaxAttempts {
+			if attempts >= opts.MaxAttempts || IsPermanent(err) {
 				if err := s.deadLetterDelivery(ctx, sub, ev, attempts, err.Error()); err != nil {
 					return st, err
 				}
