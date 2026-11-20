@@ -172,7 +172,563 @@
     "usage": {}
   },
   "created_at": "2026-11-20T11:38:07.940802",
-  "updated_at": "2026-11-20T11:38:13.458488",
+  "updated_at": "2026-11-20T11:40:48.752125",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1547",
+    "outcome": "One canonical spec contract compiles to consistent design/spec artifacts.",
+    "actors": [
+      "author",
+      "reviewer"
+    ],
+    "scope": [
+      "compiler",
+      "gate"
+    ],
+    "non_goals": [
+      "retrofit historical items"
+    ],
+    "assumptions": [
+      "new items only"
+    ],
+    "dependencies": [
+      "BI-PF-1543"
+    ],
+    "domain": "delivery process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Canonical contract compiles",
+        "priority": "P0",
+        "source": "BI-PF-1547",
+        "preconditions": "New item has a canonical spec contract.",
+        "trigger": "Spec compiler runs.",
+        "inputs": [
+          "spec_contract"
+        ],
+        "outputs": [
+          "compiled packs and problems"
+        ],
+        "errors": [
+          "drift blocks Gate 1"
+        ],
+        "auth": "tooling only",
+        "idempotency": "compiler is read-only",
+        "data_rules": [
+          "one canonical source"
+        ],
+        "edge_cases": [
+          "historical item"
+        ],
+        "acceptance": [
+          "A canonical spec contract source validates into design_pack, functional_spec and spec_pack without hand-authored duplication."
+        ],
+        "verification": [
+          "pytest tests/test_spec_contract.py"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Cross-document consistency fails closed",
+        "priority": "P0",
+        "source": "BI-PF-1547",
+        "preconditions": "New item has a canonical spec contract.",
+        "trigger": "Spec compiler runs.",
+        "inputs": [
+          "spec_contract"
+        ],
+        "outputs": [
+          "compiled packs and problems"
+        ],
+        "errors": [
+          "drift blocks Gate 1"
+        ],
+        "auth": "tooling only",
+        "idempotency": "compiler is read-only",
+        "data_rules": [
+          "one canonical source"
+        ],
+        "edge_cases": [
+          "historical item"
+        ],
+        "acceptance": [
+          "The spec compiler fails on inconsistent config contracts, rollbacks, AC/FR/control/test coverage, duplicate symbols/IDs, missing candidate SHAs and invalid N/A reasons."
+        ],
+        "verification": [
+          "pytest tests/test_spec_contract.py"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Gate integration and tests",
+        "priority": "P0",
+        "source": "BI-PF-1547",
+        "preconditions": "New item has a canonical spec contract.",
+        "trigger": "Spec compiler runs.",
+        "inputs": [
+          "spec_contract"
+        ],
+        "outputs": [
+          "compiled packs and problems"
+        ],
+        "errors": [
+          "drift blocks Gate 1"
+        ],
+        "auth": "tooling only",
+        "idempotency": "compiler is read-only",
+        "data_rules": [
+          "one canonical source"
+        ],
+        "edge_cases": [
+          "historical item"
+        ],
+        "acceptance": [
+          "Given a drifted contract, when the compiler runs, then Gate 1 is blocked with machine-readable problems."
+        ],
+        "verification": [
+          "pytest tests/test_spec_contract.py"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "compile",
+        "owner": "spec_contract.py",
+        "failure": "fail closed"
+      }
+    ],
+    "config_contract": {
+      "N/A": "no runtime config"
+    },
+    "nfr": [
+      "deterministic"
+    ],
+    "data_lifecycle": "backlog field only",
+    "compatibility": "additive context field",
+    "rollback": "remove gate/field",
+    "observability": "compiler problems JSON",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/SPEC-CONTRACT-DESIGN.md",
+        "test": "tests/test_spec_contract.py",
+        "evidence": [
+          "tests/test_spec_contract.py"
+        ],
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/SPEC-CONTRACT-DESIGN.md",
+        "test": "tests/test_spec_contract.py",
+        "evidence": [
+          "tests/test_spec_contract.py"
+        ],
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/SPEC-CONTRACT-DESIGN.md",
+        "test": "tests/test_spec_contract.py",
+        "evidence": [
+          "tests/test_spec_contract.py"
+        ],
+        "candidate_sha": "3d14b390"
+      }
+    ],
+    "open_questions": [
+      "No open questions: cutoff is configurable."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "37b08a5b72bb"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1547.md",
+    "design_ref": "docs/SPEC-CONTRACT-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1547",
+        "reason": "compiler design",
+        "artifact": "docs/SPEC-CONTRACT-DESIGN.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1547",
+        "reason": "context field addition",
+        "artifact": "api/routers/backlog.py",
+        "sections": [
+          "context"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "backlog field only"
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "no new config"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "no runtime"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1547",
+        "reason": "tooling only",
+        "artifact": "docs/SPEC-CONTRACT-DESIGN.md",
+        "sections": [
+          "risks"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "code revert"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1547",
+        "reason": "compiler problems",
+        "artifact": "docs/SPEC-CONTRACT-DESIGN.md",
+        "sections": [
+          "design"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "No user interface exists in this tooling-only compiler item."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1547",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1547",
+        "reason": "compiler plan",
+        "artifact": "docs/SPEC-CONTRACT-DESIGN.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1547",
+        "reason": "tests",
+        "artifact": "docs/SPEC-CONTRACT-DESIGN.md",
+        "sections": [
+          "tests"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "Canonical contract compiles",
+      "Cross-document consistency fails closed",
+      "Gate integration and tests"
+    ],
+    "invariants": [
+      "one canonical contract"
+    ],
+    "contracts": {
+      "api": {
+        "method": "POST",
+        "path": "/api/v1/backlog/items/{item_id}/context",
+        "auth": "operator",
+        "validation": "spec_contract object",
+        "tenant": "scope/project context"
+      },
+      "db": "N/A",
+      "files": {
+        "compiler": "scripts/dev/spec_contract.py"
+      },
+      "config": {
+        "N/A": "no runtime config"
+      }
+    },
+    "failure_matrix": [
+      {
+        "case": "cross-doc drift",
+        "behavior": "block Gate 1",
+        "code": "SPEC_DRIFT"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1543"
+    ],
+    "security": "tooling only, no secrets",
+    "observability": "problems JSON",
+    "performance": "linear validation",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "pytest tests/test_spec_contract.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "pytest tests/test_spec_contract.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "pytest tests/test_spec_contract.py"
+      }
+    ],
+    "rollout": "new items only",
+    "rollback": "remove gate/field",
+    "decisions": [
+      "canonical spec_contract is SSOT"
+    ],
+    "guardrails": [
+      "no retrofitting"
+    ],
+    "learnings": [
+      "1270 design loops"
+    ],
+    "design_areas": [
+      {
+        "area": "process-tooling",
+        "status": "APPLICABLE",
+        "reason": "compiler scope",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "docs/SPEC-CONTRACT-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1547.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "tests/test_spec_contract.py",
+        "evidence": [
+          "tests/test_spec_contract.py"
+        ],
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "fr": "FR-2",
+        "tests": "tests/test_spec_contract.py",
+        "evidence": [
+          "tests/test_spec_contract.py"
+        ],
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "fr": "FR-3",
+        "tests": "tests/test_spec_contract.py",
+        "evidence": [
+          "tests/test_spec_contract.py"
+        ],
+        "candidate_sha": "3d14b390"
+      }
+    ],
+    "scope": [
+      "compiler",
+      "gate"
+    ],
+    "non_goals": [
+      "retrofit"
+    ],
+    "runtime_contract": {
+      "trigger": "precheck/Gate1",
+      "entrypoint": "spec_contract.py",
+      "call_sites": [
+        "precheck"
+      ],
+      "adapter": "tooling",
+      "contract": "compiled packs equal stored packs",
+      "failure_behavior": "block",
+      "observable_result": "problems JSON"
+    },
+    "proof_plan": {
+      "failing_test": "tests/test_spec_contract.py",
+      "red_evidence": "drift passes",
+      "green_evidence": "drift blocked"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "tests/test_spec_contract.py",
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "tests/test_spec_contract.py",
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "tests/test_spec_contract.py",
+        "candidate_sha": "3d14b390"
+      }
+    ],
+    "stop_conditions": [
+      "runtime change required"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "failure",
+        "control": "canonical contract compiles into consistent packs",
+        "symbol": "scripts/dev/spec_contract.py:compile",
+        "positive_test": "tests/test_spec_contract.py::test_compile_valid",
+        "negative_test": "tests/test_spec_contract.py::test_missing_control_fails",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: compiler is stateless",
+        "observability": "problems JSON",
+        "evidence": "pytest tests/test_spec_contract.py @3d14b390",
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "config",
+        "control": "config and rollback drift fail closed",
+        "symbol": "scripts/dev/spec_contract.py:problems",
+        "positive_test": "tests/test_spec_contract.py::test_config_drift_fails",
+        "negative_test": "tests/test_spec_contract.py::test_rollback_drift_fails",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: compiler is stateless",
+        "observability": "problems JSON",
+        "evidence": "pytest tests/test_spec_contract.py @3d14b390",
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "unpinned SHA and invalid N/A fail",
+        "symbol": "scripts/dev/spec_contract.py:problems",
+        "positive_test": "tests/test_spec_contract.py::test_missing_sha_fails",
+        "negative_test": "tests/test_spec_contract.py::test_invalid_na_fails",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: compiler is stateless",
+        "observability": "problems JSON",
+        "evidence": "pytest tests/test_spec_contract.py @3d14b390",
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "observability",
+        "control": "compiler problems are machine-readable and gate-blocking",
+        "symbol": "scripts/dev/spec_contract.py:main",
+        "positive_test": "tests/test_spec_contract.py::test_gate_problems",
+        "negative_test": "tests/test_spec_contract.py::test_api_contract_required",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: compiler is stateless",
+        "observability": "problems JSON",
+        "evidence": "pytest tests/test_spec_contract.py @3d14b390",
+        "candidate_sha": "3d14b390"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "failure",
+        "control": "precheck gate blocks drift before architect review",
+        "symbol": "scripts/dev/precheck.py:_GATES",
+        "positive_test": "tests/test_spec_contract.py::test_precheck_registered",
+        "negative_test": "tests/test_spec_contract.py::test_compile_valid",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: compiler is stateless",
+        "observability": "problems JSON",
+        "evidence": "pytest tests/test_spec_contract.py @3d14b390",
+        "candidate_sha": "3d14b390"
+      }
+    ],
+    "tech_stack_evidence": [
+      "go-format",
+      "go-vet",
+      "go-race",
+      "go-context-pool",
+      "go-errors",
+      "pg-transactions",
+      "pg-rls",
+      "pg-migration",
+      "object-store",
+      "api-auth-tenant",
+      "api-validation",
+      "config-fail-closed",
+      "observability",
+      "no-dead-code"
+    ],
+    "tooling": true
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "Adds spec_contract to the existing context API field whitelist.",
+    "routes": [
+      "POST /api/v1/backlog/items/{item_id}/context"
+    ]
+  }
 }
