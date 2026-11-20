@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-20T19:50:14 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-20T21:31:06 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 133  |  **Closed:** 625
+- **Open:** 131  |  **Closed:** 626
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
-- `new`: 130
+- `new`: 128
 
-### new, by category (130)
+### new, by category (128)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -90,7 +90,7 @@
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 | BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
 
-**Wiring / tech-debt / API** (80)
+**Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -134,7 +134,6 @@
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
 | BI-PF-1265 | Should | epic | EPIC: Eventing & Alerting SSOT - Go-first event bus + subscriber/alert transports | One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable contracts ... |
-| BI-PF-1272 | Should | feature | Eventing SSOT: Python thin-client cutover of core/events.py over the A1 wire seam (edit-only) | core/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its pub... |
 | BI-PF-1275 | Should | feature | Eventing SSOT: bus daemon/service run model + ops (start/stop/status) | A Go bus daemon run model with start/stop/status (reuse the portfolio supervisor pattern) invoked via API. |
 | BI-PF-1276 | Should | feature | Eventing SSOT: retire legacy websocket push (frozen dashboard -> SSE) | Stop extending the legacy WS; migrate its consumers to SSE; retain (never delete) until the new UI lands. |
 | BI-PF-1277 | Should | epic | EPIC: Product-generation run (dogfood) execution + monitoring correctness | dogfood drives the same engine to completion (all stages/agents), then validates the generated product and ret... |
@@ -172,7 +171,6 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
-| BI-PF-1549 | None | None | CI Full-Sweep Failure: full-sweep on develop |  |
 
 ---
 
@@ -372,5 +370,5 @@
 ---
 
 ## Totals
-- backend: 133 open / 625 closed
+- backend: 131 open / 626 closed
 - dashboard: 146 open / 3 closed

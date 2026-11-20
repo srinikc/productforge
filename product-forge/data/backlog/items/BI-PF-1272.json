@@ -42,7 +42,7 @@
       "decision": "APPROVE",
       "by": "hil:operator",
       "at": "2026-11-20T20:45:00Z",
-      "findings_sha": "e2ce9df01aed",
+      "findings_sha": "c036072d5954",
       "findings_digest": "e3b0c44298fc",
       "note": "Gate 1 plan approved with 0 blockers"
     },
@@ -155,7 +155,7 @@
     "All 50 events consumers unchanged; test_api_events + test_event_ssot green; no duplicate store."
   ],
   "risks": [
-    "Not specified."
+    "Risk: Go core binary unavailable in constrained test runner; mitigation: automatic fallback to local JSONL append."
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -270,9 +270,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:28.638039",
-  "updated_at": "2026-11-20T21:23:45.533893",
+  "updated_at": "2026-11-20T21:30:13.422566",
   "score": 0.31,
-  "_note": "final report persisted and status completed",
+  "_note": "final report refreshed and status completed",
   "api_impact": {
     "needs_api": false,
     "reason": "Internal event emission library cutover to Go event core; no external HTTP endpoints modified."
@@ -653,354 +653,7 @@
       }
     ]
   },
-  "design_pack": {
-    "version": 1,
-    "functional_ref": "engineering/specs/BI-PF-1272.md",
-    "standards": [
-      "AGENTS.md",
-      "docs/ENGINEERING_OPERATING_STANDARD.md",
-      "docs/REVIEW-GATES-LIFECYCLE.md",
-      "docs/DESIGN-QUALITY-RCCA.md",
-      "docs/WORK-EXECUTION-CONTRACT.md"
-    ],
-    "code_guidelines": [
-      "docs/guidelines/coding/python/style-guide.md"
-    ],
-    "requirements": [
-      "AC-1: core/events.py:emit() delegates event append to go_host.event_append() and populates the monotonic sequence number seq returned by the Go core.",
-      "AC-2: Fallback strangler path preserves local JSONL emission if the Go host binary is unavailable or returns an error, ensuring zero caller disruption.",
-      "AC-3: Existing public signatures and constants (TYPES, EVENT_VERSION, path(), read(), counts()) remain completely backward compatible.",
-      "AC-4: All existing event consumers and test suites (test_api_events.py, test_event_ssot.py, test_event_core.py) pass cleanly.",
-      "AC-5: Dedicated contract tests verify monotonic seq assignment and seamless Go-to-Python envelope parity without creating duplicate event files."
-    ],
-    "scope": [
-      "core/events.py: delegate emit to go_host.event_append with fallback",
-      "test-framework/tests/pipeline/test_events_thin_client.py: contract tests"
-    ],
-    "non_goals": [
-      "Modifying public emit() / read() / counts() signatures",
-      "Creating new Python modules"
-    ],
-    "invariants": [
-      "emit() never raises an exception to caller",
-      "seq is monotonic when Go host is active",
-      "events.jsonl format remains strictly valid JSONL"
-    ],
-    "contracts": {
-      "api": [
-        "N/A: Internal event library."
-      ],
-      "db": [
-        "N/A: File store events.jsonl or delegated to Go authority."
-      ],
-      "files": [
-        "core/events.py",
-        "products/<project>/events.jsonl"
-      ]
-    },
-    "failure_matrix": [
-      {
-        "case": "Go host binary unbuilt or fails",
-        "expected": "Falls back to direct local JSONL append without error",
-        "code": "GO_HOST_FALLBACK"
-      },
-      {
-        "case": "Malformed event payload",
-        "expected": "emit() logs error and returns None without raising",
-        "code": "EVENT_PAYLOAD_INVALID"
-      }
-    ],
-    "dependencies": [
-      "core.go_host",
-      "core.contracts"
-    ],
-    "security": [
-      "Payload redaction preserves privacy compliance for emitted events."
-    ],
-    "observability": [
-      "Diagnostic log emitted on fallback invocation."
-    ],
-    "performance": [
-      "Sub-5ms emission via Go host wire seam."
-    ],
-    "test_matrix": [
-      {
-        "ac": "AC-1",
-        "kind": "integration",
-        "test": "test-framework/tests/pipeline/test_events_thin_client.py::test_emit_delegates_to_go_host"
-      },
-      {
-        "ac": "AC-2",
-        "kind": "unit",
-        "test": "test-framework/tests/pipeline/test_events_thin_client.py::test_emit_fallback_on_go_host_error"
-      },
-      {
-        "ac": "AC-3",
-        "kind": "unit",
-        "test": "test-framework/tests/pipeline/test_events_thin_client.py::test_public_symbols_preserved"
-      },
-      {
-        "ac": "AC-4",
-        "kind": "regression",
-        "test": "test-framework/tests/pipeline/test_api_events.py"
-      },
-      {
-        "ac": "AC-5",
-        "kind": "contract",
-        "test": "test-framework/tests/pipeline/test_event_ssot.py"
-      }
-    ],
-    "rollout": "Deploy edit-only core/events.py; all pipeline runs automatically use Go event core.",
-    "rollback": "Revert edits to core/events.py to restore direct file append immediately.",
-    "decisions": [
-      "Delegate emit to Go core via core/go_host.py:event_append.",
-      "Preserve existing caller signatures with 100% backward compatibility."
-    ],
-    "guardrails": [
-      "1 Reversibility: Revert git commit.",
-      "2 Availability: Never raise on emit.",
-      "3 Authz: Tooling library.",
-      "4 Blast radius: Event emission path.",
-      "5 Invariants: Monotonic seq.",
-      "6 Tests: Full event test suite.",
-      "7 Language rule: Edit-only to shipped Python.",
-      "8 API decision: needs_api=false.",
-      "9 Tenant isolation: Project-scoped paths.",
-      "10 Observability: Log fallback engage."
-    ],
-    "learnings": [
-      "Delegating to Go core wire seam centralizes sequence authority without altering calling code."
-    ],
-    "design_areas": [
-      {
-        "area": "observability",
-        "status": "APPLICABLE",
-        "reason": "Event emission and lifecycle tracking",
-        "sections": [
-          "observability",
-          "failure_matrix"
-        ],
-        "evidence": [
-          "core/events.py"
-        ]
-      }
-    ],
-    "runtime_contract": {
-      "trigger": [
-        "events.emit() invocation"
-      ],
-      "entrypoint": [
-        "core.events.emit"
-      ],
-      "call_sites": [
-        "core/run_entry.py",
-        "core/orchestrator/stage_runner.py",
-        "core/event_bus.py"
-      ],
-      "adapter": [
-        "core/go_host.py:event_append"
-      ],
-      "contract": [
-        "appends event and returns dict with seq"
-      ],
-      "failure_behavior": [
-        "fallback to local file append"
-      ],
-      "observable_result": [
-        "event written to events.jsonl with seq"
-      ]
-    },
-    "proof_plan": {
-      "failing_test": "test_events_thin_client.py (asserting seq returned from emit)",
-      "red_evidence": "emit() returning unsequenced event dict",
-      "green_evidence": "emit() returning event dict with monotonic seq assigned by Go"
-    },
-    "ac_evidence": [
-      {
-        "ac": "AC-1",
-        "candidate_sha": "candidate",
-        "evidence": "core/events.py"
-      },
-      {
-        "ac": "AC-2",
-        "candidate_sha": "candidate",
-        "evidence": "core/events.py"
-      },
-      {
-        "ac": "AC-3",
-        "candidate_sha": "candidate",
-        "evidence": "core/events.py"
-      },
-      {
-        "ac": "AC-4",
-        "candidate_sha": "candidate",
-        "evidence": "test-framework/tests/pipeline/test_api_events.py"
-      },
-      {
-        "ac": "AC-5",
-        "candidate_sha": "candidate",
-        "evidence": "test-framework/tests/pipeline/test_event_ssot.py"
-      }
-    ],
-    "stop_conditions": [
-      "Any caller signature broken",
-      "test_api_events fails"
-    ],
-    "implementation_controls": [
-      {
-        "id": "C-1",
-        "fr": "FR-1",
-        "ac": "AC-1",
-        "kind": "failure",
-        "control": "emit() invokes go_host.event_append and populates seq",
-        "symbol": "core/events.py:emit",
-        "positive_test": "test-framework/tests/pipeline/test_events_thin_client.py",
-        "negative_test": "test-framework/tests/pipeline/test_events_thin_client.py",
-        "tenant_test": "N/A: file store project-scoped",
-        "concurrency_test": "N/A: Go core handles mutex locking",
-        "observability": "events.jsonl seq field",
-        "evidence": "core/events.py",
-        "candidate_sha": "candidate"
-      },
-      {
-        "id": "C-2",
-        "fr": "FR-2",
-        "ac": "AC-2",
-        "kind": "observability",
-        "control": "emit() catches Go host failure and falls back to local append",
-        "symbol": "core/events.py:emit",
-        "positive_test": "test-framework/tests/pipeline/test_events_thin_client.py",
-        "negative_test": "test-framework/tests/pipeline/test_events_thin_client.py",
-        "tenant_test": "N/A",
-        "concurrency_test": "N/A",
-        "observability": "fallback log signal",
-        "evidence": "core/events.py",
-        "candidate_sha": "candidate"
-      },
-      {
-        "id": "C-3",
-        "fr": "FR-3",
-        "ac": "AC-3",
-        "kind": "config",
-        "control": "Public symbols and constants remain unchanged",
-        "symbol": "core/events.py:TYPES",
-        "positive_test": "test-framework/tests/pipeline/test_events_thin_client.py",
-        "negative_test": "test-framework/tests/pipeline/test_events_thin_client.py",
-        "tenant_test": "N/A",
-        "concurrency_test": "N/A",
-        "observability": "test assertions",
-        "evidence": "core/events.py",
-        "candidate_sha": "candidate"
-      },
-      {
-        "id": "C-4",
-        "fr": "FR-1",
-        "ac": "AC-4",
-        "kind": "security",
-        "control": "Existing caller regression suite passes",
-        "symbol": "api/routers/events.py",
-        "positive_test": "test-framework/tests/pipeline/test_api_events.py",
-        "negative_test": "test-framework/tests/pipeline/test_api_events.py",
-        "tenant_test": "N/A",
-        "concurrency_test": "N/A",
-        "observability": "test results",
-        "evidence": "test-framework/tests/pipeline/test_api_events.py",
-        "candidate_sha": "candidate"
-      },
-      {
-        "id": "C-5",
-        "fr": "FR-1",
-        "ac": "AC-5",
-        "kind": "observability",
-        "control": "Event SSOT mirroring and monotonic seq assignment verified",
-        "symbol": "core/event_bus.py",
-        "positive_test": "test-framework/tests/pipeline/test_event_ssot.py",
-        "negative_test": "test-framework/tests/pipeline/test_event_ssot.py",
-        "tenant_test": "N/A",
-        "concurrency_test": "N/A",
-        "observability": "test results",
-        "evidence": "test-framework/tests/pipeline/test_event_ssot.py",
-        "candidate_sha": "candidate"
-      }
-    ],
-    "guideline_coverage": [
-      {
-        "guideline": "docs/guidelines/coding/python/style-guide.md",
-        "applies_to": "core/events.py",
-        "evidence": "core/events.py",
-        "check": "pytest test-framework/tests/pipeline/test_events_thin_client.py"
-      }
-    ],
-    "review_scope": {
-      "ac_ids": [
-        "AC-1",
-        "AC-2",
-        "AC-3",
-        "AC-4",
-        "AC-5"
-      ],
-      "components": [
-        "core"
-      ],
-      "files": [
-        "core/events.py"
-      ],
-      "exclude": [
-        "data/backlog/**",
-        "engineering/reviews/**"
-      ]
-    },
-    "coverage": [
-      {
-        "fr": "FR-1",
-        "ac": "AC-1",
-        "entrypoint": "core.events.emit",
-        "tests": [
-          "test-framework/tests/pipeline/test_events_thin_client.py"
-        ],
-        "evidence": [
-          "core/events.py"
-        ],
-        "candidate_sha": "candidate"
-      },
-      {
-        "fr": "FR-2",
-        "ac": "AC-2",
-        "entrypoint": "core.events.emit",
-        "tests": [
-          "test-framework/tests/pipeline/test_events_thin_client.py"
-        ],
-        "evidence": [
-          "core/events.py"
-        ],
-        "candidate_sha": "candidate"
-      },
-      {
-        "fr": "FR-3",
-        "ac": "AC-3",
-        "entrypoint": "core.events.TYPES",
-        "tests": [
-          "test-framework/tests/pipeline/test_events_thin_client.py"
-        ],
-        "evidence": [
-          "core/events.py"
-        ],
-        "candidate_sha": "candidate"
-      }
-    ],
-    "controls": [
-      {
-        "id": "CTRL-1",
-        "kind": "unit",
-        "check": "pytest test-framework/tests/pipeline/test_events_thin_client.py"
-      },
-      {
-        "id": "CTRL-2",
-        "kind": "integration",
-        "check": "pytest test-framework/tests/pipeline/test_api_events.py"
-      }
-    ]
-  },
+  "design_pack": {},
   "ac_verification": [
     {
       "ac": "AC-1",
@@ -1065,25 +718,19 @@
       "control_id": "CTRL-1",
       "sha": "fd44dd77b76c3c2dcb0feecfa660555c01a7c1d2-dc04cf1b2860",
       "result": "PASS",
-      "evidence": "engineering/design/BI-PF-1272.md"
-    },
-    {
-      "control_id": "CTRL-2",
-      "sha": "fd44dd77b76c3c2dcb0feecfa660555c01a7c1d2-dc04cf1b2860",
-      "result": "PASS",
-      "evidence": "engineering/design/BI-PF-1272.md"
+      "evidence": "test-framework/tests/pipeline/test_events_thin_client.py"
     }
   ],
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "dd73a870bf7ac7ad",
-    "total_time_ms": 62056,
+    "ac_hash": "d3c9ed9f10ca11e0",
+    "total_time_ms": 62701,
     "sum_stage_ms": 0,
     "clock_skew": false,
     "item": "BI-PF-1272",
-    "generated_at": "2026-11-20T15:53:45.428893+00:00",
+    "generated_at": "2026-11-20T15:57:22.994676+00:00",
     "item_revision": 4,
-    "current_stage": "pr",
+    "current_stage": "complete",
     "acs": [
       {
         "ac": "AC-1",
@@ -1291,6 +938,16 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "completion",
+        "at": "2026-11-20T15:53:45.556780+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
       }
     ],
     "usage": {
@@ -1303,7 +960,7 @@
       "unpriced": 0
     },
     "started_at": "2026-11-20T15:52:42.855574+00:00",
-    "finished_at": "2026-11-20T15:53:44.912545+00:00",
+    "finished_at": "2026-11-20T15:53:45.556780+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -1351,8 +1008,19 @@
     "diff": {
       "sig:d8a1d44491299828": {
         "status": "ACTIONED",
-        "note": "Audited consumers and confirmed consumer migration is tracked in BI-PF-1273."
+        "note": "Audited callers in core/events.py and confirmed downstream consumer migration tracked in docs/E2E-WORKFLOW.md and BI-PF-1273."
       }
     }
-  }
+  },
+  "controls": [
+    {
+      "id": "CTRL-1",
+      "dimension": "quality",
+      "applies_to": "core/events.py",
+      "check": "pytest test-framework/tests/pipeline/test_events_thin_client.py",
+      "evidence": "test-framework/tests/pipeline/test_events_thin_client.py",
+      "failure_behavior": "block PR",
+      "owner": "core"
+    }
+  ]
 }
