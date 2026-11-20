@@ -45,10 +45,11 @@ def emit(project_dir: str, event_type: str, *, run_id: str = "", stage: str = ""
          task_id: str = "", worker_id: str = "", actor: str = "", **fields) -> Optional[Dict]:
     """Append one canonical event. Best-effort (never raises).
 
-    API-5: carries the formal event envelope (event_id, event_version, occurred_at, correlation_id,
-    causation_id, task_id, worker_id, actor, payload) **additively** - the legacy flat fields
-    (ts/type/level/run_id/stage/agent/trace_id/span_id) are kept for back-compat. Owner unchanged:
-    this module (via log_router) remains the single writer of ``events.jsonl``.
+    API-5 / BI-PF-1272: carries the formal event envelope (event_id, event_version, occurred_at,
+    correlation_id, causation_id, task_id, worker_id, actor, payload) **additively** - the legacy
+    flat fields (ts/type/level/run_id/stage/agent/trace_id/span_id) are kept for back-compat.
+    Delegates to the Go event authority (go_host.event_append) for monotonic seq assignment,
+    with automatic fallback to local JSONL append if Go core is unavailable.
     """
     try:
         now = datetime.now().isoformat(timespec="seconds")
@@ -62,15 +63,30 @@ def emit(project_dir: str, event_type: str, *, run_id: str = "", stage: str = ""
               "ts": now, "type": str(event_type), "level": "INFO", "stage": stage,
               "agent": agent, "trace_id": str(run_id or ""), "span_id": _span_id()}
         ev.update(extra)
-        # BI-PF-0233: route the append through log_router (single owner of paths + writes).
+        # BI-PF-1272: Delegate to Go event authority via A1 wire seam (go_host.event_append)
+        appended = False
         try:
-            from core import log_router as _lr
-            _lr.append_jsonl(_lr.run_events_path(project_dir), ev)
+            from core import go_host
+            target_path = path(project_dir)
+            resp = go_host.event_append(target_path, ev)
+            if isinstance(resp, dict) and resp.get("ok"):
+                res_data = resp.get("result") or {}
+                if isinstance(res_data, dict) and "seq" in res_data:
+                    ev["seq"] = res_data["seq"]
+                appended = True
         except Exception:
-            p = path(project_dir)
-            os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
-            with open(p, "a", encoding="utf-8") as f:
-                f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+            appended = False
+
+        if not appended:
+            # Fallback strangler path: preserve local JSONL append if Go host is unavailable
+            try:
+                from core import log_router as _lr
+                _lr.append_jsonl(_lr.run_events_path(project_dir), ev)
+            except Exception:
+                p = path(project_dir)
+                os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+                with open(p, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(ev, ensure_ascii=False) + "\n")
         return ev
     except Exception:
         return None
