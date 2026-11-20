@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1547",
+  "sha": "32b3bebaf0b6",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T06:22:59.893518+00:00",
+  "review_scope": "delta",
+  "base_sha": "b58f96c2d9b3e5928012bcfda940579a5fa6c88e",
+  "head_sha": "7f418d373595c3ef78e5dd411c3dc328797b951a",
+  "findings": {
+    "BLOCKER": [
+      "Delta revises `implementation_controls` but still defines no control, symbol, or negative test for duplicate symbol/ID detection required by AC-2; prior blocker remains unaddressed in the changed field.",
+      "The changed control set still contains no control, artifact, or evidence for the AC-3 generated impact-review table; prior blocker remains unaddressed in the changed field.",
+      "No control in the delta encodes the AC-2 AC\u2194FR\u2194control\u2194test coverage-drift rule as a distinct fail-closed check; coverage consistency is only implied by C-1."
+    ],
+    "MAJOR": [
+      "C-4's negative test is `test_api_contract_required`, hard-coding an API-contract requirement that contradicts the tooling-only scope and `config_contract: N/A` (extends the pending MAJOR on the contradictory API contract).",
+      "C-5's negative test is `test_compile_valid`, a positive-path test; the precheck/gate-blocking failure path itself (gate blocks drift) has no dedicated negative test, so AC-3's fail-closed ordering is unproven.",
+      "The delta does not add a test asserting Gate-1 sequencing \"before architect review\"; `test_precheck_registered` still only proves registration, not ordering (prior MAJOR unmet in the changed field)."
+    ],
+    "MINOR": [
+      "C-3 is classified `kind: security` but enforces evidence-integrity rules (SHA pinning, N/A wording), not an authorization/confidentiality boundary; misclassification misleads Gate reviewers.",
+      "The same test (`test_compile_valid`) is reused as C-1's positive test and C-5's negative test, weakening per-control traceability and making failures ambiguous to attribute.",
+      "Controls C-2/C-3 cite private helper symbols (`_norm`, `_bad_text`) rather than stable entrypoints; a rename silently breaks control-to-code traceability."
+    ],
+    "NIT": [
+      "All five controls repeat the identical observability value `problems JSON` with no per-control diagnostic hint (code, field, or rule) for triage."
+    ],
+    "SUMMARY": [
+      "The delta only re-emits `implementation_controls`; every pending BLOCKER/MAJOR against that field (duplicate-ID control, impact-review table, coverage-drift rule, gate-ordering proof) remains unaddressed, so Gate 1 approval is invalid under CL-006.",
+      "New defects introduced: C-5's negative test is a positive test, and C-4's negative test enforces a contradicting API requirement.",
+      "Evidence SHAs are pinned (CL-015 satisfied) and controls map to AC/FR; next iteration must close the three pending blockers and the guardrails checklist before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "Delta for prior b21c1f6f8f94: impact table, duplicate detection, FR coverage, tests",
+  "rereview_reason_sha256": "68dfc71301cc15897bb9b72c973f62d8dc8b2dc125120817f42e52d0616739fd"
+}
