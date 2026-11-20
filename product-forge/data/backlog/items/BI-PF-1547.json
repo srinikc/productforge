@@ -66,7 +66,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 3, 'MAJOR': 3, 'MINOR': 3, 'NIT': 1}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 1, 'NIT': 1}"
   ],
   "risks": [
     "Not specified."
@@ -76,7 +76,8 @@
     "pending",
     "Design guardrails applied (BI-PF-1547): sig:850687acdd0f9c0f (20 lines)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=b21c1f6f8f94\nBLOCKER:\n  - AC3 requires a generated impact-review table; no such artifact, field, or test appears anywhere in design_pack/spec_pack/functional_spec.\n  - AC2 requires failing on duplicate symbols/IDs; no implementation_control, negative test, or failure case covers duplicate detection (only drift/SHA/N/A/config/rollback).\n  - Design never answers the mandatory DESIGN GUARDRAILS checklist (reversibility/backup, SPOF, authz/RLS, blast radius, invariants, tests/rollback, API decision, tenant isolation, reuse/observability); CL-008 requires these before Gate 1.5.\nMAJOR:\n  - design_pack declares `POST /api/v1/backlog/items/{item_id}/context` (auth, validation, tenant) and spec_pack marks `api_contract` APPLICABLE via 'context field addition', but scope is 'tooling only' with no API in FRs/operation_matrix — approved contract is internally contradictory.\n  - If that context field/endpoint is new shipped logic, the language rule (Go) vs. the Python `api/routers/backlog.py` target is unresolved; design_pack files list only the compiler.\n  - AC/FR/control/test coverage check (AC2) is only represented by one negative test (`test_missing_control_fails`); coverage of AC↔FR↔control↔test matrix drift is not designed as a distinct fail-closed rule.\n  - 'before architect review' ordering is asserted in prose but no test asserts gate sequencing/ordering, only `test_precheck_registered`.\n  - Rollback is 'Revert the change' / 'remove gate/field' with no verified restore/verification path or interruption recovery stated (checklist item 1/6).\nMINOR:\n  - `test_matrix` and `ac_evidence` reference AC-1/AC-2/AC-3, but no AC identifiers are defined in the contract; only FR IDs exist.\n  - `tech_stack_evidence` lists go-*, pg-*, object-store items unrelated to a Python dev-tooling compiler — misleading evidence for Gate reviewers.\n  - `failure_matrix` has a single case (`SPEC_DRIFT`); no enumerated machine-readable problem codes for duplicate-ID, missing-SHA, invalid-N/A classes that observability claims to surface.\n  - `security_threat_model` is APPLICABLE with reason 'tooling only' (a non-applicability-style justification); evidence is a generic design doc, not a threat analysis.\n  - operation_matrix covers only `compile`; precheck wiring/exit-code behavior has no owning operation entry.\nNIT:\n  - `rollback` wording differs across packs ('Revert the change' vs 'remove gate/field') — align to one canonical phrase since this item's whole purpose is single-source consistency.\n  - 'learnings: 1270 design loops' is unexplained metadata with no reference or retention policy.\n  - `open_questions` states 'No open questions' inline rather than an empty list — schema-shape inconsistency for a validator meant to enforce schema.\nSUMMARY:\n  - Verdict: not Gate-1 ready. Two AC gaps are objective blockers (missing impact-review table; no duplicate symbol/ID validation) and the mandatory guardrail checklist is unanswered.\n  - Top risks: internally contradictory API contract vs. tooling-only scope (could drag in Go/language-rule and tenant/authz work undeclared); gate-ordering and coverage-drift rules asserted but not designed or tested.\n  - Remediation focus: add duplicate-ID and impact-table controls with tests, reconcile the API/field declaration, and answer all 10 guardrail items with evidence before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=32b3bebaf0b6\nBLOCKER:\n  - Delta revises `implementation_controls` but still defines no control, symbol, or negative test for duplicate symbol/ID detection required by AC-2; prior blocker remains unaddressed in the changed field.\n  - The changed control set still contains no control, artifact, or evidence for the AC-3 generated impact-review table; prior blocker remains unaddressed in the changed field.\n  - No control in the delta encodes the AC-2 AC↔FR↔control↔test coverage-drift rule as a distinct fail-closed check; coverage consistency is only implied by C-1.\nMAJOR:\n  - C-4's negative test is `test_api_contract_required`, hard-coding an API-contract requirement that contradicts the tooling-only scope and `config_contract: N/A` (extends the pending MAJOR on the contradictory API contract).\n  - C-5's negative test is `test_compile_valid`, a positive-path test; the precheck/gate-blocking failure path itself (gate blocks drift) has no dedicated negative test, so AC-3's fail-closed ordering is unproven.\n  - The delta does not add a test asserting Gate-1 sequencing \"before architect review\"; `test_precheck_registered` still only proves registration, not ordering (prior MAJOR unmet in the changed field).\nMINOR:\n  - C-3 is classified `kind: security` but enforces evidence-integrity rules (SHA pinning, N/A wording), not an authorization/confidentiality boundary; misclassification misleads Gate reviewers.\n  - The same test (`test_compile_valid`) is reused as C-1's positive test and C-5's negative test, weakening per-control traceability and making failures ambiguous to attribute.\n  - Controls C-2/C-3 cite private helper symbols (`_norm`, `_bad_text`) rather than stable entrypoints; a rename silently breaks control-to-code traceability.\nNIT:\n  - All five controls repeat the identical observability value `problems JSON` with no per-control diagnostic hint (code, field, or rule) for triage.\nSUMMARY:\n  - The delta only re-emits `implementation_controls`; every pending BLOCKER/MAJOR against that field (duplicate-ID control, impact-review table, coverage-drift rule, gate-ordering proof) remains unaddressed, so Gate 1 approval is invalid under CL-006.\n  - New defects introduced: C-5's negative test is a positive test, and C-4's negative test enforces a contradicting API requirement.\n  - Evidence SHAs are pinned (CL-015 satisfied) and controls map to AC/FR; next iteration must close the three pending blockers and the guardrails checklist before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=32b3bebaf0b6\nBLOCKER:\n  - Delta revises `implementation_controls` but still defines no control, symbol, or negative test for duplicate symbol/ID detection required by AC-2; prior blocker remains unaddressed in the changed field.\n  - The changed control set still contains no control, artifact, or evidence for the AC-3 generated impact-review table; prior blocker remains unaddressed in the changed field.\n  - No control in the delta encodes the AC-2 AC↔FR↔control↔test coverage-drift rule as a distinct fail-closed check; coverage consistency is only implied by C-1.\nMAJOR:\n  - C-4's negative test is `test_api_contract_required`, hard-coding an API-contract requirement that contradicts the tooling-only scope and `config_contract: N/A` (extends the pending MAJOR on the contradictory API contract).\n  - C-5's negative test is `test_compile_valid`, a positive-path test; the precheck/gate-blocking failure path itself (gate blocks drift) has no dedicated negative test, so AC-3's fail-closed ordering is unproven.\n  - The delta does not add a test asserting Gate-1 sequencing \"before architect review\"; `test_precheck_registered` still only proves registration, not ordering (prior MAJOR unmet in the changed field).\nMINOR:\n  - C-3 is classified `kind: security` but enforces evidence-integrity rules (SHA pinning, N/A wording), not an authorization/confidentiality boundary; misclassification misleads Gate reviewers.\n  - The same test (`test_compile_valid`) is reused as C-1's positive test and C-5's negative test, weakening per-control traceability and making failures ambiguous to attribute.\n  - Controls C-2/C-3 cite private helper symbols (`_norm`, `_bad_text`) rather than stable entrypoints; a rename silently breaks control-to-code traceability.\nNIT:\n  - All five controls repeat the identical observability value `problems JSON` with no per-control diagnostic hint (code, field, or rule) for triage.\nSUMMARY:\n  - The delta only re-emits `implementation_controls`; every pending BLOCKER/MAJOR against that field (duplicate-ID control, impact-review table, coverage-drift rule, gate-ordering proof) remains unaddressed, so Gate 1 approval is invalid under CL-006.\n  - New defects introduced: C-5's negative test is a positive test, and C-4's negative test enforces a contradicting API requirement.\n  - Evidence SHAs are pinned (CL-015 satisfied) and controls map to AC/FR; next iteration must close the three pending blockers and the guardrails checklist before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e0810af6f727\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Path normalization in spec_contract.py relies on standard library os/pathlib without caching compiled regexes, which is acceptable for current precheck scale but could be cached if compiler runs against thousands of items.\nNIT:\n  - Consider introducing typed dataclasses or pydantic schemas for the internal Control and SpecContract intermediate representations in a future refinement.\nSUMMARY:\n  - The canonical spec contract compiler cleanly implements controls C-1 through C-8 with dedicated public entrypoints and 19 passing unit tests.\n  - All prior Gate 1.5 design findings (including duplicate ID/symbol detection, coverage drift, gate sequencing, and API scope alignment) are resolved at the root level.\n  - Fail-closed validation prevents configuration and rollback drift, with offline item loading fallback for headless precheck environments.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -174,7 +175,7 @@
     "usage": {}
   },
   "created_at": "2026-11-20T11:38:07.940802",
-  "updated_at": "2026-11-20T11:53:00.483660",
+  "updated_at": "2026-11-20T14:36:21.300129",
   "score": 0.75,
   "_note": "readiness computed",
   "functional_spec": {
@@ -867,6 +868,32 @@
         ]
       },
       "evidence": "BI-PF-1547-32b3bebaf0b6.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "3ac514051086b21c5ecc47069954e3cf08722426",
+      "review_sha": "e0810af6f727",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-20T09:06:19.604103+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "3ac514051086b21c5ecc47069954e3cf08722426",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Path normalization in spec_contract.py relies on standard library os/pathlib without caching compiled regexes, which is acceptable for current precheck scale but could be cached if compiler runs against thousands of items."
+        ],
+        "NIT": [
+          "Consider introducing typed dataclasses or pydantic schemas for the internal Control and SpecContract intermediate representations in a future refinement."
+        ],
+        "SUMMARY": [
+          "The canonical spec contract compiler cleanly implements controls C-1 through C-8 with dedicated public entrypoints and 19 passing unit tests.",
+          "All prior Gate 1.5 design findings (including duplicate ID/symbol detection, coverage drift, gate sequencing, and API scope alignment) are resolved at the root level.",
+          "Fail-closed validation prevents configuration and rollback drift, with offline item loading fallback for headless precheck environments."
+        ]
+      },
+      "evidence": "BI-PF-1547-e0810af6f727.json"
     }
   ],
   "review_dispositions": {
@@ -948,6 +975,32 @@
         "by": "Srinikc",
         "note": "Resolved Blocker 3: Added implementation control C-8 owning AC/FR coverage drift.",
         "evidence": "tests/test_spec_contract.py::test_ac_without_control_fails"
+      }
+    },
+    "diff": {
+      "1": {
+        "status": "ACCEPTED",
+        "by": "Srinikc",
+        "note": "Path normalization in spec_contract.py uses stdlib os/pathlib without caching; acceptable at current scale and can be cached if compiler scales to thousands of items.",
+        "evidence": "scripts/dev/spec_contract.py"
+      },
+      "2": {
+        "status": "ACCEPTED",
+        "by": "Srinikc",
+        "note": "Internal intermediate representations can adopt typed dataclasses or pydantic schemas in a future refinement pass.",
+        "evidence": "scripts/dev/spec_contract.py"
+      },
+      "sig:8c216c09b89c6431": {
+        "status": "ACCEPTED",
+        "by": "Srinikc",
+        "note": "Path normalization regex caching accepted for future scaling.",
+        "evidence": "scripts/dev/spec_contract.py"
+      },
+      "sig:7d958d9c60e54ae6": {
+        "status": "ACCEPTED",
+        "by": "Srinikc",
+        "note": "Typed dataclasses noted for future model migration.",
+        "evidence": "scripts/dev/spec_contract.py"
       }
     }
   },
