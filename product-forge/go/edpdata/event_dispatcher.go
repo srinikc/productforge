@@ -148,8 +148,11 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 				continue
 			}
 			wait := backoff(opts.BaseBackoff, attempts)
-			if ra, ok := err.(interface{ RetryAfter() time.Duration }); ok && ra.RetryAfter() > wait {
+			if ra, ok := err.(RetryAfterError); ok && ra.RetryAfter() > wait {
 				wait = ra.RetryAfter()
+				if wait > time.Hour {
+					wait = time.Hour
+				}
 			}
 			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(wait), err.Error()); err != nil {
 				return st, err

@@ -118,7 +118,7 @@ func TestWebhookRetryAfter(t *testing.T) {
 
 func TestRegistryTenantScoped(t *testing.T) {
 	r := NewRegistry()
-	r.Register("inproc", NewInproc())
+	r.RegisterForTenant("t1", "inproc", NewInproc())
 	if _, ok := r.GetForTenant("", "inproc"); ok {
 		t.Fatal("empty tenant accepted")
 	}
