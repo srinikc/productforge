@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-11-20T10:43:24 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-20T11:45:28 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 133  |  **Closed:** 622
+- **Open:** 133  |  **Closed:** 623
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
@@ -76,7 +76,7 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (9)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -88,8 +88,9 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
+| BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
 
-**Wiring / tech-debt / API** (81)
+**Wiring / tech-debt / API** (80)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -133,7 +134,6 @@
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
 | BI-PF-1265 | Should | epic | EPIC: Eventing & Alerting SSOT - Go-first event bus + subscriber/alert transports | One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable contracts ... |
-| BI-PF-1270 | Should | feature | Eventing SSOT (Go): transports - inproc callbacks, webhook (HMAC+idempotency), notify/email | Pluggable transports behind one interface: inproc (callbacks), webhook (HTTP POST, HMAC signature, idempotency... |
 | BI-PF-1271 | Should | feature | Eventing SSOT (Go): alert policy - rules, throttle, escalation | A policy engine mapping event type/severity -> channels with throttle and escalation (reusing the policy map). |
 | BI-PF-1272 | Should | feature | Eventing SSOT: Python thin-client cutover of core/events.py over the A1 wire seam (edit-only) | core/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its pub... |
 | BI-PF-1275 | Should | feature | Eventing SSOT: bus daemon/service run model + ops (start/stop/status) | A Go bus daemon run model with start/stop/status (reuse the portfolio supervisor pattern) invoked via API. |
@@ -372,5 +372,5 @@
 ---
 
 ## Totals
-- backend: 133 open / 622 closed
+- backend: 133 open / 623 closed
 - dashboard: 146 open / 3 closed
