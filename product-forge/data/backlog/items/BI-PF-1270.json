@@ -69,7 +69,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 3, 'NIT': 1}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
@@ -85,7 +85,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6405874bdaf4\nBLOCKER:\n  - none\nMAJOR:\n  - C-9's positive/negative tests (`webhook_test.go::TestWebhookUsesSubscriptionKey`, `TestWebhookMissingKeyFailsClosed`) never exercise `go/edpdata/event_subscriptions.go:UpsertSubscription`; auth_ref persistence at write time remains untested — prior auth_ref MAJOR only partially dispositioned.\n  - Delta changes control/test rows (C-10 added, C-1 negative_test renamed) but `ac_evidence`/`coverage` rows are not updated in the same delta; CL-006 still leaves prior MAJORs PENDING, so Gate 1 approval remains invalid.\nMINOR:\n  - C-9's `tenant_test` points at `registry_test.go`, which does not cover `UpsertSubscription`; no cross-tenant assertion on the subscription-write path.\n  - C-5 now names metrics (`event_delivery_attempts_total`, etc.) but its `negative_test` is `webhook_test.go` — no test asserts metric emission/absence; observability control remains unverified.\n  - C-6 uses the identical file for `positive_test` and `negative_test` with no distinct failing scenario named.\n  - C-10 marks `tenant_test` as \"N/A: notification store is project-scoped\", conflicting with the AC's tenant-scoped subscription model and offering no proof notifications cannot cross tenants.\nNIT:\n  - C-4 `evidence` is `go test ./... @32c7bb39` without the package scope used by sibling controls (`in eventtransport`), weakening evidence traceability.\nSUMMARY:\n  - Delta improves evidence SHA-pinning (CL-015), adds C-10 for missing-SMTP, and fixes C-1's negative test; those prior MINORs are dispositioned.\n  - Top risks: auth_ref write-path persistence still lacks a test bound to `UpsertSubscription`, observability control has named metrics but no asserting test, and CL-006 keeps Gate 1 invalid while prior MAJORs are PENDING.\n  - Controls remain broadly coherent with the ACs; no new blocker introduced by this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=46f4bbdda8b9\nBLOCKER:\n  - none\nMAJOR:\n  - Delta updates `coverage`, but rows remain out of sync with the changed controls: FR-4 evidence lists only `registry_test.go` while controls C-2/C-7/C-8 cite `webhook_test.go` and C-9 cites `go/edpdata/event_subscriptions_test.go`; FR-3 evidence omits `event_dispatcher_pg_integration_test.go` required by C-4's negative_test (also present in functional_spec FR-3/FR-4 traceability). Prior evidence-sync MAJOR stays PENDING under CL-006 until reconciled in this delta.\nMINOR:\n  - FR-1 `coverage.evidence` bundles `notify_test.go` and `registry_test.go` (FR-2/FR-4 assets), over-attributing evidence and weakening per-FR traceability.\n  - C-2/C-5/C-6 use `inproc_test.go` concurrency evidence for webhook/registry controls; no webhook- or registry-specific concurrency scenario is named.\nNIT:\n  - C-4 `evidence` reads \"go test ./... in eventtransport\" but its symbol and negative_test (`event_dispatcher.go:DispatchOnce`, pg integration test) live in `go/edpdata` — package scope inaccurate.\n  - `ac_evidence` AC-1/AC-4 use bare `webhook_test.go`/`registry_test.go` while AC-2/AC-3 use full `go/...` paths — inconsistent evidence formatting.\nSUMMARY:\n  - Delta correctly resolves prior findings: C-9 now exercises `event_subscriptions_test.go::TestUpsertPersistsAuthRef/RejectsCrossTenant`, C-5/C-6 name distinct metric and cross-tenant tests, C-10 gains `TestNotifyTenantScoped`, and all rows carry pinned SHA `32c7bb39` (CL-015 satisfied, language rule Go-only OK).\n  - Verdict: no blockers; one MAJOR — FR-3/FR-4 coverage evidence not fully synced with the changed controls, so Gate 1 approval remains invalid per CL-006 until the coverage rows list the test files their controls cite.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=97ab7ed3fb62\nBLOCKER:\n  - none\nMAJOR:\n  - CL-011 unmet in the changed design: no control, test, or evidence pins DB runtime role posture (NOSUPERUSER/NOBYPASSRLS) or RLS-enforced tenant binding; C-6 only covers registry lookup, not role/RLS inheritance.\nMINOR:\n  - CL-012 not addressed: no control pins Postgres statement_timeout/cancellation or bounds for subscription/notify-store queries on the delivery path.\n  - Delivery-semantics invariant is unstated: retry after timeout implies at-least-once with possible duplicate webhook delivery; only the event_id idempotency key is tested, not an explicit ordering/duplicate invariant.\n  - Guardrail items 2 and 4 (availability/SPoF alert lead-time beyond the existing DLQ alert, blast-radius/dry-run bounds for the notify endpoint) are not answered in the delta fields.\nNIT:\n  - FR-4 `coverage.tests` names only `go/eventtransport/registry_test.go` while FR-4 controls C-2/C-7/C-8/C-9 live in `webhook.go`/`secrets.go`/`event_subscriptions.go`; evidence lists the files but the primary test pointer is narrow.\nSUMMARY:\n  - The delta resolves the prior MAJOR (coverage now matches C-2/C-7/C-8/C-9 and FR-3 pg-integration evidence) and the FR-1 evidence-bundling MINOR; unchanged prior MINOR/NIT items are not reopened.\n  - Top risks: guardrail CL-011 role/RLS posture is still absent from the changed controls, and the prior MAJOR disposition remains PENDING — CL-006 requires closure before Gate 1.5 approval.\n  - Overall the additive, single-registry, Go-first design is sound; approve once guardrail dispositions and evidence pointers are closed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=4c04671e9491\nBLOCKER:\n  - C-11 and C-12 (added in delta) omit `candidate_sha` and their evidence lacks `@32c7bb39`; violates CL-015 (every AC evidence entry pinned to a candidate SHA) and blocks Gate 2/gate approval.\nMAJOR:\n  - Delta guardrail \"startup validates webhook/SMTP config\" conflicts with AC-3: if missing SMTP fails startup, in-app delivery cannot proceed without SMTP, contradicting \"missing SMTP does not fail in-app delivery\"; the same guardrail also conflicts with failure_matrix \"missing HMAC key → webhook disabled\" instead of fail-fast.\n  - C-11/C-12 evidence is `go test ./... in edpdata` with no SHA and no named test artifact, so the newly claimed CL-011/CL-012 corrections are not yet auditable against the candidate.\nMINOR:\n  - Decision adds \"per-subscription cursor ordering\" as an invariant but no implementation control/test pins ordering or duplicate-suppression behavior (only the event_id idempotency key is covered by C-2).\n  - C-3 and C-4 list `concurrency_test: go/eventtransport/inproc_test.go`, which does not exercise notify/webhook concurrency; `N/A` with rationale would be accurate and non-misleading.\n  - C-5 negative test `TestDeliveryMetricsAbsentOnFailure` risks inverted semantics: failed attempts should increment `event_delivery_attempts_total`, so \"absent on failure\" contradicts the stated observability contract.\nNIT:\n  - Evidence string format is inconsistent across controls (`go test ./... in <pkg> @sha` vs `<file> @sha` vs bare `<pkg>`), weakening machine-checkable traceability.\nSUMMARY:\n  - Delta meaningfully closes prior CL-011 (role/RLS control C-11), CL-012 (statement_timeout C-12), and the at-least-once decision, but the new rows miss required candidate SHAs and the startup-validation guardrail contradicts AC-3's missing-SMTP behavior.\n  - Top risks: gate-blocking SHA gaps, guardrail/AC conflict on SMTP fail-fast, and an untested ordering/duplicate invariant.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=4c04671e9491\nBLOCKER:\n  - C-11 and C-12 (added in delta) omit `candidate_sha` and their evidence lacks `@32c7bb39`; violates CL-015 (every AC evidence entry pinned to a candidate SHA) and blocks Gate 2/gate approval.\nMAJOR:\n  - Delta guardrail \"startup validates webhook/SMTP config\" conflicts with AC-3: if missing SMTP fails startup, in-app delivery cannot proceed without SMTP, contradicting \"missing SMTP does not fail in-app delivery\"; the same guardrail also conflicts with failure_matrix \"missing HMAC key → webhook disabled\" instead of fail-fast.\n  - C-11/C-12 evidence is `go test ./... in edpdata` with no SHA and no named test artifact, so the newly claimed CL-011/CL-012 corrections are not yet auditable against the candidate.\nMINOR:\n  - Decision adds \"per-subscription cursor ordering\" as an invariant but no implementation control/test pins ordering or duplicate-suppression behavior (only the event_id idempotency key is covered by C-2).\n  - C-3 and C-4 list `concurrency_test: go/eventtransport/inproc_test.go`, which does not exercise notify/webhook concurrency; `N/A` with rationale would be accurate and non-misleading.\n  - C-5 negative test `TestDeliveryMetricsAbsentOnFailure` risks inverted semantics: failed attempts should increment `event_delivery_attempts_total`, so \"absent on failure\" contradicts the stated observability contract.\nNIT:\n  - Evidence string format is inconsistent across controls (`go test ./... in <pkg> @sha` vs `<file> @sha` vs bare `<pkg>`), weakening machine-checkable traceability.\nSUMMARY:\n  - Delta meaningfully closes prior CL-011 (role/RLS control C-11), CL-012 (statement_timeout C-12), and the at-least-once decision, but the new rows miss required candidate SHAs and the startup-validation guardrail contradicts AC-3's missing-SMTP behavior.\n  - Top risks: gate-blocking SHA gaps, guardrail/AC conflict on SMTP fail-fast, and an untested ordering/duplicate invariant.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=08e62918ed1d\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - C-4 evidence `go test ./... in eventtransport @32c7bb39` omits `edpdata`, where its negative test (`event_dispatcher_pg_integration_test.go`) executes; evidence should name both packages to be auditable.\n  - CL-012's \"bound expensive counts\" half is not pinned: C-12 evidences only statement_timeout and row limits; state counts as N/A or add a bounded-count test.\n  - Guardrail \"dispatcher/DB down -> no partial sends\" is ambiguous under the stated at-least-once fan-out and has no pinning control; reword to per-subscription atomicity or add a control/test (checklist items 2/5).\n  - Prior BLOCKER/MAJOR content is corrected in this delta but dispositions remain PENDING; per CL-006 they must be recorded as RESOLVED before Gate 1 approval.\nNIT:\n  - DLQ/retry-age >5m alerting is stated twice (guardrails 2 and 4); consolidate into one row.\n  - C-9 and C-12 use `kind: config` for a secret-persistence control and a DB-timeout control; taxonomy drift weakens machine-checkable coverage.\nSUMMARY:\n  - Corrections verified in the delta: C-11/C-12 are SHA-pinned with `@32c7bb39`, concurrency_test is `N/A` where stateless, C-5's negative test reads `IncrementOnFailure`, ordering/duplicate suppression is pinned by C-13, and guardrails no longer conflict with AC-3 or the failure matrix — no BLOCKER or MAJOR remains.\n  - Top residual risks: C-4 evidence package mismatch, stale PENDING dispositions blocking CL-006, and the untestable \"no partial sends\" guardrail claim.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -166,7 +167,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:18.581774",
-  "updated_at": "2026-11-20T10:30:09.703281",
+  "updated_at": "2026-11-20T10:35:40.756649",
   "score": 0.5,
   "_note": "analysis updated",
   "api_impact": {
@@ -687,9 +688,9 @@
     ],
     "guardrails": [
       "startup validates config shape; missing SMTP disables email only; missing HMAC disables webhook only",
-      "dispatcher/DB down -> no partial sends; retry; alert >5m 5xx or DLQ growth",
+      "dispatcher/DB down: per-subscription atomicity; no cross-subscription partial cursor advance; retry",
       "notify endpoint bounded title/message length; no bulk send",
-      "DLQ depth/retry-age alert >5m",
+      "DLQ depth or retry-age >5m alert (single row)",
       "no SSE",
       "no alert routing"
     ],
@@ -856,7 +857,7 @@
         "tenant_test": "N/A: transport receives tenant-scoped subscription",
         "concurrency_test": "N/A: error classification is stateless",
         "observability": "delivery metrics/logs",
-        "evidence": "go test ./... in eventtransport @32c7bb39",
+        "evidence": "go test ./... in eventtransport and edpdata @32c7bb39",
         "candidate_sha": "32c7bb39"
       },
       {
@@ -923,7 +924,7 @@
         "id": "C-9",
         "ac": "AC-2",
         "fr": "FR-4",
-        "kind": "config",
+        "kind": "security",
         "control": "subscription write persists auth_ref without returning secret",
         "symbol": "go/edpdata/event_subscriptions.go:UpsertSubscription",
         "positive_test": "go/edpdata/event_subscriptions_test.go::TestUpsertPersistsAuthRef",
@@ -971,12 +972,12 @@
         "kind": "config",
         "control": "delivery queries use statement_timeout and bounded limits",
         "symbol": "go/edpdata/event_subscriptions.go:ListSubscriptions",
-        "positive_test": "go/edpdata/event_subscriptions_test.go::TestSubscriptionQueryBounded",
+        "positive_test": "go/edpdata/event_subscriptions_test.go::TestSubscriptionQueryBoundedCounts",
         "negative_test": "go/edpdata/event_subscriptions_test.go::TestSubscriptionQueryTimeout",
         "tenant_test": "N/A: query is tenant-filtered",
         "concurrency_test": "N/A: read-only",
         "observability": "timeout events",
-        "evidence": "go/edpdata/event_subscriptions_test.go @32c7bb39",
+        "evidence": "go test ./... in edpdata @32c7bb39",
         "candidate_sha": "32c7bb39"
       },
       {
@@ -1315,6 +1316,367 @@
         ]
       },
       "evidence": "BI-PF-1270-4c04671e9491.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "27e73db9a010455470fe119dbfcbdd45d5b5c105",
+      "review_sha": "08e62918ed1d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-20T05:05:05.844017+00:00",
+      "review_scope": "delta",
+      "base_sha": "c69b58e80c57caf7a138ab44e2ce21a6e36f7b6b",
+      "head_sha": "27e73db9a010455470fe119dbfcbdd45d5b5c105",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "C-4 evidence `go test ./... in eventtransport @32c7bb39` omits `edpdata`, where its negative test (`event_dispatcher_pg_integration_test.go`) executes; evidence should name both packages to be auditable.",
+          "CL-012's \"bound expensive counts\" half is not pinned: C-12 evidences only statement_timeout and row limits; state counts as N/A or add a bounded-count test.",
+          "Guardrail \"dispatcher/DB down -> no partial sends\" is ambiguous under the stated at-least-once fan-out and has no pinning control; reword to per-subscription atomicity or add a control/test (checklist items 2/5).",
+          "Prior BLOCKER/MAJOR content is corrected in this delta but dispositions remain PENDING; per CL-006 they must be recorded as RESOLVED before Gate 1 approval."
+        ],
+        "NIT": [
+          "DLQ/retry-age >5m alerting is stated twice (guardrails 2 and 4); consolidate into one row.",
+          "C-9 and C-12 use `kind: config` for a secret-persistence control and a DB-timeout control; taxonomy drift weakens machine-checkable coverage."
+        ],
+        "SUMMARY": [
+          "Corrections verified in the delta: C-11/C-12 are SHA-pinned with `@32c7bb39`, concurrency_test is `N/A` where stateless, C-5's negative test reads `IncrementOnFailure`, ordering/duplicate suppression is pinned by C-13, and guardrails no longer conflict with AC-3 or the failure matrix — no BLOCKER or MAJOR remains.",
+          "Top residual risks: C-4 evidence package mismatch, stale PENDING dispositions blocking CL-006, and the untestable \"no partial sends\" guardrail claim."
+        ]
+      },
+      "evidence": "BI-PF-1270-08e62918ed1d.json"
     }
-  ]
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:13f538136f957a51": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:1c5512414f759b6f": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:4464638c800ceee4": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:cfc3efd4024baaa2": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:e9f0a1014c01631c": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:a6024f63097a2cc6": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:66f6d784e9ed06e1": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:f264a012565e248b": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:c55e3a1b485740c2": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:f61ffe407504d46c": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:6dfb77104fea4842": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:3d8b5fab73c5f74f": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:02297e5881c43d60": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:6c924b87dafebe27": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:3c93ed3b888e9518": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:097529306d23ad1f": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:08582d97bffd55bc": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:41de9ec1dbc8bed0": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:5ea64438fbdba177": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:43db28bcd03ae21e": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:eae1ddbd576aee04": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:c2a632952c88e38c": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:dc567b7b3b8a2540": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:ccdc60e62c26f2e1": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:2b424613ab9f65b6": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:9ff4a9667631b8e0": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:b80f3dfeb8c35e1f": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:ea6d04692178eaf0": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:14e88d37188a1027": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:24780ce981b614c4": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:a9fa3d67463db27c": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:f96ccf25e30c428a": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:5b462ec0e1c117cb": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:f0dbefd515c2839a": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:d5609df9f4944672": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:97ac6d9d7b40ff76": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:3fdea742a90405b9": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:fdcddbbec6caa70b": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:66c4532014240fc7": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:41309a5867218218": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:6a41f458a30c5ff0": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:add580dd7f4f78cc": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:2dbde0e12d5bbe43": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:8e13d85fbd2a67e9": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:d82c909290eb8782": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:53424db479d9d828": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:f7be358ddba33ff9": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:c093f9911d3a47f5": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:a653d676c07d29ce": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:bcc14777e1f7f93c": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:8356076448f01410": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:5f339b9b981d914e": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:28916de39c68059d": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:71b7670e2b374007": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:f170a9e8a2b48bd3": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:a00837fa1a9064a7": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:510d5b3d3e3d6386": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:3101f54c0932c220": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:6b215407ec495a3f": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:281a0564b93bccf2": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:b4b716151ece9238": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:aca3c75aa5188a47": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:e6bde2bcadfe33b1": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:9868cf87a1fb2598": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:b0ba1fb118681fac": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:3cc94c734017d9b4": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:afa8fd19af5d7f9c": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:d554a34303c16631": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:2a5c08aab2aacf72": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:d0e58d2f6c0029e5": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:822de923751b59c4": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:ab3d62287749a60f": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:16297493dba408bf": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:8878da782edd7754": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:369c88c279fbf5f9": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:15e044e8014205a0": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:e3ed04b9e05fd8ad": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:928e9d4a65339390": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:5b7491d3c5a86283": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:9dfbbd764d208693": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:8493e965a90cdcf4": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      },
+      "sig:16392148d86cba44": {
+        "status": "ACTIONED",
+        "note": "Resolved in the design delta; current controls and evidence reflect the correction."
+      }
+    }
+  }
 }
