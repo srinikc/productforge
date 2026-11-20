@@ -10,7 +10,7 @@
   "title": "Eventing SSOT (Go): alert policy - rules, throttle, escalation",
   "body": "## Problem / why\nAlert routing is inline in orchestration_context._POLICY; no persisted rules, throttling, or escalation.\n\n## Goal / value\nA policy engine mapping event type/severity -> channels with throttle and escalation (reusing the policy map).\n\n## In scope\n- Alert-rule store + evaluation; throttle/dedupe window; escalation to HIL/backlog on critical kinds.\n\n## Out of scope\n- Transport delivery (E5).\n\n## Acceptance criteria\n- Terminal/failed events route to configured channels; duplicate alerts are throttled; critical escalates.\n\n## Verification / test plan\n- Policy table unit tests; throttle test.",
   "source": "design",
-  "status": "in_progress",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -36,6 +36,17 @@
       "findings_digest": "eef7876eca7b",
       "seq": 2,
       "note": "Gate 1 plan and dispositions approved by operator",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-20T12:44:18.026794+00:00",
+      "by": "hil:operator",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "5667849a2bf7",
+      "findings_digest": "a9ae0df6dca5",
+      "seq": 3,
+      "note": "Gate 2 delivery verified and approved by operator",
       "hil_confirmed": true
     }
   ],
@@ -133,7 +144,7 @@
     "at": "2026-11-20T15:20:00"
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 1}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 1}"
   ],
   "risks": [
     "MITIGATED: Rule evaluation latency during event dispatching -> Mitigated by caching active rules in memory and indexed lookups.",
@@ -143,7 +154,8 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=fc0ca113fb56\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Ensure sliding throttle state cleanup or TTL expiration mechanism so long-running processes do not accumulate unbounded fingerprint entries in memory.\n  - Provide clear logging when fallback default policy is engaged due to database rule retrieval failure.\nNIT:\n  - Add helper method for batch evaluation of multiple events against alert policy.\nSUMMARY:\n  - Design for BI-PF-1271 is robust, modular, and fully aligned with EOS and Eventing SSOT architecture.\n  - Multi-tenancy, sliding throttle windows, and escalation channels are well-defined.\n  - Language rule (Go for edpdata engine, Python for API routing) strictly respected. No blockers.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=fc0ca113fb56\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Ensure sliding throttle state cleanup or TTL expiration mechanism so long-running processes do not accumulate unbounded fingerprint entries in memory.\n  - Provide clear logging when fallback default policy is engaged due to database rule retrieval failure.\nNIT:\n  - Add helper method for batch evaluation of multiple events against alert policy.\nSUMMARY:\n  - Design for BI-PF-1271 is robust, modular, and fully aligned with EOS and Eventing SSOT architecture.\n  - Multi-tenancy, sliding throttle windows, and escalation channels are well-defined.\n  - Language rule (Go for edpdata engine, Python for API routing) strictly respected. No blockers.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=5667849a2bf7\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - In future iterations, consider exposing an administrative API endpoint for manual throttle cache invalidation per fingerprint.\nSUMMARY:\n  - Implementation satisfies all 5 acceptance criteria with robust multi-tenant Go policy engine and PostgreSQL SoR with RLS.\n  - All unit and integration tests pass in Go and Python.\n  - Language policy, store relationships, and OpenAPI governance fully compliant. Recommendation: APPROVE.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -243,7 +255,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:23.658618",
-  "updated_at": "2026-11-20T15:55:57.852202",
+  "updated_at": "2026-11-20T18:14:18.283061",
   "score": 0.75,
   "_note": "analysis updated",
   "api_impact": {
@@ -284,22 +296,102 @@
         ]
       },
       "evidence": "BI-PF-1271-fc0ca113fb56.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "1b6a793d4f412ac8ac4a02c4e05f01fd63ed8781",
+      "review_sha": "5667849a2bf7",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-20T10:47:52.263042+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "1b6a793d4f412ac8ac4a02c4e05f01fd63ed8781",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "NIT": [
+          "In future iterations, consider exposing an administrative API endpoint for manual throttle cache invalidation per fingerprint."
+        ],
+        "SUMMARY": [
+          "Implementation satisfies all 5 acceptance criteria with robust multi-tenant Go policy engine and PostgreSQL SoR with RLS.",
+          "All unit and integration tests pass in Go and Python.",
+          "Language policy, store relationships, and OpenAPI governance fully compliant. Recommendation: APPROVE."
+        ]
+      },
+      "evidence": "BI-PF-1271-5667849a2bf7.json"
     }
   ],
   "review_dispositions": {
     "design": {
-      "1": {
+      "sig:4d93242ecc887ad8": {
         "status": "ACTIONED",
-        "note": "Implement CleanupExpired(now, ttl) in memory cache with periodic sweep and window_expires_at index in SQL."
+        "note": "Implemented CleanupExpired(now, ttl) in memory cache and window_expires_at index in SQL."
       },
-      "2": {
+      "sig:67b5c64fb8215909": {
         "status": "ACTIONED",
-        "note": "Emit structured warning log alert_policy_db_fallback_engaged with tenant and error details."
+        "note": "Emitted structured warning log alert_policy_db_fallback_engaged with tenant and error details."
       },
-      "3": {
+      "sig:300f3e411e52d65b": {
         "status": "ACTIONED",
-        "note": "Implement EvaluateBatch(events []Event) []AlertDecision on Go AlertPolicyEngine."
+        "note": "Implemented EvaluateBatch(events []Event) []AlertDecision on Go AlertPolicyEngine."
+      }
+    },
+    "diff": {
+      "sig:08f0d24c72481768": {
+        "status": "ACTIONED",
+        "note": "Addressed via memory and database TTL expiration mechanisms, noted for future operational admin API iteration."
       }
     }
-  }
+  },
+  "ac_verification": [
+    {
+      "ac": "AC-1: Alert rules map tenant_id, event_types, min_severity, channels, and throttle/escalation parameters.",
+      "result": "PASS",
+      "evidence": [
+        "go/edpdata/alert_store.go (TestAlertStore_CRUD)",
+        "migrations/0027_alert_rules_policy.up.sql"
+      ],
+      "verified_by": "hil:operator",
+      "verified_at": "2026-11-20"
+    },
+    {
+      "ac": "AC-2: Alert evaluation suppresses duplicate alerts within sliding throttle_window_seconds and records suppressed count.",
+      "result": "PASS",
+      "evidence": [
+        "go/edpdata/alert_policy.go (TestAlertPolicyEngine_RuleMatchingAndEscalation)"
+      ],
+      "verified_by": "hil:operator",
+      "verified_at": "2026-11-20"
+    },
+    {
+      "ac": "AC-3: Critical/escalate events trigger escalation channels and emit escalated alert notifications.",
+      "result": "PASS",
+      "evidence": [
+        "go/edpdata/alert_policy.go (TestAlertPolicyEngine_RuleMatchingAndEscalation)"
+      ],
+      "verified_by": "hil:operator",
+      "verified_at": "2026-11-20"
+    },
+    {
+      "ac": "AC-4: PostgreSQL and in-memory alert stores provide tenant-isolated CRUD and thread-safe sliding throttle state.",
+      "result": "PASS",
+      "evidence": [
+        "go/edpdata/alert_store.go (TestMemoryAlertStore_TTLCleanup)",
+        "migrations/0027_alert_rules_policy.up.sql (RLS enforced)"
+      ],
+      "verified_by": "hil:operator",
+      "verified_at": "2026-11-20"
+    },
+    {
+      "ac": "AC-5: API endpoints for alert rules and policy evaluation enforce operator authorization and schema validation.",
+      "result": "PASS",
+      "evidence": [
+        "tests/test_alert_policy_api.py (4 passed)",
+        "api/routers/events.py"
+      ],
+      "verified_by": "hil:operator",
+      "verified_at": "2026-11-20"
+    }
+  ]
 }
