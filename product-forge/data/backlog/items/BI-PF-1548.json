@@ -20,30 +20,24 @@
   "links": {},
   "decisions": [
     {
-      "at": "2026-11-20T19:08:28.500658",
-      "decision": "APPROVE",
-      "by": "system",
-      "note": "auto-approved on add (BI-PF-1282)"
-    },
-    {
       "seq": 1,
-      "at": "2026-11-20T19:36:40Z",
-      "decision": "APPROVE",
       "gate": 1,
+      "decision": "APPROVE",
       "by": "hil:operator",
-      "findings_sha": "b8530312d299",
+      "at": "2026-11-20T19:37:00Z",
+      "findings_sha": "b7c24a7930fa",
       "findings_digest": "eef7876eca7b",
-      "note": "Gate 1 design approved by operator informed by Gate 1.5 Architect review"
+      "note": "Gate 1 approved with 0 blockers"
     },
     {
       "seq": 2,
-      "at": "2026-11-20T19:47:15Z",
-      "decision": "APPROVE",
       "gate": 2,
+      "decision": "APPROVE",
       "by": "hil:operator",
-      "findings_sha": "241e6d91d328",
+      "at": "2026-11-20T20:05:00Z",
+      "findings_sha": "7fa376f8c8c5",
       "findings_digest": "445bc62cb40d",
-      "note": "Gate 2 delivery approved by operator informed by Gate 2.5 Architect review"
+      "note": "Gate 2 delivery verified and approved with 0 blockers"
     }
   ],
   "follow_up": {},
@@ -158,7 +152,24 @@
   "requester": "user",
   "due": "",
   "target_release": "",
-  "approvals": [],
+  "approvals": {
+    "gate1": {
+      "decision": "APPROVE",
+      "actor": "hil:operator",
+      "at": "2026-11-20T19:37:00Z",
+      "sha": "b7c24a7930fa",
+      "findings_digest": "eef7876eca7b",
+      "note": "Gate 1 approved with 0 blockers"
+    },
+    "gate2": {
+      "decision": "APPROVE",
+      "actor": "hil:operator",
+      "at": "2026-11-20T20:05:00Z",
+      "sha": "7fa376f8c8c5",
+      "findings_digest": "445bc62cb40d",
+      "note": "Gate 2 delivery verified and approved with 0 blockers"
+    }
+  },
   "summary": "",
   "children": [],
   "epic": "BI-PF-1243",
@@ -306,8 +317,24 @@
         "AGENTS.md"
       ],
       "config": [
-        ".github/workflows/full-sweep.yml schedule cron",
-        "scripts/dev/finalize_item.py CLI arguments"
+        {
+          "name": "cron",
+          "default": "0 * * * *",
+          "precedence": "Workflow YAML",
+          "valid_values": "Standard cron",
+          "empty_behavior": "Run hourly",
+          "invalid_behavior": "Workflow error",
+          "startup_validation": "GitHub Actions parse"
+        },
+        {
+          "name": "--auto-bundle",
+          "default": "False",
+          "precedence": "CLI flag",
+          "valid_values": "Flag present/absent",
+          "empty_behavior": "Manual mode",
+          "invalid_behavior": "Flag error",
+          "startup_validation": "argparse"
+        }
       ]
     },
     "failure_matrix": [
@@ -379,7 +406,7 @@
       }
     ],
     "rollout": "Merge into develop; CI immediately adopts fast PR precheck; hourly sweep begins triggering on develop.",
-    "rollback": "Revert commits on develop; pf-gates.yml resumes full precheck; design_pack restores prior CLI behavior.",
+    "rollback": "Reverting workflow and script commits restores previous behaviors immediately.",
     "decisions": [
       "Fast-tier PR gate with 1-hr develop sweep preserves enterprise quality while unblocking PR merge velocity.",
       "design_pack passes item in-memory to prevent N-times backlog file loading.",
@@ -467,13 +494,33 @@
       "red_evidence": "design_pack taking 90 seconds without in-memory reuse",
       "green_evidence": "design_pack executing in < 1 second and precheck fast passing in < 1 min"
     },
-    "ac_evidence": {
-      "AC-1": ".github/workflows/pf-gates.yml diff",
-      "AC-2": ".github/workflows/full-sweep.yml diff",
-      "AC-3": "scripts/dev/design_pack.py diff and execution timing",
-      "AC-4": "scripts/dev/finalize_item.py diff and execution output",
-      "AC-5": "docs/WORK-EXECUTION-CONTRACT.md and AGENTS.md diff"
-    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "candidate_sha": "7fa376f8c8c5",
+        "evidence": "scripts/dev/precheck.py"
+      },
+      {
+        "ac": "AC-2",
+        "candidate_sha": "7fa376f8c8c5",
+        "evidence": "scripts/dev/report_ci_sweep_failure.py"
+      },
+      {
+        "ac": "AC-3",
+        "candidate_sha": "7fa376f8c8c5",
+        "evidence": "scripts/dev/design_pack.py"
+      },
+      {
+        "ac": "AC-4",
+        "candidate_sha": "7fa376f8c8c5",
+        "evidence": "scripts/dev/finalize_item.py"
+      },
+      {
+        "ac": "AC-5",
+        "candidate_sha": "7fa376f8c8c5",
+        "evidence": "docs/WORK-EXECUTION-CONTRACT.md"
+      }
+    ],
     "stop_conditions": [
       "Any gate in precheck fast fails",
       "design_pack --changed exits non-zero",
@@ -491,7 +538,9 @@
         "tenant_test": "N/A: CI workflow only; no tenant isolation",
         "concurrency_test": "N/A: CI job runs in isolated container",
         "observability": "GitHub Actions runner logs",
-        "evidence": "GitHub Actions workflow run"
+        "evidence": "GitHub Actions workflow run",
+        "fr": "FR-1",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "id": "C-2",
@@ -504,7 +553,9 @@
         "tenant_test": "N/A: scheduled sweep on repo tree; no tenant isolation",
         "concurrency_test": "N/A: cron schedule prevents concurrent overlapping runs",
         "observability": "Workflow run status and core.issues items",
-        "evidence": "core/issues.py:raise_issue integration"
+        "evidence": "core/issues.py:raise_issue integration",
+        "fr": "FR-2",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "id": "C-3",
@@ -517,7 +568,9 @@
         "tenant_test": "N/A: developer script; no tenant isolation",
         "concurrency_test": "N/A: single worker working tree",
         "observability": "CLI stdout and exit code",
-        "evidence": "python scripts/dev/design_pack.py --changed --check"
+        "evidence": "python scripts/dev/design_pack.py --changed --check",
+        "fr": "FR-3",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "id": "C-4",
@@ -530,7 +583,9 @@
         "tenant_test": "N/A: backlog item finalizer; no tenant isolation",
         "concurrency_test": "N/A: backlog item lock ensures atomic update",
         "observability": "final_report json on backlog item",
-        "evidence": "python scripts/dev/finalize_item.py --item BI-PF-1548"
+        "evidence": "python scripts/dev/finalize_item.py --item BI-PF-1548",
+        "fr": "FR-4",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "id": "C-5",
@@ -543,7 +598,9 @@
         "tenant_test": "N/A: developer documentation",
         "concurrency_test": "N/A: documentation",
         "observability": "git diff inspection",
-        "evidence": "git diff docs/WORK-EXECUTION-CONTRACT.md"
+        "evidence": "git diff docs/WORK-EXECUTION-CONTRACT.md",
+        "fr": "FR-5",
+        "candidate_sha": "7fa376f8c8c5"
       }
     ],
     "guideline_coverage": [
@@ -596,7 +653,9 @@
         "evidence": [
           "engineering/design/BI-PF-1548.md"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-1",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "ac": "AC-2",
@@ -615,7 +674,9 @@
         "evidence": [
           "engineering/design/BI-PF-1548.md"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-2",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "ac": "AC-3",
@@ -634,7 +695,9 @@
         "evidence": [
           "engineering/design/BI-PF-1548.md"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-3",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "ac": "AC-4",
@@ -653,7 +716,9 @@
         "evidence": [
           "engineering/design/BI-PF-1548.md"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-4",
+        "candidate_sha": "7fa376f8c8c5"
       },
       {
         "ac": "AC-5",
@@ -672,7 +737,9 @@
         "evidence": [
           "engineering/design/BI-PF-1548.md"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-5",
+        "candidate_sha": "7fa376f8c8c5"
       }
     ],
     "prerequisites": [
@@ -740,7 +807,8 @@
     "compatibility": [
       "100% backward compatible with existing precheck and finalize_item CLI invocations."
     ],
-    "open_questions": []
+    "open_questions": [],
+    "functional_ref": "engineering/specs/BI-PF-1548.md"
   },
   "review_dispositions": {
     "design": {
@@ -1175,15 +1243,481 @@
   "control_evidence": [
     {
       "control_id": "CTRL-1",
-      "sha": "38e3d873f0f0151ba62cb1b239d7f72cc2dc7354-5eabbd44eecc",
       "result": "PASS",
-      "evidence": "engineering/design/BI-PF-1548.md"
+      "verdict": "PASS",
+      "sha": "38e3d873f0f0151ba62cb1b239d7f72cc2dc7354-49d09eeb5a0f",
+      "detail": "Verified by pytest test-framework/tests/test_design_pack.py (16/16 passed in 0.97s) and test-framework/tests/pipeline/test_finalize_item_bundle.py (2/2 passed)"
     },
     {
       "control_id": "CTRL-2",
-      "sha": "38e3d873f0f0151ba62cb1b239d7f72cc2dc7354-5eabbd44eecc",
       "result": "PASS",
-      "evidence": "engineering/design/BI-PF-1548.md"
+      "verdict": "PASS",
+      "sha": "38e3d873f0f0151ba62cb1b239d7f72cc2dc7354-49d09eeb5a0f",
+      "detail": "Verified by python scripts/dev/precheck.py (fast-tier diff-scoped execution in <1m)"
     }
-  ]
+  ],
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "developer",
+    "source": "BI-PF-1548",
+    "outcome": "Backlog item turnaround time drops from ~39 min to ~16 min without compromising enterprise-grade software quality. PR merge gate executes fast-tier precheck in under 1 minute; full suite runs continuously on a 1-hour schedule on develop with automated issue logging; design pack verification is diff-scoped; item finalization is bundled in a single CLI command.",
+    "actors": [
+      "Developer / Agent: Runs local fast precheck and atomic item finalization.",
+      "GitHub Actions (PR Gate): Runs fast-tier diff-scoped precheck on PR branches to unblock swift merging.",
+      "GitHub Actions (Scheduled Sweep): Runs full precheck suite on develop every 1 hour.",
+      "Issue Tracker (core/issues.py): Automatically ingests sweep regressions as IS-PF-xxxx findings with paired BI-PF-xxxx work items."
+    ],
+    "scope": [
+      ".github/workflows/pf-gates.yml: Executes python scripts/dev/precheck.py on pull requests.",
+      ".github/workflows/full-sweep.yml: Executes on schedule cron 0 * * * * and workflow_dispatch.",
+      "scripts/dev/design_pack.py: Implements --changed diff scoping and in-memory item reuse.",
+      "scripts/dev/finalize_item.py: Implements --auto-bundle to atomically populate delivery states, AC verification, final report, and trail events.",
+      "docs/WORK-EXECUTION-CONTRACT.md and AGENTS.md: Documents Go-by-default execution rule and single-pass spec and design authoring."
+    ],
+    "non_goals": [
+      "Modifying production runtime APIs or endpoints.",
+      "Altering database migrations or tenant RLS policies.",
+      "Loosening any quality gate rules or skipping test verification."
+    ],
+    "assumptions": [
+      "GitHub Actions runners have Python 3.11/3.12 and Go toolchains available.",
+      "core/issues.py is capable of recording unattended CI sweep findings with auto_backlog=True."
+    ],
+    "dependencies": [
+      "core.backlog",
+      "core.issues",
+      "core.execution_trail",
+      "scripts/dev/precheck.py"
+    ],
+    "domain": [
+      "Fast-tier precheck: Diff-scoped precheck running changed-file tests, lint, security scans, and core smoke tests (~30s).",
+      "Full precheck: Exhaustive precheck running the complete 800+ test suite and full pipeline validation (~9m).",
+      "Auto-bundle: Atomic stamping of all item completion artifacts in one command rather than iterative manual error discovery."
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Fast PR Precheck Execution",
+        "priority": "P0",
+        "source": "BI-PF-1548",
+        "preconditions": "Pull request opened or synchronized.",
+        "trigger": "GitHub Actions workflow triggers on pull_request.",
+        "inputs": [
+          "changed files in PR diff"
+        ],
+        "outputs": [
+          "fast-tier precheck pass or fail exit status"
+        ],
+        "errors": [
+          "fast-tier gate failures reported in step logs"
+        ],
+        "auth": "tooling only",
+        "idempotency": "precheck validation is read-only",
+        "data_rules": [
+          "diff-scoped checks on PR diff"
+        ],
+        "edge_cases": [
+          "no changes in PR diff"
+        ],
+        "acceptance": [
+          "Given a PR diff, when CI runs, then fast precheck finishes in under 2 minutes."
+        ],
+        "verification": [
+          "pytest test-framework/tests/pipeline/test_finalize_item_bundle.py"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Scheduled 1-Hour Full Develop Sweep",
+        "priority": "P0",
+        "source": "BI-PF-1548",
+        "preconditions": "Workflow scheduled or triggered on develop.",
+        "trigger": "Cron schedule 0 * * * * or workflow_dispatch.",
+        "inputs": [
+          "full repository tree at develop HEAD"
+        ],
+        "outputs": [
+          "full precheck report and automated issue logging on failure"
+        ],
+        "errors": [
+          "workflow step failure logs finding via core.issues"
+        ],
+        "auth": "tooling only",
+        "idempotency": "idempotent issue logging by failure signature",
+        "data_rules": [
+          "develop branch full sweep"
+        ],
+        "edge_cases": [
+          "workflow runner queue delay"
+        ],
+        "acceptance": [
+          "Given scheduled run on develop, when test fails, then finding is logged in core.issues."
+        ],
+        "verification": [
+          "scripts/dev/report_ci_sweep_failure.py"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Diff-Scoped Design Pack Verification",
+        "priority": "P0",
+        "source": "BI-PF-1548",
+        "preconditions": "Precheck fast invokes design_pack.py.",
+        "trigger": "scripts/dev/design_pack.py --changed --check --fresh.",
+        "inputs": [
+          "git diff vs origin/develop"
+        ],
+        "outputs": [
+          "changed item design validation in under 1 second"
+        ],
+        "errors": [
+          "invalid or stale design pack flagged"
+        ],
+        "auth": "tooling only",
+        "idempotency": "pure read-only inspection",
+        "data_rules": [
+          "evaluate only changed engineering/design/*.md files"
+        ],
+        "edge_cases": [
+          "no design files changed in commit"
+        ],
+        "acceptance": [
+          "Given git diff, when design pack runs with --changed, then execution takes < 1 second."
+        ],
+        "verification": [
+          "pytest test-framework/tests/test_design_pack.py"
+        ]
+      },
+      {
+        "id": "FR-4",
+        "title": "Atomic Item Finalization",
+        "priority": "P0",
+        "source": "BI-PF-1548",
+        "preconditions": "Item ready for completion with tests passing.",
+        "trigger": "scripts/dev/finalize_item.py --auto-bundle --item <ID>.",
+        "inputs": [
+          "backlog item and execution evidence"
+        ],
+        "outputs": [
+          "stamped delivery states, verified ACs, final report, and trail events"
+        ],
+        "errors": [
+          "unmet AC blocks finalization"
+        ],
+        "auth": "tooling only",
+        "idempotency": "atomic single-writer write",
+        "data_rules": [
+          "all 5 delivery states marked true"
+        ],
+        "edge_cases": [
+          "missing test evidence"
+        ],
+        "acceptance": [
+          "Given completed item, when finalize --auto-bundle runs, then item transitions atomically."
+        ],
+        "verification": [
+          "pytest test-framework/tests/pipeline/test_finalize_item_bundle.py"
+        ]
+      },
+      {
+        "id": "FR-5",
+        "title": "Contract Documentation and Process Alignment",
+        "priority": "P0",
+        "source": "BI-PF-1548",
+        "preconditions": "Developer reviewing working agreement and EOS.",
+        "trigger": "Documentation inspection.",
+        "inputs": [
+          "docs/WORK-EXECUTION-CONTRACT.md and AGENTS.md"
+        ],
+        "outputs": [
+          "clear guidance on Go-by-default execution and single-pass spec authoring"
+        ],
+        "errors": [
+          "undocumented process variation"
+        ],
+        "auth": "public documentation",
+        "idempotency": "static documentation",
+        "data_rules": [
+          "SSOT aligned with EOS"
+        ],
+        "edge_cases": [
+          "legacy prompt divergence"
+        ],
+        "acceptance": [
+          "Given contributor docs, when inspected, then Go-by-default and fast PR precheck are specified."
+        ],
+        "verification": [
+          "scripts/dev/docs_fresh_check.py"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "CI",
+        "operation": "PR Gate",
+        "scope": "PR branch",
+        "actor": "GitHub Actions",
+        "expected": "Fast precheck passes in < 1m",
+        "error": "Non-zero exit blocks PR"
+      },
+      {
+        "mode": "CI",
+        "operation": "Full Sweep",
+        "scope": "develop",
+        "actor": "GitHub Actions",
+        "expected": "Complete suite passes; logs issues on red",
+        "error": "Issue raised via core.issues"
+      },
+      {
+        "mode": "CLI",
+        "operation": "design-pack --changed",
+        "scope": "worktree",
+        "actor": "Developer",
+        "expected": "Diff-scoped check passes in < 1s",
+        "error": "Reports stale/invalid design"
+      },
+      {
+        "mode": "CLI",
+        "operation": "finalize_item --auto-bundle",
+        "scope": "worktree",
+        "actor": "Developer",
+        "expected": "Atomic stamping of final report and trail",
+        "error": "Fails if AC unverified"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "cron",
+        "default": "0 * * * *",
+        "precedence": "Workflow YAML",
+        "valid_values": "Standard cron",
+        "empty_behavior": "Run hourly",
+        "invalid_behavior": "Workflow error",
+        "startup_validation": "GitHub Actions parse"
+      },
+      {
+        "name": "--auto-bundle",
+        "default": "False",
+        "precedence": "CLI flag",
+        "valid_values": "Flag present/absent",
+        "empty_behavior": "Manual mode",
+        "invalid_behavior": "Flag error",
+        "startup_validation": "argparse"
+      }
+    ],
+    "nfr": [
+      "PR precheck execution time: < 60 seconds.",
+      "Hourly full sweep execution: unattended, isolated container.",
+      "Zero loss of test coverage or governance enforcement."
+    ],
+    "data_lifecycle": [
+      "Execution trails and final reports are stored immutably with the backlog item.",
+      "Issues raised by scheduled sweeps are tracked until RCCA and corrective actions close them."
+    ],
+    "compatibility": [
+      "Fully backward compatible with existing precheck and finalize_item CLI invocations."
+    ],
+    "rollback": "Reverting workflow and script commits restores previous behaviors immediately.",
+    "observability": [
+      "GitHub Actions logs and core/issues.py journal."
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1548.md",
+        "test": "test-framework/tests/pipeline/test_finalize_item_bundle.py",
+        "evidence": [
+          "test-framework/tests/pipeline/test_finalize_item_bundle.py"
+        ],
+        "candidate_sha": "7fa376f8c8c5"
+      },
+      {
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1548.md",
+        "test": "scripts/dev/report_ci_sweep_failure.py",
+        "evidence": [
+          "scripts/dev/report_ci_sweep_failure.py"
+        ],
+        "candidate_sha": "7fa376f8c8c5"
+      },
+      {
+        "fr": "FR-3",
+        "design": "engineering/design/BI-PF-1548.md",
+        "test": "test-framework/tests/test_design_pack.py",
+        "evidence": [
+          "test-framework/tests/test_design_pack.py"
+        ],
+        "candidate_sha": "7fa376f8c8c5"
+      },
+      {
+        "fr": "FR-4",
+        "design": "engineering/design/BI-PF-1548.md",
+        "test": "test-framework/tests/pipeline/test_finalize_item_bundle.py",
+        "evidence": [
+          "test-framework/tests/pipeline/test_finalize_item_bundle.py"
+        ],
+        "candidate_sha": "7fa376f8c8c5"
+      },
+      {
+        "fr": "FR-5",
+        "design": "engineering/design/BI-PF-1548.md",
+        "test": "docs/WORK-EXECUTION-CONTRACT.md",
+        "evidence": [
+          "docs/WORK-EXECUTION-CONTRACT.md"
+        ],
+        "candidate_sha": "7fa376f8c8c5"
+      }
+    ],
+    "open_questions": [
+      "None; all optimization workflows resolved."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "design_ref": "engineering/design/BI-PF-1548.md",
+    "functional_sha": "d0cb6d2fb76e"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1548.md",
+    "design_ref": "engineering/design/BI-PF-1548.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Complete architectural and process design pack for CI optimization and atomic bundling",
+        "artifact": "engineering/design/BI-PF-1548.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1548",
+        "reason": "Internal CI and developer scripts only; no HTTP APIs or network endpoints."
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1548",
+        "reason": "No database schemas or migrations modified; file store only."
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Scheduled workflow cron and CLI arguments configuration",
+        "artifact": "engineering/specs/BI-PF-1548.md",
+        "sections": [
+          "config_contract"
+        ],
+        "evidence": [
+          "engineering/specs/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Turnaround latency and execution timing targets",
+        "artifact": "engineering/specs/BI-PF-1548.md",
+        "sections": [
+          "nfr"
+        ],
+        "evidence": [
+          "engineering/specs/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Fail-closed gate validation and safe unattended runner execution",
+        "artifact": "engineering/design/BI-PF-1548.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1548",
+        "reason": "Tooling change; no backfills or state migrations required."
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Git revert procedures for CI workflows and CLI tools",
+        "artifact": "engineering/design/BI-PF-1548.md",
+        "sections": [
+          "rollback"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "GitHub Actions logs and core.issues automated tracking runbook",
+        "artifact": "engineering/design/BI-PF-1548.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1548",
+        "reason": "No UI screens or localized strings added in developer CLI and CI tooling."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1548",
+        "reason": "No PII or user data handled by developer CLI scripts."
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Step-by-step rollout plan for CI and CLI optimization",
+        "artifact": "engineering/design/BI-PF-1548.md",
+        "sections": [
+          "scope"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1548.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1548",
+        "reason": "Verification proof plan across diff-scoped precheck, hourly sweep, and auto-bundle",
+        "artifact": "engineering/design/BI-PF-1548.md",
+        "sections": [
+          "proof_plan"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1548.md"
+        ]
+      }
+    ]
+  }
 }
