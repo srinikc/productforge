@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "969b350a1849",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-20T05:34:26.232250+00:00",
+  "review_scope": "delta",
+  "base_sha": "6d2a70caeeebff84ae7a018579268ef14a65715c",
+  "head_sha": "02dffabf27b9effcad814454ea675998fa37f2ae",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Prior MAJOR disposition is only partially verifiable: the delta renames the test env var to `PF_WEBHOOK_HMAC_KEY`, but `keys.go` (shipped key resolution) is unchanged in this delta. Confirm `ResolveHMACKey` no longer reads `PF_TEST_WEBHOOK_KEY`; if that branch remains, the production test-backdoor half of the finding still stands (test half = RESOLVED)."
+    ],
+    "MINOR": [],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta is a low-risk cleanup: test env var aligned to the approved config-contract key (`PF_WEBHOOK_HMAC_KEY`) and the `DispatchOptions` godoc relocated \u2014 the prior MAJOR (test/contract mismatch) and MINOR (orphaned godoc) are addressed at the test/comment level.",
+      "Verify no residual `PF_TEST_WEBHOOK_KEY` handling in `keys.go` and no leftover occurrences in `transport_test.go`, otherwise the rename is only cosmetic.",
+      "Remaining prior findings (registry fallback observability, `WEBHOOK_DISABLED` startup gate, stdlib `log.Printf`, implicit `maxRetryAfter`) are untouched by this delta and stay PENDING as previously recorded.",
+      "Change is reversible, Go-only (language rule OK), and introduces no new security/data-loss surface."
+    ]
+  },
+  "rereview_reason": "Delta for prior 29494bcdb28d and 701977cb6d5f: approved webhook key and doc placement",
+  "rereview_reason_sha256": "6ee52aad3c9a6976ff9b55762c33285e76ef9494b5fae71d85f9908957ffa94f"
+}

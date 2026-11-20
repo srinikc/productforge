@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-11-19T16:39:44 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-20T10:43:24 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 621
+- **Open:** 133  |  **Closed:** 622
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
-- `new`: 131
+- `new`: 130
 
-### new, by category (131)
-**API / reports / HIL / misc** (16)
+### new, by category (130)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,7 +30,6 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
-| BI-PF-1546 | Should | feature | Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership | Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -373,5 +372,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 621 closed
+- backend: 133 open / 622 closed
 - dashboard: 146 open / 3 closed

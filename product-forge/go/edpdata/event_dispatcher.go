@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"productforge/datastore"
@@ -13,6 +14,8 @@ import (
 type Transport interface {
 	Deliver(ctx context.Context, sub Subscription, ev Event) error
 }
+
+const maxRetryAfter = time.Hour
 
 // DispatchOptions bounds one dispatcher pass.
 type DispatchOptions struct {
@@ -139,7 +142,7 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 			return st, nil
 		}
 		if err := tr.Deliver(ctx, sub, ev); err != nil {
-			if attempts >= opts.MaxAttempts {
+			if attempts >= opts.MaxAttempts || IsPermanent(err) {
 				if err := s.deadLetterDelivery(ctx, sub, ev, attempts, err.Error()); err != nil {
 					return st, err
 				}
@@ -147,7 +150,15 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 				s.metrics.DeliveryDeadLettered(sub.TenantID, sub.ID)
 				continue
 			}
-			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(backoff(opts.BaseBackoff, attempts)), err.Error()); err != nil {
+			wait := backoff(opts.BaseBackoff, attempts)
+			if ra, ok := err.(RetryAfterError); ok && ra.RetryAfter() > wait {
+				wait = ra.RetryAfter()
+				if wait > maxRetryAfter {
+					log.Printf("EVENT_RETRY_AFTER_CAPPED wait=%s cap=%s", wait, maxRetryAfter)
+					wait = maxRetryAfter
+				}
+			}
+			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(wait), err.Error()); err != nil {
 				return st, err
 			}
 			st.Retried++

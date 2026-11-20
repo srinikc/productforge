@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "46f4bbdda8b9",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:36:46.503075+00:00",
+  "review_scope": "delta",
+  "base_sha": "a90d5db875550f6a9c587cedde12b42cbeca3229",
+  "head_sha": "3ac5775683e351bf530c769f6cbffa1e194bfc0d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta updates `coverage`, but rows remain out of sync with the changed controls: FR-4 evidence lists only `registry_test.go` while controls C-2/C-7/C-8 cite `webhook_test.go` and C-9 cites `go/edpdata/event_subscriptions_test.go`; FR-3 evidence omits `event_dispatcher_pg_integration_test.go` required by C-4's negative_test (also present in functional_spec FR-3/FR-4 traceability). Prior evidence-sync MAJOR stays PENDING under CL-006 until reconciled in this delta."
+    ],
+    "MINOR": [
+      "FR-1 `coverage.evidence` bundles `notify_test.go` and `registry_test.go` (FR-2/FR-4 assets), over-attributing evidence and weakening per-FR traceability.",
+      "C-2/C-5/C-6 use `inproc_test.go` concurrency evidence for webhook/registry controls; no webhook- or registry-specific concurrency scenario is named."
+    ],
+    "NIT": [
+      "C-4 `evidence` reads \"go test ./... in eventtransport\" but its symbol and negative_test (`event_dispatcher.go:DispatchOnce`, pg integration test) live in `go/edpdata` \u2014 package scope inaccurate.",
+      "`ac_evidence` AC-1/AC-4 use bare `webhook_test.go`/`registry_test.go` while AC-2/AC-3 use full `go/...` paths \u2014 inconsistent evidence formatting."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves prior findings: C-9 now exercises `event_subscriptions_test.go::TestUpsertPersistsAuthRef/RejectsCrossTenant`, C-5/C-6 name distinct metric and cross-tenant tests, C-10 gains `TestNotifyTenantScoped`, and all rows carry pinned SHA `32c7bb39` (CL-015 satisfied, language rule Go-only OK).",
+      "Verdict: no blockers; one MAJOR \u2014 FR-3/FR-4 coverage evidence not fully synced with the changed controls, so Gate 1 approval remains invalid per CL-006 until the coverage rows list the test files their controls cite."
+    ]
+  },
+  "rereview_reason": "Delta for prior 6405874bdaf4: persistence/metrics/tenant test binding",
+  "rereview_reason_sha256": "5c2c0f1330c41e3e36edf233f01b4e469f41273614bbf0cd58f14bcd1b44ed14"
+}

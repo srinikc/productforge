@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "4c04671e9491",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:59:43.041704+00:00",
+  "review_scope": "delta",
+  "base_sha": "12e7dea14d3e5e973e28182f0d70895399cfb01c",
+  "head_sha": "c69b58e80c57caf7a138ab44e2ce21a6e36f7b6b",
+  "findings": {
+    "BLOCKER": [
+      "C-11 and C-12 (added in delta) omit `candidate_sha` and their evidence lacks `@32c7bb39`; violates CL-015 (every AC evidence entry pinned to a candidate SHA) and blocks Gate 2/gate approval."
+    ],
+    "MAJOR": [
+      "Delta guardrail \"startup validates webhook/SMTP config\" conflicts with AC-3: if missing SMTP fails startup, in-app delivery cannot proceed without SMTP, contradicting \"missing SMTP does not fail in-app delivery\"; the same guardrail also conflicts with failure_matrix \"missing HMAC key \u2192 webhook disabled\" instead of fail-fast.",
+      "C-11/C-12 evidence is `go test ./... in edpdata` with no SHA and no named test artifact, so the newly claimed CL-011/CL-012 corrections are not yet auditable against the candidate."
+    ],
+    "MINOR": [
+      "Decision adds \"per-subscription cursor ordering\" as an invariant but no implementation control/test pins ordering or duplicate-suppression behavior (only the event_id idempotency key is covered by C-2).",
+      "C-3 and C-4 list `concurrency_test: go/eventtransport/inproc_test.go`, which does not exercise notify/webhook concurrency; `N/A` with rationale would be accurate and non-misleading.",
+      "C-5 negative test `TestDeliveryMetricsAbsentOnFailure` risks inverted semantics: failed attempts should increment `event_delivery_attempts_total`, so \"absent on failure\" contradicts the stated observability contract."
+    ],
+    "NIT": [
+      "Evidence string format is inconsistent across controls (`go test ./... in <pkg> @sha` vs `<file> @sha` vs bare `<pkg>`), weakening machine-checkable traceability."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully closes prior CL-011 (role/RLS control C-11), CL-012 (statement_timeout C-12), and the at-least-once decision, but the new rows miss required candidate SHAs and the startup-validation guardrail contradicts AC-3's missing-SMTP behavior.",
+      "Top risks: gate-blocking SHA gaps, guardrail/AC conflict on SMTP fail-fast, and an untested ordering/duplicate invariant."
+    ]
+  },
+  "rereview_reason": "Delta for prior 97ab7ed3fb62: RLS proof, query bounds, delivery semantics, availability",
+  "rereview_reason_sha256": "8b2a0a9321e2754744b453702a4644f6152fe15387456fde13530ceade8ebfdb"
+}
