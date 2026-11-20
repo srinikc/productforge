@@ -61,7 +61,10 @@ SEED = [
     ("tool_settings", "tenants", "tenant_id", "fk", "BI-PF-1309", "tool settings are tenant-scoped"),
     ("usage", "tenants", "tenant_id", "fk", "BI-PF-1309", "usage rows are tenant-scoped"),
     ("stored_objects", "tenants", "tenant_id", "fk", "BI-PF-1307", "object metadata is tenant-scoped"),
+    ("alert_rules", "tenants", "tenant_id", "fk", "BI-PF-1271", "alert rule is tenant-scoped"),
+    ("alert_throttle_state", "tenants", "tenant_id", "fk", "BI-PF-1271", "alert throttle state is tenant-scoped"),
 ]
+
 # SEED is only the initial seeding set for --apply; the registry (and schema-derived expectations) is the
 # authority at check time.
 REQUIRED_TRIGGERS = (
