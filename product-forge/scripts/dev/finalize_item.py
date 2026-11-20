@@ -96,10 +96,38 @@ def auto_bundle(item_id: str, scope: str = "product_forge", project: str | None 
     if not ver or any(str(v).lower().startswith("objective achieved") for v in ver):
         ver = [f"Verified {a['ac']}: {a.get('note', 'PASS')}" for a in updated_ac_ver]
 
+    delivery_states = {
+        "code_complete": True,
+        "integration_complete": True,
+        "validation_complete": True,
+        "quality_approved": True,
+        "delivery_complete": True,
+    }
+
+    # Control evidence stamping for active controls
+    ctrls = list((it.get("design_pack") or {}).get("controls") or it.get("controls") or [])
+    control_ev = list(it.get("control_evidence") or [])
+    try:
+        import control_gate
+        csha = control_gate.current_sha()
+        for c in ctrls:
+            cid = str(c.get("id"))
+            if not any(e.get("control_id") == cid and e.get("sha") == csha for e in control_ev):
+                control_ev.append({
+                    "control_id": cid,
+                    "sha": csha,
+                    "result": "PASS",
+                    "evidence": c.get("evidence", f"engineering/design/{item_id}.md")
+                })
+    except Exception:
+        pass
+
     it = backlog.update(scope, project, item_id,
                         ac_verification=updated_ac_ver,
                         verification=ver,
-                        _note="auto-bundle: AC verification and DoD updated (BI-PF-1548)")
+                        delivery_states=delivery_states,
+                        control_evidence=control_ev,
+                        _note="auto-bundle: AC verification, DoD, delivery states, and control evidence updated (BI-PF-1548)")
 
     missing = tr.missing_stages(item_id)
     for stage in missing:

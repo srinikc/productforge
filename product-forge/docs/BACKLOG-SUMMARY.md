@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-11-20T19:09:33 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-20T19:50:14 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 133  |  **Closed:** 624
+- **Open:** 133  |  **Closed:** 625
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
@@ -172,7 +172,7 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
-| BI-PF-1548 | Should | feature | Dev-Ex & CI: Fast-tier PR gate with 1-hr scheduled full sweep and atomic item finalization | Dev-Ex & CI: Fast-tier PR gate with 1-hr scheduled full sweep and atomic item finalization |
+| BI-PF-1549 | None | None | CI Full-Sweep Failure: full-sweep on develop |  |
 
 ---
 
@@ -372,5 +372,5 @@
 ---
 
 ## Totals
-- backend: 133 open / 624 closed
+- backend: 133 open / 625 closed
 - dashboard: 146 open / 3 closed
