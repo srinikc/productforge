@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "97ab7ed3fb62",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:39:11.281288+00:00",
+  "review_scope": "delta",
+  "base_sha": "3ac5775683e351bf530c769f6cbffa1e194bfc0d",
+  "head_sha": "12e7dea14d3e5e973e28182f0d70895399cfb01c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "CL-011 unmet in the changed design: no control, test, or evidence pins DB runtime role posture (NOSUPERUSER/NOBYPASSRLS) or RLS-enforced tenant binding; C-6 only covers registry lookup, not role/RLS inheritance."
+    ],
+    "MINOR": [
+      "CL-012 not addressed: no control pins Postgres statement_timeout/cancellation or bounds for subscription/notify-store queries on the delivery path.",
+      "Delivery-semantics invariant is unstated: retry after timeout implies at-least-once with possible duplicate webhook delivery; only the event_id idempotency key is tested, not an explicit ordering/duplicate invariant.",
+      "Guardrail items 2 and 4 (availability/SPoF alert lead-time beyond the existing DLQ alert, blast-radius/dry-run bounds for the notify endpoint) are not answered in the delta fields."
+    ],
+    "NIT": [
+      "FR-4 `coverage.tests` names only `go/eventtransport/registry_test.go` while FR-4 controls C-2/C-7/C-8/C-9 live in `webhook.go`/`secrets.go`/`event_subscriptions.go`; evidence lists the files but the primary test pointer is narrow."
+    ],
+    "SUMMARY": [
+      "The delta resolves the prior MAJOR (coverage now matches C-2/C-7/C-8/C-9 and FR-3 pg-integration evidence) and the FR-1 evidence-bundling MINOR; unchanged prior MINOR/NIT items are not reopened.",
+      "Top risks: guardrail CL-011 role/RLS posture is still absent from the changed controls, and the prior MAJOR disposition remains PENDING \u2014 CL-006 requires closure before Gate 1.5 approval.",
+      "Overall the additive, single-registry, Go-first design is sound; approve once guardrail dispositions and evidence pointers are closed."
+    ]
+  },
+  "rereview_reason": "Delta for prior 46f4bbdda8b9: FR evidence mapping and concurrency rows",
+  "rereview_reason_sha256": "292e23adc7e8f78073bb810cab32ab3c8eaa521f41a69b3ac098fe0b78b627d0"
+}

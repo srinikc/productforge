@@ -69,7 +69,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 2, 'NIT': 2}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 3, 'NIT': 1}"
   ],
   "risks": [
     "Not specified."
@@ -83,7 +83,8 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=12fe793add4d\nBLOCKER:\n  - none — all prior BLOCKER/MAJOR dispositions remain PENDING (CL-006); not re-reported per scope, but Gate 1 approval is still invalid until they are dispositioned.\nMAJOR:\n  - C-2 (HMAC security control) is tagged `fr: FR-3` (Permanent failure classification) while its `ac: AC-2` maps to the webhook-signature AC; the control belongs to FR-4 (Security). Control/FR rows are out of sync inside this delta and must be updated together.\n  - Prior blocker partially open: `functional_spec.config_contract` now carries `PF_WEBHOOK_HMAC_KEY_REF`, but no implementation control or test in the delta binds/stores the per-subscription `auth_ref` key — C-2's tests still only cover signature shape and a subscription-key lookup, not key resolution/fallback precedence.\nMINOR:\n  - `functional_spec.config_contract` describes `PF_WEBHOOK_HMAC_KEY_REF` as \"env key is default\" while `design_pack.contracts.config` says \"default key when subscription auth_ref is empty\" — same field, two semantics; keep one wording in the delta.\n  - `functional_spec.rollback` remains the short form (\"remove transports/endpoint\") while the design rollback requires disable-subscriptions, DLQ retention, and verified backup (prior MINOR still open).\n  - All four FRs in the delta still repeat identical `edge_cases`/`errors` regardless of transport (prior MINOR still open).\nNIT:\n  - `PF_NOTIFY_API_URL` default \"local API\" still lacks a concrete host/port (prior NIT still open).\nSUMMARY:\n  - The delta correctly fixes the swapped coverage/traceability evidence (FR-2→notify_test, FR-3→webhook_test) and the C-3 AC-3 tag; decisions and failure_matrix are now mutually consistent.\n  - Remaining risks: C-2's FR mapping is wrong, the per-subscription HMAC key binding is still unpinned, and the prior CL-006 pending dispositions block Gate 1 regardless of the SHA-pinned evidence.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f7c0fccfff17\nBLOCKER:\n  - none\nMAJOR:\n  - Verification of prior MAJOR: delta adds C-8 (resolution + env fallback + fail-closed tests) but still has no control/test that binds and persists the per-subscription `auth_ref` secret at subscription write time; the auth_ref binding finding remains only partially dispositioned.\n  - Guardrail CL-006 still applies: prior BLOCKER/MAJOR dispositions are PENDING, so Gate 1 approval remains invalid regardless of this delta.\nMINOR:\n  - C-2 and C-8 state the same control (per-subscription key, env default, constant-time compare) with overlapping tests; duplicate controls will drift — differentiate or merge ownership.\n  - C-3 pins only the priority gate; AC-3's invariant \"missing SMTP must not fail in-app delivery\" has no dedicated control or negative test row in the delta.\n  - C-5's observability evidence is the unverifiable phrase \"delivery metrics/logs\"; no named metric (e.g. `event_delivery_attempts_total`, `event_delivery_dlq_depth`) or assertion is pinned.\n  - C-1's negative_test (`webhook_test.go`) does not exercise the shared-Transport-contract invariant the control claims.\n  - Control `evidence` fields (\"go test ./...\") carry no candidate SHA while CL-015 requires evidence pinned to a SHA (`ac_evidence` has SHAs; controls do not).\nNIT:\n  - `concurrency_test` for webhook, notify, observability, and tenant controls all reuse `inproc_test.go` instead of a transport-specific concurrency test.\nSUMMARY:\n  - Delta correctly re-tags C-2 to FR-4 and adds C-8, but does not close the auth_ref secret-binding gap; observability and missing-SMTP incepts lack pinned, verifiable controls.\n  - Top risks: unproven secret binding at subscription write time (security), non-verifiable observability evidence, and CL-006 still blocking Gate 1.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6405874bdaf4\nBLOCKER:\n  - none\nMAJOR:\n  - C-9's positive/negative tests (`webhook_test.go::TestWebhookUsesSubscriptionKey`, `TestWebhookMissingKeyFailsClosed`) never exercise `go/edpdata/event_subscriptions.go:UpsertSubscription`; auth_ref persistence at write time remains untested — prior auth_ref MAJOR only partially dispositioned.\n  - Delta changes control/test rows (C-10 added, C-1 negative_test renamed) but `ac_evidence`/`coverage` rows are not updated in the same delta; CL-006 still leaves prior MAJORs PENDING, so Gate 1 approval remains invalid.\nMINOR:\n  - C-9's `tenant_test` points at `registry_test.go`, which does not cover `UpsertSubscription`; no cross-tenant assertion on the subscription-write path.\n  - C-5 now names metrics (`event_delivery_attempts_total`, etc.) but its `negative_test` is `webhook_test.go` — no test asserts metric emission/absence; observability control remains unverified.\n  - C-6 uses the identical file for `positive_test` and `negative_test` with no distinct failing scenario named.\n  - C-10 marks `tenant_test` as \"N/A: notification store is project-scoped\", conflicting with the AC's tenant-scoped subscription model and offering no proof notifications cannot cross tenants.\nNIT:\n  - C-4 `evidence` is `go test ./... @32c7bb39` without the package scope used by sibling controls (`in eventtransport`), weakening evidence traceability.\nSUMMARY:\n  - Delta improves evidence SHA-pinning (CL-015), adds C-10 for missing-SMTP, and fixes C-1's negative test; those prior MINORs are dispositioned.\n  - Top risks: auth_ref write-path persistence still lacks a test bound to `UpsertSubscription`, observability control has named metrics but no asserting test, and CL-006 keeps Gate 1 invalid while prior MAJORs are PENDING.\n  - Controls remain broadly coherent with the ACs; no new blocker introduced by this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=46f4bbdda8b9\nBLOCKER:\n  - none\nMAJOR:\n  - Delta updates `coverage`, but rows remain out of sync with the changed controls: FR-4 evidence lists only `registry_test.go` while controls C-2/C-7/C-8 cite `webhook_test.go` and C-9 cites `go/edpdata/event_subscriptions_test.go`; FR-3 evidence omits `event_dispatcher_pg_integration_test.go` required by C-4's negative_test (also present in functional_spec FR-3/FR-4 traceability). Prior evidence-sync MAJOR stays PENDING under CL-006 until reconciled in this delta.\nMINOR:\n  - FR-1 `coverage.evidence` bundles `notify_test.go` and `registry_test.go` (FR-2/FR-4 assets), over-attributing evidence and weakening per-FR traceability.\n  - C-2/C-5/C-6 use `inproc_test.go` concurrency evidence for webhook/registry controls; no webhook- or registry-specific concurrency scenario is named.\nNIT:\n  - C-4 `evidence` reads \"go test ./... in eventtransport\" but its symbol and negative_test (`event_dispatcher.go:DispatchOnce`, pg integration test) live in `go/edpdata` — package scope inaccurate.\n  - `ac_evidence` AC-1/AC-4 use bare `webhook_test.go`/`registry_test.go` while AC-2/AC-3 use full `go/...` paths — inconsistent evidence formatting.\nSUMMARY:\n  - Delta correctly resolves prior findings: C-9 now exercises `event_subscriptions_test.go::TestUpsertPersistsAuthRef/RejectsCrossTenant`, C-5/C-6 name distinct metric and cross-tenant tests, C-10 gains `TestNotifyTenantScoped`, and all rows carry pinned SHA `32c7bb39` (CL-015 satisfied, language rule Go-only OK).\n  - Verdict: no blockers; one MAJOR — FR-3/FR-4 coverage evidence not fully synced with the changed controls, so Gate 1 approval remains invalid per CL-006 until the coverage rows list the test files their controls cite.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=46f4bbdda8b9\nBLOCKER:\n  - none\nMAJOR:\n  - Delta updates `coverage`, but rows remain out of sync with the changed controls: FR-4 evidence lists only `registry_test.go` while controls C-2/C-7/C-8 cite `webhook_test.go` and C-9 cites `go/edpdata/event_subscriptions_test.go`; FR-3 evidence omits `event_dispatcher_pg_integration_test.go` required by C-4's negative_test (also present in functional_spec FR-3/FR-4 traceability). Prior evidence-sync MAJOR stays PENDING under CL-006 until reconciled in this delta.\nMINOR:\n  - FR-1 `coverage.evidence` bundles `notify_test.go` and `registry_test.go` (FR-2/FR-4 assets), over-attributing evidence and weakening per-FR traceability.\n  - C-2/C-5/C-6 use `inproc_test.go` concurrency evidence for webhook/registry controls; no webhook- or registry-specific concurrency scenario is named.\nNIT:\n  - C-4 `evidence` reads \"go test ./... in eventtransport\" but its symbol and negative_test (`event_dispatcher.go:DispatchOnce`, pg integration test) live in `go/edpdata` — package scope inaccurate.\n  - `ac_evidence` AC-1/AC-4 use bare `webhook_test.go`/`registry_test.go` while AC-2/AC-3 use full `go/...` paths — inconsistent evidence formatting.\nSUMMARY:\n  - Delta correctly resolves prior findings: C-9 now exercises `event_subscriptions_test.go::TestUpsertPersistsAuthRef/RejectsCrossTenant`, C-5/C-6 name distinct metric and cross-tenant tests, C-10 gains `TestNotifyTenantScoped`, and all rows carry pinned SHA `32c7bb39` (CL-015 satisfied, language rule Go-only OK).\n  - Verdict: no blockers; one MAJOR — FR-3/FR-4 coverage evidence not fully synced with the changed controls, so Gate 1 approval remains invalid per CL-006 until the coverage rows list the test files their controls cite.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=97ab7ed3fb62\nBLOCKER:\n  - none\nMAJOR:\n  - CL-011 unmet in the changed design: no control, test, or evidence pins DB runtime role posture (NOSUPERUSER/NOBYPASSRLS) or RLS-enforced tenant binding; C-6 only covers registry lookup, not role/RLS inheritance.\nMINOR:\n  - CL-012 not addressed: no control pins Postgres statement_timeout/cancellation or bounds for subscription/notify-store queries on the delivery path.\n  - Delivery-semantics invariant is unstated: retry after timeout implies at-least-once with possible duplicate webhook delivery; only the event_id idempotency key is tested, not an explicit ordering/duplicate invariant.\n  - Guardrail items 2 and 4 (availability/SPoF alert lead-time beyond the existing DLQ alert, blast-radius/dry-run bounds for the notify endpoint) are not answered in the delta fields.\nNIT:\n  - FR-4 `coverage.tests` names only `go/eventtransport/registry_test.go` while FR-4 controls C-2/C-7/C-8/C-9 live in `webhook.go`/`secrets.go`/`event_subscriptions.go`; evidence lists the files but the primary test pointer is narrow.\nSUMMARY:\n  - The delta resolves the prior MAJOR (coverage now matches C-2/C-7/C-8/C-9 and FR-3 pg-integration evidence) and the FR-1 evidence-bundling MINOR; unchanged prior MINOR/NIT items are not reopened.\n  - Top risks: guardrail CL-011 role/RLS posture is still absent from the changed controls, and the prior MAJOR disposition remains PENDING — CL-006 requires closure before Gate 1.5 approval.\n  - Overall the additive, single-registry, Go-first design is sound; approve once guardrail dispositions and evidence pointers are closed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -164,7 +165,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:18.581774",
-  "updated_at": "2026-11-20T10:07:10.923279",
+  "updated_at": "2026-11-20T10:27:53.684911",
   "score": 0.5,
   "_note": "analysis updated",
   "api_impact": {
@@ -678,12 +679,15 @@
     "rollout": "additive deployment",
     "rollback": "Remove transports/endpoint; disable subscriptions using removed transports; retain delivery/DLQ history; verified backup before destructive cleanup; no migration.",
     "decisions": [
+      "delivery is at-least-once; duplicates possible; event_id idempotency + per-subscription cursor ordering",
       "email medium/high/critical; low in-app",
       "timestamp+body HMAC with per-subscription auth_ref key and env default",
       "429/5xx retry; 409 duplicate success; 400/404/410/422 permanent; 401/403 bounded retry then DLQ"
     ],
     "guardrails": [
       "startup validates webhook/SMTP config",
+      "dispatcher/DB down -> no partial sends; retry; alert >5m 5xx or DLQ growth",
+      "notify endpoint bounded title/message length; no bulk send/dry-run required",
       "DLQ depth/retry-age alert >5m",
       "no SSE",
       "no alert routing"
@@ -943,6 +947,34 @@
         "observability": "email_skipped reason",
         "evidence": "go test ./... in eventtransport @32c7bb39",
         "candidate_sha": "32c7bb39"
+      },
+      {
+        "id": "C-11",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "tenant",
+        "control": "subscription/delivery DB path runs as NOSUPERUSER/NOBYPASSRLS and RLS enforces tenant binding",
+        "symbol": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "positive_test": "go/edpdata/event_subscriptions_test.go::TestSubscriptionRLS",
+        "negative_test": "go/edpdata/event_subscriptions_test.go::TestCrossTenantRejected",
+        "tenant_test": "go/edpdata/event_subscriptions_test.go::TestCrossTenantRejected",
+        "concurrency_test": "N/A: RLS is connection-session scoped",
+        "observability": "RLS rejection log",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-12",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "config",
+        "control": "delivery queries use statement_timeout and bounded limits",
+        "symbol": "go/edpdata/event_subscriptions.go:ListSubscriptions",
+        "positive_test": "go/edpdata/event_subscriptions_test.go::TestSubscriptionQueryBounded",
+        "negative_test": "go/edpdata/event_subscriptions_test.go::TestSubscriptionQueryTimeout",
+        "tenant_test": "N/A: query is tenant-filtered",
+        "concurrency_test": "N/A: read-only",
+        "observability": "timeout events",
+        "evidence": "go test ./... in edpdata"
       }
     ],
     "tech_stack_evidence": [
@@ -1203,6 +1235,36 @@
         ]
       },
       "evidence": "BI-PF-1270-46f4bbdda8b9.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "12e7dea14d3e5e973e28182f0d70895399cfb01c",
+      "review_sha": "97ab7ed3fb62",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-20T04:39:11.281288+00:00",
+      "review_scope": "delta",
+      "base_sha": "3ac5775683e351bf530c769f6cbffa1e194bfc0d",
+      "head_sha": "12e7dea14d3e5e973e28182f0d70895399cfb01c",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "CL-011 unmet in the changed design: no control, test, or evidence pins DB runtime role posture (NOSUPERUSER/NOBYPASSRLS) or RLS-enforced tenant binding; C-6 only covers registry lookup, not role/RLS inheritance."
+        ],
+        "MINOR": [
+          "CL-012 not addressed: no control pins Postgres statement_timeout/cancellation or bounds for subscription/notify-store queries on the delivery path.",
+          "Delivery-semantics invariant is unstated: retry after timeout implies at-least-once with possible duplicate webhook delivery; only the event_id idempotency key is tested, not an explicit ordering/duplicate invariant.",
+          "Guardrail items 2 and 4 (availability/SPoF alert lead-time beyond the existing DLQ alert, blast-radius/dry-run bounds for the notify endpoint) are not answered in the delta fields."
+        ],
+        "NIT": [
+          "FR-4 `coverage.tests` names only `go/eventtransport/registry_test.go` while FR-4 controls C-2/C-7/C-8/C-9 live in `webhook.go`/`secrets.go`/`event_subscriptions.go`; evidence lists the files but the primary test pointer is narrow."
+        ],
+        "SUMMARY": [
+          "The delta resolves the prior MAJOR (coverage now matches C-2/C-7/C-8/C-9 and FR-3 pg-integration evidence) and the FR-1 evidence-bundling MINOR; unchanged prior MINOR/NIT items are not reopened.",
+          "Top risks: guardrail CL-011 role/RLS posture is still absent from the changed controls, and the prior MAJOR disposition remains PENDING — CL-006 requires closure before Gate 1.5 approval.",
+          "Overall the additive, single-registry, Go-first design is sound; approve once guardrail dispositions and evidence pointers are closed."
+        ]
+      },
+      "evidence": "BI-PF-1270-97ab7ed3fb62.json"
     }
   ]
 }

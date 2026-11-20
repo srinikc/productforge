@@ -227,3 +227,12 @@ Response: notification_id, stored=true, email_eligible.
 
 - Candidate design SHA: `0c578b06c682c22429fca8570227430aafd4ce8a`.
 - Implementation evidence will be pinned at the implementation SHA; design rows use this candidate SHA.
+
+
+## Final Gate 1 corrections
+
+- DB-backed subscription/delivery paths run as NOSUPERUSER/NOBYPASSRLS; RLS tests cover cross-tenant rejection.
+- Delivery queries use statement_timeout and bounded limits.
+- Delivery semantics are at-least-once; duplicates are possible and deduped by event_id idempotency plus per-subscription cursor ordering.
+- Availability: dispatcher/DB failure never partially sends; alert on >5m 5xx or DLQ growth.
+- Notify endpoint bounds title/message length; no bulk send is allowed.
