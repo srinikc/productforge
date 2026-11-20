@@ -144,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--auto-bundle", action="store_true",
                     help="atomically stage ac_verification, DoD verification, and trail milestones")
     ap.add_argument("--report", action="store_true", help="print only; do not persist")
+    ap.add_argument("--deliver", action="store_true", help="Plane A: execute one-command delivery after finalization (BI-PF-1549)")
     a = ap.parse_args(argv)
 
     if a.auto_bundle:
@@ -166,6 +167,16 @@ def main(argv: list[str] | None = None) -> int:
     it = backlog.update("product_forge", None, a.item, final_report=r,
                         _note="final report persisted (BI-PF-1484)")
     print(f"finalize: persisted final_report on {a.item} (revision {it.get('revision')})")
+
+    if a.deliver:
+        import deliver
+        print(f"finalize: triggering deliver_plane_a for {a.item}...")
+        res = deliver.deliver_plane_a(a.item)
+        if not res.get("ok"):
+            print(f"finalize: delivery FAILED for {a.item}", file=sys.stderr)
+            return 1
+        print(f"finalize: successfully delivered {a.item} to {res.get('target')} ({res.get('merge_sha')})")
+
     return 0
 
 
