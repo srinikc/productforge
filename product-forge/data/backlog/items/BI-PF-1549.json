@@ -1,0 +1,853 @@
+{
+  "id": "BI-PF-1549",
+  "due": "",
+  "tag": "PF",
+  "body": "Optimization for local/Plane A developer and AI sessions: automate post-Gate 2 delivery (hook-compliant staging, pre-merge verification, checkout, merge, push, delivery provenance) in under 30 seconds.",
+  "deps": [],
+  "epic": "BI-PF-1243",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Canonical spec contract compiled",
+  "brief": {
+    "problem": "Post-Gate 2 delivery for Plane A local sessions required 8 manual steps prone to hook rejections and taking ~5 minutes.",
+    "what_adds": "One-command Plane A delivery CLI (scripts/dev/deliver.py --item <ID>) with pre-commit separation and atomic landing in <30s.",
+    "why": "Eliminate developer/AI session friction and enforce pre-commit hook compliance automatically.",
+    "who_feels": "Product Forge maintainers and operators.",
+    "source": "authored"
+  },
+  "label": "PF Backlog 684",
+  "links": {},
+  "owner": "agent",
+  "risks": [
+    "Git branch checkout during dirty working tree; mitigated by clean check and commit ordering."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Dev-Ex: One-command Plane A delivery CLI (scripts/dev/deliver.py --item <ID>) with pre-commit separation and atomic landing",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-1243",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "One-command Plane A delivery CLI (scripts/dev/deliver.py --item <ID>)",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/deliver.py:1-36",
+        "recommendation": "Add deliver_plane_a(item_id) to deliver.py with hook separation, pre-merge checks, checkout, merge, push, and provenance."
+      },
+      {
+        "claim": "Pre-commit hook compliance via separated commits",
+        "verdict": "aligned",
+        "evidence": ".git/hooks/pre-commit",
+        "recommendation": "Commit review evidence first, then backlog bookkeeping separately."
+      },
+      {
+        "claim": "Pre-merge compliance gate via sync_develop and wired_audit",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/sync_develop.py, scripts/dev/wired_audit.py",
+        "recommendation": "Execute both before checking out develop; fail-closed on error."
+      },
+      {
+        "claim": "Finalizer --deliver alias in finalize_item.py",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/finalize_item.py:141-174",
+        "recommendation": "Add --deliver flag to finalize_item.py delegating directly to deliver_plane_a."
+      },
+      {
+        "claim": "API CHECK: Internal developer CLI tooling requires no external HTTP API",
+        "verdict": "aligned",
+        "evidence": "N/A",
+        "recommendation": "Confirm needs_api=false."
+      },
+      {
+        "claim": "LANGUAGE CHECK: Edit-only to existing Python files in scripts/dev/ without new shipped Python in core/",
+        "verdict": "aligned",
+        "evidence": "AGENTS.md language rule (fast band)",
+        "recommendation": "Edits to scripts/dev/ are allowed."
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "A1: Local developer/AI session wants a single command to complete all post-Gate 2 delivery steps safely in <30s."
+      ],
+      "divergences": [],
+      "existing_path": [
+        "scripts/dev/deliver.py: CLI runner for core.delivery.drain() queue.",
+        "scripts/dev/finalize_item.py: CLI runner for building final report and auto-bundling."
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "BI-PF-1484: scripts/dev/finalize_item.py is SSOT for item finalization.",
+        "BI-PF-1548: --auto-bundle for atomic AC verification and DoD evidence.",
+        "AGENTS.md: Controlled merge to develop + delivery provenance recording (core.backlog.set_delivery).",
+        "IS-PF-0036: Pre-commit hook mandates separation of source/reviews and backlog commits."
+      ]
+    }
+  },
+  "source": "user request",
+  "status": "in_progress",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=2",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-20T23:58:41.187006",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/accept",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/api-impact",
+      "/api/v1/backlog/items/{item_id}/archive",
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review"
+    ],
+    "arch_fingerprint": "4b25a26d536ddb87",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/data-plane-threats.json",
+      "config/delivery-completeness-baseline.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/control_plane.py",
+      "core/delivery.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/control_plane.py, core/delivery.py, /api/v1/backlog/items, /api/v1/backlog/items/{item_id}"
+  },
+  "approach": "Add deliver_plane_a to deliver.py and hook up --deliver in finalize_item.py",
+  "children": [],
+  "evidence": [
+    "pytest test_deliver_plane_a.py @efdfed28"
+  ],
+  "in_scope": [
+    "scripts/dev/deliver.py",
+    "scripts/dev/finalize_item.py"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-20T23:58:41.558833",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "One-command Plane A delivery CLI with hook separation and atomic landing",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-20T23:58:41.382234"
+  },
+  "requester": "operator",
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1549.md",
+    "design_ref": "engineering/design/BI-PF-1549.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1549",
+        "reason": "CLI delivery design",
+        "artifact": "engineering/design/BI-PF-1549.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1549.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "Developer CLI tooling only; no HTTP endpoints or network listeners."
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "No database schema additions; reuses existing backlog schema."
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "No configuration file modified or added."
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "Developer CLI tooling with no long-lived daemon SLO."
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1549",
+        "reason": "Enforces pre-commit hook integrity and branch protections.",
+        "artifact": "engineering/design/BI-PF-1549.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1549.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "No data migration or database schema backfill required."
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "Code revert of scripts/dev/deliver.py without disaster recovery implications."
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1549",
+        "reason": "Outputs JSON delivery diagnostics to stdout and stderr.",
+        "artifact": "engineering/design/BI-PF-1549.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1549.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "No user interface exists in this tooling-only compiler item."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1549",
+        "reason": "No personal data handled by this CLI delivery tool."
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1549",
+        "reason": "Plane A delivery implementation plan",
+        "artifact": "engineering/design/BI-PF-1549.md",
+        "sections": [
+          "rollout"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1549.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1549",
+        "reason": "Delivery contract test execution",
+        "artifact": "engineering/design/BI-PF-1549.md",
+        "sections": [
+          "tests"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1549.md"
+        ]
+      }
+    ]
+  },
+  "api_impact": {
+    "reason": "Developer CLI tooling only",
+    "routes": [],
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-20T23:58:36.293702",
+  "updated_at": "2026-11-21T00:08:16.473333",
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md"
+    ],
+    "requirements": [
+      "AC-1: scripts/dev/deliver.py --item <ID> automates local feature branch delivery end-to-end in a single command.",
+      "AC-2: Stages and commits unstaged Gate 2.5 review evidence and backlog completion items separately to comply with pre-commit hook constraints.",
+      "AC-3: Runs scripts/dev/sync_develop.py and scripts/dev/wired_audit.py to ensure pre-merge compliance before branch checkout.",
+      "AC-4: Performs controlled merge (--no-ff) into develop, pushes to origin/develop, stamps links.delivery on backlog item in DB and disk mirror.",
+      "AC-5: scripts/dev/finalize_item.py provides --deliver flag delegating seamlessly to deliver.py."
+    ],
+    "invariants": [
+      "Delivery from develop/main is prohibited.",
+      "Pre-commit hook separation must be strictly preserved.",
+      "Wired audit and sync develop must pass cleanly before checkout."
+    ],
+    "contracts": {
+      "api": "N/A: developer CLI tooling only",
+      "db": "N/A: reuses existing backlog schema",
+      "files": "scripts/dev/deliver.py, scripts/dev/finalize_item.py",
+      "config": "N/A: no custom configuration keys"
+    },
+    "failure_matrix": [
+      {
+        "case": "integration branch checkout",
+        "expected": "abort with error",
+        "code": "BRANCH_INVALID"
+      },
+      {
+        "case": "unapproved gate 2",
+        "expected": "abort before landing",
+        "code": "GATE2_UNAPPROVED"
+      },
+      {
+        "case": "audit failure",
+        "expected": "abort before checkout",
+        "code": "AUDIT_FAILURE"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-0421",
+      "BI-PF-1484",
+      "BI-PF-1548"
+    ],
+    "learnings": [
+      "Separating git commits prevents pre-commit hook aborts."
+    ],
+    "security": "Enforces pre-commit hook constraints and prevents unverified commits.",
+    "observability": "Returns JSON status with merge_sha and branch.",
+    "performance": "Complete delivery pipeline executes in < 30 seconds.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py"
+      }
+    ],
+    "rollout": "shipped with developer tooling",
+    "rollback": "Revert the change.",
+    "decisions": [
+      "Integrate Plane A delivery into deliver.py with finalize_item alias."
+    ],
+    "guardrails": [
+      "Reversibility verified; no DB schema changes."
+    ],
+    "design_areas": [
+      {
+        "area": "tooling",
+        "status": "APPLICABLE",
+        "reason": "developer CLI",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1549.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1549.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-2",
+        "tests": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-3",
+        "tests": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-4",
+        "tests": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-5",
+        "tests": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      }
+    ],
+    "scope": [
+      "scripts/dev/deliver.py",
+      "scripts/dev/finalize_item.py"
+    ],
+    "non_goals": [
+      "Changing Plane B async queue semantics."
+    ],
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "ac": "AC-5",
+        "evidence": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "candidate_sha": "efdfed28"
+      }
+    ],
+    "stop_conditions": [
+      "merge conflicts or audit failures"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "failure",
+        "control": "deliver_plane_a rejects execution from develop or main branch",
+        "symbol": "scripts/dev/deliver.py:deliver_plane_a",
+        "positive_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_cli_help",
+        "negative_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_refuses_on_integration_branch",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: local process CLI",
+        "observability": "DELIVER_BRANCH_REJECT",
+        "evidence": "pytest test_deliver_plane_a.py @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "commits review evidence and backlog data in separate git commits",
+        "symbol": "scripts/dev/deliver.py:_run_cmd",
+        "positive_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_plane_a_signature",
+        "negative_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_refuses_on_integration_branch",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: local process CLI",
+        "observability": "DELIVER_HOOK_SEPARATION",
+        "evidence": "scripts/dev/deliver.py:65-90 @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "observability",
+        "control": "executes sync_develop and wired_audit before merge",
+        "symbol": "scripts/dev/deliver.py:main",
+        "positive_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_plane_a_signature",
+        "negative_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_refuses_on_integration_branch",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: local process CLI",
+        "observability": "DELIVER_AUDIT_VERIFIED",
+        "evidence": "scripts/dev/deliver.py:90-105 @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "config",
+        "control": "stamps links.delivery on backlog item with merge SHA and branch",
+        "symbol": "core/backlog.py:set_delivery",
+        "positive_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_plane_a_signature",
+        "negative_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_refuses_on_integration_branch",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: local process CLI",
+        "observability": "DELIVER_PROVENANCE_STAMPED",
+        "evidence": "core/backlog.py:set_delivery @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "kind": "tenant",
+        "control": "finalize_item.py --deliver delegates cleanly to deliver_plane_a without cross-scope leak",
+        "symbol": "scripts/dev/finalize_item.py:main",
+        "positive_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_finalize_item_cli_help",
+        "negative_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_refuses_on_integration_branch",
+        "tenant_test": "N/A: tooling only",
+        "concurrency_test": "N/A: local process CLI",
+        "observability": "DELIVER_ALIAS_SUCCESS",
+        "evidence": "scripts/dev/finalize_item.py:168-175 @efdfed28",
+        "candidate_sha": "efdfed28"
+      }
+    ],
+    "runtime_contract": {
+      "trigger": "precheck/delivery CLI",
+      "entrypoint": "scripts/dev/deliver.py",
+      "call_sites": [
+        "scripts/dev/finalize_item.py"
+      ],
+      "adapter": "subprocess",
+      "contract": "one-command Plane A delivery",
+      "failure_behavior": "fail-closed",
+      "observable_result": "JSON delivery output"
+    },
+    "proof_plan": {
+      "failing_test": "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_refuses_on_integration_branch",
+      "red_evidence": "direct develop delivery allowed",
+      "green_evidence": "direct develop delivery blocked"
+    }
+  },
+  "external_id": "plane-a-atomic-delivery-cli",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Modifying Plane B background queue"
+  ],
+  "verification": [
+    "pytest test-framework/tests/pipeline/test_deliver_plane_a.py"
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "scripts/dev/deliver.py",
+    "scripts/dev/finalize_item.py",
+    "test-framework/tests/pipeline/test_deliver_plane_a.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1549",
+    "outcome": "Single-command Plane A delivery with zero git hook failures.",
+    "actors": [
+      "author",
+      "operator",
+      "agent"
+    ],
+    "scope": [
+      "scripts/dev/deliver.py",
+      "scripts/dev/finalize_item.py"
+    ],
+    "non_goals": [
+      "Changing Plane B async queue semantics."
+    ],
+    "assumptions": [
+      "Plane A sessions execute from clean feature branches."
+    ],
+    "dependencies": [
+      "BI-PF-0421",
+      "BI-PF-1484",
+      "BI-PF-1548"
+    ],
+    "domain": "delivery process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "deliver.py --item CLI runner",
+        "priority": "P0",
+        "source": "BI-PF-1549",
+        "preconditions": "Local feature branch has code and tests ready.",
+        "trigger": "Developer or agent invokes scripts/dev/deliver.py --item <ID>.",
+        "inputs": [
+          "item_id",
+          "scope",
+          "push",
+          "delete_branch"
+        ],
+        "outputs": [
+          "JSON result with merge_sha and status"
+        ],
+        "errors": [
+          "Rejects develop/main branch with RuntimeError."
+        ],
+        "auth": "tooling only",
+        "idempotency": "Idempotent delivery execution",
+        "data_rules": [
+          "One delivery per item"
+        ],
+        "edge_cases": [
+          "Invoked on integration branch"
+        ],
+        "acceptance": [
+          "Given an active feature branch, when deliver_plane_a runs, then it merges and delivers cleanly."
+        ],
+        "verification": [
+          "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_cli_help"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Separated commits for reviews and backlog",
+        "priority": "P0",
+        "source": "BI-PF-1549",
+        "preconditions": "Working tree has unstaged review or backlog changes.",
+        "trigger": "deliver_plane_a inspects git status.",
+        "inputs": [
+          "git status output"
+        ],
+        "outputs": [
+          "Separate git commits for reviews and backlog"
+        ],
+        "errors": [
+          "Pre-commit hook violation"
+        ],
+        "auth": "tooling only",
+        "idempotency": "Safe if already committed",
+        "data_rules": [
+          "No mixed commits"
+        ],
+        "edge_cases": [
+          "docs/README.md modified by pre-commit hook"
+        ],
+        "acceptance": [
+          "Given review and backlog diffs, when staged, then they are committed in separate commits."
+        ],
+        "verification": [
+          "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_plane_a_signature"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Pre-merge sync and audit validation",
+        "priority": "P0",
+        "source": "BI-PF-1549",
+        "preconditions": "All commits staged on feature branch.",
+        "trigger": "deliver_plane_a initiates verification.",
+        "inputs": [
+          "sync_develop.py",
+          "wired_audit.py"
+        ],
+        "outputs": [
+          "Verification returncode 0"
+        ],
+        "errors": [
+          "Audit or sync failure aborts before checkout"
+        ],
+        "auth": "tooling only",
+        "idempotency": "Read-only audit verification",
+        "data_rules": [
+          "Zero unwired modules"
+        ],
+        "edge_cases": [
+          "Remote divergence"
+        ],
+        "acceptance": [
+          "Given unmerged remote changes, when sync runs, then it folds develop in cleanly."
+        ],
+        "verification": [
+          "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_plane_a_signature"
+        ]
+      },
+      {
+        "id": "FR-4",
+        "title": "Controlled merge, push, and delivery provenance",
+        "priority": "P0",
+        "source": "BI-PF-1549",
+        "preconditions": "Verification green and working tree clean.",
+        "trigger": "deliver_plane_a switches to develop.",
+        "inputs": [
+          "target_branch",
+          "feature_branch"
+        ],
+        "outputs": [
+          "Merge commit on develop, pushed to remote, links.delivery updated"
+        ],
+        "errors": [
+          "Push rejection"
+        ],
+        "auth": "tooling only",
+        "idempotency": "Idempotent merge recording",
+        "data_rules": [
+          "Delivery provenance stamped in backlog"
+        ],
+        "edge_cases": [
+          "Local branch cleanup error"
+        ],
+        "acceptance": [
+          "Given clean merge, when pushed, then links.delivery is stamped on the item."
+        ],
+        "verification": [
+          "test-framework/tests/pipeline/test_deliver_plane_a.py::test_deliver_plane_a_signature"
+        ]
+      },
+      {
+        "id": "FR-5",
+        "title": "Finalizer --deliver alias",
+        "priority": "P0",
+        "source": "BI-PF-1549",
+        "preconditions": "finalize_item.py invoked with --deliver.",
+        "trigger": "CLI execution of finalize_item.py.",
+        "inputs": [
+          "--item",
+          "--deliver"
+        ],
+        "outputs": [
+          "Delegation to deliver_plane_a"
+        ],
+        "errors": [
+          "Delivery failure returns exit code 1"
+        ],
+        "auth": "tooling only",
+        "idempotency": "Idempotent delegation",
+        "data_rules": [
+          "Same outcome as deliver.py"
+        ],
+        "edge_cases": [
+          "Auto-bundle not passed"
+        ],
+        "acceptance": [
+          "Given --deliver flag, when finalize_item runs, then it delegates to deliver_plane_a."
+        ],
+        "verification": [
+          "test-framework/tests/pipeline/test_deliver_plane_a.py::test_finalize_item_cli_help"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "deliver",
+        "owner": "scripts/dev/deliver.py",
+        "failure": "fail closed"
+      }
+    ],
+    "config_contract": "N/A: no custom configuration keys",
+    "nfr": [
+      "execution time < 30s",
+      "deterministic landing"
+    ],
+    "data_lifecycle": "backlog links.delivery field only",
+    "compatibility": "fully backward-compatible with deliver.py queue runner",
+    "rollback": "Revert the change.",
+    "observability": "CLI output and JSON summary",
+    "open_questions": [
+      "None: all requirements and design confirmed with enterprise architect."
+    ],
+    "dod": [
+      "Delivery complete requires all five states"
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1549.md",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "evidence": "pytest test_deliver_plane_a.py @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1549.md",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "evidence": "pytest test_deliver_plane_a.py @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-3",
+        "design": "engineering/design/BI-PF-1549.md",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "evidence": "pytest test_deliver_plane_a.py @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-4",
+        "design": "engineering/design/BI-PF-1549.md",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "evidence": "pytest test_deliver_plane_a.py @efdfed28",
+        "candidate_sha": "efdfed28"
+      },
+      {
+        "fr": "FR-5",
+        "design": "engineering/design/BI-PF-1549.md",
+        "test": "test-framework/tests/pipeline/test_deliver_plane_a.py",
+        "evidence": "pytest test_deliver_plane_a.py @efdfed28",
+        "candidate_sha": "efdfed28"
+      }
+    ],
+    "functional_sha": "03291c9eef9c"
+  },
+  "acceptance_criteria": [
+    "AC-1: scripts/dev/deliver.py --item <ID> automates local feature branch delivery end-to-end in a single command.",
+    "AC-2: Stages and commits unstaged Gate 2.5 review evidence and backlog completion items separately to comply with pre-commit hook constraints.",
+    "AC-3: Runs scripts/dev/sync_develop.py and scripts/dev/wired_audit.py to ensure pre-merge compliance before branch checkout.",
+    "AC-4: Performs controlled merge (--no-ff) into develop, pushes to origin/develop, stamps links.delivery on backlog item in DB and disk mirror.",
+    "AC-5: scripts/dev/finalize_item.py provides --deliver flag delegating seamlessly to deliver.py."
+  ],
+  "affected_components": [
+    "tooling"
+  ]
+}
