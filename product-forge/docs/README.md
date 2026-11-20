@@ -194,6 +194,7 @@
 | [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
 | [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
 | [`SPEC-CHAIN.md`](SPEC-CHAIN.md) | SSOT | 100% | PF-SB spec chain: functional freeze, design, conditional specs, conformance, fix-impact, review scope | — | — |
+| [`SPEC-CONTRACT-DESIGN.md`](SPEC-CONTRACT-DESIGN.md) | Design | 100% | BI-PF-1547 canonical spec contract compiler design | — | — |
 | [`STORE-DATAFLOW.md`](STORE-DATAFLOW.md) | Generated | 100% | Generated store data-flow inventory from config/store-registry.json (EDP-02/BI-PF-1294) | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |

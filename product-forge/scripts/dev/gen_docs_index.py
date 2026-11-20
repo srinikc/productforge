@@ -79,6 +79,7 @@ TOP = {
     "IMPLEMENTATION-CONTROLS-DESIGN.md": ("Design", "BI-PF-1538 implementation controls and prompt mandates", 100),
     "PROMPT-MANDATES.md": ("Design", "BI-PF-1542 design and implementation prompt mandates", 100),
     "EVENT-TRANSPORTS-DESIGN.md": ("Design", "BI-PF-1270 event transports design", 100),
+    "SPEC-CONTRACT-DESIGN.md": ("Design", "BI-PF-1547 canonical spec contract compiler design", 100),
     "RESIDENCY-MANIFEST-GATE.md": ("SSOT", "Residency manifest + build/deploy gate: explicit home_region (IN template), profile bounds, Go validator, warn-first, stable error codes (BI-PF-1304)", 100),
     "PF-API-SERVICE-OR-SERVER.md": ("SSOT", "PF Server/Service topology: many services serve API + operate PF; ownership by domain not language; language rule is Go-forward not a port; caller classes x transport; one instance per service per environment; interim: no PF token for internal", 100),
     "MODEL-ASSISTED-ENGINEERING.md": ("SSOT", "Process guardrails for model-assisted engineering: LLM failure modes/drift, don't-trust-the-model, sub-agent cost+optimization, train-vs-structure (runtime LLM guardrails are separate)", 100),
