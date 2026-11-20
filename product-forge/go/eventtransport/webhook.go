@@ -74,7 +74,15 @@ func (w *Webhook) Deliver(ctx context.Context, sub edpdata.Subscription, ev edpd
 		return nil
 	case resp.StatusCode == 409:
 		return nil
-	case resp.StatusCode == 408 || resp.StatusCode == 425 || resp.StatusCode == 429 || resp.StatusCode >= 500:
+	case resp.StatusCode == 429:
+		wait := time.Duration(0)
+		if v := resp.Header.Get("Retry-After"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				wait = time.Duration(n) * time.Second
+			}
+		}
+		return retryAfterError{msg: fmt.Sprintf("webhook status %d", resp.StatusCode), wait: wait}
+	case resp.StatusCode == 408 || resp.StatusCode == 425 || resp.StatusCode >= 500:
 		return fmt.Errorf("webhook transient status %d", resp.StatusCode)
 	case resp.StatusCode == 401 || resp.StatusCode == 403:
 		return fmt.Errorf("webhook auth status %d", resp.StatusCode)
@@ -82,6 +90,14 @@ func (w *Webhook) Deliver(ctx context.Context, sub edpdata.Subscription, ev edpd
 		return edpdata.PermanentError{Err: fmt.Errorf("webhook permanent status %d", resp.StatusCode)}
 	}
 }
+
+type retryAfterError struct {
+	msg  string
+	wait time.Duration
+}
+
+func (e retryAfterError) Error() string             { return e.msg }
+func (e retryAfterError) RetryAfter() time.Duration { return e.wait }
 
 func validateTarget(raw string, allowHTTP, allowPrivate bool) (*url.URL, error) {
 	u, err := url.Parse(raw)

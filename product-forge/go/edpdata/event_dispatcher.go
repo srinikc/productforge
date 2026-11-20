@@ -147,7 +147,11 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 				s.metrics.DeliveryDeadLettered(sub.TenantID, sub.ID)
 				continue
 			}
-			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(backoff(opts.BaseBackoff, attempts)), err.Error()); err != nil {
+			wait := backoff(opts.BaseBackoff, attempts)
+			if ra, ok := err.(interface{ RetryAfter() time.Duration }); ok && ra.RetryAfter() > wait {
+				wait = ra.RetryAfter()
+			}
+			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(wait), err.Error()); err != nil {
 				return st, err
 			}
 			st.Retried++

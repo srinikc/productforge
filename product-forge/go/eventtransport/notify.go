@@ -67,7 +67,7 @@ func (n *Notify) Deliver(ctx context.Context, sub edpdata.Subscription, ev edpda
 	if !emailEligible(priority, n.MinPriority) || n.SMTP.Host == "" || n.SMTP.From == "" {
 		return nil
 	}
-	return n.sendEmail(ev, priority)
+	return n.sendEmail(sub, ev, priority)
 }
 func priorityOf(eventType string) string {
 	switch {
@@ -85,7 +85,7 @@ func emailEligible(priority, min string) bool {
 	rank := map[string]int{"low": 1, "medium": 2, "high": 3, "critical": 4}
 	return rank[priority] >= rank[strings.ToLower(min)]
 }
-func (n *Notify) sendEmail(ev edpdata.Event, priority string) error {
+func (n *Notify) sendEmail(sub edpdata.Subscription, ev edpdata.Event, priority string) error {
 	addr := n.SMTP.Host + ":" + n.SMTP.Port
 	auth := smtp.PlainAuth("", n.SMTP.User, n.SMTP.Password, n.SMTP.Host)
 	msg := []byte("To: " + n.SMTP.From + "\r\nSubject: [PF " + priority + "] " + ev.Type + "\r\n\r\n" + string(ev.Payload) + "\r\n")

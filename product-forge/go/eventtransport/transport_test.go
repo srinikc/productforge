@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"productforge/edpdata"
 )
@@ -96,5 +97,32 @@ func TestRegistryTenantLookup(t *testing.T) {
 	r.Register("inproc", in)
 	if _, ok := r.Get("inproc"); !ok {
 		t.Fatal("missing transport")
+	}
+}
+
+func TestWebhookRetryAfter(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "7")
+		w.WriteHeader(429)
+	}))
+	defer srv.Close()
+	w := NewWebhook()
+	w.Client = srv.Client()
+	w.AllowPrivate = true
+	err := w.Deliver(context.Background(), edpdata.Subscription{Target: srv.URL, AuthRef: "secret"}, edpdata.Event{EventID: "e1", Type: "x"})
+	ra, ok := err.(interface{ RetryAfter() time.Duration })
+	if !ok || ra.RetryAfter() != 7*time.Second {
+		t.Fatalf("retry-after error=%v", err)
+	}
+}
+
+func TestRegistryTenantScoped(t *testing.T) {
+	r := NewRegistry()
+	r.Register("inproc", NewInproc())
+	if _, ok := r.GetForTenant("", "inproc"); ok {
+		t.Fatal("empty tenant accepted")
+	}
+	if _, ok := r.GetForTenant("t1", "inproc"); !ok {
+		t.Fatal("tenant lookup failed")
 	}
 }
