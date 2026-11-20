@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "29494bcdb28d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-20T05:33:24.049780+00:00",
+  "review_scope": "delta",
+  "base_sha": "c8d2afd18ca3b426b6dbc6f00d7dd5ac826e8340",
+  "head_sha": "6d2a70caeeebff84ae7a018579268ef14a65715c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Tests now inject `PF_TEST_WEBHOOK_KEY`, which is not the approved config-contract key (`PF_WEBHOOK_HMAC_KEY`); either shipped key resolution reads a test-only env var (test backdoor in production code) or AC-2 evidence exercises a path outside the approved contract."
+    ],
+    "MINOR": [
+      "The existing doc comment `// DispatchOptions bounds one dispatcher pass.` now precedes `const maxRetryAfter`, orphaning `DispatchOptions`' godoc and mis-documenting the constant.",
+      "Registry fallback silently resolves shared transports for any non-empty tenant with no log/metric, so a tenant-scope miss vs. default-shared resolution is indistinguishable to operators (C-6 observability).",
+      "Prior MAJOR (startup `WEBHOOK_DISABLED` config-shape gate per approved `failure_matrix`) is untouched by this delta and remains PENDING."
+    ],
+    "NIT": [
+      "Dispatcher uses stdlib `log.Printf` for the retry-cap event instead of the project's structured logger/metrics path (`event_delivery_*`), inconsistent with the approved observability contract.",
+      "`maxRetryAfter` is now a constant but still not surfaced in config/design docs, so the 1h pacing bound stays implicit."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior BLOCKER: `GetForTenant` falls back to shared transports and `TestDefaultRegistryTenantResolution` covers the default-registry path; retry cap now has a constant and a capping log.",
+      "Top risks: unapproved test key env var in webhook tests (AC-2 evidence fidelity), and the still-open startup HMAC-disabled gate (approved failure matrix vs. delivery-time deferral)."
+    ]
+  },
+  "rereview_reason": "Delta for prior 7e96ba2af483 and 701977cb6d5f: registry resolution, retry cap, literal secret rejection",
+  "rereview_reason_sha256": "facbf294a6723a782c5b79136f3e74f5992de818414f2cc134966c515cde3e91"
+}

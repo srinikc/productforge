@@ -15,9 +15,9 @@ type Transport interface {
 	Deliver(ctx context.Context, sub Subscription, ev Event) error
 }
 
-// DispatchOptions bounds one dispatcher pass.
 const maxRetryAfter = time.Hour
 
+// DispatchOptions bounds one dispatcher pass.
 type DispatchOptions struct {
 	Limit       int
 	MaxAttempts int
