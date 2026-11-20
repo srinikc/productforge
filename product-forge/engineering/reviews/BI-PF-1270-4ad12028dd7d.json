@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "4ad12028dd7d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:25:27.738809+00:00",
+  "review_scope": "delta",
+  "base_sha": "0c578b06c682c22429fca8570227430aafd4ce8a",
+  "head_sha": "32c7bb39142105eb83c865c25edfb67b49b8e43b",
+  "findings": {
+    "BLOCKER": [
+      "HMAC key model contradiction inside the delta: `security` specifies \"Per-subscription HMAC key via auth_ref\" while `config` (both packs) specifies a single global `PF_WEBHOOK_HMAC_KEY`; no config/control pins per-subscription key storage, so AC-2 tenant binding (CL-013) is not coherently specified.",
+      "Residual of prior evidence blocker: all four `ac_evidence`/`coverage`/`traceability` entries (now SHA-pinned) still cite `docs/EVENT-TRANSPORTS-DESIGN.md` as their own proof with no per-AC test-run artifact \u2014 the self-reference half of CL-015 is unremediated."
+    ],
+    "MAJOR": [
+      "AC mapping swapped in `implementation_controls`: C-3 (notify priority gate) is tagged `AC-2` (webhook signature AC) and C-4 (permanent failure classification) is tagged `AC-3` (notify AC); both rows are wrong in this delta.",
+      "`failure_matrix` (429\u2192RETRY, 409\u2192DUPLICATE_OK, 400/404/410/422 permanent) contradicts the unchanged `decisions` entry \"4xx permanent except 401/403 bounded retry\"; the matrix/decision contract is internally inconsistent.",
+      "FR-4/AC-4 SSRF target validation (`PF_WEBHOOK_ALLOW_HTTP`, `PF_WEBHOOK_ALLOW_PRIVATE`) has no implementation control, symbol, or test row \u2014 only HMAC, notify, registry, and metrics controls are pinned."
+    ],
+    "MINOR": [
+      "CL-011 only partially remediated: C-4/C-5 still record `tenant_test: N/A`, and the `NOSUPERUSER/NOBYPASSRLS` posture asserted in `security` has no control or role/RLS test pinning it.",
+      "`functional_spec.rollback` (\"remove transports/endpoint\") is out of sync with the fuller `design_pack.rollback` (disable subscriptions, retain DLQ, verified backup) inside the same delta.",
+      "Startup guardrail \"validates webhook/SMTP config\" conflicts with failure-matrix \"missing HMAC key \u2192 webhook disabled\": fail-closed startup vs silent disable semantics are undefined.",
+      "All four FRs repeat identical `edge_cases`/`errors` ([\"missing SMTP\",\"409 duplicate\"]) regardless of transport, weakening FR-specific error contracts."
+    ],
+    "NIT": [
+      "`PF_NOTIFY_API_URL` default \"local API\" is not a concrete value (no host/port), leaving the config contract imprecise.",
+      "Guardrail \"DLQ depth/retry-age alert >5m\" lacks units/semantics (depth threshold vs age threshold)."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully improves contract sync (unified config keys, full API contract, richer rollback/observability, SHA-pinned evidence, real tenant tests on C-1/C-2/C-3/C-6) but introduces an AC-tagging swap and a key-model contradiction that break traceability integrity.",
+      "Top risks: global vs per-subscription HMAC key ambiguity (AC-2 security), matrix-vs-decision classification conflict, and unpinned SSRF enforcement.",
+      "Prior BLOCKERs on language rule (Python `api/routers/events.py` artifact) and CL-006 pending dispositions remain open outside this delta's changed fields."
+    ]
+  },
+  "rereview_reason": "Delta for prior ac0af4157448: API/config/tenant/HMAC/rollback/availability fixes",
+  "rereview_reason_sha256": "880636b89cb68a558a65e67a09f22db91a018952f5a50dad3a281a28d7d0fe38"
+}
