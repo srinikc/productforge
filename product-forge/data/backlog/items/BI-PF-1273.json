@@ -1,103 +1,140 @@
 {
   "id": "BI-PF-1273",
+  "due": "",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "",
-  "label": "PF Backlog 583",
-  "title": "Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims",
   "body": "## Problem / why\nMultiple bespoke subscriber/alert mechanisms must move onto the shared bus without breaking callers.\n\n## Goal / value\nMigrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical\nduring migration, then remove shims.\n\n## In scope\n- event_bus.on/emit -> registry (shim); orchestration_context.route -> alert-policy consumer;\n  ops_phase/pipeline_capabilities/parked_review -> subscriber API; notification_system/alerts -> transports.\n\n## Out of scope\n- Deleting the frozen dashboard websocket (E11); new consumers.\n\n## Acceptance criteria\n- Each migrated consumer behaves identically; test_event_ssot + related tests green; upstream callers unchanged.\n\n## Verification / test plan\n- Per-consumer regression tests; wired_audit green.\n\n## Dependencies & links\n- E4, E5, E6.",
-  "source": "design",
-  "status": "new",
-  "priority": "P2",
-  "moscow": "Should",
-  "value": 4,
-  "effort": 4,
-  "risk": 4,
   "deps": [
     "BI-PF-1269",
     "BI-PF-1270",
     "BI-PF-1271",
     "BI-PF-1272"
   ],
-  "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-12T23:27:04.500012",
-      "decision": "APPROVE",
-      "by": "cli",
-      "note": ""
-    }
-  ],
-  "follow_up": {},
+  "epic": "BI-PF-1265",
+  "risk": 4,
+  "type": "feature",
+  "_note": "Gate 0 update: ACs, reconciliation, and impact review",
   "brief": {
+    "why": "Multiple bespoke subscriber/alert mechanisms must move onto the shared bus without breaking callers.",
+    "source": "authored",
     "problem": "Multiple bespoke subscriber/alert mechanisms must move onto the shared bus without breaking callers.",
     "what_adds": "Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical\nduring migration, then remove shims.",
-    "why": "Multiple bespoke subscriber/alert mechanisms must move onto the shared bus without breaking callers.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "authored"
+    "who_feels": "Product Forge maintainers and consumers."
   },
-  "objective": "Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical\nduring migration, then remove shims.",
-  "acceptance_criteria": [
-    "Each migrated consumer behaves identically; test_event_ssot + related tests green; upstream callers unchanged."
-  ],
-  "in_scope": [
-    "event_bus.on/emit -> registry (shim); orchestration_context.route -> alert-policy consumer;"
-  ],
-  "out_of_scope": [
-    "Deleting the frozen dashboard websocket (E11); new consumers."
-  ],
-  "affected_components": [
-    "Not specified."
-  ],
-  "affected_files": [
-    "Not specified."
-  ],
-  "approach": "- Per-consumer regression tests; wired_audit green.",
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
-  },
-  "verification": [
-    "Each migrated consumer behaves identically; test_event_ssot + related tests green; upstream callers unchanged."
-  ],
+  "label": "PF Backlog 583",
+  "links": {},
+  "owner": "agent",
   "risks": [
     "Not specified."
   ],
-  "rollback": "Revert the change.",
-  "evidence": [
-    "pending"
-  ],
-  "owner": "agent",
-  "requester": "design",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
-  "epic": "BI-PF-1265",
+  "scope": "product_forge",
+  "score": 0.25,
+  "title": "Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims",
+  "value": 4,
+  "effort": 4,
+  "moscow": "Should",
+  "origin": "review",
   "parent": "BI-PF-1265",
-  "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "P2",
-  "analyze_mode": "on_entry",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Consolidate event_bus.emit on core.events canonical stream",
+        "verdict": "aligned",
+        "evidence": "core/event_bus.py:39-77, core/events.py:1-120",
+        "recommendation": "Delegate to core.events.emit while preserving in-proc callback dispatch."
+      },
+      {
+        "claim": "Preserve in-process callback subscription via on() shim",
+        "verdict": "aligned",
+        "evidence": "core/event_bus.py:35-37",
+        "recommendation": "Maintain _HANDLERS in-process registry with exact callback delivery."
+      },
+      {
+        "claim": "API CHECK: Internal consumer migration does not require new external API surface",
+        "verdict": "aligned",
+        "evidence": "docs/EVENTING-ALERTING-SSOT-DESIGN.md:94-106",
+        "recommendation": "Confirm needs_api=false; external SSE stream and subscription CRUD are scoped to BI-PF-1274."
+      },
+      {
+        "claim": "AC CHECK: Acceptance criteria cover all consumers, shims, regression tests, and zero drift",
+        "verdict": "aligned",
+        "evidence": "acceptance_criteria AC-1 through AC-6",
+        "recommendation": "Proceed with full test coverage across all affected modules."
+      },
+      {
+        "claim": "LANGUAGE CHECK: Edit-only to existing shipped Python modules with no new Python files in core/",
+        "verdict": "aligned",
+        "evidence": "AGENTS.md tool usage + language rule (fast band)",
+        "recommendation": "Modify existing core/ files; place tests in test-framework/tests/."
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "A1: Existing callers of event_bus.on/emit must experience no breaking signature or return type changes.",
+        "A2: Notification system and alerts retain exact public interfaces as transport adapters."
+      ],
+      "divergences": [
+        "No divergences from ADR-0005/ADR-0011; eliminates diverging events.jsonl writes by consolidating on core.events."
+      ],
+      "existing_path": [
+        "core/event_bus.py: writes to products/.orchestration/events.jsonl and dispatches in-process handlers.",
+        "core/orchestration_context.py: routes events through _POLICY dict to deterministic coordinator decisions.",
+        "core/notification_system.py: manages user notifications store; core/alerts.py: sends email alerts.",
+        "core/events.py: canonical thin-client over go_host.event_append (BI-PF-1272)."
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "ADR-0001: Go-first for new logic, edits-only to existing shipped Python without creating new .py files in core/.",
+        "ADR-0005 & ADR-0011: Eventing & Alerting SSOT; Go event core is the authority; PostgreSQL is the event store.",
+        "BI-PF-1272: Cut over core/events.py as thin-client over go_host event_append wire seam.",
+        "BI-PF-0233: Project-scoped bus events mirror into the canonical per-project stream."
+      ]
+    }
+  },
+  "source": "design",
+  "status": "in_progress",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
     "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.25",
+      "components=8",
+      "apis=3"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
     "analyzed_at": "2026-10-14T12:03:06.366578",
     "analyzed_by": "deterministic",
-    "revision_analyzed": 3,
+    "assumptions": [],
+    "missing_info": [],
+    "refreshed_at": "2026-10-14T12:03:06.127009",
+    "existing_apis": [
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/context"
+    ],
+    "arch_fingerprint": "d3285da0f59c3e99",
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/alerts.py, core/context_discipline.py, core/context_engine.py",
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/alerts.json",
+      "config/context-policy.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 3,
+    "dependency_findings": [
+      "depends on BI-PF-1269",
+      "depends on BI-PF-1270",
+      "depends on BI-PF-1271",
+      "depends on BI-PF-1272"
+    ],
     "existing_components": [
       "core/agent_capabilities.py",
       "core/alerts.py",
@@ -108,72 +145,45 @@
       "core/context_preflight.py",
       "core/context_review.py"
     ],
-    "existing_apis": [
-      "/api/v1/agents/{agent_id}/capabilities",
-      "/api/v1/backlog/items/{item_id}/context-review",
-      "/api/v1/engineering/pidl/context"
-    ],
-    "existing_modules": [
-      "config/agent-capabilities.json",
-      "config/alerts.json",
-      "config/context-policy.json"
-    ],
-    "dependency_findings": [
-      "depends on BI-PF-1269",
-      "depends on BI-PF-1270",
-      "depends on BI-PF-1271",
-      "depends on BI-PF-1272"
-    ],
-    "conflict_findings": [],
     "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=0.25",
-      "components=8",
-      "apis=3"
-    ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
-    "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:03:06.127009"
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/alerts.py, core/context_discipline.py, core/context_engine.py"
   },
-  "dependencies": [
+  "approach": "- Per-consumer regression tests; wired_audit green.",
+  "children": [],
+  "evidence": [
+    "pending"
+  ],
+  "in_scope": [
+    "event_bus.on/emit -> registry (shim); orchestration_context.route -> alert-policy consumer;"
+  ],
+  "priority": "P2",
+  "revision": 3,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
     {
-      "task_id": "BI-PF-1269",
-      "type": "REQUIRES",
-      "required_state": "completed"
-    },
-    {
-      "task_id": "BI-PF-1270",
-      "type": "REQUIRES",
-      "required_state": "completed"
-    },
-    {
-      "task_id": "BI-PF-1271",
-      "type": "REQUIRES",
-      "required_state": "completed"
-    },
-    {
-      "task_id": "BI-PF-1272",
-      "type": "REQUIRES",
-      "required_state": "completed"
+      "at": "2026-10-12T23:27:04.500012",
+      "by": "cli",
+      "note": "",
+      "decision": "APPROVE"
     }
   ],
-  "blocked_by": [
-    "BI-PF-1269",
-    "BI-PF-1270",
-    "BI-PF-1271",
-    "BI-PF-1272"
-  ],
-  "unlocks": [],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical\nduring migration, then remove shims.",
   "readiness": {
     "ready": false,
     "reasons": [
@@ -184,26 +194,76 @@
     ],
     "computed_at": "2026-10-12T23:27:15.466781"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
-  },
-  "created_at": "2026-10-12T22:54:33.501502",
-  "updated_at": "2026-10-15T19:52:13.249790",
-  "score": 0.25,
-  "_note": "analysis updated",
+  "requester": "design",
   "api_impact": {
-    "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
-  }
+    "reason": "Internal event consumer migration behind shims; API surface for external consumers is in BI-PF-1274",
+    "routes": [],
+    "needs_api": false
+  },
+  "blocked_by": [
+    "BI-PF-1269",
+    "BI-PF-1270",
+    "BI-PF-1271",
+    "BI-PF-1272"
+  ],
+  "created_at": "2026-10-12T22:54:33.501502",
+  "updated_at": "2026-11-20T23:28:26.791698",
+  "external_id": "",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1269",
+      "required_state": "completed"
+    },
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1270",
+      "required_state": "completed"
+    },
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1271",
+      "required_state": "completed"
+    },
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1272",
+      "required_state": "completed"
+    }
+  ],
+  "out_of_scope": [
+    "Deleting the frozen dashboard websocket (E11); new consumers."
+  ],
+  "verification": [
+    "VERIFY-AC-1: test_event_bus_canonical_delegation asserts event_bus.emit routes to core.events Go-backed seam.",
+    "VERIFY-AC-2: test_event_bus_handlers asserts on() in-process callback receives expected envelope for all KINDS.",
+    "VERIFY-AC-3: test_orchestration_context_routing asserts route() policy actions and build() context assembly against canonical events.",
+    "VERIFY-AC-4: test_ops_capabilities_parked_review asserts caller functionality over event bus shim without divergence.",
+    "VERIFY-AC-5: test_notifications_alerts_transports asserts notify and email interfaces maintain exact signatures and delegation.",
+    "VERIFY-AC-6: test_event_ssot.py, test_events_thin_client.py, compileall, and wired_audit pass cleanly."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/event_bus.py",
+    "core/orchestration_context.py",
+    "core/notification_system.py",
+    "core/alerts.py",
+    "test-framework/tests/pipeline/test_event_consumers_shims.py",
+    "engineering/specs/BI-PF-1273.md",
+    "engineering/design/BI-PF-1273.md"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: core.event_bus.emit() delegates to core.events.emit() canonical Go-backed event seam while preserving in-process callback dispatch and caller signature.",
+    "AC-2: core.event_bus.on() provides an in-process subscription shim ensuring existing handlers for all KINDS receive dispatched events with backward-compatible dict envelopes.",
+    "AC-3: core.orchestration_context.route() and build() consume events from the canonical stream while preserving _POLICY action mappings and coordinator escalation rules.",
+    "AC-4: core.ops_phase.py, core.pipeline_capabilities.py, and scripts/dev/parked_review.py operate without regression over the event bus shim.",
+    "AC-5: core.notification_system.py and core.alerts.py maintain identical public API signatures while integrating as transport adapters for notify and email.",
+    "AC-6: All existing unit and contract tests in test-framework/tests/ remain green with 0 unwired or naming violations in wired_audit."
+  ],
+  "affected_components": [
+    "Not specified."
+  ]
 }
