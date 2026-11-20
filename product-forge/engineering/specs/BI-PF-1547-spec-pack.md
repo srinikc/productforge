@@ -10,11 +10,11 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | Spec | Status | Owner | Reason | Artifact | Sections | Evidence |
 |---|---|---|---|---|---|---|
 | product_design_spec | APPLICABLE | BI-PF-1547 | compiler design | docs/SPEC-CONTRACT-DESIGN.md | all | docs/SPEC-CONTRACT-DESIGN.md |
-| api_contract | APPLICABLE | BI-PF-1547 | context field addition | api/routers/backlog.py | context | docs/SPEC-CONTRACT-DESIGN.md |
+| api_contract | N/A | BI-PF-1547 | Tooling-only precheck validator; no HTTP routes, endpoints, or network listeners. |  |  |  |
 | data_contract | N/A | BI-PF-1547 | backlog field only |  |  |  |
-| config_contract | N/A | BI-PF-1547 | no new config |  |  |  |
+| config_contract | APPLICABLE | BI-PF-1547 | Compiler settings and item enforcement allowlist | config/spec-contract.json | all | config/spec-contract.json |
 | nfr_slo | N/A | BI-PF-1547 | no runtime |  |  |  |
-| security_threat_model | APPLICABLE | BI-PF-1547 | tooling only | docs/SPEC-CONTRACT-DESIGN.md | risks | docs/SPEC-CONTRACT-DESIGN.md |
+| security_threat_model | APPLICABLE | BI-PF-1547 | Fail-closed precheck gate boundary protection ensuring spec drift cannot bypass architect review | docs/SPEC-CONTRACT-DESIGN.md | risks | docs/SPEC-CONTRACT-DESIGN.md |
 | migration_backfill | N/A | BI-PF-1547 | no migration |  |  |  |
 | rollback_dr | N/A | BI-PF-1547 | code revert |  |  |  |
 | observability_runbook | APPLICABLE | BI-PF-1547 | compiler problems | docs/SPEC-CONTRACT-DESIGN.md | design | docs/SPEC-CONTRACT-DESIGN.md |

@@ -39,7 +39,9 @@ STORE_EXTERNAL = ("openapi.json", "pipeline-definition.json")
 
 
 def _git(*args):
-    r = subprocess.run(["git", *args], cwd=_ROOT, capture_output=True, text=True)
+    env = os.environ.copy()
+    env.pop("GIT_INDEX_FILE", None)
+    r = subprocess.run(["git", *args], cwd=_ROOT, env=env, capture_output=True, text=True)
     return (r.stdout or "").strip()
 
 

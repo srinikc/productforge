@@ -65,7 +65,7 @@ Mechanical checks:
 - N/A has a concrete reason
 
 ### API
-Add `spec_contract` to existing backlog context whitelist. No new endpoint or store.
+Developer-facing validation and precheck tooling only; no HTTP API routes or schema modifications.
 
 ### Gates
 - New precheck gate `spec-contract` runs before architect review.
@@ -87,7 +87,7 @@ Add `spec_contract` to existing backlog context whitelist. No new endpoint or st
 | Area | Impact | Check |
 |---|---|---|
 | Language | Python tooling only | language rule |
-| API | context field addition | api-first |
+| API | tooling only; no API routes | api-first |
 | Backlog data | one new field, no store | store registry |
 | Gate 1 | compiler before review | gate test |
 | Existing items | cutoff, no retrofit | precheck |
@@ -104,4 +104,4 @@ Add `spec_contract` to existing backlog context whitelist. No new endpoint or st
 
 ## Rollback
 
-Remove the compiler gate and `spec_contract` field from context. Existing stored packs remain readable.
+Remove the compiler gate from scripts/dev/precheck.py and remove config/spec-contract.json. Existing stored packs remain readable.

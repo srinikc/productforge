@@ -38,48 +38,55 @@ def _bad_text(value) -> bool:
     return not text or any(x in text for x in PLACEHOLDERS)
 
 
-def problems(item: dict) -> list[str]:
-    """Return mechanical contract problems; empty means consistent."""
+def validate_config_and_rollback(design: dict, func: dict) -> list[str]:
+    """Validate canonical consistency between config_contract and rollback across packs."""
     bad: list[str] = []
-    design = item.get("design_pack") or {}
-    func = item.get("functional_spec") or {}
-    specs = item.get("spec_pack") or {}
-
-    # One canonical rollback and config contract.
     if _norm(design.get("rollback")) != _norm(func.get("rollback")):
         bad.append("rollback differs between design_pack and functional_spec")
     dcfg = (design.get("contracts") or {}).get("config")
     fcfg = func.get("config_contract")
     if dcfg is not None and fcfg is not None and _norm(dcfg) != _norm(fcfg):
         bad.append("config_contract differs between design_pack and functional_spec")
+    return bad
 
-    # AC/FR/control/test/evidence graph.
-    acs = [str(x) for x in (item.get("acceptance_criteria") or []) if str(x).strip()]
-    rows = design.get("implementation_controls") or []
-    if not isinstance(rows, list) or not rows:
-        bad.append("design_pack.implementation_controls missing")
-        rows = []
+
+def validate_unique_ids_and_symbols(rows: list) -> list[str]:
+    """Validate that control IDs and symbols are uniquely owned without duplicates."""
+    bad: list[str] = []
     ids = set()
-    ac_seen = set()
-    fr_seen = set()
     symbols = {}
-    kinds = set()
     for i, row in enumerate(rows, 1):
         if not isinstance(row, dict):
             bad.append(f"control[{i}] not an object")
             continue
         rid = str(row.get("id") or "")
-        if not rid or rid in ids:
-            bad.append(f"control[{i}] missing/duplicate id")
+        if not rid:
+            bad.append(f"control[{i}] missing id")
+        elif rid in ids:
+            bad.append(f"duplicate control id {rid} in control[{i}]")
         ids.add(rid)
-        ac_seen.add(str(row.get("ac") or ""))
-        fr_seen.add(str(row.get("fr") or ""))
-        kinds.add(str(row.get("kind") or ""))
         symbol = str(row.get("symbol") or "")
         if symbol:
             if symbol in symbols:
                 bad.append(f"duplicate symbol {symbol} in {symbols[symbol]} and {rid}")
             symbols[symbol] = rid
+    return bad
+
+
+def validate_coverage_graph(item: dict, func: dict, rows: list) -> list[str]:
+    """Validate AC<->FR<->control<->test graph coverage without missing links."""
+    bad: list[str] = []
+    acs = [str(x) for x in (item.get("acceptance_criteria") or []) if str(x).strip()]
+    ac_seen = set()
+    fr_seen = set()
+    kinds = set()
+    for i, row in enumerate(rows, 1):
+        if not isinstance(row, dict):
+            continue
+        rid = str(row.get("id") or "")
+        ac_seen.add(str(row.get("ac") or ""))
+        fr_seen.add(str(row.get("fr") or ""))
+        kinds.add(str(row.get("kind") or ""))
         for key in ("ac", "fr", "kind", "control", "symbol", "positive_test", "negative_test", "evidence"):
             if _bad_text(row.get(key)):
                 bad.append(f"{rid or i}.{key} missing or placeholder")
@@ -96,8 +103,12 @@ def problems(item: dict) -> list[str]:
     for kind in required:
         if kind not in kinds:
             bad.append(f"missing required control kind: {kind}")
+    return bad
 
-    # Candidate SHA must be stable across evidence rows.
+
+def validate_evidence_integrity(design: dict, func: dict, specs: dict) -> list[str]:
+    """Validate candidate SHA pinning and concrete N/A justification reasons."""
+    bad: list[str] = []
     shas = set()
     for row in (design.get("ac_evidence") or []):
         if isinstance(row, dict) and row.get("candidate_sha"):
@@ -116,6 +127,31 @@ def problems(item: dict) -> list[str]:
         if isinstance(row, dict) and not str(row.get("candidate_sha") or "").strip():
             bad.append(f"{row.get('ac') or 'AC'}.candidate_sha missing")
 
+    for row in (specs.get("applicability") or []):
+        if isinstance(row, dict) and str(row.get("status") or "").upper() == "N/A":
+            if len(str(row.get("reason") or "").strip()) < 8:
+                bad.append(f"{row.get('spec') or 'spec'}: N/A reason too short")
+    return bad
+
+
+def problems(item: dict) -> list[str]:
+    """Return mechanical contract problems; empty means consistent."""
+    bad: list[str] = []
+    design = item.get("design_pack") or {}
+    func = item.get("functional_spec") or {}
+    specs = item.get("spec_pack") or {}
+
+    bad.extend(validate_config_and_rollback(design, func))
+
+    rows = design.get("implementation_controls") or []
+    if not isinstance(rows, list) or not rows:
+        bad.append("design_pack.implementation_controls missing")
+        rows = []
+
+    bad.extend(validate_unique_ids_and_symbols(rows))
+    bad.extend(validate_coverage_graph(item, func, rows))
+    bad.extend(validate_evidence_integrity(design, func, specs))
+
     # API contract completeness when API is declared.
     impact = item.get("api_impact") or {}
     if impact.get("needs_api"):
@@ -124,12 +160,12 @@ def problems(item: dict) -> list[str]:
             if not str(api.get(key) or "").strip():
                 bad.append(f"api contract missing {key}")
 
-    # N/A reasons in spec pack must be concrete.
-    for row in (specs.get("applicability") or []):
-        if isinstance(row, dict) and str(row.get("status") or "").upper() == "N/A":
-            if len(str(row.get("reason") or "").strip()) < 8:
-                bad.append(f"{row.get('spec') or 'spec'}: N/A reason too short")
     return bad
+
+
+def validate_contract(item: dict) -> list[str]:
+    """Public stable entrypoint to validate item canonical spec contract."""
+    return problems(item)
 
 
 def enforced(item: dict, cfg: dict) -> bool:
@@ -164,7 +200,20 @@ def main(argv=None) -> int:
     bad = []
     checked = 0
     if a.all:
-        for item in backlog.list_items("product_forge", None):
+        items = []
+        try:
+            items = list(backlog.list_items("product_forge", None))
+        except Exception:
+            pass
+        if not items:
+            items_dir = ROOT / "data" / "backlog" / "items"
+            if items_dir.exists():
+                for fp in items_dir.glob("*.json"):
+                    try:
+                        items.append(json.loads(fp.read_text(encoding="utf-8-sig")))
+                    except Exception:
+                        pass
+        for item in items:
             if enforced(item, cfg):
                 checked += 1
                 bad += [f"{item.get('id')}: {p}" for p in problems(item)]
@@ -173,7 +222,18 @@ def main(argv=None) -> int:
     else:
         if not a.item:
             ap.error("--item or --all required")
-        item = backlog.get_epic("product_forge", None, a.item)
+        item = None
+        try:
+            item = backlog.get_epic("product_forge", None, a.item)
+        except Exception:
+            pass
+        if not item:
+            item_fp = ROOT / "data" / "backlog" / "items" / f"{a.item}.json"
+            if item_fp.exists():
+                try:
+                    item = json.loads(item_fp.read_text(encoding="utf-8-sig"))
+                except Exception:
+                    pass
         if not item:
             bad.append("item not found")
         else:
