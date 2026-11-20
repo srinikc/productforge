@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "6405874bdaf4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:33:48.277877+00:00",
+  "review_scope": "delta",
+  "base_sha": "322f072e20ee224922f1d050c4e5639b7ac4c98a",
+  "head_sha": "a90d5db875550f6a9c587cedde12b42cbeca3229",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "C-9's positive/negative tests (`webhook_test.go::TestWebhookUsesSubscriptionKey`, `TestWebhookMissingKeyFailsClosed`) never exercise `go/edpdata/event_subscriptions.go:UpsertSubscription`; auth_ref persistence at write time remains untested \u2014 prior auth_ref MAJOR only partially dispositioned.",
+      "Delta changes control/test rows (C-10 added, C-1 negative_test renamed) but `ac_evidence`/`coverage` rows are not updated in the same delta; CL-006 still leaves prior MAJORs PENDING, so Gate 1 approval remains invalid."
+    ],
+    "MINOR": [
+      "C-9's `tenant_test` points at `registry_test.go`, which does not cover `UpsertSubscription`; no cross-tenant assertion on the subscription-write path.",
+      "C-5 now names metrics (`event_delivery_attempts_total`, etc.) but its `negative_test` is `webhook_test.go` \u2014 no test asserts metric emission/absence; observability control remains unverified.",
+      "C-6 uses the identical file for `positive_test` and `negative_test` with no distinct failing scenario named.",
+      "C-10 marks `tenant_test` as \"N/A: notification store is project-scoped\", conflicting with the AC's tenant-scoped subscription model and offering no proof notifications cannot cross tenants."
+    ],
+    "NIT": [
+      "C-4 `evidence` is `go test ./... @32c7bb39` without the package scope used by sibling controls (`in eventtransport`), weakening evidence traceability."
+    ],
+    "SUMMARY": [
+      "Delta improves evidence SHA-pinning (CL-015), adds C-10 for missing-SMTP, and fixes C-1's negative test; those prior MINORs are dispositioned.",
+      "Top risks: auth_ref write-path persistence still lacks a test bound to `UpsertSubscription`, observability control has named metrics but no asserting test, and CL-006 keeps Gate 1 invalid while prior MAJORs are PENDING.",
+      "Controls remain broadly coherent with the ACs; no new blocker introduced by this delta."
+    ]
+  },
+  "rereview_reason": "Delta for prior f7c0fccfff17: auth_ref persistence, missing SMTP, metrics, evidence SHA",
+  "rereview_reason_sha256": "21d3174b3b4a7cfdd7f885723cb7f894c6f923b5ebd52d2a729b36586ea6b015"
+}
