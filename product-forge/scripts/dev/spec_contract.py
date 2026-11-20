@@ -61,6 +61,8 @@ def problems(item: dict) -> list[str]:
         rows = []
     ids = set()
     ac_seen = set()
+    fr_seen = set()
+    symbols = {}
     kinds = set()
     for i, row in enumerate(rows, 1):
         if not isinstance(row, dict):
@@ -71,7 +73,13 @@ def problems(item: dict) -> list[str]:
             bad.append(f"control[{i}] missing/duplicate id")
         ids.add(rid)
         ac_seen.add(str(row.get("ac") or ""))
+        fr_seen.add(str(row.get("fr") or ""))
         kinds.add(str(row.get("kind") or ""))
+        symbol = str(row.get("symbol") or "")
+        if symbol:
+            if symbol in symbols:
+                bad.append(f"duplicate symbol {symbol} in {symbols[symbol]} and {rid}")
+            symbols[symbol] = rid
         for key in ("ac", "fr", "kind", "control", "symbol", "positive_test", "negative_test", "evidence"):
             if _bad_text(row.get(key)):
                 bad.append(f"{rid or i}.{key} missing or placeholder")
@@ -80,6 +88,10 @@ def problems(item: dict) -> list[str]:
     for i in range(1, len(acs) + 1):
         if f"AC-{i}" not in ac_seen:
             bad.append(f"AC-{i} has no control row")
+    for fr in (func.get("requirements") or []):
+        fid = str(fr.get("id") or "") if isinstance(fr, dict) else ""
+        if fid and fid not in fr_seen:
+            bad.append(f"{fid} has no control row")
     required = ("security", "failure", "config", "observability")
     for kind in required:
         if kind not in kinds:
@@ -127,11 +139,26 @@ def enforced(item: dict, cfg: dict) -> bool:
     return bool(created and created >= str(cfg.get("enforce_from") or ""))
 
 
+def impact_table(item: dict) -> list[dict]:
+    """Generated impact-review table for reviewers."""
+    out = []
+    for row in (item.get("design_pack") or {}).get("implementation_controls") or []:
+        if isinstance(row, dict):
+            out.append({
+                "control": row.get("id"), "ac": row.get("ac"), "fr": row.get("fr"),
+                "kind": row.get("kind"), "symbol": row.get("symbol"),
+                "positive": row.get("positive_test"), "negative": row.get("negative_test"),
+                "evidence": row.get("evidence"),
+            })
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Canonical spec contract compiler/validator")
     ap.add_argument("--item", default="")
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--impact", action="store_true")
     a = ap.parse_args(argv)
     cfg = _cfg()
     bad = []
@@ -150,6 +177,9 @@ def main(argv=None) -> int:
         if not item:
             bad.append("item not found")
         else:
+            if a.impact:
+                print(json.dumps(impact_table(item), indent=2))
+                return 0
             checked = 1
             bad = problems(item)
     out = {"ok": not bad, "checked": checked, "problems": bad}
