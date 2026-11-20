@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-11-20T21:35:54 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-20T23:41:14 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -8,10 +8,10 @@
 - **Open:** 131  |  **Closed:** 626
 - `blocked`: 1
 - `executing`: 1
-- `in_progress`: 1
-- `new`: 128
+- `in_progress`: 2
+- `new`: 127
 
-### new, by category (128)
+### new, by category (127)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -76,14 +76,13 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
-| BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
