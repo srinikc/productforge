@@ -255,9 +255,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:23.658618",
-  "updated_at": "2026-11-20T18:14:18.283061",
+  "updated_at": "2026-11-20T18:21:29.928736",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
     "needs_api": true,
     "reason": "Expose alert rules configuration and policy evaluation API for operators and services",
@@ -324,15 +324,15 @@
   ],
   "review_dispositions": {
     "design": {
-      "sig:4d93242ecc887ad8": {
+      "1": {
         "status": "ACTIONED",
         "note": "Implemented CleanupExpired(now, ttl) in memory cache and window_expires_at index in SQL."
       },
-      "sig:67b5c64fb8215909": {
+      "2": {
         "status": "ACTIONED",
         "note": "Emitted structured warning log alert_policy_db_fallback_engaged with tenant and error details."
       },
-      "sig:300f3e411e52d65b": {
+      "3": {
         "status": "ACTIONED",
         "note": "Implemented EvaluateBatch(events []Event) []AlertDecision on Go AlertPolicyEngine."
       }
@@ -393,5 +393,343 @@
       "verified_by": "hil:operator",
       "verified_at": "2026-11-20"
     }
-  ]
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "integration_complete": true,
+    "validation_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true
+  },
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "df1236ea6afa40c9",
+    "total_time_ms": 10730147,
+    "sum_stage_ms": 0,
+    "clock_skew": false,
+    "item": "BI-PF-1271",
+    "generated_at": "2026-11-20T12:51:29.825781+00:00",
+    "item_revision": 3,
+    "current_stage": "blocked at precheck",
+    "acs": [
+      {
+        "ac": "AC-1: Alert rules map tenant_id, event_types, min_severity, channels, and throttle/escalation parameters.",
+        "result": "PASS",
+        "evidence": [
+          "go/edpdata/alert_store.go (TestAlertStore_CRUD)",
+          "migrations/0027_alert_rules_policy.up.sql"
+        ],
+        "verified_by": "hil:operator",
+        "verified_at": "2026-11-20"
+      },
+      {
+        "ac": "AC-2: Alert evaluation suppresses duplicate alerts within sliding throttle_window_seconds and records suppressed count.",
+        "result": "PASS",
+        "evidence": [
+          "go/edpdata/alert_policy.go (TestAlertPolicyEngine_RuleMatchingAndEscalation)"
+        ],
+        "verified_by": "hil:operator",
+        "verified_at": "2026-11-20"
+      },
+      {
+        "ac": "AC-3: Critical/escalate events trigger escalation channels and emit escalated alert notifications.",
+        "result": "PASS",
+        "evidence": [
+          "go/edpdata/alert_policy.go (TestAlertPolicyEngine_RuleMatchingAndEscalation)"
+        ],
+        "verified_by": "hil:operator",
+        "verified_at": "2026-11-20"
+      },
+      {
+        "ac": "AC-4: PostgreSQL and in-memory alert stores provide tenant-isolated CRUD and thread-safe sliding throttle state.",
+        "result": "PASS",
+        "evidence": [
+          "go/edpdata/alert_store.go (TestMemoryAlertStore_TTLCleanup)",
+          "migrations/0027_alert_rules_policy.up.sql (RLS enforced)"
+        ],
+        "verified_by": "hil:operator",
+        "verified_at": "2026-11-20"
+      },
+      {
+        "ac": "AC-5: API endpoints for alert rules and policy evaluation enforce operator authorization and schema validation.",
+        "result": "PASS",
+        "evidence": [
+          "tests/test_alert_policy_api.py (4 passed)",
+          "api/routers/events.py"
+        ],
+        "verified_by": "hil:operator",
+        "verified_at": "2026-11-20"
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 364
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 970
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 1200
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 242
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 350
+          },
+          {
+            "command": "go-modules",
+            "result": "pass",
+            "duration_ms": 6872
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 4773
+          }
+        ],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 14771
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "design_review",
+        "at": "2026-11-20T09:52:39.534710+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-20T10:25:57.873205+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-20T10:40:49.310801+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-20T10:40:49.319012+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-20T10:40:49.326953+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-20T10:47:53.605893+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-20T12:44:18.152376+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-20T12:48:38.324728+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-20T12:48:38.336095+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-20T12:48:38.347058+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-20T12:48:38.357732+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-20T12:51:29.663104+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-20T12:51:29.673283+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "completion",
+        "at": "2026-11-20T12:51:29.682542+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_tokens": 0,
+      "cost_usd": 0.0,
+      "captured": 0,
+      "not_captured": 0,
+      "unpriced": 0
+    },
+    "started_at": "2026-11-20T09:52:39.534710+00:00",
+    "finished_at": "2026-11-20T12:51:29.682542+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-12T23:27:01.318533",
+        "decision": "APPROVE",
+        "by": "cli",
+        "note": ""
+      },
+      {
+        "at": "2026-11-20T10:25:57.755131+00:00",
+        "by": "hil:operator",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "fc0ca113fb56",
+        "findings_digest": "eef7876eca7b",
+        "seq": 2,
+        "note": "Gate 1 plan and dispositions approved by operator",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-20T12:44:18.026794+00:00",
+        "by": "hil:operator",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "5667849a2bf7",
+        "findings_digest": "a9ae0df6dca5",
+        "seq": 3,
+        "note": "Gate 2 delivery verified and approved by operator",
+        "hil_confirmed": true
+      }
+    ],
+    "other_decisions": []
+  }
 }
