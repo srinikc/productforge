@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"productforge/datastore"
@@ -15,6 +16,8 @@ type Transport interface {
 }
 
 // DispatchOptions bounds one dispatcher pass.
+const maxRetryAfter = time.Hour
+
 type DispatchOptions struct {
 	Limit       int
 	MaxAttempts int
@@ -150,8 +153,9 @@ func (s *EventStore) DispatchOnce(ctx context.Context, sub Subscription, tr Tran
 			wait := backoff(opts.BaseBackoff, attempts)
 			if ra, ok := err.(RetryAfterError); ok && ra.RetryAfter() > wait {
 				wait = ra.RetryAfter()
-				if wait > time.Hour {
-					wait = time.Hour
+				if wait > maxRetryAfter {
+					log.Printf("EVENT_RETRY_AFTER_CAPPED wait=%s cap=%s", wait, maxRetryAfter)
+					wait = maxRetryAfter
 				}
 			}
 			if err := s.retryDelivery(ctx, sub, ev, attempts, opts.Now().Add(wait), err.Error()); err != nil {

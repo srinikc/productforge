@@ -37,7 +37,11 @@ func (r *Registry) GetForTenant(tenant, name string) (edpdata.Transport, bool) {
 	if tenant == "" {
 		return nil, false
 	}
-	t, ok := r.tenants[tenant][name]
+	if t, ok := r.tenants[tenant][name]; ok {
+		return t, true
+	}
+	// Shared transports are the default; tenant-specific entries override them.
+	t, ok := r.transports[name]
 	return t, ok
 }
 

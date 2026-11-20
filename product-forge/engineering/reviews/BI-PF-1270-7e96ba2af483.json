@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "7e96ba2af483",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-20T05:30:44.753481+00:00",
+  "review_scope": "delta",
+  "base_sha": "6a9a3468024cfaefcc56fd9dd6464afcf2acc4a1",
+  "head_sha": "c8d2afd18ca3b426b6dbc6f00d7dd5ac826e8340",
+  "findings": {
+    "BLOCKER": [
+      "`DefaultRegistry` populates only the global `transports` map while `GetForTenant` now reads exclusively `r.tenants`; the standard registry therefore resolves nothing for any tenant, so a dispatcher using the tenant-scoped path delivers no events at all (AC-1/AC-4), and `TestRegistryTenantScoped` never exercises `DefaultRegistry` + `GetForTenant` to catch it."
+    ],
+    "MAJOR": [
+      "`DefaultRegistry` now always registers webhook and defers missing-key detection to delivery, but the approved `failure_matrix`/guardrail contract is \"missing HMAC key \u2192 WEBHOOK_DISABLED (startup config-shape validation)\"; the delta removes that gate with no replacement startup check, converting a config error into per-delivery failure/DLQ churn (AC-2, FR-4)."
+    ],
+    "MINOR": [
+      "The `time.Hour` retry cap is a magic number with no constant, config key, or design-doc update, and there is no log/metric when a transport `Retry-After` is truncated, so operators cannot see that retry pacing diverges from `retry max(backoff, retry-after)`.",
+      "No new test covers the 1h cap or the `DefaultRegistry` tenant-resolution path; the only test delta swaps `Register` for `RegisterForTenant`, leaving both changed behaviors unverified.",
+      "`keys.go` `ResolveHMACKey` accepts any non-`env:` `authRef` as a literal secret with no validation, redaction, or key-id logging, and missing-key vs literal-key outcomes are indistinguishable in logs (secrets-never-logged NFR)."
+    ],
+    "NIT": [
+      "`env:` prefix matching is case- and format-sensitive after `TrimSpace`; an `Env:NAME` ref silently falls through to the literal-key path and signs with the wrong key instead of failing closed."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves prior findings on tenant-scoped lookup shape, webhook registration gating, exported `RetryAfterError`, and the unbounded retry wait, and `keys.go` resolves the non-compilable package.",
+      "Top risks: the registry split (`Register` vs `RegisterForTenant`) likely breaks all tenant-scoped delivery, and dropping the WEBHOOK_DISABLED startup contract without a replacement check regresses approved failure-matrix behavior."
+    ]
+  },
+  "rereview_reason": "Delta for prior 42bd4c08115b and 701977cb6d5f: tenant registry, webhook registration, email target, retry-after, keys.go",
+  "rereview_reason_sha256": "9f5decc78edb64a61c85ef67c7da84addb3e5e0d95a6bd82a57336dfe8f2438e"
+}

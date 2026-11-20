@@ -28,6 +28,7 @@ func TestInprocCallback(t *testing.T) {
 }
 
 func TestWebhookHMACAndIdempotency(t *testing.T) {
+	t.Setenv("PF_TEST_WEBHOOK_KEY", "secret")
 	var gotSig, gotIdem string
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotSig = r.Header.Get("X-PF-Signature")
@@ -57,6 +58,7 @@ func TestWebhookHMACAndIdempotency(t *testing.T) {
 }
 
 func TestWebhookPermanentAndDuplicate(t *testing.T) {
+	t.Setenv("PF_TEST_WEBHOOK_KEY", "secret")
 	for _, code := range []int{400, 409} {
 		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(code) }))
 		w := NewWebhook()
@@ -101,6 +103,7 @@ func TestRegistryTenantLookup(t *testing.T) {
 }
 
 func TestWebhookRetryAfter(t *testing.T) {
+	t.Setenv("PF_TEST_WEBHOOK_KEY", "secret")
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "7")
 		w.WriteHeader(429)
@@ -113,6 +116,13 @@ func TestWebhookRetryAfter(t *testing.T) {
 	ra, ok := err.(interface{ RetryAfter() time.Duration })
 	if !ok || ra.RetryAfter() != 7*time.Second {
 		t.Fatalf("retry-after error=%v", err)
+	}
+}
+
+func TestDefaultRegistryTenantResolution(t *testing.T) {
+	r := DefaultRegistry()
+	if _, ok := r.GetForTenant("t1", "inproc"); !ok {
+		t.Fatal("default registry did not resolve shared transport")
 	}
 }
 
