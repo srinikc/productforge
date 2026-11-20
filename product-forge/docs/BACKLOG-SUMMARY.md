@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-20T18:23:57 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-20T19:09:33 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 132  |  **Closed:** 624
+- **Open:** 133  |  **Closed:** 624
 - `blocked`: 1
 - `executing`: 1
 - `in_progress`: 1
-- `new`: 129
+- `new`: 130
 
-### new, by category (129)
+### new, by category (130)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -90,7 +90,7 @@
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 | BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
 
-**Wiring / tech-debt / API** (79)
+**Wiring / tech-debt / API** (80)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -172,6 +172,7 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
+| BI-PF-1548 | Should | feature | Dev-Ex & CI: Fast-tier PR gate with 1-hr scheduled full sweep and atomic item finalization | Dev-Ex & CI: Fast-tier PR gate with 1-hr scheduled full sweep and atomic item finalization |
 
 ---
 
@@ -371,5 +372,5 @@
 ---
 
 ## Totals
-- backend: 132 open / 624 closed
+- backend: 133 open / 624 closed
 - dashboard: 146 open / 3 closed
