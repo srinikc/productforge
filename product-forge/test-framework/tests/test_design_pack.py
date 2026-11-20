@@ -152,3 +152,15 @@ def test_validate_cfg_shapes():
     assert d._validate_cfg({**base, "required_sections": "x"}) == "required_sections must be a list"
     assert d._validate_cfg({**base, "required_contracts": "x"}) == "required_contracts must be a list"
     assert d._validate_cfg(base) == ""
+
+
+def test_changed_item_ids_scoping():
+    ids = d.changed_item_ids()
+    assert isinstance(ids, set)
+    # The current feature branch touches BI-PF-1548
+    assert "BI-PF-1548" in ids
+
+
+def test_main_changed_flag():
+    ret = d.main(["--changed", "--check"])
+    assert ret == 0
