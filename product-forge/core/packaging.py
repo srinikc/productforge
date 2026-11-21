@@ -612,13 +612,20 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
             }
 
         if nuitka_bin:
-            core_py = os.path.join(ROOT, "core", "release.py")
-            if os.path.isfile(core_py):
-                cmd = [nuitka_bin, "-m", "nuitka"] if nuitka_bin == sys.executable else [nuitka_bin]
-                cmd.extend(["--module", f"--output-dir={output_dir}", core_py])
-                res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
-                if res.returncode == 0:
-                    artifacts.append("release" + compiled_ext)
+            core_dir = os.path.join(ROOT, "core")
+            if os.path.isdir(core_dir):
+                shipped_modules = [
+                    f for f in sorted(os.listdir(core_dir))
+                    if f.endswith(".py") and not f.startswith("__")
+                ]
+                for mod_file in shipped_modules:
+                    mod_path = os.path.join(core_dir, mod_file)
+                    cmd = [nuitka_bin, "-m", "nuitka"] if nuitka_bin == sys.executable else [nuitka_bin]
+                    cmd.extend(["--module", f"--output-dir={output_dir}", mod_path])
+                    res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        mod_base = os.path.splitext(mod_file)[0]
+                        artifacts.append(mod_base + compiled_ext)
 
     eap = eap_build(scope, project, edition=edition, exclude_subsystems=exclude_subsystems)
     eap_path = os.path.join(output_dir, "eap.json")

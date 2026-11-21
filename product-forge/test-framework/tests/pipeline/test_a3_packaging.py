@@ -14,7 +14,7 @@ import shutil
 import tempfile
 import pytest
 
-from core import packaging, release, signing, bom
+from core import packaging, release
 
 
 def test_compiled_packaging_orchestration():
