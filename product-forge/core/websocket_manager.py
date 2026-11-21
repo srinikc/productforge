@@ -24,10 +24,10 @@ except ImportError:
 # ─── WebSocket Manager ────────────────────────────────────────────
 
 class WebSocketManager:
-    """Manages WebSocket connections for real-time updates (DEPRECATED: use SSE stream)."""
+    """Manages WebSocket connections for real-time updates."""
 
     def __init__(self):
-        warnings.warn("core.websocket_manager is deprecated (BI-PF-1276); use SSE /api/v1/events/stream", DeprecationWarning, stacklevel=2)
+        warnings.warn("core.websocket_manager is deprecated (BI-PF-1276); use SSE /api/v1/events/stream", FutureWarning, stacklevel=2)
         self.active_connections: Set[WebSocket] = set()
         self.subscriptions: Dict[str, Set[WebSocket]] = {}  # topic -> connections
 
