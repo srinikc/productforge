@@ -162,7 +162,8 @@ def stop_bus(project: Optional[str] = None) -> Dict[str, Any]:
             from core.capacity import _pid_alive
             if _pid_alive(pid):
                 import subprocess
-                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True) if os.name == "nt" else os.kill(pid, 15)
+                subprocess.run(["taskkill", "/PID", str(pid), "/T"], capture_output=True) if os.name == "nt" else os.kill(pid, 15)
+
                 stopped.append(pid)
             os.remove(pf)
         except Exception:

@@ -430,6 +430,7 @@ def get_bus_status(request: Request, project: Optional[str] = None, ctx: Dict[st
     """Return operational status of the event bus daemon (BI-PF-1275)."""
     from core import events
     st = events.bus_status(project=project)
+    logger.info("BUS_DAEMON_STATUS running=%s pid=%s status=%s", st.get("running"), st.get("pid"), st.get("status"))
     return from_request(request, st, resource="event_bus")
 
 
@@ -439,6 +440,7 @@ def start_bus_daemon(request: Request, body: Optional[Dict[str, Any]] = None, ct
     from core import events
     project = (body or {}).get("project")
     res = events.start_bus(project=project)
+    logger.info("BUS_DAEMON_STARTED ok=%s pid=%s already_running=%s", res.get("ok"), res.get("pid"), res.get("already_running"))
     return from_request(request, res, resource="event_bus")
 
 
@@ -448,7 +450,9 @@ def stop_bus_daemon(request: Request, body: Optional[Dict[str, Any]] = None, ctx
     from core import events
     project = (body or {}).get("project")
     res = events.stop_bus(project=project)
+    logger.info("BUS_DAEMON_STOPPED ok=%s stopped=%s", res.get("ok"), res.get("stopped"))
     return from_request(request, res, resource="event_bus")
+
 
 
 
