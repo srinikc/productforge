@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1275",
+  "sha": "77a7e9275483",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T06:10:39.387179+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "4e4ab752839e8c0188b8000f5cf44ed51c2f8364",
+  "findings": {
+    "BLOCKER": [
+      "New daemon management logic in `core/events.py` and `api/routers/events.py` is written in Python, violating the \"new shipped logic -> Go\" standard."
+    ],
+    "MAJOR": [
+      "The `--daemon` mode in `core/events.py` implements an infinite sleep loop, meaning the \"event bus daemon\" performs no actual event bus functionality.",
+      "Spawning a background process directly from the API service creates tight coupling and is not robust for enterprise-grade process management or horizontal scaling.",
+      "The `_main` daemon loop does not accept a `--project` argument, preventing project-scoped daemon instances despite `_bus_pid_file` supporting it.",
+      "OpenAPI specification for POST endpoints (`/bus/start`, `/bus/stop`) marks `authorization` and `x-roles` headers as `required: false`, contradicting the enforced security."
+    ],
+    "MINOR": [
+      "The design contract requires \"structured logs\", but the `logger.info` calls produce formatted strings, not machine-readable structured logs.",
+      "The OpenAPI specification uses generic `schema: {}` for 200 responses, lacking explicit contract definitions for API clients.",
+      "The `_bus_pid_file` function uses hardcoded directory names (`products`, `.events`), which reduces maintainability and adaptability.",
+      "Importing the private `_pid_alive` function from `core.capacity` breaks encapsulation and suggests a missing public utility or dedicated process management abstraction.",
+      "The `health` endpoint duplicates `event_bus` status information by adding it both within `components` and at the top level of the response.",
+      "The `start_bus` and `stop_bus` functions use hardcoded module paths (`core.events`) for `subprocess` calls, reducing flexibility and increasing brittleness.",
+      "The `openapi.json` for `POST /bus/start` and `POST /bus/stop` does not specify the `project` parameter in the request body, despite the Python code expecting it."
+    ],
+    "NIT": [
+      "The OpenAPI `requestBody` for POST endpoints uses a very generic `additionalProperties: true, type: object` schema, which could be more specific for clarity.",
+      "The `_main` function's `--project` argument defaults to an empty string, which then resolves to a global `products` directory, potentially unintended for project-scoped operations."
+    ],
+    "SUMMARY": []
+  }
+}
