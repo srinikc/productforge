@@ -40,6 +40,7 @@ NR = None  # "not referenced" - only for empty placeholders
 
 # doc -> (status, about, pct)     pct: int = implemented/adopted vs code; None = n/a
 TOP = {
+    "PRODUCT-FORGE-ARCHITECTURE-AND-OPERATIONAL-REFERENCE.md": ("Reference", "Product Forge architecture and operational reference", 100),
     "productforge_full_architecture.md": ("SSOT", "Architecture & design SSOT - start here", 100),
     "STRUCTURE-CONTRACT.md": ("Implemented", "Binding repo structure contract (folders + owners)", 100),
     "CONSTITUTION.md": ("Implemented", "Constitution: governance + non-negotiables", 100),
