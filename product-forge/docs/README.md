@@ -36,7 +36,220 @@
 ## Main docs (docs/*.md)
 | Doc | Status | Impl % | What it's about | Pending / note | Backlog |
 |---|---|---|---|---|---|
-
+| [`A2A-DESIGN.md`](A2A-DESIGN.md) | Design | 100% | A2A interop: agnostic, contract-based, pipeline-tracked agent delegation (BI-0197) | — | — |
+| [`ADDING-TO-PRODUCT-FORGE.md`](ADDING-TO-PRODUCT-FORGE.md) | Implemented | 100% | Recipes/checklists to add anything | — | — |
+| [`AGENT-ROLE-CONTRACTS.md`](AGENT-ROLE-CONTRACTS.md) | Implemented | 100% | Binding role contracts for workflow agents and reviewers | — | — |
+| [`AGENT-RUNTIME-ADAPTERS.md`](AGENT-RUNTIME-ADAPTERS.md) | Implemented | 100% | Agent runtime adapter contract and isolation rules | — | — |
+| [`AGENT_CONTRACT_STANDARD.md`](AGENT_CONTRACT_STANDARD.md) | Implemented | 100% | AgentSpec / agent-card contract standard | — | — |
+| [`AGNOSTIC-CARDS-DESIGN.md`](AGNOSTIC-CARDS-DESIGN.md) | Design | 100% | Framework-agnostic agent card resolver, no .opencode default (BI-0201) | — | — |
+| [`AGUI-DESIGN.md`](AGUI-DESIGN.md) | Design | 100% | AG-UI typed event stream (BI-0198) | — | — |
+| [`API-0-DISCOVERY.md`](API-0-DISCOVERY.md) | Design | 100% | API-0 API discovery: legacy surface, intake path, consumers, gaps | — | — |
+| [`API-0.1-CONTRACT-RECONCILIATION.md`](API-0.1-CONTRACT-RECONCILIATION.md) | Design | 100% | API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning | — | — |
+| [`API-1-FOUNDATION.md`](API-1-FOUNDATION.md) | Design | 100% | API-1 foundation: canonical api/ surface (context, errors, auth, idempotency, health, intake) | — | — |
+| [`API-2-CORE-APIS.md`](API-2-CORE-APIS.md) | Design | 100% | API-2 core PF APIs: projects/runs/pipeline/stages/tasks/artifacts/evidence/backlog | — | — |
+| [`API-3-ENGINEERING-APIS.md`](API-3-ENGINEERING-APIS.md) | Design | 100% | API-3 engineering/validation APIs: validation/tests/gates/issues/vcs/workers/agents | — | — |
+| [`API-5-HARDENING-EVENT-LAYER.md`](API-5-HARDENING-EVENT-LAYER.md) | Design | 100% | API-5 hardening + event layer: committed OpenAPI governance gate, formal event envelope, read-only Event API | — | — |
+| [`ARCHITECTURE-DECISIONS.md`](ARCHITECTURE-DECISIONS.md) | Implemented | 100% | Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery | — | — |
+| [`ARTIFACT-OWNERS.md`](ARTIFACT-OWNERS.md) | SSOT | 100% | Generated artifact->owner->consumer map for product docs (BI-PF-0765) | — | — |
+| [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
+| [`AZURE-BLOB-ADAPTER.md`](AZURE-BLOB-ADAPTER.md) | Implemented | 100% | Azure Blob Storage ObjectStore adapter specification and runbook (BI-PF-1433) | — | — |
+| [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
+| [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
+| [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
+| [`BACKLOG-AUTHORITY-RUNBOOK.md`](BACKLOG-AUTHORITY-RUNBOOK.md) | Implemented | 100% | EDP backlog authority endpoint operation, triage, and rollback | — | — |
+| [`BACKLOG-DB-SSOT.md`](BACKLOG-DB-SSOT.md) | Implemented | 100% | Backlog DB system-of-record cutover and fallback rules | — | — |
+| [`BACKLOG-DOC-INGEST.md`](BACKLOG-DOC-INGEST.md) | Tooling | 100% | Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396) | — | — |
+| [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
+| [`BIIS-LEARNING.md`](BIIS-LEARNING.md) | Implemented | 100% | BIIS tiering, review-loop learning, and convergence rules | — | — |
+| [`BOM-DESIGN.md`](BOM-DESIGN.md) | Design | 100% | Product BOM/footprint at packaging design (BI-0217) | — | — |
+| [`BRANCHING-GIT-WORKFLOW.md`](BRANCHING-GIT-WORKFLOW.md) | Implemented | 100% | Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431) | — | — |
+| [`CAPABILITY-PACKS-DESIGN.md`](CAPABILITY-PACKS-DESIGN.md) | Design | 100% | Capability-pack registry + discovery->enablement (BI-0189) | — | — |
+| [`CAPABILITY-STEERING-DESIGN.md`](CAPABILITY-STEERING-DESIGN.md) | Design | 20% | Capability steering design + plan (BI-0221..BI-0230) | — | — |
+| [`CI-CD-AND-GATES-SSOT.md`](CI-CD-AND-GATES-SSOT.md) | SSOT | 100% | CI/CD + gates SSOT: triggers, precheck tiers, PR merge gate, delivery, generated-product CI (PF + products) | — | — |
+| [`COMPLIANCE-REGISTER.md`](COMPLIANCE-REGISTER.md) | SSOT | 100% | Generated compliance register: framework->control->evidence (BI-PF-1206) | — | — |
+| [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
+| [`CORRECTION-LEDGER.md`](CORRECTION-LEDGER.md) | SSOT | 100% | Every HIL correction becomes a durable rule + an enforcement point; schema, enforcement, RAG feed, seed entries | — | — |
+| [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
+| [`DESIGN-QUALITY-RCCA.md`](DESIGN-QUALITY-RCCA.md) | Implemented | 100% | Design-quality RCCA rules and review evidence requirements | — | — |
+| [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
+| [`DOGFOOD-E2E-DESIGN.md`](DOGFOOD-E2E-DESIGN.md) | Design | 60% | DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459) | — | — |
+| [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
+| [`E2E-WORKFLOW.md`](E2E-WORKFLOW.md) | Implemented | 100% | End-to-end PF-SB workflow from intake through delivery | — | — |
+| [`EDP-17-SCHEMA.md`](EDP-17-SCHEMA.md) | Design | 100% | Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract | — | — |
+| [`EDP-22-BENCHMARKS-SLOS.md`](EDP-22-BENCHMARKS-SLOS.md) | Design | 100% | EDP-22 benchmark/SLO/EXPLAIN/quota/degradation design and evidence (BI-PF-1314) | — | — |
+| [`EDP-22-RUNBOOK.md`](EDP-22-RUNBOOK.md) | Tooling | 100% | EDP-22 operator runbook for benchmarks, EXPLAIN, degradation, and SLO assets | — | — |
+| [`EDP-24-EVIDENCE-GATE.md`](EDP-24-EVIDENCE-GATE.md) | Design | 100% | EDP-24 evidence gate: measured EDP-22 baseline decision for scale-out (BI-PF-1317) | — | — |
+| [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
+| [`EDP-EXECUTION-ORDER.md`](EDP-EXECUTION-ORDER.md) | SSOT | 100% | Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388) | — | — |
+| [`EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md`](EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md) | SSOT | 100% | PF persistence + SaaS deployment: what lives in DB vs object store vs files, how to configure/swap DB and storage, deploy workflow, SaaS gaps (BI-PF-1292) | — | — |
+| [`EDP-STORAGE-ADAPTERS.md`](EDP-STORAGE-ADAPTERS.md) | SSOT | 100% | EDP ports & adapters: every store is a port with swappable adapters (Postgres/S3/local/NFS/...); conformance-tested (BI-PF-1309/1305) | — | — |
+| [`EDP-STORE-STATUS-AND-CONCURRENCY.md`](EDP-STORE-STATUS-AND-CONCURRENCY.md) | SSOT | 100% | Store status matrix (file|view|table, migrated?) + concurrency, RAG, intake, generated-product data homes (BI-PF-1292) | — | — |
+| [`EDP-TENANT-AUTH-TRUST-BOUNDARY.md`](EDP-TENANT-AUTH-TRUST-BOUNDARY.md) | Implemented | 100% | EDP per-tenant authentication, gateway claims, and trust boundary architecture (BI-PF-1478) | — | — |
+| [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
+| [`ENG-1-TASK-CONTRACT.md`](ENG-1-TASK-CONTRACT.md) | Design | 100% | ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate) | — | — |
+| [`ENG-10-RELEASE.md`](ENG-10-RELEASE.md) | Design | 100% | ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate | — | — |
+| [`ENG-2-WORK-PLANNER-SCHEDULER.md`](ENG-2-WORK-PLANNER-SCHEDULER.md) | Design | 100% | ENG-2 planner/scheduler: dependency graph, capability match, file-overlap, elastic K<=N | — | — |
+| [`ENG-3-GIT-WORKTREE-ORCHESTRATION.md`](ENG-3-GIT-WORKTREE-ORCHESTRATION.md) | Design | 100% | ENG-3 git/worktree orchestration: one git owner, branch naming, isolated worktrees (PF-050 fixed) | — | — |
+| [`ENG-4-WORKER-RUNTIME.md`](ENG-4-WORKER-RUNTIME.md) | Design | 100% | ENG-4 worker runtime: provider adapters + normalized WorkerResult in isolated worktrees (OpenCode optional) | — | — |
+| [`ENG-5-GITHUB-PR-CI.md`](ENG-5-GITHUB-PR-CI.md) | Design | 100% | ENG-5 GitHub/PR/CI orchestration: guarded PR + run-bound evidence + optional gh adapter | — | — |
+| [`ENG-6-COMMON-VALIDATION-ENGINE.md`](ENG-6-COMMON-VALIDATION-ENGINE.md) | Design | 100% | ENG-6 common validation engine: one engine, profiles FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE over existing validators | — | — |
+| [`ENG-7-FEATURE-PR.md`](ENG-7-FEATURE-PR.md) | Design | 100% | ENG-7 FEATURE_PR execution: exact SHA/base/merge-base, fresh validation worktree, changed-file/impact, evidence, PR gate | — | — |
+| [`ENG-8-INTEGRATION.md`](ENG-8-INTEGRATION.md) | Design | 100% | ENG-8 integration: INTEGRATION validation, merge gate + queue, shared-path reservation, CI full precheck | — | — |
+| [`ENG-9-DOGFOOD.md`](ENG-9-DOGFOOD.md) | Design | 100% | ENG-9 dogfood: baseline->worktree->pipeline->generated-product validation, fail-closed states | — | — |
+| [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
+| [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
+| [`EVENT-TRANSPORTS-DESIGN.md`](EVENT-TRANSPORTS-DESIGN.md) | Design | 100% | BI-PF-1270 event transports design | — | — |
+| [`EVENTING-ALERTING-SSOT-DESIGN.md`](EVENTING-ALERTING-SSOT-DESIGN.md) | Design | 0% | Eventing & Alerting SSOT: Go-first event bus + subscriber/alert transports; Python thin client (BI-PF-1265/1266; ADR-0005) | — | — |
+| [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
+| [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
+| [`FIX-IMPACT-CONTRACT.md`](FIX-IMPACT-CONTRACT.md) | SSOT | 100% | Fix impact contract: reproducer, regression test, evidence, rollback, artifacts, status | — | — |
+| [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
+| [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
+| [`GCS-ADAPTER-QUALIFICATION.md`](GCS-ADAPTER-QUALIFICATION.md) | Implemented | 100% | GCS ObjectStore adapter streaming resumable upload and qualification runbook (BI-PF-1435) | — | — |
+| [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
+| [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
+| [`GLOSSARY.md`](GLOSSARY.md) | SSOT | 100% | Pinned definitions (API=contract vs transport, service, caller classes, gates, dispositions, review terms, model-working terms) - define before building | — | — |
+| [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |
+| [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
+| [`IMPLEMENTATION-CONTROLS-DESIGN.md`](IMPLEMENTATION-CONTROLS-DESIGN.md) | Design | 100% | BI-PF-1538 implementation controls and prompt mandates | — | — |
+| [`INTAKE-AND-BACKLOG-DESIGN.md`](INTAKE-AND-BACKLOG-DESIGN.md) | Implemented | 100% | Intake & backlog design | — | — |
+| [`ISSUE-CLOSE-LOOP-DESIGN.md`](ISSUE-CLOSE-LOOP-DESIGN.md) | Design | 100% | Issue<->backlog bidirectional close loop (BI-PF-0271) | — | — |
+| [`LEARNING-PIPELINE-DESIGN.md`](LEARNING-PIPELINE-DESIGN.md) | Design | 100% | Evidence-gated learning pipeline (BI-PF-0293/0294/0295) | — | — |
+| [`LICENSING-ENTITLEMENTS-EDITIONS-MAP.md`](LICENSING-ENTITLEMENTS-EDITIONS-MAP.md) | Design | 100% | Entitlements/licensing/editions/packaging map + flows (BI-PF-1263) | — | — |
+| [`LOGS-AND-OBSERVABILITY.md`](LOGS-AND-OBSERVABILITY.md) | Analysis (current) | 100% | As-is map of every log/event/state file + the no-SSOT gap to fix (BI-PF-0233/0234/0235) | — | — |
+| [`MASTER-0-CURRENT-STATE-TRUTH.md`](MASTER-0-CURRENT-STATE-TRUTH.md) | Design | 100% | MASTER-0 current-state architecture truth + discovery gate | — | — |
+| [`MCP-DESIGN.md`](MCP-DESIGN.md) | Design | 100% | MCP interop: expose tools + consume external servers (BI-0196) | — | — |
+| [`MEDIA-AGENTS-DESIGN.md`](MEDIA-AGENTS-DESIGN.md) | Design | 100% | Media agents: analyst/generator/editor/librarian (BI-0190) | — | — |
+| [`MEDIA-CHUNKING-DESIGN.md`](MEDIA-CHUNKING-DESIGN.md) | Design | 100% | Media chunking + markdown asset-ref resolution (BI-PF-0288) | — | — |
+| [`MEDIA-CONTEXT-DESIGN.md`](MEDIA-CONTEXT-DESIGN.md) | Design | 100% | Media context: asset->prompt selection + summary/native parts (BI-PF-0287) | — | — |
+| [`MEDIA-INGEST-DESIGN.md`](MEDIA-INGEST-DESIGN.md) | Design | 100% | Media ingest + segmentation/tiling + asset store (BI-0187) | — | — |
+| [`MEDIA-QA-DESIGN.md`](MEDIA-QA-DESIGN.md) | Design | 100% | Media QA validators (BI-0191) | — | — |
+| [`MODEL-ASSISTED-ENGINEERING.md`](MODEL-ASSISTED-ENGINEERING.md) | SSOT | 100% | Process guardrails for model-assisted engineering: LLM failure modes/drift, don't-trust-the-model, sub-agent cost+optimization, train-vs-structure (runtime LLM guardrails are separate) | — | — |
+| [`MODEL-POLICY-DESIGN.md`](MODEL-POLICY-DESIGN.md) | Design | 100% | Versioned per-model eligibility policy schema (BI-PF-0278) | — | — |
+| [`MODEL-STRATEGY-DESIGN.md`](MODEL-STRATEGY-DESIGN.md) | Design | 100% | Two-phase model & capability strategy gate (BI-0192/BI-0210) | — | — |
+| [`MULTIMODAL-E2E-DESIGN.md`](MULTIMODAL-E2E-DESIGN.md) | Design | 100% | Multimodal end-to-end acceptance (BI-0212) | — | — |
+| [`MULTIMODAL-LLM-DESIGN.md`](MULTIMODAL-LLM-DESIGN.md) | Design | 100% | Multimodal LLM plumbing: media parts in llm_client (BI-0186) | — | — |
+| [`Multi-Agent-Multi-Project-Unique-Features.md`](Multi-Agent-Multi-Project-Unique-Features.md) | Design | 80% | Unique multi-agent / multi-project features | Informational only: a few nice-to-have surfaces, not tracked as work. | — |
+| [`OTEL-GENAI-DESIGN.md`](OTEL-GENAI-DESIGN.md) | Design | 100% | OpenTelemetry GenAI observability incl. multimodal (BI-0199) | — | — |
+| [`PER-UNIT-COST-DESIGN.md`](PER-UNIT-COST-DESIGN.md) | Design | 100% | Per-unit media cost model + projection (BI-0194) | — | — |
+| [`PF-API-SERVICE-OR-SERVER.md`](PF-API-SERVICE-OR-SERVER.md) | SSOT | 100% | PF Server/Service topology: many services serve API + operate PF; ownership by domain not language; language rule is Go-forward not a port; caller classes x transport; one instance per service per environment; interim: no PF token for internal | — | — |
+| [`PF-BASELINE.md`](PF-BASELINE.md) | Implemented | 100% | PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392) | — | — |
+| [`PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md`](PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md) | Design | 0% | Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360) | — | — |
+| [`PF-DELIVERY-BASELINE.md`](PF-DELIVERY-BASELINE.md) | SSOT | 100% | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled; customer contract (BI-PF-0387) | — | — |
+| [`PF-DESIGN-DELIVERY-CONTRACT.md`](PF-DESIGN-DELIVERY-CONTRACT.md) | Implemented | 100% | Design and delivery contract for PF work items | — | — |
+| [`PF-MODULE-IP-ASSESSMENT.md`](PF-MODULE-IP-ASSESSMENT.md) | SSOT | 100% | PF platform module IP-value assessment & rewrite-by-value migration inventory: Tier 1-4 classification for all 340 platform modules (BI-PF-0386) | — | — |
+| [`PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md`](PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md) | Design | 10% | Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388) | — | — |
+| [`PFSSOT-P0-REUSE-MAP.md`](PFSSOT-P0-REUSE-MAP.md) | Design | 100% | PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate) | — | — |
+| [`PFSSOT-P1-BACKLOG-FIELDS.md`](PFSSOT-P1-BACKLOG-FIELDS.md) | Design | 100% | PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py) | — | — |
+| [`PFSSOT-P10-PF-SURFACE.md`](PFSSOT-P10-PF-SURFACE.md) | Design | 100% | PFSSOT P10 /pf command surface: thin CLI + slash command over the worker/scheduler API (/pipeline deprecated alias) | — | — |
+| [`PFSSOT-P11-ADAPTERS.md`](PFSSOT-P11-ADAPTERS.md) | Design | 100% | PFSSOT P11 additional runtime adapters: claude-code (optional CLI) + remote (pull-based) alongside opencode/command/native | — | — |
+| [`PFSSOT-P2-GROOMING.md`](PFSSOT-P2-GROOMING.md) | Design | 100% | PFSSOT P2 AI+user grooming: AI-default (reuse agent runtime), deterministic fallback, guidelines/cadence config, /backlog groom API | — | — |
+| [`PFSSOT-P3-ARCHITECTURE-ANALYSIS.md`](PFSSOT-P3-ARCHITECTURE-ANALYSIS.md) | Design | 100% | PFSSOT P3 deep architecture analysis merged into grooming: codebase-grounded existing components/APIs, deep-by-default on entry | — | — |
+| [`PFSSOT-P4-ELIGIBILITY.md`](PFSSOT-P4-ELIGIBILITY.md) | Design | 100% | PFSSOT P4 scheduler eligibility over the canonical backlog (analysis gate + deps + contention + capability), read-only | — | — |
+| [`PFSSOT-P5-CLAIM-LEASE.md`](PFSSOT-P5-CLAIM-LEASE.md) | Design | 100% | PFSSOT P5 atomic claim + lease + expiry recovery (single claimer; fixes IS-PF-0034) | — | — |
+| [`PFSSOT-P6-WORKER-REGISTRY.md`](PFSSOT-P6-WORKER-REGISTRY.md) | Design | 100% | PFSSOT P6 minimal worker registry + heartbeat + lifecycle (runtime-neutral; feeds scheduler slots) | — | — |
+| [`PFSSOT-P7-ADAPTERS.md`](PFSSOT-P7-ADAPTERS.md) | Design | 100% | PFSSOT P7 runtime-neutral worker adapter contract (doc section 18 verbs; OpenCode first, native declared) | — | — |
+| [`PFSSOT-P8-WORK-PULL.md`](PFSSOT-P8-WORK-PULL.md) | Design | 100% | PFSSOT P8 manual work pull: compose registry+eligibility+claim+adapter, return assignment package (first e2e) | — | — |
+| [`PFSSOT-P8A-SINGLE-PATH.md`](PFSSOT-P8A-SINGLE-PATH.md) | Design | 100% | PFSSOT P8A single submission path (fixes IS-PF-0035) + optional/removable worker layer (WORKER_INTEGRATION_ENABLED) | — | — |
+| [`PFSSOT-P8A1-DELIVERY-WRITEBACK.md`](PFSSOT-P8A1-DELIVERY-WRITEBACK.md) | Design | 100% | PFSSOT P8A.1 auto delivery + evidence write-back on verified completion (close_loop finalize) | — | — |
+| [`PFSSOT-P9-AUTO-DISPATCH.md`](PFSSOT-P9-AUTO-DISPATCH.md) | Design | 100% | PFSSOT P9 automatic dispatch (configurable, default-off; composes eligibility+claim+registry+adapter) | — | — |
+| [`PIDL-1-CONTEXT-RESOLVER.md`](PIDL-1-CONTEXT-RESOLVER.md) | Design | 100% | PIDL-1 personal-intelligence context resolver: relevant-subset rules/principles/preferences/lenses + execution policy over existing owners | — | — |
+| [`PIDL-2-DECISION-ENGINE.md`](PIDL-2-DECISION-ENGINE.md) | Design | 100% | PIDL-2 decision engine: structured decision contract (AUTO_PROCEED/REVIEW/CORRECT/APPROVAL_REQUIRED/ESCALATE) + deterministic confidence/risk | — | — |
+| [`PIDL-3-RESULT-GATE.md`](PIDL-3-RESULT-GATE.md) | Design | 100% | PIDL-3 worker-result decision gate (primary trigger) wired at the close boundary; advisory default, enforce via PIDL_GATE_MODE | — | — |
+| [`PIDL-4-DISPATCH-SYNTHESIS.md`](PIDL-4-DISPATCH-SYNTHESIS.md) | Design | 100% | PIDL-4 pre-dispatch context + cross-worker synthesis + consequential-action gate; wired into scheduler.next_eligible (pickup) and close_loop | — | — |
+| [`PIDL-5-TRACE-APPROVAL.md`](PIDL-5-TRACE-APPROVAL.md) | Design | 100% | PIDL-5 approval policy + controlled outcome/correction feedback + versioned decision trace + API/CLI visibility | — | — |
+| [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
+| [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
+| [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
+| [`PIPELINE-STAGES-REFERENCE.md`](PIPELINE-STAGES-REFERENCE.md) | Generated | 100% | Regenerable stages/agents reference | — | — |
+| [`PLUGINS-DESIGN.md`](PLUGINS-DESIGN.md) | Design | 100% | Plugin/registry framework (ports & adapters) (BI-0200) | — | — |
+| [`PR-WORKFLOW.md`](PR-WORKFLOW.md) | Implemented | 100% | Branch -> pre-check gates -> review -> merge (BI-0205) | — | — |
+| [`PRECHECK-GROUPS.md`](PRECHECK-GROUPS.md) | Tooling | 100% | Precheck split into sequential named groups (--group 1..5) + test sharding design (BI-PF-1419) | — | — |
+| [`PRODUCT-FORGE-ARCHITECTURE-AND-OPERATIONAL-REFERENCE.md`](PRODUCT-FORGE-ARCHITECTURE-AND-OPERATIONAL-REFERENCE.md) | Reference | 100% | Product Forge architecture and operational reference | — | — |
+| [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
+| [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN-updated.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
+| [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
+| [`PROMPT-MANDATES.md`](PROMPT-MANDATES.md) | Design | 100% | BI-PF-1542 design and implementation prompt mandates | — | — |
+| [`PROVIDER-FALLBACK.md`](PROVIDER-FALLBACK.md) | Implemented | 100% | Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247) | — | — |
+| [`PROVIDER-HEALTH-DESIGN.md`](PROVIDER-HEALTH-DESIGN.md) | Design | 100% | Provider health tracking feeding routing (BI-PF-0279) | — | — |
+| [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |
+| [`product_forge_AI_Model_Strategy_Orchestration.md`](Product_Factory_AI_Model_Strategy_Orchestration.md) | Analysis (reference) | 100% | Multi-model strategy: routing, cost-per-accepted, intelligence loop | — | — |
+| [`product_forge_Multi_Model_Adapters_Aggregators.md`](Product_Factory_Multi_Model_Adapters_Aggregators.md) | Analysis (reference) | 100% | Multi-model architecture: adapters/registry/router/generator/aggregator separation | — | — |
+| [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
+| [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Design | 10% | Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392 | — | — |
+| [`Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md`](Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md) | Design | 0% | Enterprise DB/storage architecture: performance+security design, repo reconciliation, phased roadmap (BI-PF-1320) | — | — |
+| [`RAG-PROCESS-MEMORY.md`](RAG-PROCESS-MEMORY.md) | SSOT | 100% | RAG + process memory: index decisions/learning/corrections with metadata + supersession, retrieve/inject at task start and gates; durable vs working memory | — | — |
+| [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
+| [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
+| [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
+| [`REL-0-PACKAGING.md`](REL-0-PACKAGING.md) | Design | 100% | REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners | — | — |
+| [`RESIDENCY-MANIFEST-GATE.md`](RESIDENCY-MANIFEST-GATE.md) | SSOT | 100% | Residency manifest + build/deploy gate: explicit home_region (IN template), profile bounds, Go validator, warn-first, stable error codes (BI-PF-1304) | — | — |
+| [`REVIEW-ATTRIBUTION.md`](REVIEW-ATTRIBUTION.md) | Implemented | 100% | Review finding attribution and loop-stop policy | — | — |
+| [`REVIEW-FOCUS.md`](REVIEW-FOCUS.md) | SSOT | 100% | Generated production-risk review checklist for the code-review agent (BI-PF-1066) | — | — |
+| [`REVIEW-GATES-LIFECYCLE.md`](REVIEW-GATES-LIFECYCLE.md) | SSOT | 100% | Binding backlog item lifecycle gates Gate1 -> Gate1.5 -> Gate2 -> Gate2.5 (second-model architect review) -> precheck -> merge -> closure -> DoD | — | — |
+| [`REVIEW-MATERIAL-CHANGE-DESIGN.md`](REVIEW-MATERIAL-CHANGE-DESIGN.md) | Design | 100% | BI-PF-1540: material-change decisions API and reviewed-ancestor delta base | — | — |
+| [`REVIEW-MODEL.md`](REVIEW-MODEL.md) | Implemented | 100% | Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070) | — | — |
+| [`REVIEW-TRIAGE-POLICY.md`](REVIEW-TRIAGE-POLICY.md) | Implemented | 100% | Review severity, scope, delta-only, and fix-evidence policy | — | — |
+| [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |
+| [`SCALABILITY-SSOT.md`](SCALABILITY-SSOT.md) | SSOT | 100% | PF capacity tiers T1-T4, SLO targets, scale-out/in triggers, execution order, and backlog tracking | — | — |
+| [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
+| [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |
+| [`SECTION-D-OBSERVABILITY-DESIGN.md`](SECTION-D-OBSERVABILITY-DESIGN.md) | Design | 30% | Section D observability design + plan (BI-PF-0244) | — | — |
+| [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
+| [`SECURITY-ARCHITECTURE-CISO.md`](SECURITY-ARCHITECTURE-CISO.md) | SSOT | 100% | CISO security-architecture posture: trust boundaries, controls, risk, framework mapping (BI-PF-1203) | — | — |
+| [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
+| [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
+| [`SPEC-CHAIN.md`](SPEC-CHAIN.md) | SSOT | 100% | PF-SB spec chain: functional freeze, design, conditional specs, conformance, fix-impact, review scope | — | — |
+| [`SPEC-CONTRACT-DESIGN.md`](SPEC-CONTRACT-DESIGN.md) | Design | 100% | BI-PF-1547 canonical spec contract compiler design | — | — |
+| [`STORE-DATAFLOW.md`](STORE-DATAFLOW.md) | Generated | 100% | Generated store data-flow inventory from config/store-registry.json (EDP-02/BI-PF-1294) | — | — |
+| [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
+| [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |
+| [`TOOLS-AND-DEPENDENCIES.md`](TOOLS-AND-DEPENDENCIES.md) | Implemented | 100% | PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436) | — | — |
+| [`UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md`](UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md) | Design | 0% | Framework-agnostic UI/UX + design-system inclusion: knowledge, skills, catalog, tokens, direction, a11y, design QA (epic BI-PF-1436) | — | — |
+| [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
+| [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
+| [`WORK-EXECUTION-CONTRACT.md`](WORK-EXECUTION-CONTRACT.md) | Implemented | 100% | Compact per-item execution contract | — | — |
+| [`WORKER-NEW-ARCHITECTURE.md`](WORKER-NEW-ARCHITECTURE.md) | Design | 0% | Worker fleet redesign (PARKED, after EDP-17): state + coordination substrate, control plane (schedule/assign/coordinate/observe/deliver), data plane (isolated execution) | — | — |
+| [`WORKER-SCHEDULER-OPERATIONS.md`](WORKER-SCHEDULER-OPERATIONS.md) | Implemented | 100% | Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery | — | — |
+| [`WORKER-TIMING-TOKENS.md`](WORKER-TIMING-TOKENS.md) | Design | 100% | Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store) | — | — |
+| [`WORKERGRID-DESIGN.md`](WORKERGRID-DESIGN.md) | Design | 10% | WorkerGrid: external producer-agnostic execution plane (ADR-0002); PF=producer/SSOT, executor split, shared service | — | — |
+| [`_knowledge_workflow.md`](_knowledge_workflow.md) | Adopted (reference) | 75% | Knowledge workflow note | Adopted: knowledge compiler/router. | — |
+| [`agent-audit.md`](agent-audit.md) | Runtime | 100% | Agent audit (runtime output) | — | — |
+| [`agent-context.md`](agent-context.md) | Runtime | 100% | Agent context (runtime output) | — | — |
+| [`agent_prompt_Comparision.md`](agent_prompt_Comparision.md) | Review (pending) | 0% | Per-agent current vs OSS-recommended (+map, per-phase) | **Not yet standardized: OSS-style role-prompt sections across the 61 agent cards.** | BI-0228 |
+| [`agent_prompt_current_vs_recommended.md`](agent_prompt_current_vs_recommended.md) | Review (pending) | 0% | Per-agent concrete current<->recommendation | **Still open: per-agent prompt upgrades + capability declarations from the recommendation tables.** | BI-0228, BI-0221–BI-0223 |
+| [`agents_prompts_instructions.md`](agents_prompts_instructions.md) | Current | 100% | All 61 agent cards + prompt assembly (mirror of .opencode/agent/*) | — | — |
+| [`credentials.md`](credentials.md) | Implemented | 100% | Credentials + budget registry (BI-0207) | — | — |
+| [`design-plan-BI0218.md`](design-plan-BI0218.md) | Design | 0% | AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218) | — | — |
+| [`design.md`](design.md) | Runtime | 100% | Design notes (runtime output) | — | — |
+| [`feature-status.md`](feature-status.md) | Runtime | 100% | Derived feature status | — | — |
+| [`final_required_changes.md`](final_required_changes.md) | Analysis (current) | 100% | Consolidated final change plan: audit M0/M1/M2 reconciled with backlog + our docs | — | — |
+| [`huggingface.md`](huggingface.md) | Adopted (reference) | 40% | HuggingFace / open-weights references | Partly adopted; model downloader planned (BI-0206). | — |
+| [`input_needed.md`](input_needed.md) | Adopted (reference) | 70% | Required-inputs notes | Adopted: readiness checklist (BI-0220). | — |
+| [`m0_status_and_coverage.md`](m0_status_and_coverage.md) | Analysis (current) | 100% | M0 status: PF-xx coverage, Section D status, open backlog | — | — |
+| [`merge-drift-conflict-github.md`](merge-drift-conflict-github.md) | Design | 100% | Merge/drift/conflict plan: root cause, stopgaps, and the EDP execution order that removes them (BI-PF-1292) | — | — |
+| [`model-tier-timing-and-multimodal-flow.md`](model-tier-timing-and-multimodal-flow.md) | Design | 80% | Tier timing + multimodal flow | **Pending: post-architect two-phase MODEL/CAPABILITY strategy gate.** | BI-0192, BI-0210 |
+| [`modelanalysis.md`](modelanalysis.md) | Adopted (reference) | 80% | Model capability matrix + tier recommendations | Adopted: model tiers + config/model-catalog.json. | — |
+| [`multimodal_orchestration.md`](multimodal_orchestration.md) | Design | 70% | Multimodal orchestration | **Not built: media capability packs, media agents, media QA validators, asset store.** | BI-0185 (epic), BI-0186–BI-0191, BI-0213 |
+| [`multimodal_selection_dynamic.md`](multimodal_selection_dynamic.md) | Design | 70% | Dynamic multimodal model selection | **Pending: dynamic modality/kind/model selection at the strategy gate.** | BI-0193, BI-0210 |
+| [`multimodel_architecture_support.md`](multimodel_architecture_support.md) | Design | 70% | Multi-model architecture support | **Pending: provider-kind abstraction + kind-aware model router, and the two-phase model gate.** | BI-0193, BI-0192 |
+| [`pipeline-diagrams-reference.md`](pipeline-diagrams-reference.md) | Generated | 100% | Regenerable diagram reference | — | — |
+| [`pipeline-openflowkit.md`](pipeline-openflowkit.md) | Adopted (reference) | 30% | openflowkit notes | Mostly not adopted (experimental notes). | — |
+| [`pipeline-quick-reference.md`](pipeline-quick-reference.md) | Adopted (reference) | 100% | Quick reference | Kept current as a quick reference. | — |
+| [`pipeline-state.md`](pipeline-state.md) | Runtime | 100% | Run-state notes | — | — |
+| [`pipeline_current_issues.md`](pipeline_current_issues.md) | Analysis (current) | 100% | Live pipeline issues: cost/latency/observability/backlog hygiene (+backlog IDs) | — | — |
+| [`pipeline_review_recommendations.md`](pipeline_review_recommendations.md) | Review (pending) | 0% | Consolidated review findings + recommendations (backlog IDs) | **Not yet applied: the 10 reliability/capability recommendations in this doc (one item each).** | BI-0220 (epic), BI-0221–BI-0230 |
+| [`product-plan.md`](product-plan.md) | Implemented | 100% | Product plan design (modules/features) | — | — |
+| [`product-portal.md`](product-portal.md) | Implemented | 100% | Product portal design | — | — |
+| [`productforge_full_architecture.md`](productforge_full_architecture.md) | SSOT | 100% | Architecture & design SSOT - start here | — | — |
+| [`requirements.md`](requirements.md) | Runtime | 100% | Requirements (runtime output) | — | — |
+| [`review.md`](review.md) | Runtime | 100% | Review notes (runtime output) | — | — |
+| [`test.md`](test.md) | Placeholder | not referenced | Empty/unused placeholder | — | — |
+| [`todo.md`](todo.md) | Placeholder | not referenced | Scratch todo (no content of value) | — | — |
+| [`todo_sept292026.md`](todo_sept292026.md) | TODO (current) | 100% | Actionable to-do (Sep 29 2026): log SSOT changes + seamless-execution standards + non-backlog fixes | — | — |
+| [`token-audit.md`](token-audit.md) | Adopted (reference) | 70% | Token audit | Adopted: token accounting. | — |
+| [`token_context_model.md`](token_context_model.md) | Adopted (reference) | 75% | Token/context model | Adopted: token/context budgeting. | — |
+| [`tools-and-generators.md`](tools-and-generators.md) | Adopted (reference) | 80% | Tools & generators catalogue | Adopted: tool/generator registry. | — |
 
 ## Folders under docs/
 | Folder | Status | Impl % | About |
@@ -197,6 +410,17 @@
 ## Pending & backlog (actionable roll-up - required, below 100%)
 | Doc | Impl % | What's pending | Backlog item(s) |
 |---|---|---|---|
-
+| [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | 60% | Pending: capability vectors per agent, capability-aware request builder, structured-output-first render. | BI-0221–BI-0224, BI-0228 |
+| [`Agent_llm_process.md`](Agent_llm_process.md) | 0% | Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging. | BI-0221–BI-0229 |
+| [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | 70% | Front-end MVP not built: every dashboard screen/view described here (backend-first). | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
+| [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | 70% | Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow. | BI-0205 |
+| [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | 80% | Pending: some external delivery targets + their dashboard selection/UI. | BI-0044, BI-0071, BI-0121–BI-0123 |
+| [`agent_prompt_Comparision.md`](agent_prompt_Comparision.md) | 0% | Not yet standardized: OSS-style role-prompt sections across the 61 agent cards. | BI-0228 |
+| [`agent_prompt_current_vs_recommended.md`](agent_prompt_current_vs_recommended.md) | 0% | Still open: per-agent prompt upgrades + capability declarations from the recommendation tables. | BI-0228, BI-0221–BI-0223 |
+| [`model-tier-timing-and-multimodal-flow.md`](model-tier-timing-and-multimodal-flow.md) | 80% | Pending: post-architect two-phase MODEL/CAPABILITY strategy gate. | BI-0192, BI-0210 |
+| [`multimodal_orchestration.md`](multimodal_orchestration.md) | 70% | Not built: media capability packs, media agents, media QA validators, asset store. | BI-0185 (epic), BI-0186–BI-0191, BI-0213 |
+| [`multimodal_selection_dynamic.md`](multimodal_selection_dynamic.md) | 70% | Pending: dynamic modality/kind/model selection at the strategy gate. | BI-0193, BI-0210 |
+| [`multimodel_architecture_support.md`](multimodel_architecture_support.md) | 70% | Pending: provider-kind abstraction + kind-aware model router, and the two-phase model gate. | BI-0193, BI-0192 |
+| [`pipeline_review_recommendations.md`](pipeline_review_recommendations.md) | 0% | Not yet applied: the 10 reliability/capability recommendations in this doc (one item each). | BI-0220 (epic), BI-0221–BI-0230 |
 
 > Regenerate: `python scripts/dev/gen_docs_index.py`.
