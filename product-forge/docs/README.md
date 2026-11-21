@@ -52,6 +52,7 @@
 | [`ARCHITECTURE-DECISIONS.md`](ARCHITECTURE-DECISIONS.md) | Implemented | 100% | Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery | — | — |
 | [`ARTIFACT-OWNERS.md`](ARTIFACT-OWNERS.md) | SSOT | 100% | Generated artifact->owner->consumer map for product docs (BI-PF-0765) | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
+| [`AZURE-BLOB-ADAPTER.md`](AZURE-BLOB-ADAPTER.md) | Implemented | 100% | Azure Blob Storage ObjectStore adapter specification and runbook (BI-PF-1433) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
