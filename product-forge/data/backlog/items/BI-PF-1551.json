@@ -1,0 +1,177 @@
+{
+  "id": "BI-PF-1551",
+  "due": "",
+  "tag": "PF",
+  "body": "Product Forge must orchestrate multiple LLMs (Cloud APIs like Gemini, Claude, OpenAI, and local endpoints like Ollama, vLLM) without coupling the platform binary to heavyweight ML framework dependencies or specific vendors. This gateway decouples model providers from platform packaging.",
+  "deps": [],
+  "epic": "BI-PF-0391",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Product Forge requires dynamic routing across multi-provider LLMs (OpenAI, Anthropic, Gemini, local Ollama) with latency, cost, and rate-limit fallback chains without vendor lock-in.",
+    "what_adds": "Universal Model Gateway and Dynamic Router with token budgeting, fallback cascades, and provider circuit breakers."
+  },
+  "label": "PF Backlog 686",
+  "links": {},
+  "owner": "eng:ai-infra",
+  "risks": [
+    "Increased invocation latency during failover cascades mitigated via proactive health checking."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Universal Model Gateway and Dynamic Router: unified provider adapter with token budgeting and fallback chains",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0391",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Model routing",
+        "verdict": "aligned",
+        "evidence": "core/model_router.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Provider decoupling",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Design and implement a unified model gateway and dynamic routing layer supporting BYO-key, token budgeting, multi-model fallback chains, and context-window governance across all pipeline stages.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=1"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:00:11.186861",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/engineering/worker-providers"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/business-models-kb.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-pricing.json",
+      "config/model-tier.json",
+      "config/provider-keys.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/business_models_kb.py",
+      "core/ci_cd_model.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/deploy_providers.py",
+      "core/design_tokens.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/business_models_kb.py, core/ci_cd_model.py, core/conversation_models.py"
+  },
+  "approach": "Build ModelRouter class consuming config/model-catalog.json and dynamically dispatching requests with retry policies and token telemetry.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/core/test_model_router.py"
+  ],
+  "in_scope": [
+    "core/model_router.py",
+    "Provider adapters",
+    "Fallback cascading",
+    "Token budgeting"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Switch router configuration to direct single-provider passthrough.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:00:11.595046",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Implement an extensible multi-model gateway and dynamic router supporting multi-provider fallback chains, quota enforcement, and token budgeting.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:00:11.407468"
+  },
+  "requester": "product:architect",
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:00:06.010096",
+  "updated_at": "2026-11-21T22:57:11.747955",
+  "external_id": "ARCH-MODEL-GATEWAY-ROUTER-02",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Model weight hosting",
+    "Custom inference hardware orchestration"
+  ],
+  "verification": [
+    "Mock provider tests asserting failover cascades, timeout handling, and quota exhaustion errors."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/model_router.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Model gateway provides unified OpenAI-compatible routing interface across Anthropic, Gemini, OpenAI, and local Ollama endpoints.",
+    "AC-2: Dynamic router automatically fails over to configured secondary models when primary provider encounters rate limits (HTTP 429) or timeouts.",
+    "AC-3: Token budget controller tracks and enforces per-tenant daily and monthly consumption limits with fail-closed quota policies."
+  ],
+  "affected_components": [
+    "core/model_router.py",
+    "core/llm_gateway.py"
+  ]
+}

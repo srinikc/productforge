@@ -1,0 +1,173 @@
+{
+  "id": "BI-PF-1553",
+  "due": "",
+  "tag": "PF",
+  "body": "Replacing the legacy frozen dashboard with a modern SPA console requires a seamless single-binary distribution strategy for on-prem and local developers, while allowing containerized deployment for SaaS. This item defines the asset embedding pipeline.",
+  "deps": [],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "task",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Product Forge web console and dashboard assets must be securely bundled and served directly by the platform binary without shipping exposed web source files or running Node.js at runtime.",
+    "what_adds": "Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary."
+  },
+  "label": "PF Backlog 688",
+  "links": {},
+  "owner": "eng:frontend",
+  "risks": [
+    "Binary size increase from embedded assets mitigated via asset compression and selective asset chunking."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Console packaging",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Embedded web assets",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Define and implement the build-time pipeline that embeds compiled SPA static web assets into the Go server binary via embed.FS, with support for decoupled container hosting in SaaS.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=2",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:00:28.178616",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/engineering/pidl/pre-dispatch",
+      "/api/v1/packaging/build",
+      "/api/v1/packaging/eap",
+      "/api/v1/packaging/eap/registry",
+      "/api/v1/packaging/eap/validate",
+      "/api/v1/packaging/editions",
+      "/api/v1/packaging/manifest",
+      "/api/v1/packaging/validate"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/packaging.py",
+      "core/websocket_manager.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/packaging.py, core/websocket_manager.py, /api/v1/engineering/pidl/pre-dispatch, /api/v1/packaging/build"
+  },
+  "approach": "Use vite build to produce static dist/, embed via go:embed in Go server binary, and catalog console asset bundle in EAP manifest.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/pipeline/test_web_console_packaging.py"
+  ],
+  "in_scope": [
+    "dashboard/web/",
+    "Go server asset embedding",
+    "Build automation",
+    "EAP integration"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Serve web console from external static directory via configuration flag.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:00:28.588611",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Define and automate the web console compilation pipeline to produce an embedded static SPA distribution served directly by Go core server.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:00:28.414335"
+  },
+  "requester": "product:architect",
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:00:22.828726",
+  "updated_at": "2026-11-21T22:57:12.126885",
+  "external_id": "ARCH-WEB-CONSOLE-PACKAGING-04",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Server-side rendering (SSR)",
+    "Third-party CDN management"
+  ],
+  "verification": [
+    "Build tests asserting binary asset embedding, HTTP 200 SPA route resolution, and zero node_modules in output packages."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/packaging.py",
+    "cmd/pf-core/main.go"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Web console build pipeline compiles SPA frontend into optimized HTML/JS/CSS assets with content hashing and integrity checks.",
+    "AC-2: Go platform server embeds compiled frontend assets via go:embed and serves them with HTTP cache headers and gzip compression.",
+    "AC-3: Shipped customer packages contain zero Node.js runtime dependencies or raw TypeScript/JSX source files."
+  ],
+  "affected_components": [
+    "dashboard/web/",
+    "cmd/pf-core/",
+    "core/packaging.py"
+  ]
+}

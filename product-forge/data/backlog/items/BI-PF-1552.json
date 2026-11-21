@@ -1,0 +1,176 @@
+{
+  "id": "BI-PF-1552",
+  "due": "",
+  "tag": "PF",
+  "body": "RAG and durable process memory (decision ledgers, ADRs, correction history) are needed across all platform editions, but community/local editions require zero-external-dependency storage while enterprise/SaaS requires scalable pgvector. This adapter provides a unified interface across all editions.",
+  "deps": [],
+  "epic": "BI-PF-1292",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Knowledge item indexing, architectural memory, and code search require vector storage that operates both embedded locally (SQLite-vss) and scalable in enterprise clusters (PostgreSQL pgvector).",
+    "what_adds": "Dual-Engine RAG and Memory Storage Adapter with automatic backend detection and hybrid semantic/lexical search."
+  },
+  "label": "PF Backlog 687",
+  "links": {},
+  "owner": "eng:data",
+  "risks": [
+    "SQLite-vss platform compilation compatibility on Windows mitigated via pre-built extension binaries."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Dual-Engine RAG and Memory Storage Adapter: embedded SQLite-vss for local editions and PostgreSQL pgvector for enterprise",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-1292",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "RAG storage",
+        "verdict": "aligned",
+        "evidence": "core/rag_adapter.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Storage duality",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Implement a dual-engine storage adapter interface for vector and lexical retrieval that transparently switches between embedded SQLite-vss (local) and PostgreSQL/pgvector (enterprise).",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=7",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:00:19.994132",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/engineering/coverage",
+      "/api/v1/enterprise/instance",
+      "/api/v1/enterprise/tenants",
+      "/api/v1/enterprise/tenants/{tenant}",
+      "/api/v1/enterprise/tenants/{tenant}/checkout",
+      "/api/v1/enterprise/tenants/{tenant}/entitlements",
+      "/api/v1/enterprise/tenants/{tenant}/license",
+      "/api/v1/enterprise/tenants/{tenant}/members"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/generator_adapters.py",
+      "core/intake_adapters.py",
+      "core/memory_api.py",
+      "core/nfr_coverage.py",
+      "core/test_adapters.py",
+      "core/vendor_adapters.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/generator_adapters.py, core/intake_adapters.py, core/memory_api.py"
+  },
+  "approach": "Create VectorStoreProtocol with SqliteVssBackend and PgVectorBackend implementations selected via database DSN connection string.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/core/test_rag_adapter.py"
+  ],
+  "in_scope": [
+    "core/rag_adapter.py",
+    "SQLite-vss driver",
+    "pgvector integration",
+    "Semantic search API"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Revert to lexical BM25 search fallback in core/search.py.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:00:20.355549",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Build a pluggable dual-engine vector adapter supporting embedded SQLite-vss for community/local editions and pgvector for enterprise SaaS clusters.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:00:20.190041"
+  },
+  "requester": "product:architect",
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:00:14.190822",
+  "updated_at": "2026-11-21T22:57:11.930415",
+  "external_id": "ARCH-DUAL-RAG-MEMORY-ADAPTER-03",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "External proprietary vector databases (Pinecone, Weaviate)",
+    "Custom embedding model training"
+  ],
+  "verification": [
+    "Contract tests verifying embedding insertion, nearest neighbor retrieval, and cross-engine query equivalence."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/rag_adapter.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Vector storage adapter abstracts embedding indexing and cosine similarity queries across SQLite-vss and PostgreSQL pgvector backends.",
+    "AC-2: Community edition runs zero-dependency local vector store using sqlite-vss without requiring external daemon infrastructure.",
+    "AC-3: Enterprise edition seamlessly switches to PostgreSQL pgvector with tenant isolation and row-level security enforcement."
+  ],
+  "affected_components": [
+    "core/rag_adapter.py",
+    "core/memory.py"
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "id": "BI-PF-1550",
+  "due": "",
+  "tag": "PF",
+  "body": "Proprietary agent personas, role contracts, and system instructions constitute core enterprise IP. Shipping them as raw markdown or JSON on customer filesystems (on-prem/OEM) exposes Product Forge's competitive reasoning logic to reverse engineering and direct extraction. This item establishes the asset compiler and runtime decryptor to keep prompt IP secure.",
+  "deps": [],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Agent system instructions, system prompts, and tool calling definitions are currently stored as plaintext or markdown files, creating high vulnerability to reverse-engineering, prompt extraction, and IP theft in on-prem and edge distributions.",
+    "what_adds": "Prompt and Persona Asset Compiler providing offline tokenization, bytecode encryption, and runtime decrypt-on-invocation for proprietary LLM instructions."
+  },
+  "label": "PF Backlog 685",
+  "links": {},
+  "owner": "eng:platform",
+  "risks": [
+    "Key management complexity in air-gapped sovereign environments mitigated via licensing key derivation."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Prompt and Persona Asset Compiler: secure compilation and runtime encryption for proprietary agent instructions",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Prompt compilation",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Asset protection",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Build an asset compilation and encryption pipeline that compiles agent prompts and persona templates into Go binary assets via embed.FS or encrypted asset packages with runtime license-key-derived decryption.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:00:02.785496",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/validation/agents",
+      "/api/v1/validation/agents/coverage",
+      "/api/v1/validation/agents/register",
+      "/api/v1/validation/agents/{agent_id}"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json",
+      "config/persona.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/agent_card_loader.py, core/agent_hierarchy.py, core/agent_ledger.py"
+  },
+  "approach": "Implement compile_prompts() pipeline that packages prompt markdown files into encrypted .bin bundles and catalogs them in EAP manifest.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/pipeline/test_prompts_compiler.py"
+  ],
+  "in_scope": [
+    "core/prompts_compiler.py",
+    "Asset bundle encryption",
+    "Runtime persona loader"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Disable prompt compilation in packaging flags to fall back to standard asset packaging.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:00:03.219838",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Build a secure prompt compiler and runtime packaging layer that compiles proprietary agent instructions into encrypted asset bundles in EAP distributions.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:00:03.008003"
+  },
+  "requester": "product:architect",
+  "blocked_by": [],
+  "created_at": "2026-11-21T21:59:56.830785",
+  "updated_at": "2026-11-21T22:57:11.596189",
+  "external_id": "ARCH-PROMPT-ASSET-COMPILER-01",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "External model fine-tuning weights",
+    "User conversational history encryption"
+  ],
+  "verification": [
+    "Automated test suite verifying AES-256 encryption, decryption round-trip, and fail-closed corrupt bundle rejection."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/prompts_compiler.py",
+    "core/packaging.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Prompt asset compiler tokenizes and encrypts persona definitions using AES-256-GCM authenticated cipher with runtime key derivation.",
+    "AC-2: Shipped customer packages contain zero readable system prompt files or plaintext markdown instructions in distributions.",
+    "AC-3: Runtime agent adapter transparently decrypts and loads compiled prompt bundles in memory with zero plaintext disk leakage."
+  ],
+  "affected_components": [
+    "core/packaging.py",
+    "core/prompts_compiler.py",
+    "core/agent_runtime.py"
+  ]
+}
