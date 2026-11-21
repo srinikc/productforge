@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"crypto/subtle"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -39,6 +38,7 @@ import (
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/auth"
 	"productforge/edpsvc/internal/cache"
 	"productforge/edpsvc/internal/degrade"
 	"productforge/edpsvc/internal/limits"
@@ -66,6 +66,7 @@ type backlogStore interface {
 
 type server struct {
 	admin          string
+	authenticator  *auth.Authenticator
 	migDir         string
 	obj            datastore.ObjectStore
 	cfg            limits.Config
@@ -179,7 +180,11 @@ func main() {
 	}
 	m := limits.NewMetrics()
 	q := limits.NewQuota(cfg, nil, m)
-	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
+	tenantTokens := envOr("PF_TENANT_TOKENS", "")
+	gwSecret := envOr("PF_GATEWAY_SECRET", "")
+	gwSecretOld := envOr("PF_GATEWAY_SECRET_OLD", "")
+	authenticator := auth.NewAuthenticator(admin, tenantTokens, gwSecret, gwSecretOld)
+	s := &server{admin: admin, authenticator: authenticator, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
 	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
@@ -259,19 +264,19 @@ func (s *server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
 	mux.HandleFunc("/admin/cache", s.adminOnly(s.cacheHandle))
 	mux.HandleFunc("/admin/limits", s.adminOnly(s.adminLimits))
-	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
-	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
-	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
+	mux.HandleFunc("/artifacts", s.tenantOrAdmin(s.artifactUpload))
+	mux.HandleFunc("/artifacts/", s.tenantOrAdmin(s.artifactRoute))
+	mux.HandleFunc("/audit", s.tenantOrAdmin(s.auditAppend))
 	mux.HandleFunc("/admin/audit-coverage", s.adminOnly(s.auditCoverage))
 	mux.HandleFunc("/admin/objects/url", s.adminOnly(s.objectURL))
-	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
-	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
-	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
-	mux.HandleFunc("/memory", s.adminOnly(s.memoryHandle))
-	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
-	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
+	mux.HandleFunc("/jobs", s.tenantOrAdmin(s.jobSubmit))
+	mux.HandleFunc("/jobs/claim", s.tenantOrAdmin(s.jobClaim))
+	mux.HandleFunc("/jobs/action", s.tenantOrAdmin(s.jobAction))
+	mux.HandleFunc("/memory", s.tenantOrAdmin(s.memoryHandle))
+	mux.HandleFunc("/memory/", s.tenantOrAdmin(s.memoryByID))
+	mux.HandleFunc("/backlog", s.tenantOrAdmin(s.backlogHandle))
 	mux.HandleFunc("/backlog/ids:reserve", s.adminOnly(s.backlogReserve))
-	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
+	mux.HandleFunc("/backlog/", s.tenantOrAdmin(s.backlogByID))
 	return mux
 }
 
@@ -524,33 +529,78 @@ func findMigrations() string {
 	}
 }
 
-func (s *server) authorized(r *http.Request) bool {
-	auth := r.Header.Get("Authorization")
-	token := ""
-	if strings.HasPrefix(auth, "Bearer ") {
-		token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+func (s *server) auth() *auth.Authenticator {
+	if s.authenticator == nil {
+		s.authenticator = auth.NewAuthenticator(s.admin, os.Getenv("PF_TENANT_TOKENS"), os.Getenv("PF_GATEWAY_SECRET"), os.Getenv("PF_GATEWAY_SECRET_OLD"))
 	}
-	th := sha256.Sum256([]byte(token))
-	ah := sha256.Sum256([]byte(s.admin))
-	return subtle.ConstantTimeCompare(th[:], ah[:]) == 1
+	return s.authenticator
 }
 
-func (s *server) authorize(w http.ResponseWriter, r *http.Request) bool {
-	if !s.authorized(r) {
-		limits.WriteError(w, r, http.StatusUnauthorized, "admin authorization required")
-		return false
+func (s *server) authorize(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
+	p, err := s.auth().Authenticate(r)
+	if err != nil || p == nil {
+		if errors.Is(err, auth.ErrExpiredCredential) {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "EXPIRED_CREDENTIAL", "credential has expired", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "expired")
+		} else if errors.Is(err, auth.ErrPrematureCredential) {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "PREMATURE_CREDENTIAL", "credential not yet valid", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "premature")
+		} else if errors.Is(err, auth.ErrInvalidClaims) {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "INVALID_CLAIMS", "invalid tenant claim", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "invalid_claims")
+		} else {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "unauthenticated")
+		}
+		return nil, false
 	}
-	return true
+	s.metrics.Inc("edp_auth_successes_total")
+	return r.WithContext(auth.WithPrincipal(r.Context(), p)), true
 }
 
 func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !s.authorized(r) {
-			limits.WriteError(w, r, http.StatusUnauthorized, "admin authorization required")
+		p, ok := auth.PrincipalFrom(r.Context())
+		if !ok || p == nil {
+			var authed bool
+			r, authed = s.authorize(w, r)
+			if !authed {
+				return
+			}
+			p, _ = auth.PrincipalFrom(r.Context())
+		}
+		if p == nil || !p.IsAdmin {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "admin authorization required", "auth", false)
 			return
 		}
 		fn(w, r)
 	}
+}
+
+func (s *server) tenantOrAdmin(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, ok := auth.PrincipalFrom(r.Context())
+		if !ok || p == nil {
+			var authed bool
+			r, authed = s.authorize(w, r)
+			if !authed {
+				return
+			}
+			p, _ = auth.PrincipalFrom(r.Context())
+		}
+		if p == nil {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required", "auth", false)
+			return
+		}
+		fn(w, r)
+	}
+}
+
+func (s *server) resolveTenant(r *http.Request, fallback string) string {
+	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && !p.IsAdmin && p.Tenant != "" {
+		return p.Tenant
+	}
+	return strings.TrimSpace(fallback)
 }
 
 func (s *server) withStore(_ context.Context, fn func(*store.PgStore) (any, error)) (any, error) {
@@ -768,7 +818,7 @@ func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	tenant := r.FormValue("tenant")
+	tenant := s.resolveTenant(r, r.FormValue("tenant"))
 	if tenant == "" {
 		s.fail(w, r, http.StatusBadRequest, errTenant)
 		return
@@ -820,7 +870,7 @@ func (s *server) artifactRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, error) {
-	tenant := r.URL.Query().Get("tenant")
+	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
 	if tenant == "" {
 		return nil, errTenant
 	}
@@ -873,8 +923,13 @@ func (s *server) auditAppend(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	if b.Tenant == "" || b.Action == "" {
-		s.bad(w, r, http.StatusBadRequest, "tenant and action are required")
+	if b.Action == "" {
+		s.bad(w, r, http.StatusBadRequest, "action is required")
+		return
+	}
+	b.Tenant = s.resolveTenant(r, b.Tenant)
+	if b.Tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
@@ -904,8 +959,13 @@ func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	if b.Tenant == "" || b.ID == "" {
-		s.bad(w, r, http.StatusBadRequest, "tenant and id are required")
+	if b.ID == "" {
+		s.bad(w, r, http.StatusBadRequest, "id is required")
+		return
+	}
+	b.Tenant = s.resolveTenant(r, b.Tenant)
+	if b.Tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
@@ -941,8 +1001,13 @@ func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	if b.Tenant == "" || b.Worker == "" {
-		s.bad(w, r, http.StatusBadRequest, "tenant and worker are required")
+	if b.Worker == "" {
+		s.bad(w, r, http.StatusBadRequest, "worker is required")
+		return
+	}
+	b.Tenant = s.resolveTenant(r, b.Tenant)
+	if b.Tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
 		return
 	}
 	if b.TTLSeconds <= 0 {
@@ -1022,16 +1087,18 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	q := r.URL.Query()
-	tenant := q.Get("tenant")
+	tenant := s.resolveTenant(r, q.Get("tenant"))
 	st, err := s.tenantStore(tenant)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
-	// The ACL principal is server-side (this admin API has one authenticated principal). Client-supplied
-	// `owner`/`user` are never trusted.
+	// The ACL principal is server-side. Client-supplied `owner`/`user` are never trusted.
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
+	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
+		principal = p.ID
+	}
 	switch r.Method {
 	case http.MethodPost:
 		var b struct {
@@ -1104,7 +1171,7 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/memory/")
-	tenant := r.URL.Query().Get("tenant")
+	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
 	st, err := s.tenantStore(tenant)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
@@ -1112,6 +1179,9 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	}
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
+	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
+		principal = p.ID
+	}
 	visible := func(e datastore.MemoryEntry) bool { return e.ACLScope != "private" || e.Owner == principal }
 	e, err := mem.Get(ctx, id)
 	if err != nil || !visible(e) {
@@ -1145,7 +1215,7 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	q := r.URL.Query()
-	tenant := q.Get("tenant")
+	tenant := s.resolveTenant(r, q.Get("tenant"))
 	st, err := s.tenantStore(tenant)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
@@ -1162,6 +1232,7 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, http.StatusBadRequest, err)
 			return
 		}
+		b.Tenant = s.resolveTenant(r, b.Tenant)
 		if b.ID == "" || b.Tenant == "" {
 			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
 			return
@@ -1271,7 +1342,7 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/backlog/")
-	tenant := r.URL.Query().Get("tenant")
+	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
 	st, err := s.tenantStore(tenant)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)

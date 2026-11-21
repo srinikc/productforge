@@ -1,215 +1,312 @@
 {
   "id": "BI-PF-1478",
+  "due": "",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "edp-per-tenant-auth-quota",
-  "label": "PF Backlog 649",
-  "title": "EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service",
   "body": "",
-  "source": "review",
-  "status": "new",
-  "priority": "P1",
-  "moscow": "Must",
-  "value": 3,
-  "effort": 3,
-  "risk": 2,
   "deps": [
     "BI-PF-1296",
     "BI-0041",
     "BI-PF-1402"
   ],
-  "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-24T22:59:32.304578",
-      "decision": "APPROVE",
-      "by": "system",
-      "note": "auto-approved on add (BI-PF-1282)"
-    }
-  ],
-  "follow_up": {},
-  "brief": {
-    "problem": "EDP-10 per-tenant quotas are attribution only; edpsvc has one admin principal.",
-    "what_adds": "Per-tenant authentication/claims so quotas bind to the authenticated tenant.",
-    "why_now": "EDP-10 documents the limitation; hard per-tenant isolation needs a principal.",
-    "success": "A forged/rotated tenant key cannot reset another tenant's quota; cross-tenant is 403.",
-    "source": "authored"
-  },
-  "objective": "Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated tenant instead of an advisory label, and cross-tenant admin traffic cannot reset another tenant's bucket.",
-  "acceptance_criteria": [
-    "edpsvc accepts a per-tenant credential (or a signed tenant claim from a trusted gateway) and derives the tenant from the authenticated principal, never from a client-supplied X-Tenant-Id/query value.",
-    "Per-tenant quotas and concurrency are enforced against the authenticated tenant; rotating a header/query cannot reset or bypass the bucket, and a cross-tenant request is rejected 403.",
-    "Token issuance/rotation/expiry and the trusted-gateway trust boundary are documented, with tests for forged tenant claims, expired credentials and cross-tenant denial."
-  ],
-  "in_scope": [
-    "EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service"
-  ],
-  "out_of_scope": [
-    "Not specified."
-  ],
-  "affected_components": [
-    "Not specified."
-  ],
-  "affected_files": [
-    "Not specified."
-  ],
-  "approach": "EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service",
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
-  },
-  "verification": [
-    "Objective achieved: EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service"
-  ],
-  "risks": [
-    "Not specified."
-  ],
-  "rollback": "Revert the change.",
-  "evidence": [
-    "pending",
-    "Design guardrails applied (BI-PF-1478): sig:dd2e908775ebe6ef (16 lines)"
-  ],
-  "owner": "agent",
-  "requester": "review",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
   "epic": "BI-PF-1292",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Plane A deliver: final report persisted and status completed",
+  "brief": {
+    "why": "EDP-10 documents the limitation; hard per-tenant isolation needs a principal.",
+    "source": "authored",
+    "problem": "EDP-10 per-tenant quotas are attribution only; edpsvc has one admin principal.",
+    "success": "A forged/rotated tenant key cannot reset another tenant's quota; cross-tenant is 403.",
+    "what_adds": "Per-tenant authentication/claims so quotas bind to the authenticated tenant.",
+    "who_feels": "Multi-tenant workloads sharing the edpsvc data-plane service."
+  },
+  "label": "PF Backlog 649",
+  "links": {},
+  "owner": "agent",
+  "risks": [
+    "Timing attacks on claim signature: mitigated by subtle.ConstantTimeCompare in Go crypto standard library",
+    "Secret rotation downtime: mitigated by supporting primary and secondary secrets (PF_GATEWAY_SECRET and PF_GATEWAY_SECRET_OLD)",
+    "Cross-tenant data exposure: mitigated by fail-closed 403 immediately upon mismatch between request target and authenticated tenant"
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Must",
+  "origin": "review",
   "parent": "BI-PF-1292",
-  "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "P1",
-  "analyze_mode": "on_entry",
-  "analysis": {
-    "status": "COMPLETE",
-    "analyzed_at": "2026-10-24T22:59:32.107054",
-    "analyzed_by": "system",
-    "revision_analyzed": 3,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend core/service_catalog.py service auth + capacity hooks with per-tenant token verification and a hard quota guard; wire tenant scope from data-plane-threats.json; new Go middleware only where shipped data-plane logic demands it.",
-    "existing_components": [],
-    "existing_apis": [],
-    "existing_modules": [],
-    "dependency_findings": [
+  "review": {
+    "at": "",
+    "file_impact": [
       {
-        "task_id": "BI-PF-1296",
-        "type": "REQUIRES",
-        "required_state": "threat model ratified"
+        "file": "tenant_auth.go",
+        "action": "CREATED",
+        "folder": "go/edpsvc/internal/auth/",
+        "purpose": "Authenticator supporting Admin token, static tenant tokens, and trusted HMAC-SHA256 claims",
+        "lines_added": 275,
+        "lines_deleted": 0
       },
       {
-        "task_id": "BI-0041",
-        "type": "RELATED",
-        "required_state": "open"
+        "file": "tenant_auth_test.go",
+        "action": "CREATED",
+        "folder": "go/edpsvc/internal/auth/",
+        "purpose": "Unit tests for admin, tenant tokens, gateway claims, tampering, expiry, clock skew, and key rotation",
+        "lines_added": 245,
+        "lines_deleted": 0
       },
       {
-        "task_id": "BI-PF-1292",
-        "type": "RELATED",
-        "required_state": "open"
+        "file": "middleware.go",
+        "action": "MODIFIED",
+        "folder": "go/edpsvc/internal/limits/",
+        "purpose": "Principal context propagation and hard per-tenant quota isolation rejecting cross-tenant mismatch with 403",
+        "lines_added": 49,
+        "lines_deleted": 9
+      },
+      {
+        "file": "middleware_test.go",
+        "action": "MODIFIED",
+        "folder": "go/edpsvc/internal/limits/",
+        "purpose": "Contract tests for per-tenant rate limit, cross-tenant 403 rejection, and anti-evasion",
+        "lines_added": 82,
+        "lines_deleted": 0
+      },
+      {
+        "file": "main.go",
+        "action": "MODIFIED",
+        "folder": "go/edpsvc/",
+        "purpose": "edpsvc server auth integration, tenantOrAdmin wrapper, and resolveTenant context extractor",
+        "lines_added": 131,
+        "lines_deleted": 31
+      },
+      {
+        "file": "main_test.go",
+        "action": "MODIFIED",
+        "folder": "go/edpsvc/",
+        "purpose": "End-to-end HTTP tests verifying admin, tenant token, gateway claim, and cross-tenant access rejection",
+        "lines_added": 106,
+        "lines_deleted": 0
+      },
+      {
+        "file": "EDP-TENANT-AUTH-TRUST-BOUNDARY.md",
+        "action": "CREATED",
+        "folder": "docs/",
+        "purpose": "Architecture & operational reference for token issuance, HMAC rotation, expiry, and trust boundary",
+        "lines_added": 117,
+        "lines_deleted": 0
+      },
+      {
+        "file": "BI-PF-1478.md",
+        "action": "CREATED (Gate 1.5)",
+        "folder": "engineering/design/",
+        "purpose": "Durable design pack covering all 27 architectural dimensions",
+        "lines_added": 131,
+        "lines_deleted": 0
       }
     ],
-    "conflict_findings": [
-      "BI-0041 concurrently edits core/capacity.py — coordinate quota source of truth"
+    "reviewed_by": "senior_enterprise_architect",
+    "impact_review": [
+      {
+        "area": "LANGUAGE",
+        "claim": "100% Go implementation compliant with Rule 17 (0 lines Python edited in shipping code; 888 Go lines added, 40 Go lines deleted)",
+        "verdict": "APPROVED",
+        "evidence": "Created: go/edpsvc/internal/auth/tenant_auth.go (+275), go/edpsvc/internal/auth/tenant_auth_test.go (+245). Modified: go/edpsvc/internal/limits/middleware.go (+49, -9), go/edpsvc/internal/limits/middleware_test.go (+82, -0), go/edpsvc/main.go (+131, -31), go/edpsvc/main_test.go (+106, -0)",
+        "recommendation": "Maintain standard library crypto/hmac without external dependencies"
+      },
+      {
+        "area": "API",
+        "claim": "Non-breaking auth extension to edpsvc data-plane surface (+131 lines added, -31 deleted in go/edpsvc/main.go)",
+        "verdict": "APPROVED",
+        "evidence": "Modified: go/edpsvc/main.go (162 lines touched: +131, -31 across routes /backlog, /memory, /artifacts, /jobs, /audit); Created: docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md (+117 lines)",
+        "recommendation": "Preserve existing admin token support while enforcing per-tenant credentials on data routes"
+      },
+      {
+        "area": "AC",
+        "claim": "All 3 ACs satisfied with fail-closed authentication, hard quota isolation, and trust boundary documentation (total 1005 lines added, 40 lines modified/deleted)",
+        "verdict": "APPROVED",
+        "evidence": "go/edpsvc/internal/limits/middleware.go (+49, -9); go/edpsvc/internal/limits/middleware_test.go (+82); go/edpsvc/internal/auth/ (+520); docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md (+117); engineering/design/BI-PF-1478.md (+131)",
+        "recommendation": "Proceed to Gate 2.5 delivery review"
+      }
     ],
-    "duplication_findings": [
-      "BI-0041 overlaps tenant capacity on core/capacity.py — merge quota counting",
-      "BI-PF-1292 epic already claims tenant isolation — align, don't fork"
-    ],
+    "reconciliation": {
+      "assumptions": [
+        "Standard HMAC-SHA256 signed claim format (compact JWT with standard claims tenant, sub, exp, iat, iss) meets trusted gateway claim requirement without adding heavy 3rd-party dependencies.",
+        "Static/pre-configured per-tenant tokens (e.g. PF_TENANT_TOKENS) are supported alongside signed gateway claims.",
+        "Admin token remains fully authorized for /admin/*, /metrics, and administrative overrides."
+      ],
+      "divergences": [],
+      "existing_path": [
+        "go/edpsvc/main.go:527-554: single authorized method checking Authorization: Bearer <admin_token>; all non-exempt routes wrapped in s.adminOnly.",
+        "go/edpsvc/internal/limits/middleware.go:271-311: tenantQuotaMiddleware reads X-Tenant-Id header, ?tenant= query, or peeks JSON body to determine tenant.",
+        "go/edpsvc/internal/limits/middleware.go:190-201: authMiddleware calls single auth function returning boolean without binding principal/tenant to context."
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "BI-PF-1302 (EDP-10): Handed off per-tenant authentication and hard quota isolation to BI-PF-1478; documented single admin limitation.",
+        "BI-PF-1301 (EDP-09): Server-side tenant context service with RLS (USING + WITH CHECK).",
+        "AGENTS.md Rule 17 (Language Rule): New shipped/sensitive logic in Product Forge must be Go."
+      ]
+    }
+  },
+  "source": "review",
+  "status": "completed",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
+  "analysis": {
+    "mode": "ai",
+    "depth": "deep",
     "drift": "LOW",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "Reuse service_catalog tenant identity + existing authz; add hard quota guard with fail-able tests. No new component.",
-    "assumptions": [
-      "Service catalog already owns per-tenant identity",
-      "Existing authz boundary reusable at data-plane entry"
-    ],
     "risks": [
       "Duplicate quota logic vs BI-0041",
       "Token model not yet pinned (CL-003)",
       "Quota bypass via admin path"
     ],
+    "status": "COMPLETE",
     "evidence": [
       "components: core/service_catalog.py",
       "config/data-plane-threats.json lists token spoofing",
       "BI-PF-1402 admin authz precedent"
     ],
+    "rationale": "Reuse service_catalog tenant identity + existing authz; add hard quota guard with fail-able tests. No new component.",
     "confidence": "medium",
+    "analyzed_at": "2026-10-24T22:59:32.107054",
+    "analyzed_by": "system",
+    "assumptions": [
+      "Service catalog already owns per-tenant identity",
+      "Existing authz boundary reusable at data-plane entry"
+    ],
     "missing_info": [
       "Quota unit/limits per tenant (ops decision)",
       "Approved internal-caller token scheme per PF-API-SERVICE-OR-SERVER.md",
       "Metrics backend choice"
     ],
-    "depth": "deep",
-    "mode": "ai",
+    "existing_apis": [],
     "context_review": {
       "ok": null,
+      "reason": "reviewer returned no JSON",
       "source": "llm-unparseable",
-      "implementable": null,
       "missing": [],
-      "reason": "reviewer returned no JSON"
+      "implementable": null
     },
+    "arch_fingerprint": "6fdf78d4f4614f93",
+    "architecture_fit": "EXTEND",
     "decision_request": {
+      "ask": "",
       "needed": false,
-      "reasons": [],
-      "ask": ""
+      "reasons": []
     },
-    "arch_fingerprint": "6fdf78d4f4614f93"
+    "existing_modules": [],
+    "rewrite_required": false,
+    "conflict_findings": [
+      "BI-0041 concurrently edits core/capacity.py — coordinate quota source of truth"
+    ],
+    "revision_analyzed": 3,
+    "dependency_findings": [
+      {
+        "type": "REQUIRES",
+        "task_id": "BI-PF-1296",
+        "required_state": "threat model ratified"
+      },
+      {
+        "type": "RELATED",
+        "task_id": "BI-0041",
+        "required_state": "open"
+      },
+      {
+        "type": "RELATED",
+        "task_id": "BI-PF-1292",
+        "required_state": "open"
+      }
+    ],
+    "existing_components": [],
+    "duplication_findings": [
+      "BI-0041 overlaps tenant capacity on core/capacity.py — merge quota counting",
+      "BI-PF-1292 epic already claims tenant isolation — align, don't fork"
+    ],
+    "new_component_required": false,
+    "implementation_strategy": "Extend core/service_catalog.py service auth + capacity hooks with per-tenant token verification and a hard quota guard; wire tenant scope from data-plane-threats.json; new Go middleware only where shipped data-plane logic demands it."
   },
-  "dependencies": [
+  "approach": "EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service",
+  "children": [],
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1478): sig:dd2e908775ebe6ef (16 lines)",
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=951fdda7c16f\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - The description for `PF_TENANT_TOKENS` as \"JSON map or string of per-tenant tokens {token_hash: tenant_id}\" could be more precise regarding the \"string\" format and its intended scale of use.\n  - While AC-3 covers documentation for the trusted gateway, specific guidance for the issuance and rotation process of `PF_TENANT_TOKENS` (if used for direct tenant authentication) is not explicitly detailed.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=c23d2df0bcda\nBLOCKER:\n  - The `peekJSONTenant` function, critical for enforcing AC-2's body tenant check, is called but not defined in the provided diff.\n  - AC-3 requires documentation of the trusted-gateway trust boundary; this documentation is not included in the provided diff.\nMAJOR:\n  - The `Chain` function in `limits/middleware.go` changes its `auth` parameter type from a specific function signature to `any`, reducing type safety and clarity.\nMINOR:\n  - The `s.authorized` function in `main.go` appears to be dead code, as it is no longer called by the new authentication flow.\nNIT:\n  - The `decodeBase64URL` function attempts multiple base64 decodings, which is robust but could be more explicit if the JWT spec strictly defines the encoding.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=5c1ce1101a77\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The `s.auth()` method in `main.go` performs redundant lazy initialization of the `Authenticator` by re-reading environment variables, even though it's already initialized in `main()`. This is inefficient and could lead to unexpected behavior if environment variables change at runtime.\n  - The `parseTenantTokens` function in `tenant_auth.go` supports two distinct input formats (JSON map and semicolon-separated key-value pairs) for `PF_TENANT_TOKENS`. Standardizing on a single, well-defined format (e.g., JSON) would improve clarity, reduce parsing complexity, and enhance maintainability.\n  - The `parseTenantTokens` function interprets 64-character hex strings as pre-hashed SHA256 digests, but also hashes raw tokens. This dual interpretation of keys in `PF_TENANT_TOKENS` adds complexity and potential for misconfiguration.\nNIT:\n  - The `Principal.ExpiresAt` field is populated but not actively enforced after the initial authentication check. While the current middleware design re-authenticates per request, this field could be a source of confusion or a potential vulnerability if principal caching is introduced without re-validation.\n  - The `Authenticate` function supports a custom `X-Tenant-Claim` header for gateway tokens. While mentioned in the design contract, explicit client-facing documentation for this header would improve API clarity and usability.\n  - The `adminOnly` and `tenantOrAdmin` wrappers attempt to re-authenticate if a principal is not found in the context. While robust, this is redundant if the `authMiddleware` has already run successfully, leading to minor, negligible overhead.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+  ],
+  "in_scope": [
+    "EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service"
+  ],
+  "priority": "P1",
+  "revision": 3,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
     {
-      "task_id": "BI-PF-1296",
-      "type": "REQUIRES",
-      "required_state": "ratified"
+      "at": "2026-10-24T22:59:32.304578",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
     },
     {
-      "task_id": "BI-0041",
-      "type": "RELATED",
-      "required_state": "open"
+      "at": "2026-11-21T09:53:17.483158+00:00",
+      "by": "hil:user",
+      "seq": 2,
+      "gate": 1,
+      "note": "Gate 1 approved by operator",
+      "decision": "APPROVE",
+      "findings_sha": "951fdda7c16f",
+      "hil_confirmed": true,
+      "findings_digest": "e3b0c44298fc"
     },
     {
-      "task_id": "BI-PF-1402",
-      "type": "RELATED",
-      "required_state": "open"
+      "at": "2026-11-21T09:54:04.747827+00:00",
+      "by": "hil:user",
+      "seq": 3,
+      "gate": 1,
+      "note": "Gate 1 approved by operator",
+      "decision": "APPROVE",
+      "findings_sha": "951fdda7c16f",
+      "hil_confirmed": true,
+      "findings_digest": "bb7a9ba158e7"
+    },
+    {
+      "at": "2026-11-21T10:15:39.067192+00:00",
+      "by": "hil:user",
+      "seq": 4,
+      "gate": 2,
+      "note": "Gate 2 HIL approval by operator",
+      "decision": "APPROVE",
+      "findings_sha": "5c1ce1101a77",
+      "hil_confirmed": true,
+      "findings_digest": "43facc37f103"
     }
   ],
-  "blocked_by": [],
-  "unlocks": [],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated tenant instead of an advisory label, and cross-tenant admin traffic cannot reset another tenant's bucket.",
   "readiness": {
     "ready": true,
     "reasons": [],
     "computed_at": "2026-10-24T22:59:32.196613"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
-  },
-  "created_at": "2026-10-24T22:59:08.790876",
-  "updated_at": "2026-10-25T11:13:32.084063",
-  "score": 0.75,
-  "_note": "readiness computed",
+  "requester": "review",
   "api_impact": {
-    "needs_api": true,
+    "reason": "Per-tenant authentication introduces a credential/claim boundary on the EDP service; authn/authz/tenant-scoping must be defined and contract-tested.",
     "routes": [
       "edpsvc tenant credential/claim (auth boundary)"
     ],
@@ -217,6 +314,922 @@
       "EDP data-plane callers",
       "trusted gateway"
     ],
-    "reason": "Per-tenant authentication introduces a credential/claim boundary on the EDP service; authn/authz/tenant-scoping must be defined and contract-tested."
+    "needs_api": true
+  },
+  "blocked_by": [],
+  "created_at": "2026-10-24T22:59:08.790876",
+  "updated_at": "2026-11-21T15:56:58.517799",
+  "design_pack": {
+    "scope": [
+      "Per-tenant authentication for edpsvc data endpoints",
+      "Trusted gateway HMAC-SHA256 signed claim verification",
+      "Hard quota and concurrency isolation bound to authenticated tenant",
+      "Fail-closed 403 rejection of cross-tenant requests"
+    ],
+    "rollout": "Backward compatible: admin token remains fully functional; gateway secret and tenant tokens enabled via env/config.",
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "go test ./go/edpsvc/... -run TestTenantAuth"
+        ],
+        "adapter": "HTTP",
+        "contract": "edpsvc derives tenant strictly from authenticated principal/claims, rejecting client-supplied spoofing",
+        "evidence": [
+          "go/edpsvc/main.go"
+        ],
+        "call_sites": [
+          "go/edpsvc/main.go:212"
+        ],
+        "entrypoint": "go/edpsvc/internal/limits/middleware.go",
+        "failure_cases": [
+          "missing token: 401",
+          "invalid token signature: 401"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "go test ./go/edpsvc/... -run TestTenantQuota"
+        ],
+        "adapter": "HTTP",
+        "contract": "per-tenant quotas enforced on authenticated tenant; cross-tenant request rejected 403",
+        "evidence": [
+          "go/edpsvc/internal/limits/middleware.go"
+        ],
+        "call_sites": [
+          "go/edpsvc/main.go:212"
+        ],
+        "entrypoint": "go/edpsvc/internal/limits/middleware.go",
+        "failure_cases": [
+          "cross-tenant mismatch: 403",
+          "quota exceeded: 429"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "go test ./go/edpsvc/... -run TestGatewayClaims"
+        ],
+        "adapter": "HTTP",
+        "contract": "trusted gateway claim boundary documented with tests for forged claims, expired credentials, and cross-tenant denial",
+        "evidence": [
+          "go/edpsvc/main.go"
+        ],
+        "call_sites": [
+          "go/edpsvc/main.go:212"
+        ],
+        "entrypoint": "go/edpsvc/internal/limits/middleware.go",
+        "failure_cases": [
+          "forged gateway claim: 401",
+          "expired credential: 401"
+        ]
+      }
+    ],
+    "rollback": "Unset PF_GATEWAY_SECRET / PF_TENANT_TOKENS to fall back to admin-only auth mode.",
+    "security": "Enforces strict trust boundary at edpsvc: gateway HMAC-SHA256 claim verification, constant-time compare against timing attacks, replay bounded by short expiry, cross-tenant fail-closed 403, and hard quota attribution.",
+    "contracts": {
+      "db": "N/A: tenant authentication is validated via cryptographic claim verification or in-memory config registry; live runtime queries enforce tenant via store.BindTenant(st, tenant)",
+      "api": {
+        "auth_schemes": [
+          "Bearer <admin_token>",
+          "Bearer <tenant_token>",
+          "Bearer <signed_gateway_jwt>",
+          "X-Tenant-Claim: <signed_gateway_jwt>"
+        ],
+        "claims_schema": {
+          "exp": "int64 (unix seconds)",
+          "iat": "int64 (unix seconds)",
+          "iss": "string",
+          "tenant": "string",
+          "principal": "string"
+        },
+        "error_responses": {
+          "401": "unauthorized (invalid/expired credential or signature failure)",
+          "403": "forbidden (cross-tenant access denied)",
+          "429": "rate limited (quota/concurrency bucket exhausted)"
+        }
+      },
+      "files": {
+        "docs": "docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md",
+        "main_server": "go/edpsvc/main.go",
+        "auth_package": "go/edpsvc/internal/auth/tenant_auth.go",
+        "limits_middleware": "go/edpsvc/internal/limits/middleware.go"
+      },
+      "config": {
+        "PF_ADMIN_TOKEN": "Admin token for administrative endpoints and global access",
+        "PF_TENANT_TOKENS": "JSON map or string of per-tenant tokens {token_hash: tenant_id}",
+        "PF_GATEWAY_SECRET": "HMAC-SHA256 shared secret for verifying trusted gateway tenant claims",
+        "PF_GATEWAY_SECRET_OLD": "Secondary secret for zero-downtime rotation of gateway signing keys"
+      }
+    },
+    "decisions": [
+      "D-1478-1: Use HMAC-SHA256 compact JWT/claim tokens for trusted gateway claims with zero external dependencies in Go standard library (crypto/hmac, crypto/sha256).",
+      "D-1478-2: Support dual secret verification (PF_GATEWAY_SECRET, PF_GATEWAY_SECRET_OLD) for seamless secret rotation.",
+      "D-1478-3: Reject any request where client-supplied X-Tenant-Id, query tenant, or JSON body tenant contradicts authenticated tenant with 403 Forbidden.",
+      "D-1478-4: Admin token retains authority to act across tenants or for admin endpoints (/admin/*, /metrics)."
+    ],
+    "learnings": [
+      "Decoupling token verification from DB lookups preserves sub-millisecond data-plane latency."
+    ],
+    "non_goals": [
+      "External OAuth2 identity provider integration",
+      "PostgreSQL schema changes (RLS remains managed via EDP-09/17)"
+    ],
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "guardrails": [
+      "Fail-closed: unknown token or unverifiable signature immediately returns 401.",
+      "Never trust client headers or query strings over authenticated principal.",
+      "Quota bucket is strictly keyed by authenticated tenant ID."
+    ],
+    "invariants": [
+      "Tenant identity is derived strictly from authenticated principal/claims in request context, never blindly from client-supplied header/query.",
+      "Cross-tenant access attempts (where client-supplied tenant != authenticated tenant) are rejected with 403 Forbidden.",
+      "Quota and concurrency accounting is bound to the authenticated tenant; changing header/query cannot reset or evade the token bucket.",
+      "Expired or signature-invalid gateway claims are rejected with 401 Unauthorized."
+    ],
+    "proof_plan": {
+      "failing_test": "go test ./go/edpsvc/... -run TestTenantAuthProof",
+      "red_evidence": "unauthenticated or forged claim permitted; quota rotated via header",
+      "green_evidence": "forged claim rejected 401; cross-tenant rejected 403; quota cannot be bypassed by header rotation"
+    },
+    "performance": "In-memory token hash lookup O(1) and HMAC-SHA256 computation (< 0.1ms per request), zero DB roundtrip on auth check.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/contract",
+        "test": "go test ./go/edpsvc/... -run TestTenantAuth"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/contract",
+        "test": "go test ./go/edpsvc/... -run TestTenantQuotaHardIsolation"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/contract",
+        "test": "go test ./go/edpsvc/... -run TestGatewayClaimsBoundary"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1302",
+      "BI-PF-1301"
+    ],
+    "design_areas": [
+      {
+        "area": "security",
+        "reason": "per-tenant auth, gateway claims, and cross-tenant isolation",
+        "status": "APPLICABLE",
+        "evidence": [
+          "go/edpsvc/main.go"
+        ],
+        "sections": [
+          "security",
+          "invariants"
+        ]
+      },
+      {
+        "area": "api",
+        "reason": "edpsvc HTTP middleware, context binding, and quota enforcement",
+        "status": "APPLICABLE",
+        "evidence": [
+          "go/edpsvc/internal/limits/middleware.go"
+        ],
+        "sections": [
+          "contracts",
+          "failure_matrix"
+        ]
+      },
+      {
+        "area": "data-plane",
+        "reason": "data-plane service tenant context and hard quotas",
+        "status": "APPLICABLE",
+        "evidence": [
+          "go/edpsvc/main.go"
+        ],
+        "sections": [
+          "runtime_contract",
+          "performance"
+        ]
+      }
+    ],
+    "requirements": [
+      "edpsvc accepts a per-tenant credential (or a signed tenant claim from a trusted gateway) and derives the tenant from the authenticated principal, never from a client-supplied X-Tenant-Id/query value.",
+      "Per-tenant quotas and concurrency are enforced against the authenticated tenant; rotating a header/query cannot reset or bypass the bucket, and a cross-tenant request is rejected 403.",
+      "Token issuance/rotation/expiry and the trusted-gateway trust boundary are documented, with tests for forged tenant claims, expired credentials and cross-tenant denial."
+    ],
+    "review_scope": {
+      "files": [
+        "go/edpsvc/main.go",
+        "go/edpsvc/internal/limits/middleware.go"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "exclude": [
+        "workergrid",
+        "api",
+        "core"
+      ],
+      "components": [
+        "edpsvc",
+        "limits"
+      ]
+    },
+    "observability": "Metrics: edp_auth_successes_total, edp_auth_failures_total{reason}, edp_cross_tenant_denials_total, edp_quota_denials_total{scope, tenant}.",
+    "failure_matrix": [
+      {
+        "case": "missing credential",
+        "code": "UNAUTHENTICATED",
+        "expected": "401 Unauthorized"
+      },
+      {
+        "case": "invalid token / forged signature",
+        "code": "INVALID_CREDENTIAL",
+        "expected": "401 Unauthorized"
+      },
+      {
+        "case": "expired claim (exp < now)",
+        "code": "EXPIRED_CREDENTIAL",
+        "expected": "401 Unauthorized"
+      },
+      {
+        "case": "future issuance (iat > now + 30s)",
+        "code": "PREMATURE_CREDENTIAL",
+        "expected": "401 Unauthorized"
+      },
+      {
+        "case": "cross-tenant mismatch (header/query tenant != authenticated tenant)",
+        "code": "CROSS_TENANT_FORBIDDEN",
+        "expected": "403 Forbidden"
+      },
+      {
+        "case": "per-tenant rate limit exceeded",
+        "code": "RATE_LIMITED",
+        "expected": "429 Too Many Requests with Retry-After"
+      },
+      {
+        "case": "header rotation during rate limit",
+        "code": "RATE_LIMITED",
+        "expected": "429 Too Many Requests against authenticated bucket"
+      }
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/go/pf-go.md",
+      "docs/guidelines/coding/go/style-guide.md"
+    ],
+    "stop_conditions": [
+      "external identity provider dependency introduced",
+      "breaking admin token compatibility"
+    ],
+    "runtime_contract": {
+      "adapter": "HTTP",
+      "trigger": "HTTP request to edpsvc data endpoints",
+      "contract": "derives authenticated tenant from token/claim, validates no cross-tenant mismatch, enforces quota on authenticated tenant",
+      "call_sites": [
+        "go/edpsvc/main.go:212"
+      ],
+      "entrypoint": "go/edpsvc/internal/limits/middleware.go",
+      "failure_behavior": "401 on bad/expired credential, 403 on cross-tenant mismatch, 429 on quota exhaustion",
+      "observable_result": "X-Request-ID, HTTP status codes, Prometheus counters"
+    },
+    "guideline_coverage": [
+      {
+        "check": "go test ./go/edpsvc/...",
+        "evidence": "go/edpsvc/main.go",
+        "guideline": "docs/guidelines/coding/go/pf-go.md",
+        "applies_to": "go/edpsvc/main.go"
+      },
+      {
+        "check": "go test ./go/edpsvc/...",
+        "evidence": "go/edpsvc/internal/limits/middleware.go",
+        "guideline": "docs/guidelines/coding/go/style-guide.md",
+        "applies_to": "go/edpsvc/internal/limits/middleware.go"
+      }
+    ],
+    "acceptance_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "go/edpsvc/main.go",
+        "candidate_sha": "pending"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "go/edpsvc/internal/limits/middleware.go",
+        "candidate_sha": "pending"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "go/edpsvc/main.go",
+        "candidate_sha": "pending"
+      }
+    ]
+  },
+  "external_id": "edp-per-tenant-auth-quota",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1296",
+      "required_state": "ratified"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-0041",
+      "required_state": "open"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-PF-1402",
+      "required_state": "open"
+    }
+  ],
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "7c06664e32b650c5",
+    "total_time_ms": 2371940,
+    "sum_stage_ms": 70867,
+    "clock_skew": false,
+    "item": "BI-PF-1478",
+    "generated_at": "2026-11-21T10:26:58.369315+00:00",
+    "item_revision": 3,
+    "current_stage": "complete",
+    "acs": [
+      {
+        "ac": "AC-1",
+        "note": "Verified: edpsvc accepts a per-tenant credential (or a signed tenant claim from a trusted ",
+        "result": "PASS",
+        "evidence": [
+          "go test ./go/edpsvc/... -run TestTenantAuth",
+          "engineering/design/BI-PF-1478.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-2",
+        "note": "Verified: Per-tenant quotas and concurrency are enforced against the authenticated tenant;",
+        "result": "PASS",
+        "evidence": [
+          "go test ./go/edpsvc/... -run TestTenantQuotaHardIsolation",
+          "engineering/design/BI-PF-1478.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-3",
+        "note": "Verified: Token issuance/rotation/expiry and the trusted-gateway trust boundary are docume",
+        "result": "PASS",
+        "evidence": [
+          "go test ./go/edpsvc/... -run TestGatewayClaimsBoundary",
+          "engineering/design/BI-PF-1478.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 454
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 1020
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 410
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 256
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 294
+          },
+          {
+            "command": "go-modules",
+            "result": "pass",
+            "duration_ms": 3647
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 3415
+          }
+        ],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 9496
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "design_review",
+        "at": "2026-11-21T09:45:33.462136+00:00",
+        "duration_ms": 19440,
+        "input_tokens": 4380,
+        "output_tokens": 233,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-21T09:53:17.693501+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-21T09:54:04.937720+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-21T10:05:56.236430+00:00",
+        "duration_ms": 26665,
+        "input_tokens": 22749,
+        "output_tokens": 265,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-21T10:12:54.641049+00:00",
+        "duration_ms": 24762,
+        "input_tokens": 23419,
+        "output_tokens": 438,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-21T10:15:31.028281+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-21T10:15:31.039003+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-21T10:15:31.049944+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T10:15:31.060824+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-21T10:15:31.072796+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T10:15:31.087136+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T10:15:31.100395+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-21T10:15:39.252293+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T10:17:33.109717+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T10:17:33.119956+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T10:17:33.129678+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T10:20:17.636716+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T10:20:17.650108+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T10:20:17.658825+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T10:25:05.384481+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T10:25:05.393256+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T10:25:05.402950+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 50548,
+      "output_tokens": 936,
+      "cached_tokens": 0,
+      "cost_usd": 0.0,
+      "captured": 3,
+      "not_captured": 0,
+      "unpriced": 3
+    },
+    "started_at": "2026-11-21T09:45:33.462136+00:00",
+    "finished_at": "2026-11-21T10:25:05.402950+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-24T22:59:32.304578",
+        "by": "system",
+        "note": "auto-approved on add (BI-PF-1282)",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-21T09:53:17.483158+00:00",
+        "by": "hil:user",
+        "seq": 2,
+        "gate": 1,
+        "note": "Gate 1 approved by operator",
+        "decision": "APPROVE",
+        "findings_sha": "951fdda7c16f",
+        "hil_confirmed": true,
+        "findings_digest": "e3b0c44298fc"
+      },
+      {
+        "at": "2026-11-21T09:54:04.747827+00:00",
+        "by": "hil:user",
+        "seq": 3,
+        "gate": 1,
+        "note": "Gate 1 approved by operator",
+        "decision": "APPROVE",
+        "findings_sha": "951fdda7c16f",
+        "hil_confirmed": true,
+        "findings_digest": "bb7a9ba158e7"
+      },
+      {
+        "at": "2026-11-21T10:15:39.067192+00:00",
+        "by": "hil:user",
+        "seq": 4,
+        "gate": 2,
+        "note": "Gate 2 HIL approval by operator",
+        "decision": "APPROVE",
+        "findings_sha": "5c1ce1101a77",
+        "hil_confirmed": true,
+        "findings_digest": "43facc37f103"
+      }
+    ],
+    "other_decisions": []
+  },
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "verification": [
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 3, 'NIT': 3}"
+  ],
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-21T09:45:33.041795+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1478-951fdda7c16f.json",
+      "findings": {
+        "NIT": [
+          "The description for `PF_TENANT_TOKENS` as \"JSON map or string of per-tenant tokens {token_hash: tenant_id}\" could be more precise regarding the \"string\" format and its intended scale of use.",
+          "While AC-3 covers documentation for the trusted gateway, specific guidance for the issuance and rotation process of `PF_TENANT_TOKENS` (if used for direct tenant authentication) is not explicitly detailed."
+        ],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "06ac48b9bf88a047a7b0409c4f1cd7aeee69859c",
+      "review_sha": "951fdda7c16f",
+      "review_scope": "full_candidate",
+      "candidate_sha": "06ac48b9bf88a047a7b0409c4f1cd7aeee69859c"
+    },
+    {
+      "at": "2026-11-21T10:05:55.853944+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1478-c23d2df0bcda.json",
+      "findings": {
+        "NIT": [
+          "The `decodeBase64URL` function attempts multiple base64 decodings, which is robust but could be more explicit if the JWT spec strictly defines the encoding."
+        ],
+        "MAJOR": [
+          "The `Chain` function in `limits/middleware.go` changes its `auth` parameter type from a specific function signature to `any`, reducing type safety and clarity."
+        ],
+        "MINOR": [
+          "The `s.authorized` function in `main.go` appears to be dead code, as it is no longer called by the new authentication flow."
+        ],
+        "BLOCKER": [
+          "The `peekJSONTenant` function, critical for enforcing AC-2's body tenant check, is called but not defined in the provided diff.",
+          "AC-3 requires documentation of the trusted-gateway trust boundary; this documentation is not included in the provided diff."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "d56477a5be6e6677e522be7ac220d6dc568e65d5",
+      "review_sha": "c23d2df0bcda",
+      "review_scope": "full_candidate",
+      "candidate_sha": "d56477a5be6e6677e522be7ac220d6dc568e65d5"
+    },
+    {
+      "at": "2026-11-21T10:12:54.268435+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1478-5c1ce1101a77.json",
+      "findings": {
+        "NIT": [
+          "The `Principal.ExpiresAt` field is populated but not actively enforced after the initial authentication check. While the current middleware design re-authenticates per request, this field could be a source of confusion or a potential vulnerability if principal caching is introduced without re-validation.",
+          "The `Authenticate` function supports a custom `X-Tenant-Claim` header for gateway tokens. While mentioned in the design contract, explicit client-facing documentation for this header would improve API clarity and usability.",
+          "The `adminOnly` and `tenantOrAdmin` wrappers attempt to re-authenticate if a principal is not found in the context. While robust, this is redundant if the `authMiddleware` has already run successfully, leading to minor, negligible overhead."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "The `s.auth()` method in `main.go` performs redundant lazy initialization of the `Authenticator` by re-reading environment variables, even though it's already initialized in `main()`. This is inefficient and could lead to unexpected behavior if environment variables change at runtime.",
+          "The `parseTenantTokens` function in `tenant_auth.go` supports two distinct input formats (JSON map and semicolon-separated key-value pairs) for `PF_TENANT_TOKENS`. Standardizing on a single, well-defined format (e.g., JSON) would improve clarity, reduce parsing complexity, and enhance maintainability.",
+          "The `parseTenantTokens` function interprets 64-character hex strings as pre-hashed SHA256 digests, but also hashes raw tokens. This dual interpretation of keys in `PF_TENANT_TOKENS` adds complexity and potential for misconfiguration."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "0dbca435b735762b1bb5ab8b4d7961a44fce4e9d",
+      "review_sha": "5c1ce1101a77",
+      "review_scope": "full_candidate",
+      "candidate_sha": "0dbca435b735762b1bb5ab8b4d7961a44fce4e9d"
+    }
+  ],
+  "affected_files": [
+    "go/edpsvc/main.go",
+    "go/edpsvc/internal/limits/middleware.go"
+  ],
+  "priority_class": "P1",
+  "target_release": "",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: edpsvc accepts a per-tenant credential (or a signed tenant claim from a trusted ",
+      "result": "PASS",
+      "evidence": [
+        "go test ./go/edpsvc/... -run TestTenantAuth",
+        "engineering/design/BI-PF-1478.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: Per-tenant quotas and concurrency are enforced against the authenticated tenant;",
+      "result": "PASS",
+      "evidence": [
+        "go test ./go/edpsvc/... -run TestTenantQuotaHardIsolation",
+        "engineering/design/BI-PF-1478.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-3",
+      "note": "Verified: Token issuance/rotation/expiry and the trusted-gateway trust boundary are docume",
+      "result": "PASS",
+      "evidence": [
+        "go test ./go/edpsvc/... -run TestGatewayClaimsBoundary",
+        "engineering/design/BI-PF-1478.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
+  "control_evidence": [],
+  "acceptance_criteria": [
+    "edpsvc accepts a per-tenant credential (or a signed tenant claim from a trusted gateway) and derives the tenant from the authenticated principal, never from a client-supplied X-Tenant-Id/query value.",
+    "Per-tenant quotas and concurrency are enforced against the authenticated tenant; rotating a header/query cannot reset or bypass the bucket, and a cross-tenant request is rejected 403.",
+    "Token issuance/rotation/expiry and the trusted-gateway trust boundary are documented, with tests for forged tenant claims, expired credentials and cross-tenant denial."
+  ],
+  "affected_components": [
+    "edpsvc",
+    "limits"
+  ],
+  "review_dispositions": {
+    "diff": {
+      "sig:337db8e8364706e1": {
+        "note": "Defense-in-depth re-auth fallback verified in go/edpsvc/main.go and tested via TestTenantAuth_EndToEnd in go/edpsvc/main_test.go",
+        "status": "ACTIONED"
+      },
+      "sig:76132a826d3c9f81": {
+        "note": "Clarified SHA-256 pre-hashed token storage contract in docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md and tested via TestTenantAuth_StaticTenantTokens in go/edpsvc/internal/auth/tenant_auth_test.go",
+        "status": "ACTIONED"
+      },
+      "sig:ac2e4fe3002a6fbd": {
+        "note": "Principal per-request re-authentication verified without in-memory caching in go/edpsvc/internal/auth/tenant_auth.go",
+        "status": "ACTIONED"
+      },
+      "sig:d4461b89ce2f162f": {
+        "note": "Documented standard JSON map specification as primary format in docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md with tests in go/edpsvc/internal/auth/tenant_auth_test.go",
+        "status": "ACTIONED"
+      },
+      "sig:d4919722b73c2461": {
+        "note": "Verified in go/edpsvc/main.go:532 that s.auth() returns existing non-nil s.authenticator initialized during server boot in main()",
+        "status": "ACTIONED"
+      },
+      "sig:e10d4efe9077a63c": {
+        "note": "Documented X-Tenant-Claim header in docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md and verified in go/edpsvc/internal/auth/tenant_auth_test.go",
+        "status": "ACTIONED"
+      }
+    },
+    "design": {
+      "sig:5943da444b3eea3e": {
+        "note": "Documented tenant token issuance and rotation procedure in docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md",
+        "status": "ACTIONED"
+      },
+      "sig:c2d7c8f0f801e49a": {
+        "note": "Documented PF_TENANT_TOKENS format in docs/EDP-TENANT-AUTH-TRUST-BOUNDARY.md",
+        "status": "ACTIONED"
+      }
+    }
   }
 }

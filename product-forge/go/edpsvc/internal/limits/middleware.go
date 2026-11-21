@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"productforge/edpsvc/internal/auth"
 )
 
 var tenantRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -92,10 +94,24 @@ func isExempt(path string) bool {
 	return path == "/health" || path == "/ready" || path == "/metrics"
 }
 
+// AuthFunc authenticates the incoming request and optionally binds principal/tenant context to the request.
+// It returns the updated request and true on success, or writes an error response and returns false on failure.
+type AuthFunc func(http.ResponseWriter, *http.Request) (*http.Request, bool)
+
+// LegacyAuth adapts a boolean auth function into an AuthFunc.
+func LegacyAuth(fn func(http.ResponseWriter, *http.Request) bool) AuthFunc {
+	if fn == nil {
+		return nil
+	}
+	return func(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
+		return r, fn(w, r)
+	}
+}
+
 // Chain composes the guardrail middleware. Order (outer to inner):
 // RequestID -> Instrument -> Recover -> RoleGate -> Timeout -> BodyLimit -> Quota -> handler.
 func Chain(next http.Handler, cfg Config, q *Quota, m *Metrics, roleOK func() bool,
-	auth ...func(http.ResponseWriter, *http.Request) bool) http.Handler {
+	auth ...AuthFunc) http.Handler {
 	h := next
 	if cfg.Enforce {
 		h = tenantQuotaMiddleware(h, q)
@@ -187,14 +203,20 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func authMiddleware(next http.Handler, auth func(http.ResponseWriter, *http.Request) bool) http.Handler {
+func authMiddleware(next http.Handler, authFn AuthFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if !auth(w, r) {
-			return
+		if authFn != nil {
+			newR, ok := authFn(w, r)
+			if !ok {
+				return
+			}
+			if newR != nil {
+				r = newR
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -274,8 +296,44 @@ func tenantQuotaMiddleware(next http.Handler, q *Quota) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+
 		header := strings.TrimSpace(r.Header.Get("X-Tenant-Id"))
 		query := strings.TrimSpace(r.URL.Query().Get("tenant"))
+
+		// 1. If request has an authenticated non-admin tenant principal, enforce strict tenant binding
+		if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && !p.IsAdmin && p.Tenant != "" {
+			authTenant := p.Tenant
+			// AC-2: Cross-tenant request rejected with 403 Forbidden
+			if header != "" && header != authTenant {
+				WriteErrorCode(w, r, http.StatusForbidden, "FORBIDDEN", "cross-tenant access forbidden", "auth", false)
+				return
+			}
+			if query != "" && query != authTenant {
+				WriteErrorCode(w, r, http.StatusForbidden, "FORBIDDEN", "cross-tenant access forbidden", "auth", false)
+				return
+			}
+			bodyTenant, err := peekJSONTenant(r)
+			if err != nil {
+				WriteHandlerError(w, r, err)
+				return
+			}
+			if bodyTenant != "" && bodyTenant != authTenant {
+				WriteErrorCode(w, r, http.StatusForbidden, "FORBIDDEN", "cross-tenant access forbidden", "auth", false)
+				return
+			}
+
+			// AC-2: Quotas and concurrency are enforced strictly against authenticated tenant
+			d, release := q.AcquireTenant(authTenant)
+			if !d.Allowed {
+				writeQuotaDenied(w, r, d)
+				return
+			}
+			defer release()
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// 2. Admin or fallback path (when no tenant principal is bound)
 		if header != "" && !ValidTenant(header) {
 			WriteError(w, r, http.StatusBadRequest, "invalid X-Tenant-Id")
 			return

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"productforge/edpsvc/internal/auth"
 )
 
 func testChain(cfg Config, q *Quota, m *Metrics, roleOK func() bool, h http.Handler) http.Handler {
@@ -248,7 +250,7 @@ func TestAuthMiddlewareReturns401(t *testing.T) {
 		WriteError(w, r, http.StatusUnauthorized, "no token")
 		return false
 	}
-	h := Chain(okHandler(), cfg, NewQuota(cfg, nil, NewMetrics()), NewMetrics(), nil, auth)
+	h := Chain(okHandler(), cfg, NewQuota(cfg, nil, NewMetrics()), NewMetrics(), nil, LegacyAuth(auth))
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/limits", nil))
 	if rr.Code != http.StatusUnauthorized {
@@ -265,7 +267,7 @@ func TestUnauthenticated401ConsumesGlobalQuota(t *testing.T) {
 		return false
 	}
 	h := Chain(okHandler(), cfg, NewQuota(cfg, func() time.Time { return time.Unix(1, 0) }, NewMetrics()),
-		NewMetrics(), nil, auth)
+		NewMetrics(), nil, LegacyAuth(auth))
 	if rr := httptest.NewRecorder(); func() int { h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/x", nil)); return rr.Code }() != http.StatusUnauthorized {
 		t.Fatalf("first want 401")
 	}
@@ -275,3 +277,83 @@ func TestUnauthenticated401ConsumesGlobalQuota(t *testing.T) {
 		t.Fatalf("second want 429 from the pre-auth global bucket, got %d", rr.Code)
 	}
 }
+
+func TestTenantQuota_HardIsolation(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.TenantRPM = 1
+	cfg.GlobalRPM = 100
+
+	authFn := func(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
+		token := r.Header.Get("Authorization")
+		if token == "Bearer token_alpha" {
+			p := &auth.Principal{ID: "user_a", Tenant: "tenant_alpha"}
+			return r.WithContext(auth.WithPrincipal(r.Context(), p)), true
+		}
+		if token == "Bearer token_beta" {
+			p := &auth.Principal{ID: "user_b", Tenant: "tenant_beta"}
+			return r.WithContext(auth.WithPrincipal(r.Context(), p)), true
+		}
+		WriteError(w, r, http.StatusUnauthorized, "unauthenticated")
+		return nil, false
+	}
+
+	clock := func() time.Time { return time.Unix(100, 0) }
+	q := NewQuota(cfg, clock, NewMetrics())
+	h := Chain(okHandler(), cfg, q, NewMetrics(), nil, authFn)
+
+	// 1. Request as tenant_alpha succeeds
+	req1 := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	req1.Header.Set("Authorization", "Bearer token_alpha")
+	rr1 := httptest.NewRecorder()
+	h.ServeHTTP(rr1, req1)
+	if rr1.Code != http.StatusOK {
+		t.Fatalf("req1 want 200, got %d", rr1.Code)
+	}
+
+	// 2. Second request from tenant_alpha should be 429 rate limited
+	req2 := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	req2.Header.Set("Authorization", "Bearer token_alpha")
+	rr2 := httptest.NewRecorder()
+	h.ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusTooManyRequests {
+		t.Fatalf("req2 want 429 rate limited, got %d", rr2.Code)
+	}
+
+	// 3. AC-2: Rotating header/query to another tenant MUST yield 403 Forbidden (cross-tenant rejected)
+	req3 := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	req3.Header.Set("Authorization", "Bearer token_alpha")
+	req3.Header.Set("X-Tenant-Id", "tenant_beta") // Attempting cross-tenant spoofing
+	rr3 := httptest.NewRecorder()
+	h.ServeHTTP(rr3, req3)
+	if rr3.Code != http.StatusForbidden {
+		t.Fatalf("req3 want 403 Forbidden for cross-tenant header, got %d", rr3.Code)
+	}
+
+	// 4. AC-2: Rotating query param ?tenant=tenant_beta also yields 403
+	req4 := httptest.NewRequest(http.MethodGet, "/backlog?tenant=tenant_beta", nil)
+	req4.Header.Set("Authorization", "Bearer token_alpha")
+	rr4 := httptest.NewRecorder()
+	h.ServeHTTP(rr4, req4)
+	if rr4.Code != http.StatusForbidden {
+		t.Fatalf("req4 want 403 Forbidden for cross-tenant query, got %d", rr4.Code)
+	}
+
+	// 5. AC-2: Tenant_alpha cannot reset or evade bucket by omitting header; still 429
+	req5 := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	req5.Header.Set("Authorization", "Bearer token_alpha")
+	rr5 := httptest.NewRecorder()
+	h.ServeHTTP(rr5, req5)
+	if rr5.Code != http.StatusTooManyRequests {
+		t.Fatalf("req5 want 429 (quota bucket not bypassed), got %d", rr5.Code)
+	}
+
+	// 6. Tenant_beta has its own independent bucket and succeeds
+	req6 := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	req6.Header.Set("Authorization", "Bearer token_beta")
+	rr6 := httptest.NewRecorder()
+	h.ServeHTTP(rr6, req6)
+	if rr6.Code != http.StatusOK {
+		t.Fatalf("req6 want 200 for isolated tenant_beta, got %d", rr6.Code)
+	}
+}
+
