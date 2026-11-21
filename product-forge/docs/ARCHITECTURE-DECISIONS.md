@@ -84,6 +84,7 @@ Go ramp cost. *We accept these; mitigated by contract-first + value-driven migra
 - A shipped package contains **no readable `.py`** (release gate).
 - New shipped features land in Go; `work_pull`/`scheduler` unaffected.
 - ADR-0001 is referenced by Epic A items and `BI-PF-0387`.
+- Delivery baseline formally ratified and specified in `docs/PF-DELIVERY-BASELINE.md` (`BI-PF-0387`).
 
 ---
 

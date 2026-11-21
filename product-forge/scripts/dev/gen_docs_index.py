@@ -102,6 +102,7 @@ TOP = {
     "BRANCHING-GIT-WORKFLOW.md": ("Implemented", "Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431)", 100),
     "TOOLS-AND-DEPENDENCIES.md": ("Implemented", "PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436)", 100),
     "PF-BASELINE.md": ("Implemented", "PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392)", 100),
+    "PF-DELIVERY-BASELINE.md": ("SSOT", "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled; customer contract (BI-PF-0387)", 100),
     "WORKER-SCHEDULER-OPERATIONS.md": ("Implemented", "Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery", 100),
     "WORKERGRID-DESIGN.md": ("Design", "WorkerGrid: external producer-agnostic execution plane (ADR-0002); PF=producer/SSOT, executor split, shared service", 10),
     "WORKER-NEW-ARCHITECTURE.md": ("Design", "Worker fleet redesign (PARKED, after EDP-17): state + coordination substrate, control plane (schedule/assign/coordinate/observe/deliver), data plane (isolated execution)", 0),
