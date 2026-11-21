@@ -1,0 +1,26 @@
+{
+  "item": "BI-PF-1435",
+  "sha": "cf50f2eb49ab",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T12:01:10.105191+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "7d9c0c8380b7963fce758e13d81d0d1bd96ad526",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The `Put` operation can succeed and return an `ObjectInfo` with a checksum, while the corresponding GCS object in cloud storage lacks the mandatory `pf-checksum` metadata if the final `PATCH` request fails. This violates the design invariant \"Every object is hashed via SHA-256 and stamped with the `pf-checksum` metadata attribute.\""
+    ],
+    "MINOR": [
+      "The `TestBuildObjectStore_GCS` test suite does not include a test case for `PF_GCS_CREDENTIALS_FILE`, leaving one authentication path for AC-2 untested."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "The implementation successfully delivers on AC-1, AC-2, and AC-3, providing a robust, memory-bounded streaming GCS adapter with comprehensive test coverage.",
+      "A major integrity risk exists where the `pf-checksum` metadata might be missing from the GCS object if the final metadata patch fails, violating a core design invariant.",
+      "Test coverage for one authentication path in `buildObjectStore` is missing."
+    ]
+  }
+}
