@@ -11,7 +11,7 @@
   "risk": 1,
   "tier": 1,
   "type": "feature",
-  "_note": "Gate 1.5: dispositioned all findings as ACTIONED",
+  "_note": "Gate 2.5: dispositioned all diff findings as ACTIONED",
   "brief": {
     "why": "Stop extending the legacy WS transport; freeze it for backwards compatibility and migrate real-time consumers to Eventing SSOT SSE.",
     "source": "authored",
@@ -243,7 +243,8 @@
   ],
   "evidence": [
     "test-framework/tests/pipeline/test_events_retire_ws_api.py",
-    "Gate 1.5 architect review - model=gemini-2.5-flash sha=4dc9b2a755fd\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The design does not explicitly detail runtime logging or metrics for existing consumers who might still be using the deprecated `websocket_manager`, beyond the static deprecation header. This could hinder operational observability of migration progress.\nNIT:\n  - The `test_ac3_zero_new_websocket_consumers` requirement mentions \"AST or grep check\". Specifying AST-based analysis would ensure a more robust and accurate check against new imports.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=4dc9b2a755fd\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The design does not explicitly detail runtime logging or metrics for existing consumers who might still be using the deprecated `websocket_manager`, beyond the static deprecation header. This could hinder operational observability of migration progress.\nNIT:\n  - The `test_ac3_zero_new_websocket_consumers` requirement mentions \"AST or grep check\". Specifying AST-based analysis would ensure a more robust and accurate check against new imports.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=8ce422697795\nBLOCKER:\n  - The `test_ac3_zero_new_websocket_consumers` test does not scan the `scripts` directory, failing to fully meet Acceptance Criterion AC-3 (\"across core, api, and scripts\").\n  - The `test_ac4_sse_stream_alternative_active` test only verifies the *presence* of the SSE stream route in code, not its *active* status as required by AC-4 (\"SSE event stream and bus status are active alternatives\").\nMAJOR:\n  - The `warnings.warn` call uses `DeprecationWarning`, which is ignored by default in Python, reducing the runtime observability for developers.\nMINOR:\n  - The `test_ac5_wired_audit_legacy_guard_pass` test modifies `sys.path` directly, which can lead to brittle test environments.\nNIT:\n  - The `WebSocketManager` class docstring is slightly redundant with the module-level docstring regarding deprecation.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "in_scope": [
     "core/websocket_manager.py",
@@ -333,7 +334,7 @@
     "BI-PF-1274"
   ],
   "created_at": "2026-10-12T22:54:48.381314",
-  "updated_at": "2026-11-21T14:26:06.690374",
+  "updated_at": "2026-11-21T14:34:46.485277",
   "design_pack": {
     "audit": "Hash checked deterministically during CI and precheck.",
     "risks": [
@@ -915,7 +916,7 @@
     "Retirement and freezing of legacy transport module with zero database mutations."
   ],
   "verification": [
-    "Gate 1.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 1, 'NIT': 1}"
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 2, 'MAJOR': 1, 'MINOR': 1, 'NIT': 1}"
   ],
   "language_rule": "language-rule: OK (no new shipped Python; docstring deprecation edit to existing file)",
   "priority_rank": 2,
@@ -941,6 +942,33 @@
       "review_sha": "4dc9b2a755fd",
       "review_scope": "full_candidate",
       "candidate_sha": "dc27f7c419805a48579003b4d32275511b10f378"
+    },
+    {
+      "at": "2026-11-21T08:59:52.870686+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1276-8ce422697795.json",
+      "findings": {
+        "NIT": [
+          "The `WebSocketManager` class docstring is slightly redundant with the module-level docstring regarding deprecation."
+        ],
+        "MAJOR": [
+          "The `warnings.warn` call uses `DeprecationWarning`, which is ignored by default in Python, reducing the runtime observability for developers."
+        ],
+        "MINOR": [
+          "The `test_ac5_wired_audit_legacy_guard_pass` test modifies `sys.path` directly, which can lead to brittle test environments."
+        ],
+        "BLOCKER": [
+          "The `test_ac3_zero_new_websocket_consumers` test does not scan the `scripts` directory, failing to fully meet Acceptance Criterion AC-3 (\"across core, api, and scripts\").",
+          "The `test_ac4_sse_stream_alternative_active` test only verifies the *presence* of the SSE stream route in code, not its *active* status as required by AC-4 (\"SSE event stream and bus status are active alternatives\")."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "239b96cbbe68c6991caaf2807a0722c31876df64",
+      "review_sha": "8ce422697795",
+      "review_scope": "full_candidate",
+      "candidate_sha": "239b96cbbe68c6991caaf2807a0722c31876df64"
     }
   ],
   "affected_files": [
@@ -1248,6 +1276,33 @@
     "config"
   ],
   "review_dispositions": {
+    "diff": {
+      "1": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Expanded scanned roots in test_ac3 to include core, api, and scripts, utilizing AST node traversal (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Integrated live FastAPI test client invocation in test_ac4 validating 200 OK operational envelope from /events/bus and verified route mounting in app.openapi() (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Switched runtime deprecation warning to FutureWarning to ensure standard visibility across Python environments without custom filter configuration (verified in core/websocket_manager.py).",
+        "status": "ACTIONED"
+      },
+      "4": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Wrapped wired_audit import with try/finally to restore sys.path and prevent test environment pollution (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "5": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Streamlined class docstring to eliminate redundancy with the module-level deprecation notice (verified in core/websocket_manager.py).",
+        "status": "ACTIONED"
+      }
+    },
     "design": {
       "1": {
         "by": "hil:operator",
