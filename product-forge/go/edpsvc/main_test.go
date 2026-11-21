@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -667,7 +668,21 @@ func TestBuildObjectStore_GCS(t *testing.T) {
 		t.Fatalf("expected store on gcs credentials JSON, got st=%v err=%v", st, err)
 	}
 
+	// Case 3b: PF_OBJECT_BACKEND=gcs with credentials file -> success
+	os.Unsetenv("PF_GCS_CREDENTIALS_JSON")
+	tmpFile := filepath.Join(t.TempDir(), "gcs-creds.json")
+	if err := os.WriteFile(tmpFile, []byte(`{"access_token": "file-token"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	os.Setenv("PF_GCS_CREDENTIALS_FILE", tmpFile)
+	defer os.Unsetenv("PF_GCS_CREDENTIALS_FILE")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on gcs credentials file, got st=%v err=%v", st, err)
+	}
+
 	// Case 4: Default or local backend -> local store
+	os.Unsetenv("PF_GCS_CREDENTIALS_FILE")
 	os.Setenv("PF_OBJECT_BACKEND", "local")
 	st, err = buildObjectStore()
 	if err != nil || st == nil {

@@ -296,9 +296,10 @@ func (s *Store) putResumable(ctx context.Context, key string, r io.Reader, size 
 	// 4. If pf-checksum was not set in initial metadata, patch it now
 	if opts.Checksum == "" {
 		patched, err := s.patchMetadata(ctx, key, computedChecksum)
-		if err == nil {
-			lastObj = patched
+		if err != nil {
+			return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: patch checksum metadata: %w", err)
 		}
+		lastObj = patched
 	}
 
 	return lastObj.toInfo(key, computedChecksum), nil
