@@ -1,153 +1,45 @@
 {
   "id": "BI-PF-1266",
+  "due": "",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "",
-  "label": "PF Backlog 576",
-  "title": "Eventing SSOT: ADR + design (Go-first bus, Python thin client, no-duplication, migration)",
   "body": "## Problem / why\nThe Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).\n\n## Goal / value\nAn accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.\n\n## In scope\n- ADR (docs/ARCHITECTURE-DECISIONS.md) recording Go-core + Python-thin-client, no second bus/store.\n- Design doc with the consumer migration matrix + no-regression DoD + the five open decisions.\n\n## Out of scope\n- Any implementation.\n\n## Acceptance criteria\n- ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.\n- language/ownership conflicts recorded (events.jsonl owner; event_bus facade).\n\n## Verification / test plan\n- `python scripts/dev/design_review_check.py docs/<design>.md` clean; ADR index updated.",
-  "source": "design",
-  "status": "executing",
-  "priority": "P2",
-  "moscow": "Should",
-  "value": 5,
-  "effort": 2,
-  "risk": 1,
   "deps": [],
-  "links": {
-    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-    "adr": "ADR-0005",
-    "epic": "BI-PF-1265"
-  },
-  "decisions": [
-    {
-      "decision": "Go event core + Python thin client over the A1 seam; strangle consumers behind shims",
-      "source": "ADR-0005",
-      "at": "2026-10-12T23:36:27.306163"
-    },
-    {
-      "decision": "Extend go/pfcore first (Q1); standalone Go bus daemon (Q2); SSE at API edge (Q3)",
-      "source": "BI-PF-1266",
-      "at": "2026-10-12T23:36:27.306163"
-    },
-    {
-      "decision": "Python stays the event-store writer until a one-time Go cutover (Q4); emit via the seam (Q5)",
-      "source": "BI-PF-1266",
-      "at": "2026-10-12T23:36:27.306163"
-    },
-    {
-      "at": "2026-10-13T11:18:32.805128",
-      "decision": "APPROVE",
-      "by": "cli",
-      "note": ""
-    },
-    {
-      "at": "2026-11-13T18:00:18.019650+00:00",
-      "by": "hil:user",
-      "decision": "APPROVE",
-      "gate": 1,
-      "findings_sha": "dd8c390f4c02",
-      "findings_digest": "215ef1cc7701",
-      "seq": 5,
-      "note": "HIL approved Gate 1 for ADR-0011 PostgreSQL event authority design after design/spec/conformance pass.",
-      "hil_confirmed": true
-    },
-    {
-      "at": "2026-11-13T18:00:49.482607+00:00",
-      "by": "hil:user",
-      "decision": "APPROVE",
-      "gate": 1,
-      "findings_sha": "dd8c390f4c02",
-      "findings_digest": "215ef1cc7701",
-      "seq": 6,
-      "note": "Gate 1 re-recorded after reconciling Q4 writer ownership to ADR-0011.",
-      "hil_confirmed": true
-    },
-    {
-      "at": "2026-11-13T18:01:20.780236+00:00",
-      "by": "hil:user",
-      "decision": "APPROVE",
-      "gate": 1,
-      "findings_sha": "dd8c390f4c02",
-      "findings_digest": "215ef1cc7701",
-      "seq": 7,
-      "note": "Gate 1 re-recorded after reconciliation alignment with ADR-0011.",
-      "hil_confirmed": true
-    }
-  ],
-  "follow_up": {},
+  "epic": "BI-PF-1265",
+  "risk": 1,
+  "type": "feature",
+  "_note": "All child items implemented, verified, and delivered to develop; closing umbrella design",
   "brief": {
+    "why": "The Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).",
+    "source": "authored",
     "problem": "The Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).",
     "what_adds": "An accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.",
-    "why": "The Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "authored"
+    "who_feels": "Product Forge maintainers and consumers."
   },
-  "objective": "An accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.",
-  "acceptance_criteria": [
-    "ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.",
-    "language/ownership conflicts recorded (events.jsonl owner; event_bus facade)."
+  "label": "PF Backlog 576",
+  "links": {
+    "adr": "ADR-0005",
+    "epic": "BI-PF-1265",
+    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+  },
+  "owner": "agent",
+  "risks": [
+    "Two-writer drift during migration",
+    "Object/DB orphan on failed commit",
+    "Bus mistaken as authority",
+    "Cursor/tenant isolation bug",
+    "Retention deletion removes referenced payload"
   ],
-  "in_scope": [
-    "ADR (docs/ARCHITECTURE-DECISIONS.md) recording Go-core + Python-thin-client, no second bus/store.",
-    "Design doc with the consumer migration matrix + no-regression DoD + the five open decisions."
-  ],
-  "out_of_scope": [
-    "Any implementation."
-  ],
-  "affected_components": [
-    "docs",
-    "engineering"
-  ],
-  "affected_files": [
-    "docs/ARCHITECTURE-DECISIONS.md",
-    "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-    "engineering/design/BI-PF-1266.md",
-    "engineering/specs/BI-PF-1266.md",
-    "engineering/specs/BI-PF-1266-spec-pack.md"
-  ],
-  "approach": "- `python scripts/dev/design_review_check.py docs/<design>.md` clean; ADR index updated.",
+  "scope": "product_forge",
+  "score": 2.5,
+  "title": "Eventing SSOT: ADR + design (Go-first bus, Python thin client, no-duplication, migration)",
+  "value": 5,
+  "effort": 2,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-1265",
   "review": {
-    "reconciliation": {
-      "prior_decisions": [
-        "ADR-0001 / PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md 4.8: Go-first for new work; no duplication",
-        "ENG-9-DOGFOOD.md:30: pipeline via the ONE canonical path (run_entry)",
-        "core/events.py:1-11: this module is the single writer of the canonical stream",
-        "ADR-0004: Feature<->Epic<->children backlog model",
-        "BI-PF-0233: project-scoped bus events mirror into the per-project canonical stream"
-      ],
-      "existing_path": [
-        "canonical emit+taxonomy -> core/events.py",
-        "orchestration signal bus + in-proc handlers -> core/event_bus.py",
-        "payload secret redaction -> core/log_router.redact()",
-        "DLQ retry sink -> core/dead_letter_queue.py",
-        "notifications store -> core/notification_system.py; email -> core/alerts.py",
-        "Go invocation seam -> core/go_host.invoke + core/contracts.py (A1)",
-        "subscriber registry/dispatcher/transports/alert policy/SSE -> MISSING (to build)"
-      ],
-      "assumptions": [
-        "A1 Go core is the acceptable host for the new event core",
-        "A2 core/events.py becomes a thin client keeping its public API",
-        "A3 the Go event core is the sole PostgreSQL writer at cutover; events.jsonl is a read-only projection",
-        "A4 SSE served at the API edge",
-        "A5 subscriber-registry + alert-rule stores use PostgreSQL single writers",
-        "A6 existing consumers accept in-proc shims with identical behavior"
-      ],
-      "divergences": [
-        "blocking/Go-daemon model diverges from the historical emit-and-read async design (DOGFOOD-E2E-DESIGN.md:65) -> amended by ADR-0005",
-        "legacy WebSocket transport is not extended (superseded by SSE)"
-      ],
-      "open_questions": [
-        "Q1 packaging: extend go/pfcore first",
-        "Q2 run model: library invocation for emit/read; dispatcher daemon later",
-        "Q3 SSE edge: API edge reads PostgreSQL cursors",
-        "Q4 writer ownership: Go event core is sole PostgreSQL writer at cutover; events.jsonl is read-only projection",
-        "Q5 Python-emit handoff: core/events.py calls the Go core; no dual writer"
-      ]
-    },
+    "at": "2026-10-12T23:36:27.306163",
+    "reviewed_by": "architect",
     "impact_review": [
       {
         "claim": "New bus core in Go",
@@ -196,27 +88,99 @@
         "recommendation": "do NOT; Python edge + Go behind seam"
       }
     ],
-    "reviewed_by": "architect",
-    "at": "2026-10-12T23:36:27.306163",
     "open_questions": [
       "Q1 Go packaging: extend go/pfcore first",
       "Q2 run model: library invocation for emit/read; dispatcher daemon later",
       "Q3 SSE edge: API edge reads PostgreSQL cursors",
       "Q4 writer ownership: Go event core is the sole PostgreSQL writer at cutover; events.jsonl is read-only projection",
       "Q5 Python-emit handoff: core/events.py calls the Go core; no dual writer"
-    ]
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "A1 Go core is the acceptable host for the new event core",
+        "A2 core/events.py becomes a thin client keeping its public API",
+        "A3 the Go event core is the sole PostgreSQL writer at cutover; events.jsonl is a read-only projection",
+        "A4 SSE served at the API edge",
+        "A5 subscriber-registry + alert-rule stores use PostgreSQL single writers",
+        "A6 existing consumers accept in-proc shims with identical behavior"
+      ],
+      "divergences": [
+        "blocking/Go-daemon model diverges from the historical emit-and-read async design (DOGFOOD-E2E-DESIGN.md:65) -> amended by ADR-0005",
+        "legacy WebSocket transport is not extended (superseded by SSE)"
+      ],
+      "existing_path": [
+        "canonical emit+taxonomy -> core/events.py",
+        "orchestration signal bus + in-proc handlers -> core/event_bus.py",
+        "payload secret redaction -> core/log_router.redact()",
+        "DLQ retry sink -> core/dead_letter_queue.py",
+        "notifications store -> core/notification_system.py; email -> core/alerts.py",
+        "Go invocation seam -> core/go_host.invoke + core/contracts.py (A1)",
+        "subscriber registry/dispatcher/transports/alert policy/SSE -> MISSING (to build)"
+      ],
+      "open_questions": [
+        "Q1 packaging: extend go/pfcore first",
+        "Q2 run model: library invocation for emit/read; dispatcher daemon later",
+        "Q3 SSE edge: API edge reads PostgreSQL cursors",
+        "Q4 writer ownership: Go event core is sole PostgreSQL writer at cutover; events.jsonl is read-only projection",
+        "Q5 Python-emit handoff: core/events.py calls the Go core; no dual writer"
+      ],
+      "prior_decisions": [
+        "ADR-0001 / PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md 4.8: Go-first for new work; no duplication",
+        "ENG-9-DOGFOOD.md:30: pipeline via the ONE canonical path (run_entry)",
+        "core/events.py:1-11: this module is the single writer of the canonical stream",
+        "ADR-0004: Feature<->Epic<->children backlog model",
+        "BI-PF-0233: project-scoped bus events mirror into the per-project canonical stream"
+      ]
+    }
   },
-  "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 2}"
-  ],
-  "risks": [
-    "Two-writer drift during migration",
-    "Object/DB orphan on failed commit",
-    "Bus mistaken as authority",
-    "Cursor/tenant isolation bug",
-    "Retention deletion removes referenced payload"
-  ],
-  "rollback": "Revert the change.",
+  "source": "design",
+  "status": "completed",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=2.5",
+      "components=6",
+      "apis=0"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-10-14T12:02:59.541389",
+    "analyzed_by": "deterministic",
+    "assumptions": [],
+    "missing_info": [],
+    "refreshed_at": "2026-10-14T12:02:59.341427",
+    "existing_apis": [],
+    "arch_fingerprint": "d3285da0f59c3e99",
+    "architecture_fit": "EXTEND",
+    "existing_modules": [
+      "config/business-models-kb.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 3,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/business_models_kb.py",
+      "core/business_skills_selector.py",
+      "core/design_critic.py",
+      "core/design_tokens.py",
+      "core/event_bus.py",
+      "core/product_design_spec.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/business_models_kb.py, core/business_skills_selector.py, core/design_critic.py, core/design_tokens.py"
+  },
+  "approach": "- `python scripts/dev/design_review_check.py docs/<design>.md` clean; ADR index updated.",
+  "children": [],
   "evidence": [
     "pending",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=886051fa010e\nBLOCKER:\n  - AC-2 not evidenced: design pack records \"Go core writes events/outbox\" but no explicit `events.jsonl` owner and no `event_bus` facade ownership entry in `contracts`/`invariants`.\n  - AC-1 partially unmet: `open_questions: []` yet in_scope cites \"the five open decisions\"; no resolved-decision list with dispositions appears in affected files.\nMAJOR:\n  - CL-008 guardrails unanswered in design: backup/restore path, scheduler/DB-down availability + startup check/lead-time, dry-run bounds, and fail-able test definition are absent.\n  - Runtime role authorization gap: RLS stated, but no statement that runtime roles are subject to RLS (no BYPASSRLS/superuser inheritance) per guardrail 3.\n  - Migration matrix not traceable: `spec_pack.migration_backfill` cites design sections 9/10, but no consumer-by-consumer migration matrix is enumerated in the declared artifacts.\n  - Object-store orphan risk: FR-2 puts object before event commit; no stated cleanup/GC if the DB commit fails after successful put.\nMINOR:\n  - `risks: ['Not specified.']` — risks for a cross-cutting event-authority migration are undeclared.\n  - Rollback for this item is only \"Revert the change\"; migration-interrupted recovery and JSONL projection parity criteria are unspecified (guardrail 6).\n  - Observability lists metric names but no thresholds/SLO or alert lead-time for outbox lag/DLQ depth (guardrail 2/10).\n  - Ownership gate (CL-001) dependency noted as \"pending\"; no recorded single-writer registration evidence for the facade seam.\nNIT:\n  - Rollback wording differs between `functional_spec.rollback` and `design_pack.rollback`; align to one canonical phrasing.\n  - Three parallel spec/design artifacts (design + spec + spec-pack) risk drift; designate one SSOT and reference the rest.\nSUMMARY:\n  - Verdict: not gate-ready; both acceptance criteria lack verifiable evidence in declared artifacts.\n  - Top risks: missing ownership/facade records (AC-2), unresolved \"five open decisions\" (AC-1), and guardrail checklist (CL-008) items unanswered before Gate 1.5.\n  - Re-review after design doc explicitly records owners, resolved decisions, migration matrix rows, and guardrail answers.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
@@ -226,111 +190,279 @@
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=18576d8048a8\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback depends on a \"projection freshness bound of 5 minutes\" to trigger degraded read-path state, yet neither `functional_spec.observability` nor `design_pack.observability` (both changed) defines a projection-age/freshness metric, alert, or detection owner — the rollback trigger is operationally undetectable.\nMINOR:\n  - `contracts.files` / `contract_surface_future` omit `events.jsonl` itself, although the invariants name it as the frozen read-only projection artifact and rollback keeps it live; CL-001 surface is incomplete for the artifact readers consume.\n  - `failure_matrix` EVENT_CURSOR_INVALID expects \"Return empty or reject according to contract\" — a Gate whose AC is \"frozen contracts\" still leaves a caller-visible behavior as either/or.\n  - `ownership_registration` defers single-writer registration evidence to BI-PF-1268/1269; at this gate the facade seam control is asserted but unverifiable (no registration artifact or test in `test_matrix` AC-2).\n  - Disposition ledger not updated in this delta: prior MAJOR (interim outbox bound/cleanup/alert) and prior MINORs (Go-tool owner, BI-PF-1274 dependency, deferred store-registry qualifier, version 3) are addressed by these changed fields yet remain PENDING — CL-006 makes Gate 1 approval invalid until recorded.\nNIT:\n  - `risks` and `spec_pack` are listed in `changed_fields` but byte-identical to the surrounding context, extending scope noise for reviewers.\nSUMMARY:\n  - Design-only delta is sound: AC-1/AC-2 artifacts, frozen contracts, migration matrix, and resolved decisions are present, and the language rule is respected (docs only, no shipped code).\n  - Top risks: rollback's freshness trigger has no corresponding observability row, ownership registration evidence is future-dated, and disposition ledger lag blocks a clean Gate 1.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=58ccb19dc320\nBLOCKER:\n  - none\nMAJOR:\n  - `test_matrix` AC-2 evidence names `config/store-registry.json` and test `scripts/dev/store_registry_relationships.py`, but neither is in `affected_files`, and `ownership_registration` states this item mutates no runtime stores — AC-2 evidence cannot be produced or verified at this gate.\n  - `affected_components` declares `scripts`, yet `affected_files` contains no scripts path; the design-review tooling row in the approach has no matching file/evidence in the delta.\nMINOR:\n  - `contract_surface_future` still omits `events.jsonl` even though the invariant and rollback name it as the frozen read-only projection artifact; prior finding disposition claims full ACTIONED but only `contracts.files` was corrected.\n  - `test_matrix` AC-2 evidence chain splits across artifacts deferred to BI-PF-1268/1269 with no in-gate doc-based evidence row tying the events.jsonl-owner/event_bus-facade conflict record to `docs/EVENTING-ALERTING-SSOT-DESIGN.md` sections.\nNIT:\n  - `functional_spec` and `spec_pack` are listed in `changed_fields` but byte-identical to context, with `version` (1) and `functional_sha` unchanged — same scope-noise class as the pending `risks`/`spec_pack` NIT.\n  - `design_pack.version` bumped to 3 while sibling pack versions stay flat, giving no single coordinated revision marker across the pack set.\nSUMMARY:\n  - Design delta satisfies AC-1 (frozen contracts, migration matrix, Q1–Q5 resolved) and prior MAJOR/MINOR dispositions are substantively reflected (projection freshness alert, cursor contract specificity, outbox bounds, events.jsonl in `contracts.files`).\n  - Top risks: AC-2 test/evidence references out-of-scope artifacts that this gate cannot verify, and the `contract_surface_future` ownership surface remains incomplete for the projection file readers consume.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
-  "owner": "agent",
-  "requester": "design",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
-  "epic": "BI-PF-1265",
-  "parent": "BI-PF-1265",
+  "in_scope": [
+    "ADR (docs/ARCHITECTURE-DECISIONS.md) recording Go-core + Python-thin-client, no second bus/store.",
+    "Design doc with the consumer migration matrix + no-regression DoD + the five open decisions."
+  ],
+  "priority": "P2",
   "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "P2",
-  "analyze_mode": "on_entry",
-  "analysis": {
-    "status": "COMPLETE",
-    "analyzed_at": "2026-10-14T12:02:59.541389",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 3,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/business_models_kb.py, core/business_skills_selector.py, core/design_critic.py, core/design_tokens.py",
-    "existing_components": [
-      "core/business_models_kb.py",
-      "core/business_skills_selector.py",
-      "core/design_critic.py",
-      "core/design_tokens.py",
-      "core/event_bus.py",
-      "core/product_design_spec.py"
-    ],
-    "existing_apis": [],
-    "existing_modules": [
-      "config/business-models-kb.json"
-    ],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=2.5",
-      "components=6",
-      "apis=0"
-    ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
-    "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:02:59.341427"
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-10-12T23:36:27.306163",
+      "source": "ADR-0005",
+      "decision": "Go event core + Python thin client over the A1 seam; strangle consumers behind shims"
+    },
+    {
+      "at": "2026-10-12T23:36:27.306163",
+      "source": "BI-PF-1266",
+      "decision": "Extend go/pfcore first (Q1); standalone Go bus daemon (Q2); SSE at API edge (Q3)"
+    },
+    {
+      "at": "2026-10-12T23:36:27.306163",
+      "source": "BI-PF-1266",
+      "decision": "Python stays the event-store writer until a one-time Go cutover (Q4); emit via the seam (Q5)"
+    },
+    {
+      "at": "2026-10-13T11:18:32.805128",
+      "by": "cli",
+      "note": "",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-13T18:00:18.019650+00:00",
+      "by": "hil:user",
+      "seq": 5,
+      "gate": 1,
+      "note": "HIL approved Gate 1 for ADR-0011 PostgreSQL event authority design after design/spec/conformance pass.",
+      "decision": "APPROVE",
+      "findings_sha": "dd8c390f4c02",
+      "hil_confirmed": true,
+      "findings_digest": "215ef1cc7701"
+    },
+    {
+      "at": "2026-11-13T18:00:49.482607+00:00",
+      "by": "hil:user",
+      "seq": 6,
+      "gate": 1,
+      "note": "Gate 1 re-recorded after reconciling Q4 writer ownership to ADR-0011.",
+      "decision": "APPROVE",
+      "findings_sha": "dd8c390f4c02",
+      "hil_confirmed": true,
+      "findings_digest": "215ef1cc7701"
+    },
+    {
+      "at": "2026-11-13T18:01:20.780236+00:00",
+      "by": "hil:user",
+      "seq": 7,
+      "gate": 1,
+      "note": "Gate 1 re-recorded after reconciliation alignment with ADR-0011.",
+      "decision": "APPROVE",
+      "findings_sha": "dd8c390f4c02",
+      "hil_confirmed": true,
+      "findings_digest": "215ef1cc7701"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
   },
-  "dependencies": [],
-  "blocked_by": [],
-  "unlocks": [],
+  "follow_up": {},
+  "objective": "An accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.",
   "readiness": {
     "ready": true,
     "reasons": [],
     "computed_at": "2026-10-13T11:18:32.662241"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
-  },
-  "created_at": "2026-10-12T22:53:58.729980",
-  "updated_at": "2026-11-13T23:31:20.928333",
-  "score": 2.5,
-  "_note": "Gate package reconciliation aligned to ADR-0011.",
-  "api_impact": {
-    "needs_api": false,
-    "reason": "Design/ADR only; no runtime API change in this item."
-  },
-  "design_pack": {
-    "version": 3,
-    "requirements": [
-      "ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.",
-      "language/ownership conflicts recorded (events.jsonl owner; event_bus facade)."
+  "requester": "design",
+  "spec_pack": {
+    "status": "APPROVED",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1266.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "owner": "architecture",
+        "reason": "Event authority and architecture are defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/ARCHITECTURE-DECISIONS.md",
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "3",
+          "4",
+          "6",
+          "7"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "owner": "architecture",
+        "reason": "No request/response contract delta in this design item; existing events routes keep their shape and BI-PF-1274 implements cursor reads.",
+        "status": "N/A"
+      },
+      {
+        "spec": "data_contract",
+        "owner": "architecture",
+        "reason": "PostgreSQL event row, cursor, and outbox are defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/ARCHITECTURE-DECISIONS.md"
+        ],
+        "sections": [
+          "4"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "owner": "architecture",
+        "reason": "Deployment payload/retention thresholds and startup validation are defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/ARCHITECTURE-DECISIONS.md",
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "4",
+          "6"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "architecture",
+        "reason": "Cursor durability and outbox delivery are defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "4",
+          "8"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "security",
+        "reason": "RLS/runtime-role and object-reference boundaries are defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/ARCHITECTURE-DECISIONS.md",
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "4",
+          "8"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "architecture",
+        "reason": "JSONL projection and staged cutover are defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "5",
+          "9",
+          "10"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "architecture",
+        "reason": "Rollback to the existing read path is required.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/ARCHITECTURE-DECISIONS.md"
+        ],
+        "sections": [
+          "9",
+          "10"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "platform",
+        "reason": "Outbox lag/DLQ/cursor health are named.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "8"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "product",
+        "reason": "No user-facing surface in this design item.",
+        "status": "N/A"
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "security",
+        "reason": "No new personal-data flow is introduced by this design.",
+        "status": "N/A"
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "architecture",
+        "reason": "Phased delivery is defined.",
+        "status": "APPLICABLE",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ],
+        "sections": [
+          "9"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "release",
+        "reason": "Design-only item; release verification lands with implementation.",
+        "status": "N/A"
+      }
     ],
-    "invariants": [
-      "PostgreSQL is the only event authority; events.jsonl is a read-only projection.",
-      "Each tenant has a monotonic seq; cursor reads use (tenant_id, seq).",
-      "A large payload is stored in object storage; the DB stores ref/sha256/size/content_type only.",
-      "Event insert and outbox insert commit in one transaction.",
-      "Only the Go event core writes events/outbox; no Python writer and no dual writer.",
-      "Bus transports carry notifications, never domain truth.",
-      "Ownership: core/events.py owns the read-only JSONL projection during migration; core/event_bus.py remains the compatibility facade; the Go event core owns PostgreSQL writes.",
-      "Any compatibility projection is generated from PostgreSQL and cannot be written as authority."
+    "functional_ref": "engineering/specs/BI-PF-1266.md"
+  },
+  "api_impact": {
+    "reason": "Design/ADR only; no runtime API change in this item.",
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-10-12T22:53:58.729980",
+  "updated_at": "2026-11-21T14:52:36.517269",
+  "design_pack": {
+    "ssot": "docs/EVENTING-ALERTING-SSOT-DESIGN.md is design SSOT; engineering/design/BI-PF-1266.md and spec-pack are generated references.",
+    "rollout": [
+      "Design approval only in BI-PF-1266. Implementation starts at BI-PF-1267 contracts and BI-PF-1268 store/core."
+    ],
+    "version": 3,
+    "rollback": "Stop the Go writer first. Keep the last generated JSONL projection read-only with a freshness bound of 5 minutes; if older, mark the read path degraded and do not rebuild from Python. Restore the event authority from PostgreSQL PITR/backup when DB returns, regenerate the projection with the Go tool, verify cursor/outbox parity, then resume. Never let Python write authority.",
+    "security": [
+      "Server-resolved tenant context; PostgreSQL RLS on event and outbox reads/writes.",
+      "No provider URL as object identity; opaque refs + sha256.",
+      "Webhook HMAC and idempotency key.",
+      "Runtime roles are NOSUPERUSER/NOBYPASSRLS; RLS applies to all event/outbox access.",
+      "Object references are tenant-scoped; provider URLs are never identity."
     ],
     "contracts": {
-      "api": [
-        "No runtime API change in this design item."
-      ],
       "db": [
         "events(tenant_id, seq, event_id unique, occurred_at, type, version, correlation_id, causation_id, actor, payload jsonb, payload_ref, payload_sha256, size_bytes, content_type); append-only + RLS."
+      ],
+      "api": [
+        "No runtime API change in this design item."
       ],
       "files": [
         "core/events.py",
@@ -343,67 +475,42 @@
         "Payload inline threshold; event retention; outbox batch/retry limits. Values are deployment config, not code constants."
       ]
     },
-    "failure_matrix": [
-      {
-        "case": "DB unavailable during emit",
-        "expected": "Fail closed; no file fallback and no partial event.",
-        "code": "EVENT_DB_UNAVAILABLE"
-      },
-      {
-        "case": "Object store put fails for large payload",
-        "expected": "Fail closed before committing the event row.",
-        "code": "EVENT_PAYLOAD_STORE_FAILED"
-      },
-      {
-        "case": "Outbox dispatch fails",
-        "expected": "Retry at-least-once; dedupe by event_id; move to DLQ after limit.",
-        "code": "EVENT_DELIVERY_FAILED"
-      },
-      {
-        "case": "Cursor requested with unknown/future seq",
-        "expected": "Reject unknown/future cursor with EVENT_CURSOR_INVALID; cursor=0 returns from start; never cross-tenant.",
-        "code": "EVENT_CURSOR_INVALID"
-      },
-      {
-        "case": "Event DB commit fails after object put",
-        "expected": "Compensate/orphan-mark the object; GC only by explicit store tool; no event row visible.",
-        "code": "EVENT_ORPHAN_CLEANUP"
-      },
-      {
-        "case": "Retention deletes an object still referenced by a live event",
-        "expected": "Delete only when no live event row references the payload_ref; GC verifies reference count before object delete.",
-        "code": "EVENT_PAYLOAD_STILL_REFERENCED"
-      },
-      {
-        "case": "Outbox grows without dispatcher",
-        "expected": "Feature flag stays off or cleanup+row-count alert bounds growth; no silent accumulation.",
-        "code": "EVENT_OUTBOX_UNBOUNDED"
-      }
+    "decisions": [
+      "PostgreSQL event authority (ADR-0011).",
+      "Object store for large payloads (ADR-0006).",
+      "Transactional outbox; bus is optional transport.",
+      "Go event core; Python thin client.",
+      "Q1 packaging resolved: extend go/pfcore first; split only if measured.",
+      "Q2 run model resolved: library invocation for emit/read; dispatcher daemon later.",
+      "Q3 SSE resolved: API edge reads PostgreSQL cursors; no Go HTTP server in this phase.",
+      "Q4 writer resolved: Go event core is the sole PostgreSQL writer at cutover; JSONL is projection only.",
+      "Q5 Python handoff resolved: core/events.py calls the Go core; no dual writer.",
+      "API delta: none. Existing events route response shape is unchanged; BI-PF-1274 implements cursor reads behind it.",
+      "Outbox lag/DLQ thresholds are inactive until BI-PF-1269 dispatcher is deployed; rollout must enable alerting with that item.",
+      "BI-PF-1268 outbox writes stay feature-flagged off until BI-PF-1269 dispatcher; if enabled early, bound outbox rows (<100k), retention 7 days, alert at 50k/5 min, cleanup job required."
     ],
-    "dependencies": [
-      "ADR-0011",
-      "ADR-0006 (PostgreSQL SoR + ObjectStore)",
-      "ADR-0005 (Go event core, Python thin client)",
-      "core/go_host A1 seam",
-      "deferred: config/store-registry.json registration lands with BI-PF-1268/1269",
-      "BI-PF-1274",
-      "BI-PF-1269"
+    "learnings": [
+      "A durable cursor requires DB ordering, not timestamp comparison.",
+      "Payload size must be bounded independently of event count."
     ],
-    "security": [
-      "Server-resolved tenant context; PostgreSQL RLS on event and outbox reads/writes.",
-      "No provider URL as object identity; opaque refs + sha256.",
-      "Webhook HMAC and idempotency key.",
-      "Runtime roles are NOSUPERUSER/NOBYPASSRLS; RLS applies to all event/outbox access.",
-      "Object references are tenant-scoped; provider URLs are never identity."
+    "guardrails": [
+      "No second event authority.",
+      "No new Python under shipped roots.",
+      "No cross-tenant reads.",
+      "No silent file fallback.",
+      "CL-008: backup/restore = PostgreSQL PITR + object-store manifest; DB-down = fail closed with startup check; dry-run bounded to 1000 events; fail-able test = cursor/outbox parity test in BI-PF-1268.",
+      "Object GC/retention: dry-run first, delete bound 1000 objects per run, and delete only when reference count is zero.",
+      "Interim outbox bound/cleanup/alert is mandatory before enabling BI-PF-1268 outbox writes; no unbounded silent growth."
     ],
-    "observability": [
-      "Event append p95 < 100 ms; error rate >1% for 5 min pages.",
-      "Outbox lag p95 < 30 s; >5 min for 10 min pages.",
-      "DLQ depth >0 pages immediately.",
-      "Cursor read lag p95 < 30 s.",
-      "Object payload store failures >0 for 5 min pages.",
-      "Outbox row count: >50k for 5 min pages; retention age >7 days pages; cleanup job failure pages.",
-      "Projection freshness: generated_at age >300 s for 5 min pages; owner platform-oncall; read path switches to degraded when stale."
+    "invariants": [
+      "PostgreSQL is the only event authority; events.jsonl is a read-only projection.",
+      "Each tenant has a monotonic seq; cursor reads use (tenant_id, seq).",
+      "A large payload is stored in object storage; the DB stores ref/sha256/size/content_type only.",
+      "Event insert and outbox insert commit in one transaction.",
+      "Only the Go event core writes events/outbox; no Python writer and no dual writer.",
+      "Bus transports carry notifications, never domain truth.",
+      "Ownership: core/events.py owns the read-only JSONL projection during migration; core/event_bus.py remains the compatibility facade; the Go event core owns PostgreSQL writes.",
+      "Any compatibility projection is generated from PostgreSQL and cannot be written as authority."
     ],
     "performance": [
       "Indexed (tenant_id, seq); bounded inline payload threshold; paginated cursor reads; metadata-only event lists."
@@ -432,99 +539,338 @@
         ]
       }
     ],
-    "rollout": [
-      "Design approval only in BI-PF-1266. Implementation starts at BI-PF-1267 contracts and BI-PF-1268 store/core."
+    "dependencies": [
+      "ADR-0011",
+      "ADR-0006 (PostgreSQL SoR + ObjectStore)",
+      "ADR-0005 (Go event core, Python thin client)",
+      "core/go_host A1 seam",
+      "deferred: config/store-registry.json registration lands with BI-PF-1268/1269",
+      "BI-PF-1274",
+      "BI-PF-1269"
     ],
-    "rollback": "Stop the Go writer first. Keep the last generated JSONL projection read-only with a freshness bound of 5 minutes; if older, mark the read path degraded and do not rebuild from Python. Restore the event authority from PostgreSQL PITR/backup when DB returns, regenerate the projection with the Go tool, verify cursor/outbox parity, then resume. Never let Python write authority.",
-    "decisions": [
-      "PostgreSQL event authority (ADR-0011).",
-      "Object store for large payloads (ADR-0006).",
-      "Transactional outbox; bus is optional transport.",
-      "Go event core; Python thin client.",
-      "Q1 packaging resolved: extend go/pfcore first; split only if measured.",
-      "Q2 run model resolved: library invocation for emit/read; dispatcher daemon later.",
-      "Q3 SSE resolved: API edge reads PostgreSQL cursors; no Go HTTP server in this phase.",
-      "Q4 writer resolved: Go event core is the sole PostgreSQL writer at cutover; JSONL is projection only.",
-      "Q5 Python handoff resolved: core/events.py calls the Go core; no dual writer.",
-      "API delta: none. Existing events route response shape is unchanged; BI-PF-1274 implements cursor reads behind it.",
-      "Outbox lag/DLQ thresholds are inactive until BI-PF-1269 dispatcher is deployed; rollout must enable alerting with that item.",
-      "BI-PF-1268 outbox writes stay feature-flagged off until BI-PF-1269 dispatcher; if enabled early, bound outbox rows (<100k), retention 7 days, alert at 50k/5 min, cleanup job required."
+    "requirements": [
+      "ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.",
+      "language/ownership conflicts recorded (events.jsonl owner; event_bus facade)."
     ],
-    "guardrails": [
-      "No second event authority.",
-      "No new Python under shipped roots.",
-      "No cross-tenant reads.",
-      "No silent file fallback.",
-      "CL-008: backup/restore = PostgreSQL PITR + object-store manifest; DB-down = fail closed with startup check; dry-run bounded to 1000 events; fail-able test = cursor/outbox parity test in BI-PF-1268.",
-      "Object GC/retention: dry-run first, delete bound 1000 objects per run, and delete only when reference count is zero.",
-      "Interim outbox bound/cleanup/alert is mandatory before enabling BI-PF-1268 outbox writes; no unbounded silent growth."
+    "rollback_ref": "Canonical rollback: functional_spec.rollback and design_pack.rollback are identical.",
+    "observability": [
+      "Event append p95 < 100 ms; error rate >1% for 5 min pages.",
+      "Outbox lag p95 < 30 s; >5 min for 10 min pages.",
+      "DLQ depth >0 pages immediately.",
+      "Cursor read lag p95 < 30 s.",
+      "Object payload store failures >0 for 5 min pages.",
+      "Outbox row count: >50k for 5 min pages; retention age >7 days pages; cleanup job failure pages.",
+      "Projection freshness: generated_at age >300 s for 5 min pages; owner platform-oncall; read path switches to degraded when stale."
     ],
-    "learnings": [
-      "A durable cursor requires DB ordering, not timestamp comparison.",
-      "Payload size must be bounded independently of event count."
+    "failure_matrix": [
+      {
+        "case": "DB unavailable during emit",
+        "code": "EVENT_DB_UNAVAILABLE",
+        "expected": "Fail closed; no file fallback and no partial event."
+      },
+      {
+        "case": "Object store put fails for large payload",
+        "code": "EVENT_PAYLOAD_STORE_FAILED",
+        "expected": "Fail closed before committing the event row."
+      },
+      {
+        "case": "Outbox dispatch fails",
+        "code": "EVENT_DELIVERY_FAILED",
+        "expected": "Retry at-least-once; dedupe by event_id; move to DLQ after limit."
+      },
+      {
+        "case": "Cursor requested with unknown/future seq",
+        "code": "EVENT_CURSOR_INVALID",
+        "expected": "Reject unknown/future cursor with EVENT_CURSOR_INVALID; cursor=0 returns from start; never cross-tenant."
+      },
+      {
+        "case": "Event DB commit fails after object put",
+        "code": "EVENT_ORPHAN_CLEANUP",
+        "expected": "Compensate/orphan-mark the object; GC only by explicit store tool; no event row visible."
+      },
+      {
+        "case": "Retention deletes an object still referenced by a live event",
+        "code": "EVENT_PAYLOAD_STILL_REFERENCED",
+        "expected": "Delete only when no live event row references the payload_ref; GC verifies reference count before object delete."
+      },
+      {
+        "case": "Outbox grows without dispatcher",
+        "code": "EVENT_OUTBOX_UNBOUNDED",
+        "expected": "Feature flag stays off or cleanup+row-count alert bounds growth; no silent accumulation."
+      }
     ],
     "migration_matrix": [
       {
-        "consumer": "core/events.py",
-        "current": "events.jsonl emit/read",
+        "compat": "public API unchanged; JSONL projection read-only",
         "target": "thin client over Go/PostgreSQL",
-        "compat": "public API unchanged; JSONL projection read-only"
+        "current": "events.jsonl emit/read",
+        "consumer": "core/events.py"
       },
       {
-        "consumer": "core/event_bus.py",
-        "current": "second stream + inproc handlers",
+        "compat": "on/emit/recent/KINDS unchanged",
         "target": "facade over registry/outbox",
-        "compat": "on/emit/recent/KINDS unchanged"
+        "current": "second stream + inproc handlers",
+        "consumer": "core/event_bus.py"
       },
       {
-        "consumer": "api/routers/events.py",
-        "current": "run event reads",
+        "compat": "response shape unchanged",
         "target": "cursor reads",
-        "compat": "response shape unchanged"
+        "current": "run event reads",
+        "consumer": "api/routers/events.py"
       },
       {
-        "consumer": "core/notification_system.py",
-        "current": "own store",
+        "compat": "method signatures unchanged",
         "target": "notify transport",
-        "compat": "method signatures unchanged"
+        "current": "own store",
+        "consumer": "core/notification_system.py"
       },
       {
-        "consumer": "core/alerts.py",
-        "current": "direct email",
+        "compat": "email() unchanged",
         "target": "email transport",
-        "compat": "email() unchanged"
+        "current": "direct email",
+        "consumer": "core/alerts.py"
       }
     ],
-    "rollback_ref": "Canonical rollback: functional_spec.rollback and design_pack.rollback are identical.",
-    "ssot": "docs/EVENTING-ALERTING-SSOT-DESIGN.md is design SSOT; engineering/design/BI-PF-1266.md and spec-pack are generated references.",
+    "affected_components": [
+      "docs",
+      "engineering"
+    ],
+    "contract_surface_note": "Frozen contract surface at Gate 1; implementation changes land in BI-PF-1267/1268/1269, not this design item.",
+    "ownership_registration": "Single-writer registration for the facade seam is evidenced by config/store-registry.json entries added in BI-PF-1268/BI-PF-1269; this design item does not mutate runtime stores.",
     "contract_surface_future": [
       "core/events.py (legacy projection owner until cutover)",
       "core/event_bus.py (compatibility facade)",
       "config/store-registry.json (registration lands with BI-PF-1268/1269)",
       "go/pfcore/events.go owns projection regeneration from PostgreSQL backup/parity source.",
       "events.jsonl (read-only projection; never authority)"
-    ],
-    "ownership_registration": "Single-writer registration for the facade seam is evidenced by config/store-registry.json entries added in BI-PF-1268/BI-PF-1269; this design item does not mutate runtime stores.",
-    "contract_surface_note": "Frozen contract surface at Gate 1; implementation changes land in BI-PF-1267/1268/1269, not this design item.",
-    "affected_components": [
-      "docs",
-      "engineering"
     ]
   },
+  "external_id": "",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Any implementation."
+  ],
+  "verification": [
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 2}"
+  ],
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-13T17:43:56.959028+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1266-886051fa010e.json",
+      "findings": {
+        "NIT": [
+          "Rollback wording differs between `functional_spec.rollback` and `design_pack.rollback`; align to one canonical phrasing.",
+          "Three parallel spec/design artifacts (design + spec + spec-pack) risk drift; designate one SSOT and reference the rest."
+        ],
+        "MAJOR": [
+          "CL-008 guardrails unanswered in design: backup/restore path, scheduler/DB-down availability + startup check/lead-time, dry-run bounds, and fail-able test definition are absent.",
+          "Runtime role authorization gap: RLS stated, but no statement that runtime roles are subject to RLS (no BYPASSRLS/superuser inheritance) per guardrail 3.",
+          "Migration matrix not traceable: `spec_pack.migration_backfill` cites design sections 9/10, but no consumer-by-consumer migration matrix is enumerated in the declared artifacts.",
+          "Object-store orphan risk: FR-2 puts object before event commit; no stated cleanup/GC if the DB commit fails after successful put."
+        ],
+        "MINOR": [
+          "`risks: ['Not specified.']` — risks for a cross-cutting event-authority migration are undeclared.",
+          "Rollback for this item is only \"Revert the change\"; migration-interrupted recovery and JSONL projection parity criteria are unspecified (guardrail 6).",
+          "Observability lists metric names but no thresholds/SLO or alert lead-time for outbox lag/DLQ depth (guardrail 2/10).",
+          "Ownership gate (CL-001) dependency noted as \"pending\"; no recorded single-writer registration evidence for the facade seam."
+        ],
+        "BLOCKER": [
+          "AC-2 not evidenced: design pack records \"Go core writes events/outbox\" but no explicit `events.jsonl` owner and no `event_bus` facade ownership entry in `contracts`/`invariants`.",
+          "AC-1 partially unmet: `open_questions: []` yet in_scope cites \"the five open decisions\"; no resolved-decision list with dispositions appears in affected files."
+        ],
+        "SUMMARY": [
+          "Verdict: not gate-ready; both acceptance criteria lack verifiable evidence in declared artifacts.",
+          "Top risks: missing ownership/facade records (AC-2), unresolved \"five open decisions\" (AC-1), and guardrail checklist (CL-008) items unanswered before Gate 1.5.",
+          "Re-review after design doc explicitly records owners, resolved decisions, migration matrix rows, and guardrail answers."
+        ]
+      },
+      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "review_sha": "886051fa010e",
+      "review_scope": "full_candidate",
+      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567"
+    },
+    {
+      "at": "2026-11-13T17:47:18.746853+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "evidence": "BI-PF-1266-fa50497939a7.json",
+      "findings": {
+        "NIT": [
+          "`contracts.files` lists `core/events.py`, `core/event_bus.py`, `config/store-registry.json` which are absent from `affected_files`; label the list as future contract surface vs. files changed by this design-only item to avoid impact-review confusion."
+        ],
+        "MAJOR": [
+          "`spec_pack.config_contract` is N/A (\"no config file change\") yet `functional_spec.config_contract` defines EVENT_INLINE_PAYLOAD_LIMIT/EVENT_RETENTION with required startup validation and `contracts.files` lists `config/store-registry.json`; delta rows contradict within the same change."
+        ],
+        "MINOR": [
+          "Risk \"Retention deletion removes referenced payload\" is declared but has no matching failure-matrix/lifecycle control (e.g., delete object only when no live event row references it); \"deletion via store contract\" is not verifiable.",
+          "`traceability.test` for FR-1/2/3 is only \"design review\", omitting the BI-PF-1268/1269 tests named in FR `verification`; FR-2/FR-3 evidence omits `docs/ARCHITECTURE-DECISIONS.md` despite design ref citing ADR-0011.",
+          "`api_contract` marked N/A while `migration_matrix` retargets `api/routers/events.py` to cursor reads; confirm no request/response contract delta or mark CONDITIONAL with evidence.",
+          "Outbox-lag/DLQ SLOs are asserted while Q2 defers the dispatcher daemon; add a rollout/enablement note so thresholds do not page before the dispatcher item lands.",
+          "Prior CL-001 minor: single-writer ownership is now stated in `invariants`, but no registration evidence artifact (registry/config entry) is named for the facade seam; record where registration will be evidenced."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta resolves the prior blockers (ownership/AC-2, resolved Q1-Q5/AC-1) and most guardrails (CL-008, BYPASSRLS, migration matrix, orphan GC, risks, rollback, SSOT).",
+          "Verdict: approvable once the config-contract contradiction is reconciled; remaining items are evidence/traceability hardening.",
+          "Top residual risks: config-contract row mismatch, retention/reference integrity control, and SLO enablement sequencing ahead of the dispatcher."
+        ]
+      },
+      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "review_sha": "fa50497939a7",
+      "review_scope": "delta",
+      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567"
+    },
+    {
+      "at": "2026-11-13T17:50:49.798167+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "evidence": "BI-PF-1266-9ef3301bc1e6.json",
+      "findings": {
+        "NIT": [
+          "`spec_pack` and `functional_spec` are listed in `changed_fields` but their delta content is byte-identical to context (`functional_sha` unchanged) — scope noise for reviewers.",
+          "Guardrail 4 bound (\"dry-run bounded to 1000 events\") covers event rows only; the retention/object-GC path (`EVENT_PAYLOAD_STILL_REFERENCED`) has no explicit delete bound or dry-run mode."
+        ],
+        "MAJOR": [
+          "Rollback says \"restore the projection\" but gives no regeneration source or freshness bound after the Go writer stops; invariant 8 bars Python from writing authority, so if PostgreSQL is unavailable (the fail-closed trigger) events.jsonl cannot be rebuilt and the read path reverts to stale data — reversibility guardrail (CL-008 item 1) not fully answered.",
+          "`design_pack.contracts.files` is now empty while AC-1 requires frozen contracts; the file-level surface was moved to `contract_surface_future` (labelled future), leaving no frozen file contract for the facade/projection seam at Gate 1."
+        ],
+        "MINOR": [
+          "`design_pack.version` stays `1` despite substantive additions (failure_matrix rows, ownership_registration, decisions, contract_surface_future); approval audit cannot distinguish which version was accepted.",
+          "`config/store-registry.json` is declared in `design_pack.dependencies` but its registration entries only land in BI-PF-1268/1269; mark it a deferred dependency so Gate 1.5 does not assume evidence that does not yet exist.",
+          "Rollback ambiguity compounds the still-PENDING prior MAJOR disposition (CL-006: approval invalid while any MAJOR is PENDING)."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta resolves most prior findings: retention control added to failure_matrix, config_contract now APPLICABLE, traceability includes BI-PF-1268/1269 tests, SLO enablement and ownership registration notes added, contracts.files separated into future surface.",
+          "No blockers; AC-1/AC-2 evidence (ADR, migration matrix, resolved Q1-Q5, ownership rows) is present.",
+          "Top risks: rollback projection-restore mechanism underspecified against the no-Python-writer invariant, and unresolved prior MAJOR dispositions must be closed before CL-006-valid Gate 1 approval."
+        ]
+      },
+      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "review_sha": "9ef3301bc1e6",
+      "review_scope": "delta",
+      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567"
+    },
+    {
+      "at": "2026-11-13T17:55:07.694394+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "evidence": "BI-PF-1266-5e81d481897a.json",
+      "findings": {
+        "NIT": [
+          "`risks` delta is byte-identical to context despite being in `changed_fields`, extending the scope noise already flagged for `spec_pack`/`functional_spec`.",
+          "Prior PENDING dispositions (design_pack.version → 2, deferred store-registry dependency, object-GC dry-run/bound) are satisfied by this delta; update the disposition ledger before Gate 1.5."
+        ],
+        "MAJOR": [
+          "Outbox rows committed from BI-PF-1268 have no dispatcher until BI-PF-1269, yet decisions declare lag/DLQ alerts inactive in that window and no interim backlog bound, cleanup, or lead-time alert is defined — unbounded, unobservable growth contradicts the \"DB rows remain bounded\" NFR and guardrail-2 alert lead-time."
+        ],
+        "MINOR": [
+          "Rollback's critical step \"regenerate the projection with the Go tool\" maps to no artifact in `contracts.files`/`contract_surface_future`; the regeneration capability has no named owner/registration (CL-001).",
+          "`design_pack.decisions` depends on BI-PF-1274 (cursor reads) but BI-PF-1274 is absent from `functional_spec.dependencies`/`design_pack.dependencies`, while traceability routes cursor tests to BI-PF-1268 — test/implementation item mismatch.",
+          "`contracts.files` lists `config/store-registry.json` without the \"deferred\" qualifier now applied in `dependencies` and `contract_surface_future`; Gate 1.5 evidence readers may assume registration exists at Gate 1."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Verdict: AC-1/AC-2 met in delta; prior MAJORs verified ACTIONED (rollback freshness + regeneration source restored, frozen `contracts.files` repopulated).",
+          "Top risks: interim outbox backlog growth with explicitly inactive alerts between BI-PF-1268/1269; rollback's Go projection tool unnamed and unowned in the frozen contract surface."
+        ]
+      },
+      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "review_sha": "5e81d481897a",
+      "review_scope": "delta",
+      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567"
+    },
+    {
+      "at": "2026-11-13T17:56:10.391266+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "evidence": "BI-PF-1266-18576d8048a8.json",
+      "findings": {
+        "NIT": [
+          "`risks` and `spec_pack` are listed in `changed_fields` but byte-identical to the surrounding context, extending scope noise for reviewers."
+        ],
+        "MAJOR": [
+          "Rollback depends on a \"projection freshness bound of 5 minutes\" to trigger degraded read-path state, yet neither `functional_spec.observability` nor `design_pack.observability` (both changed) defines a projection-age/freshness metric, alert, or detection owner — the rollback trigger is operationally undetectable."
+        ],
+        "MINOR": [
+          "`contracts.files` / `contract_surface_future` omit `events.jsonl` itself, although the invariants name it as the frozen read-only projection artifact and rollback keeps it live; CL-001 surface is incomplete for the artifact readers consume.",
+          "`failure_matrix` EVENT_CURSOR_INVALID expects \"Return empty or reject according to contract\" — a Gate whose AC is \"frozen contracts\" still leaves a caller-visible behavior as either/or.",
+          "`ownership_registration` defers single-writer registration evidence to BI-PF-1268/1269; at this gate the facade seam control is asserted but unverifiable (no registration artifact or test in `test_matrix` AC-2).",
+          "Disposition ledger not updated in this delta: prior MAJOR (interim outbox bound/cleanup/alert) and prior MINORs (Go-tool owner, BI-PF-1274 dependency, deferred store-registry qualifier, version 3) are addressed by these changed fields yet remain PENDING — CL-006 makes Gate 1 approval invalid until recorded."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Design-only delta is sound: AC-1/AC-2 artifacts, frozen contracts, migration matrix, and resolved decisions are present, and the language rule is respected (docs only, no shipped code).",
+          "Top risks: rollback's freshness trigger has no corresponding observability row, ownership registration evidence is future-dated, and disposition ledger lag blocks a clean Gate 1."
+        ]
+      },
+      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "review_sha": "18576d8048a8",
+      "review_scope": "delta",
+      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567"
+    },
+    {
+      "at": "2026-11-13T17:58:01.239329+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "evidence": "BI-PF-1266-58ccb19dc320.json",
+      "findings": {
+        "NIT": [
+          "`functional_spec` and `spec_pack` are listed in `changed_fields` but byte-identical to context, with `version` (1) and `functional_sha` unchanged — same scope-noise class as the pending `risks`/`spec_pack` NIT.",
+          "`design_pack.version` bumped to 3 while sibling pack versions stay flat, giving no single coordinated revision marker across the pack set."
+        ],
+        "MAJOR": [
+          "`test_matrix` AC-2 evidence names `config/store-registry.json` and test `scripts/dev/store_registry_relationships.py`, but neither is in `affected_files`, and `ownership_registration` states this item mutates no runtime stores — AC-2 evidence cannot be produced or verified at this gate.",
+          "`affected_components` declares `scripts`, yet `affected_files` contains no scripts path; the design-review tooling row in the approach has no matching file/evidence in the delta."
+        ],
+        "MINOR": [
+          "`contract_surface_future` still omits `events.jsonl` even though the invariant and rollback name it as the frozen read-only projection artifact; prior finding disposition claims full ACTIONED but only `contracts.files` was corrected.",
+          "`test_matrix` AC-2 evidence chain splits across artifacts deferred to BI-PF-1268/1269 with no in-gate doc-based evidence row tying the events.jsonl-owner/event_bus-facade conflict record to `docs/EVENTING-ALERTING-SSOT-DESIGN.md` sections."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Design delta satisfies AC-1 (frozen contracts, migration matrix, Q1–Q5 resolved) and prior MAJOR/MINOR dispositions are substantively reflected (projection freshness alert, cursor contract specificity, outbox bounds, events.jsonl in `contracts.files`).",
+          "Top risks: AC-2 test/evidence references out-of-scope artifacts that this gate cannot verify, and the `contract_surface_future` ownership surface remains incomplete for the projection file readers consume."
+        ]
+      },
+      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+      "review_sha": "58ccb19dc320",
+      "review_scope": "delta",
+      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567"
+    }
+  ],
+  "affected_files": [
+    "docs/ARCHITECTURE-DECISIONS.md",
+    "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+    "engineering/design/BI-PF-1266.md",
+    "engineering/specs/BI-PF-1266.md",
+    "engineering/specs/BI-PF-1266-spec-pack.md"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
   "functional_spec": {
-    "version": 3,
-    "status": "APPROVED",
+    "dod": [
+      "ADR-0011 accepted",
+      "design pack and impact review complete",
+      "Gate 1.5 approved",
+      "Gate 1 HIL approved"
+    ],
+    "nfr": [
+      "Cursor reads are deterministic across restarts.",
+      "DB rows remain bounded; large bytes stay in object storage.",
+      "Outbox delivery is at-least-once."
+    ],
     "owner": "architecture",
-    "source": "BI-PF-1266 eventing SSOT",
-    "outcome": [
-      "PostgreSQL is the event authority with per-tenant seq/cursor; large payloads use object storage; outbox feeds transports."
-    ],
-    "actors": [
-      "event producer",
-      "subscriber",
-      "operator",
-      "auditor"
-    ],
     "scope": [
       "event envelope/row contract",
       "cursor reads",
@@ -532,6 +878,23 @@
       "transactional outbox",
       "compatibility projection"
     ],
+    "actors": [
+      "event producer",
+      "subscriber",
+      "operator",
+      "auditor"
+    ],
+    "domain": [
+      "run lifecycle events",
+      "alerts and subscriptions"
+    ],
+    "source": "BI-PF-1266 eventing SSOT",
+    "status": "APPROVED",
+    "outcome": [
+      "PostgreSQL is the event authority with per-tenant seq/cursor; large payloads use object storage; outbox feeds transports."
+    ],
+    "version": 3,
+    "rollback": "Stop the Go writer first. Keep the last generated JSONL projection read-only with a freshness bound of 5 minutes; if older, mark the read path degraded and do not rebuild from Python. Restore the event authority from PostgreSQL PITR/backup when DB returns, regenerate the projection with the Go tool, verify cursor/outbox parity, then resume. Never let Python write authority.",
     "non_goals": [
       "Do not implement the Go core in this design item.",
       "Do not introduce a broker as authority."
@@ -548,94 +911,103 @@
       "BI-PF-1274",
       "BI-PF-1269"
     ],
-    "domain": [
-      "run lifecycle events",
-      "alerts and subscriptions"
-    ],
     "requirements": [
       {
         "id": "FR-1",
-        "title": "Persist canonical events in PostgreSQL with tenant seq",
-        "priority": "P0",
-        "source": "BI-PF-1266",
-        "preconditions": "Tenant context and DB authority are available.",
-        "trigger": "A producer emits a canonical event.",
-        "inputs": "Envelope with event_id, type, payload, tenant.",
-        "outputs": "Append-only event row with tenant seq.",
-        "errors": "EVENT_DB_UNAVAILABLE; no file fallback.",
         "auth": "Server-resolved tenant; RLS enforced.",
-        "idempotency": "event_id is unique per authority.",
-        "data_rules": "Append-only; seq monotonic per tenant.",
-        "edge_cases": "Retry and duplicate emit.",
+        "title": "Persist canonical events in PostgreSQL with tenant seq",
+        "errors": "EVENT_DB_UNAVAILABLE; no file fallback.",
+        "inputs": "Envelope with event_id, type, payload, tenant.",
+        "source": "BI-PF-1266",
+        "outputs": "Append-only event row with tenant seq.",
+        "trigger": "A producer emits a canonical event.",
+        "priority": "P0",
         "acceptance": [
           "Given a valid tenant and event When it is emitted Then exactly one event row is appended with a monotonic seq."
         ],
-        "verification": "Design review plus BI-PF-1268 contract tests."
+        "data_rules": "Append-only; seq monotonic per tenant.",
+        "edge_cases": "Retry and duplicate emit.",
+        "idempotency": "event_id is unique per authority.",
+        "verification": "Design review plus BI-PF-1268 contract tests.",
+        "preconditions": "Tenant context and DB authority are available."
       },
       {
         "id": "FR-2",
-        "title": "Store large event payloads as object references",
-        "priority": "P0",
-        "source": "BI-PF-1266",
-        "preconditions": "Payload exceeds the configured inline threshold.",
-        "trigger": "The event is emitted.",
-        "inputs": "Payload bytes and content type.",
-        "outputs": "Object ref, sha256, size and content type in the event row.",
-        "errors": "EVENT_PAYLOAD_STORE_FAILED; no event commit.",
         "auth": "Object store tenant boundary.",
-        "idempotency": "Reference content is content-addressed by sha256.",
-        "data_rules": "DB never stores bytes above threshold.",
-        "edge_cases": "Object store unavailable or hash mismatch.",
+        "title": "Store large event payloads as object references",
+        "errors": "EVENT_PAYLOAD_STORE_FAILED; no event commit.",
+        "inputs": "Payload bytes and content type.",
+        "source": "BI-PF-1266",
+        "outputs": "Object ref, sha256, size and content type in the event row.",
+        "trigger": "The event is emitted.",
+        "priority": "P0",
         "acceptance": [
           "Given an oversized payload When the event is emitted Then it is stored by reference and round-trips with sha256 verification."
         ],
-        "verification": "Design review plus BI-PF-1268 object-payload tests."
+        "data_rules": "DB never stores bytes above threshold.",
+        "edge_cases": "Object store unavailable or hash mismatch.",
+        "idempotency": "Reference content is content-addressed by sha256.",
+        "verification": "Design review plus BI-PF-1268 object-payload tests.",
+        "preconditions": "Payload exceeds the configured inline threshold."
       },
       {
         "id": "FR-3",
-        "title": "Dispatch through outbox with at-least-once dedupe",
-        "priority": "P0",
-        "source": "BI-PF-1266",
-        "preconditions": "Event and outbox row committed.",
-        "trigger": "Dispatcher polls the outbox.",
-        "inputs": "Outbox row and subscription target.",
-        "outputs": "Delivered event; deduped by event_id; DLQ on exhaustion.",
-        "errors": "EVENT_DELIVERY_FAILED; retry then DLQ.",
         "auth": "Subscription auth_ref and tenant context.",
-        "idempotency": "Consumer dedupe key is event_id.",
-        "data_rules": "Outbox/event transaction is atomic.",
-        "edge_cases": "Duplicate delivery and dead lettering.",
+        "title": "Dispatch through outbox with at-least-once dedupe",
+        "errors": "EVENT_DELIVERY_FAILED; retry then DLQ.",
+        "inputs": "Outbox row and subscription target.",
+        "source": "BI-PF-1266",
+        "outputs": "Delivered event; deduped by event_id; DLQ on exhaustion.",
+        "trigger": "Dispatcher polls the outbox.",
+        "priority": "P0",
         "acceptance": [
           "Given a committed event When dispatch is retried Then the consumer receives it at least once and dedupes by event_id."
         ],
-        "verification": "Design review plus BI-PF-1269 dispatcher tests."
+        "data_rules": "Outbox/event transaction is atomic.",
+        "edge_cases": "Duplicate delivery and dead lettering.",
+        "idempotency": "Consumer dedupe key is event_id.",
+        "verification": "Design review plus BI-PF-1269 dispatcher tests.",
+        "preconditions": "Event and outbox row committed."
       }
     ],
-    "operation_matrix": [
+    "traceability": [
       {
-        "mode": "on",
-        "operation": "emit",
-        "scope": "tenant",
-        "actor": "producer",
-        "expected": "append row + outbox",
-        "error": "fail closed"
+        "fr": "FR-1",
+        "test": "design review; BI-PF-1268 store/cursor tests",
+        "design": "ADR-0011 / design section 4",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md"
       },
       {
-        "mode": "read",
-        "operation": "cursor",
-        "scope": "tenant",
-        "actor": "consumer",
-        "expected": "events after seq",
-        "error": "no cross-tenant"
+        "fr": "FR-2",
+        "test": "design review; BI-PF-1268 object-payload tests",
+        "design": "ADR-0011 / design section 4",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md"
       },
       {
-        "mode": "large-payload",
-        "operation": "store",
-        "scope": "tenant",
-        "actor": "event core",
-        "expected": "object ref + sha",
-        "error": "fail closed"
+        "fr": "FR-3",
+        "test": "design review; BI-PF-1269 dispatcher tests; BI-PF-1274 cursor API tests",
+        "design": "ADR-0011 / design section 3-4",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md"
       }
+    ],
+    "compatibility": [
+      "Existing core/events.py API and JSONL readers use a read-only projection during migration."
+    ],
+    "observability": [
+      "Event append p95 < 100 ms; error rate >1% for 5 min pages.",
+      "Outbox lag p95 < 30 s; >5 min for 10 min pages.",
+      "DLQ depth >0 pages immediately.",
+      "Cursor read lag p95 < 30 s.",
+      "Object payload store failures >0 for 5 min pages.",
+      "Outbox row count: >50k for 5 min pages; retention age >7 days pages; cleanup job failure pages.",
+      "Projection freshness: generated_at age >300 s for 5 min pages; owner platform-oncall; read path switches to degraded when stale."
+    ],
+    "data_lifecycle": [
+      "Append-only event metadata; payload objects follow retention policy; deletion via store contract."
+    ],
+    "functional_sha": "e0882aa881f4",
+    "open_questions": [
+      "No open questions: Q1-Q5 are resolved in ADR-0011 and design_pack.decisions."
     ],
     "config_contract": [
       {
@@ -657,618 +1029,246 @@
         "startup_validation": "required"
       }
     ],
-    "nfr": [
-      "Cursor reads are deterministic across restarts.",
-      "DB rows remain bounded; large bytes stay in object storage.",
-      "Outbox delivery is at-least-once."
-    ],
-    "data_lifecycle": [
-      "Append-only event metadata; payload objects follow retention policy; deletion via store contract."
-    ],
-    "compatibility": [
-      "Existing core/events.py API and JSONL readers use a read-only projection during migration."
-    ],
-    "rollback": "Stop the Go writer first. Keep the last generated JSONL projection read-only with a freshness bound of 5 minutes; if older, mark the read path degraded and do not rebuild from Python. Restore the event authority from PostgreSQL PITR/backup when DB returns, regenerate the projection with the Go tool, verify cursor/outbox parity, then resume. Never let Python write authority.",
-    "observability": [
-      "Event append p95 < 100 ms; error rate >1% for 5 min pages.",
-      "Outbox lag p95 < 30 s; >5 min for 10 min pages.",
-      "DLQ depth >0 pages immediately.",
-      "Cursor read lag p95 < 30 s.",
-      "Object payload store failures >0 for 5 min pages.",
-      "Outbox row count: >50k for 5 min pages; retention age >7 days pages; cleanup job failure pages.",
-      "Projection freshness: generated_at age >300 s for 5 min pages; owner platform-oncall; read path switches to degraded when stale."
-    ],
-    "traceability": [
+    "operation_matrix": [
       {
-        "fr": "FR-1",
-        "design": "ADR-0011 / design section 4",
-        "test": "design review; BI-PF-1268 store/cursor tests",
-        "evidence": "docs/ARCHITECTURE-DECISIONS.md"
+        "mode": "on",
+        "actor": "producer",
+        "error": "fail closed",
+        "scope": "tenant",
+        "expected": "append row + outbox",
+        "operation": "emit"
       },
       {
-        "fr": "FR-2",
-        "design": "ADR-0011 / design section 4",
-        "test": "design review; BI-PF-1268 object-payload tests",
-        "evidence": "docs/ARCHITECTURE-DECISIONS.md"
+        "mode": "read",
+        "actor": "consumer",
+        "error": "no cross-tenant",
+        "scope": "tenant",
+        "expected": "events after seq",
+        "operation": "cursor"
       },
       {
-        "fr": "FR-3",
-        "design": "ADR-0011 / design section 3-4",
-        "test": "design review; BI-PF-1269 dispatcher tests; BI-PF-1274 cursor API tests",
-        "evidence": "docs/ARCHITECTURE-DECISIONS.md"
-      }
-    ],
-    "open_questions": [
-      "No open questions: Q1-Q5 are resolved in ADR-0011 and design_pack.decisions."
-    ],
-    "dod": [
-      "ADR-0011 accepted",
-      "design pack and impact review complete",
-      "Gate 1.5 approved",
-      "Gate 1 HIL approved"
-    ],
-    "functional_sha": "e0882aa881f4"
-  },
-  "spec_pack": {
-    "version": 1,
-    "status": "APPROVED",
-    "functional_ref": "engineering/specs/BI-PF-1266.md",
-    "design_ref": "engineering/design/BI-PF-1266.md",
-    "applicability": [
-      {
-        "spec": "product_design_spec",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "Event authority and architecture are defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "3",
-          "4",
-          "6",
-          "7"
-        ],
-        "evidence": [
-          "docs/ARCHITECTURE-DECISIONS.md",
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "api_contract",
-        "status": "N/A",
-        "owner": "architecture",
-        "reason": "No request/response contract delta in this design item; existing events routes keep their shape and BI-PF-1274 implements cursor reads."
-      },
-      {
-        "spec": "data_contract",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "PostgreSQL event row, cursor, and outbox are defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "4"
-        ],
-        "evidence": [
-          "docs/ARCHITECTURE-DECISIONS.md"
-        ]
-      },
-      {
-        "spec": "config_contract",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "Deployment payload/retention thresholds and startup validation are defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "4",
-          "6"
-        ],
-        "evidence": [
-          "docs/ARCHITECTURE-DECISIONS.md",
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "nfr_slo",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "Cursor durability and outbox delivery are defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "4",
-          "8"
-        ],
-        "evidence": [
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "security_threat_model",
-        "status": "APPLICABLE",
-        "owner": "security",
-        "reason": "RLS/runtime-role and object-reference boundaries are defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "4",
-          "8"
-        ],
-        "evidence": [
-          "docs/ARCHITECTURE-DECISIONS.md",
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "migration_backfill",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "JSONL projection and staged cutover are defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "5",
-          "9",
-          "10"
-        ],
-        "evidence": [
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "rollback_dr",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "Rollback to the existing read path is required.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "9",
-          "10"
-        ],
-        "evidence": [
-          "docs/ARCHITECTURE-DECISIONS.md"
-        ]
-      },
-      {
-        "spec": "observability_runbook",
-        "status": "APPLICABLE",
-        "owner": "platform",
-        "reason": "Outbox lag/DLQ/cursor health are named.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "8"
-        ],
-        "evidence": [
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "accessibility_i18n",
-        "status": "N/A",
-        "owner": "product",
-        "reason": "No user-facing surface in this design item."
-      },
-      {
-        "spec": "privacy_compliance",
-        "status": "N/A",
-        "owner": "security",
-        "reason": "No new personal-data flow is introduced by this design."
-      },
-      {
-        "spec": "implementation_plan",
-        "status": "APPLICABLE",
-        "owner": "architecture",
-        "reason": "Phased delivery is defined.",
-        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-        "sections": [
-          "9"
-        ],
-        "evidence": [
-          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
-        ]
-      },
-      {
-        "spec": "release_verification",
-        "status": "N/A",
-        "owner": "release",
-        "reason": "Design-only item; release verification lands with implementation."
+        "mode": "large-payload",
+        "actor": "event core",
+        "error": "fail closed",
+        "scope": "tenant",
+        "expected": "object ref + sha",
+        "operation": "store"
       }
     ]
   },
-  "review_ledger": [
-    {
-      "mode": "design",
-      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "review_sha": "886051fa010e",
-      "model": "mimo-v2.6-flash",
-      "at": "2026-11-13T17:43:56.959028+00:00",
-      "review_scope": "full_candidate",
-      "base_sha": "",
-      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "findings": {
-        "BLOCKER": [
-          "AC-2 not evidenced: design pack records \"Go core writes events/outbox\" but no explicit `events.jsonl` owner and no `event_bus` facade ownership entry in `contracts`/`invariants`.",
-          "AC-1 partially unmet: `open_questions: []` yet in_scope cites \"the five open decisions\"; no resolved-decision list with dispositions appears in affected files."
-        ],
-        "MAJOR": [
-          "CL-008 guardrails unanswered in design: backup/restore path, scheduler/DB-down availability + startup check/lead-time, dry-run bounds, and fail-able test definition are absent.",
-          "Runtime role authorization gap: RLS stated, but no statement that runtime roles are subject to RLS (no BYPASSRLS/superuser inheritance) per guardrail 3.",
-          "Migration matrix not traceable: `spec_pack.migration_backfill` cites design sections 9/10, but no consumer-by-consumer migration matrix is enumerated in the declared artifacts.",
-          "Object-store orphan risk: FR-2 puts object before event commit; no stated cleanup/GC if the DB commit fails after successful put."
-        ],
-        "MINOR": [
-          "`risks: ['Not specified.']` — risks for a cross-cutting event-authority migration are undeclared.",
-          "Rollback for this item is only \"Revert the change\"; migration-interrupted recovery and JSONL projection parity criteria are unspecified (guardrail 6).",
-          "Observability lists metric names but no thresholds/SLO or alert lead-time for outbox lag/DLQ depth (guardrail 2/10).",
-          "Ownership gate (CL-001) dependency noted as \"pending\"; no recorded single-writer registration evidence for the facade seam."
-        ],
-        "NIT": [
-          "Rollback wording differs between `functional_spec.rollback` and `design_pack.rollback`; align to one canonical phrasing.",
-          "Three parallel spec/design artifacts (design + spec + spec-pack) risk drift; designate one SSOT and reference the rest."
-        ],
-        "SUMMARY": [
-          "Verdict: not gate-ready; both acceptance criteria lack verifiable evidence in declared artifacts.",
-          "Top risks: missing ownership/facade records (AC-2), unresolved \"five open decisions\" (AC-1), and guardrail checklist (CL-008) items unanswered before Gate 1.5.",
-          "Re-review after design doc explicitly records owners, resolved decisions, migration matrix rows, and guardrail answers."
-        ]
-      },
-      "evidence": "BI-PF-1266-886051fa010e.json"
-    },
-    {
-      "mode": "design",
-      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "review_sha": "fa50497939a7",
-      "model": "mimo-v2.6-flash",
-      "at": "2026-11-13T17:47:18.746853+00:00",
-      "review_scope": "delta",
-      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "findings": {
-        "BLOCKER": [],
-        "MAJOR": [
-          "`spec_pack.config_contract` is N/A (\"no config file change\") yet `functional_spec.config_contract` defines EVENT_INLINE_PAYLOAD_LIMIT/EVENT_RETENTION with required startup validation and `contracts.files` lists `config/store-registry.json`; delta rows contradict within the same change."
-        ],
-        "MINOR": [
-          "Risk \"Retention deletion removes referenced payload\" is declared but has no matching failure-matrix/lifecycle control (e.g., delete object only when no live event row references it); \"deletion via store contract\" is not verifiable.",
-          "`traceability.test` for FR-1/2/3 is only \"design review\", omitting the BI-PF-1268/1269 tests named in FR `verification`; FR-2/FR-3 evidence omits `docs/ARCHITECTURE-DECISIONS.md` despite design ref citing ADR-0011.",
-          "`api_contract` marked N/A while `migration_matrix` retargets `api/routers/events.py` to cursor reads; confirm no request/response contract delta or mark CONDITIONAL with evidence.",
-          "Outbox-lag/DLQ SLOs are asserted while Q2 defers the dispatcher daemon; add a rollout/enablement note so thresholds do not page before the dispatcher item lands.",
-          "Prior CL-001 minor: single-writer ownership is now stated in `invariants`, but no registration evidence artifact (registry/config entry) is named for the facade seam; record where registration will be evidenced."
-        ],
-        "NIT": [
-          "`contracts.files` lists `core/events.py`, `core/event_bus.py`, `config/store-registry.json` which are absent from `affected_files`; label the list as future contract surface vs. files changed by this design-only item to avoid impact-review confusion."
-        ],
-        "SUMMARY": [
-          "Delta resolves the prior blockers (ownership/AC-2, resolved Q1-Q5/AC-1) and most guardrails (CL-008, BYPASSRLS, migration matrix, orphan GC, risks, rollback, SSOT).",
-          "Verdict: approvable once the config-contract contradiction is reconciled; remaining items are evidence/traceability hardening.",
-          "Top residual risks: config-contract row mismatch, retention/reference integrity control, and SLO enablement sequencing ahead of the dispatcher."
-        ]
-      },
-      "evidence": "BI-PF-1266-fa50497939a7.json"
-    },
-    {
-      "mode": "design",
-      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "review_sha": "9ef3301bc1e6",
-      "model": "mimo-v2.6-flash",
-      "at": "2026-11-13T17:50:49.798167+00:00",
-      "review_scope": "delta",
-      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "findings": {
-        "BLOCKER": [],
-        "MAJOR": [
-          "Rollback says \"restore the projection\" but gives no regeneration source or freshness bound after the Go writer stops; invariant 8 bars Python from writing authority, so if PostgreSQL is unavailable (the fail-closed trigger) events.jsonl cannot be rebuilt and the read path reverts to stale data — reversibility guardrail (CL-008 item 1) not fully answered.",
-          "`design_pack.contracts.files` is now empty while AC-1 requires frozen contracts; the file-level surface was moved to `contract_surface_future` (labelled future), leaving no frozen file contract for the facade/projection seam at Gate 1."
-        ],
-        "MINOR": [
-          "`design_pack.version` stays `1` despite substantive additions (failure_matrix rows, ownership_registration, decisions, contract_surface_future); approval audit cannot distinguish which version was accepted.",
-          "`config/store-registry.json` is declared in `design_pack.dependencies` but its registration entries only land in BI-PF-1268/1269; mark it a deferred dependency so Gate 1.5 does not assume evidence that does not yet exist.",
-          "Rollback ambiguity compounds the still-PENDING prior MAJOR disposition (CL-006: approval invalid while any MAJOR is PENDING)."
-        ],
-        "NIT": [
-          "`spec_pack` and `functional_spec` are listed in `changed_fields` but their delta content is byte-identical to context (`functional_sha` unchanged) — scope noise for reviewers.",
-          "Guardrail 4 bound (\"dry-run bounded to 1000 events\") covers event rows only; the retention/object-GC path (`EVENT_PAYLOAD_STILL_REFERENCED`) has no explicit delete bound or dry-run mode."
-        ],
-        "SUMMARY": [
-          "Delta resolves most prior findings: retention control added to failure_matrix, config_contract now APPLICABLE, traceability includes BI-PF-1268/1269 tests, SLO enablement and ownership registration notes added, contracts.files separated into future surface.",
-          "No blockers; AC-1/AC-2 evidence (ADR, migration matrix, resolved Q1-Q5, ownership rows) is present.",
-          "Top risks: rollback projection-restore mechanism underspecified against the no-Python-writer invariant, and unresolved prior MAJOR dispositions must be closed before CL-006-valid Gate 1 approval."
-        ]
-      },
-      "evidence": "BI-PF-1266-9ef3301bc1e6.json"
-    },
-    {
-      "mode": "design",
-      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "review_sha": "5e81d481897a",
-      "model": "mimo-v2.6-flash",
-      "at": "2026-11-13T17:55:07.694394+00:00",
-      "review_scope": "delta",
-      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "findings": {
-        "BLOCKER": [],
-        "MAJOR": [
-          "Outbox rows committed from BI-PF-1268 have no dispatcher until BI-PF-1269, yet decisions declare lag/DLQ alerts inactive in that window and no interim backlog bound, cleanup, or lead-time alert is defined — unbounded, unobservable growth contradicts the \"DB rows remain bounded\" NFR and guardrail-2 alert lead-time."
-        ],
-        "MINOR": [
-          "Rollback's critical step \"regenerate the projection with the Go tool\" maps to no artifact in `contracts.files`/`contract_surface_future`; the regeneration capability has no named owner/registration (CL-001).",
-          "`design_pack.decisions` depends on BI-PF-1274 (cursor reads) but BI-PF-1274 is absent from `functional_spec.dependencies`/`design_pack.dependencies`, while traceability routes cursor tests to BI-PF-1268 — test/implementation item mismatch.",
-          "`contracts.files` lists `config/store-registry.json` without the \"deferred\" qualifier now applied in `dependencies` and `contract_surface_future`; Gate 1.5 evidence readers may assume registration exists at Gate 1."
-        ],
-        "NIT": [
-          "`risks` delta is byte-identical to context despite being in `changed_fields`, extending the scope noise already flagged for `spec_pack`/`functional_spec`.",
-          "Prior PENDING dispositions (design_pack.version → 2, deferred store-registry dependency, object-GC dry-run/bound) are satisfied by this delta; update the disposition ledger before Gate 1.5."
-        ],
-        "SUMMARY": [
-          "Verdict: AC-1/AC-2 met in delta; prior MAJORs verified ACTIONED (rollback freshness + regeneration source restored, frozen `contracts.files` repopulated).",
-          "Top risks: interim outbox backlog growth with explicitly inactive alerts between BI-PF-1268/1269; rollback's Go projection tool unnamed and unowned in the frozen contract surface."
-        ]
-      },
-      "evidence": "BI-PF-1266-5e81d481897a.json"
-    },
-    {
-      "mode": "design",
-      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "review_sha": "18576d8048a8",
-      "model": "mimo-v2.6-flash",
-      "at": "2026-11-13T17:56:10.391266+00:00",
-      "review_scope": "delta",
-      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "findings": {
-        "BLOCKER": [],
-        "MAJOR": [
-          "Rollback depends on a \"projection freshness bound of 5 minutes\" to trigger degraded read-path state, yet neither `functional_spec.observability` nor `design_pack.observability` (both changed) defines a projection-age/freshness metric, alert, or detection owner — the rollback trigger is operationally undetectable."
-        ],
-        "MINOR": [
-          "`contracts.files` / `contract_surface_future` omit `events.jsonl` itself, although the invariants name it as the frozen read-only projection artifact and rollback keeps it live; CL-001 surface is incomplete for the artifact readers consume.",
-          "`failure_matrix` EVENT_CURSOR_INVALID expects \"Return empty or reject according to contract\" — a Gate whose AC is \"frozen contracts\" still leaves a caller-visible behavior as either/or.",
-          "`ownership_registration` defers single-writer registration evidence to BI-PF-1268/1269; at this gate the facade seam control is asserted but unverifiable (no registration artifact or test in `test_matrix` AC-2).",
-          "Disposition ledger not updated in this delta: prior MAJOR (interim outbox bound/cleanup/alert) and prior MINORs (Go-tool owner, BI-PF-1274 dependency, deferred store-registry qualifier, version 3) are addressed by these changed fields yet remain PENDING — CL-006 makes Gate 1 approval invalid until recorded."
-        ],
-        "NIT": [
-          "`risks` and `spec_pack` are listed in `changed_fields` but byte-identical to the surrounding context, extending scope noise for reviewers."
-        ],
-        "SUMMARY": [
-          "Design-only delta is sound: AC-1/AC-2 artifacts, frozen contracts, migration matrix, and resolved decisions are present, and the language rule is respected (docs only, no shipped code).",
-          "Top risks: rollback's freshness trigger has no corresponding observability row, ownership registration evidence is future-dated, and disposition ledger lag blocks a clean Gate 1."
-        ]
-      },
-      "evidence": "BI-PF-1266-18576d8048a8.json"
-    },
-    {
-      "mode": "design",
-      "candidate_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "review_sha": "58ccb19dc320",
-      "model": "mimo-v2.6-flash",
-      "at": "2026-11-13T17:58:01.239329+00:00",
-      "review_scope": "delta",
-      "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
-      "findings": {
-        "BLOCKER": [],
-        "MAJOR": [
-          "`test_matrix` AC-2 evidence names `config/store-registry.json` and test `scripts/dev/store_registry_relationships.py`, but neither is in `affected_files`, and `ownership_registration` states this item mutates no runtime stores — AC-2 evidence cannot be produced or verified at this gate.",
-          "`affected_components` declares `scripts`, yet `affected_files` contains no scripts path; the design-review tooling row in the approach has no matching file/evidence in the delta."
-        ],
-        "MINOR": [
-          "`contract_surface_future` still omits `events.jsonl` even though the invariant and rollback name it as the frozen read-only projection artifact; prior finding disposition claims full ACTIONED but only `contracts.files` was corrected.",
-          "`test_matrix` AC-2 evidence chain splits across artifacts deferred to BI-PF-1268/1269 with no in-gate doc-based evidence row tying the events.jsonl-owner/event_bus-facade conflict record to `docs/EVENTING-ALERTING-SSOT-DESIGN.md` sections."
-        ],
-        "NIT": [
-          "`functional_spec` and `spec_pack` are listed in `changed_fields` but byte-identical to context, with `version` (1) and `functional_sha` unchanged — same scope-noise class as the pending `risks`/`spec_pack` NIT.",
-          "`design_pack.version` bumped to 3 while sibling pack versions stay flat, giving no single coordinated revision marker across the pack set."
-        ],
-        "SUMMARY": [
-          "Design delta satisfies AC-1 (frozen contracts, migration matrix, Q1–Q5 resolved) and prior MAJOR/MINOR dispositions are substantively reflected (projection freshness alert, cursor contract specificity, outbox bounds, events.jsonl in `contracts.files`).",
-          "Top risks: AC-2 test/evidence references out-of-scope artifacts that this gate cannot verify, and the `contract_surface_future` ownership surface remains incomplete for the projection file readers consume."
-        ]
-      },
-      "evidence": "BI-PF-1266-58ccb19dc320.json"
-    }
+  "acceptance_criteria": [
+    "ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.",
+    "language/ownership conflicts recorded (events.jsonl owner; event_bus facade)."
+  ],
+  "affected_components": [
+    "docs",
+    "engineering"
   ],
   "review_dispositions": {
     "design": {
-      "sig:da1d76af0c87d285": {
+      "sig:01db7ec43862776f": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
         "status": "ACTIONED",
-        "severity": "BLOCKER",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:941c3a1be7b01bd2": {
-        "status": "ACTIONED",
-        "severity": "BLOCKER",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:2daee6890864064a": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:40cf2042234c0cdd": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:921e1470756df3b4": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:c85d73407752e542": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:9c0e7e45125c5ef1": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:3ce9bf2663e92337": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:35e593bd5c08f3c3": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:b35d1e1cb4341115": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
       },
       "sig:0900a1c210e362f8": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
         "status": "ACTIONED",
         "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:997e73ba3a32a88e": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:b3491de812769e8a": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:390c529d501e1bec": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:ba338a7dd379dcc2": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:24cfb32b73020270": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:54d2dd60b4bc1353": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:01db7ec43862776f": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:66434f32270d5087": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:3d83960d9e958a5d": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:2fd47a5e28f23696": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:ce132a7935789aea": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:c3a9658fbc66c32c": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:cd16d205f23095df": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:8125a00fbd59bc2a": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:6ab9e7fb7279e6cd": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:f3c661e47f3166e9": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:da0e1c69dbab2fd1": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:4cf0b28d989d8dea": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:4018909fb227e2d6": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
+        "origin_class": "DESIGN_GAP"
       },
       "sig:1125a60bdd5b9e7b": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:b16c763e086d4f98": {
-        "status": "ACTIONED",
-        "severity": "MAJOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
-      },
-      "sig:554e7df61ea63873": {
-        "status": "ACTIONED",
-        "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
+        "origin_class": "DESIGN_GAP"
       },
       "sig:22b61d344e7c7a16": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
         "status": "ACTIONED",
         "severity": "MINOR",
-        "origin_class": "DESIGN_GAP",
-        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md."
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:24cfb32b73020270": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:2daee6890864064a": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:2fd47a5e28f23696": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:35e593bd5c08f3c3": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:390c529d501e1bec": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:3ce9bf2663e92337": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:3d83960d9e958a5d": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:4018909fb227e2d6": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:40cf2042234c0cdd": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:4cf0b28d989d8dea": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:54d2dd60b4bc1353": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:554e7df61ea63873": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:66434f32270d5087": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:6ab9e7fb7279e6cd": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:8125a00fbd59bc2a": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:921e1470756df3b4": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:941c3a1be7b01bd2": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:997e73ba3a32a88e": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:9c0e7e45125c5ef1": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:b16c763e086d4f98": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:b3491de812769e8a": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:b35d1e1cb4341115": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:ba338a7dd379dcc2": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:c3a9658fbc66c32c": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:c85d73407752e542": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:cd16d205f23095df": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:ce132a7935789aea": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:da0e1c69dbab2fd1": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:da1d76af0c87d285": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:f3c661e47f3166e9": {
+        "note": "Addressed in BI-PF-1266 design/spec v3; evidence: docs/EVENTING-ALERTING-SSOT-DESIGN.md, docs/ARCHITECTURE-DECISIONS.md.",
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP"
       }
     }
   }
