@@ -598,11 +598,9 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
         # Check for Nuitka for Python modules
         nuitka_bin = shutil.which("nuitka")
         if not nuitka_bin:
-            try:
-                import nuitka  # noqa: F401
+            import importlib.util
+            if importlib.util.find_spec("nuitka") is not None:
                 nuitka_bin = sys.executable
-            except ImportError:
-                nuitka_bin = None
 
         if not nuitka_bin and not go_built:
             return {
