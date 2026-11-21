@@ -60,19 +60,45 @@
       "divergences": [],
       "open_questions": []
     },
-    "impact_review": [],
+    "impact_review": [
+      {
+        "claim": "100% Go implementation compliant with Rule 17 (0 lines Python in shipping code; 436 Go lines in azurestore, 48 Go lines in edpsvc)",
+        "verdict": "APPROVED",
+        "evidence": "Created: go/azurestore/azurestore.go (436 lines), go/azurestore/azurestore_test.go (406 lines), go/azurestore/go.mod (11 lines); Modified: go/edpsvc/main.go (+22 lines), go/edpsvc/main_test.go (+63 lines), go/edpsvc/go.mod (+4 lines)",
+        "recommendation": "Maintain stdlib-only REST implementation without cloud provider SDKs"
+      },
+      {
+        "claim": "Azure Blob ObjectStore adapter implements datastore.ObjectStore with full conformance and zero SDK dependencies (AC-1)",
+        "verdict": "APPROVED",
+        "evidence": "go/azurestore/azurestore.go:Store; go/azurestore/azurestore_test.go:TestAzureStore_Conformance (datastore.ConformObjectStore: Put, Head, Get, List, Delete)",
+        "recommendation": "Enforce streaming Get without in-memory buffering across all object store adapters"
+      },
+      {
+        "claim": "Capabilities declared honestly (all-false) and unsupported capabilities fail-closed (AC-2)",
+        "verdict": "APPROVED",
+        "evidence": "go/azurestore/azurestore.go:Capabilities() returns empty struct; Put() rejects Immutable, Retention, and ServerSideEncryption with *datastore.UnsupportedError; verified by TestAzureStore_CapabilitiesHonesty",
+        "recommendation": "Require explicit capability check before invoking optional object store features"
+      },
+      {
+        "claim": "edpsvc runtime selection via PF_OBJECT_BACKEND=azure|azblob and environment configuration (AC-3)",
+        "verdict": "APPROVED",
+        "evidence": "go/edpsvc/main.go:buildObjectStore extended with case 'azure', 'azblob'; go/edpsvc/main_test.go:TestBuildObjectStore_Azure (missing container fail-closed, SharedKey, SAS, Bearer, and emulator BaseURL)",
+        "recommendation": "Deploy with container-level SAS token or Managed Identity in production Azure Kubernetes Service (AKS)"
+      }
+    ],
     "reviewed_by": "derived",
     "at": ""
   },
   "verification": [
-    "Objective achieved: ObjectStore adapter: Azure Blob (on go/objstorerest)"
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 2, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
   ],
   "rollback": "Revert the change.",
   "evidence": [
-    "pending"
+    "pending",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=f54a4f57e451\nBLOCKER:\n  - The `Get` method reads the entire object into memory (`io.ReadAll`) before returning an `io.ReadCloser`. This violates the streaming contract of `datastore.ObjectStore`, posing a critical scalability risk (OOM for large objects) and potential integrity issues.\nMAJOR:\n  - The `SharedKeyAuth` signature calculation is complex and highly sensitive to the Azure specification. The current tests only verify the presence of the `Authorization` header, not the correctness of the generated signature, which is a security and integrity risk.\n  - The `UserAgent` string \"productforge-azurestore/1\" is hardcoded. This limits observability and adaptability for identifying different client applications or versions within the enterprise.\nMINOR:\n  - The `Head` method attempts to retrieve the checksum from three different metadata keys (`pf_checksum`, `pf-checksum`, `checksum`) and then falls back to `ETag`. This broad search for checksum metadata could lead to ambiguity if multiple are present, as `Put` only writes `pf_checksum`.\n  - The `AuthFromCredentials` function implicitly prioritizes SharedKey, then SAS, then Bearer tokens. This prioritization logic is not explicitly documented, which could lead to confusion or misconfiguration.\nNIT:\n  - The `maxListBytes` constant (10MB) for container XML listing is a magic number. Its specific value and rationale are not immediately clear.\n  - The `x-ms-version` header is hardcoded to \"2020-10-02\" in all authorization methods. This might need to be configurable or updated over time to support newer Azure Blob Storage features.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -152,7 +178,7 @@
     "usage": {}
   },
   "created_at": "2026-10-17T22:39:55.386018",
-  "updated_at": "2026-10-17T22:59:43.523253",
+  "updated_at": "2026-11-21T22:18:40.671502",
   "score": 0.75,
   "_note": "brief.source authored",
   "affects_scope": [
@@ -161,5 +187,68 @@
   "api_impact": {
     "needs_api": false,
     "reason": "Go port adapter"
+  },
+  "review_ledger": [
+    {
+      "mode": "diff",
+      "candidate_sha": "89cb0ed54abea29a39df245c6b73b767dcbfba85",
+      "review_sha": "f54a4f57e451",
+      "model": "gemini-2.5-flash",
+      "at": "2026-11-21T16:44:54.972952+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "89cb0ed54abea29a39df245c6b73b767dcbfba85",
+      "findings": {
+        "BLOCKER": [
+          "The `Get` method reads the entire object into memory (`io.ReadAll`) before returning an `io.ReadCloser`. This violates the streaming contract of `datastore.ObjectStore`, posing a critical scalability risk (OOM for large objects) and potential integrity issues."
+        ],
+        "MAJOR": [
+          "The `SharedKeyAuth` signature calculation is complex and highly sensitive to the Azure specification. The current tests only verify the presence of the `Authorization` header, not the correctness of the generated signature, which is a security and integrity risk.",
+          "The `UserAgent` string \"productforge-azurestore/1\" is hardcoded. This limits observability and adaptability for identifying different client applications or versions within the enterprise."
+        ],
+        "MINOR": [
+          "The `Head` method attempts to retrieve the checksum from three different metadata keys (`pf_checksum`, `pf-checksum`, `checksum`) and then falls back to `ETag`. This broad search for checksum metadata could lead to ambiguity if multiple are present, as `Put` only writes `pf_checksum`.",
+          "The `AuthFromCredentials` function implicitly prioritizes SharedKey, then SAS, then Bearer tokens. This prioritization logic is not explicitly documented, which could lead to confusion or misconfiguration."
+        ],
+        "NIT": [
+          "The `maxListBytes` constant (10MB) for container XML listing is a magic number. Its specific value and rationale are not immediately clear.",
+          "The `x-ms-version` header is hardcoded to \"2020-10-02\" in all authorization methods. This might need to be configurable or updated over time to support newer Azure Blob Storage features."
+        ],
+        "SUMMARY": []
+      },
+      "evidence": "BI-PF-1433-f54a4f57e451.json"
+    }
+  ],
+  "review_dispositions": {
+    "diff": {
+      "sig:f6eb3e6d910e9b5f": {
+        "status": "ACTIONED",
+        "note": "Refactored Get() in go/azurestore/azurestore.go:275 to stream resp.Body directly as an io.ReadCloser without buffering into memory. Checksum read from x-ms-meta-pf_checksum header. Verified in go/azurestore/azurestore_test.go."
+      },
+      "sig:00ff39449560db7f": {
+        "status": "ACTIONED",
+        "note": "Added TestAzureStore_SharedKeySignatureCorrectness in go/azurestore/azurestore_test.go verifying HMAC-SHA256 signature construction, length (32 bytes), and exact encoding."
+      },
+      "sig:b1dfa201b8d95977": {
+        "status": "ACTIONED",
+        "note": "Added configurable UserAgent field to azurestore.Config defaulting to 'productforge-azurestore/1'; verified in TestAzureStore_Conformance."
+      },
+      "sig:c953739bba8d8ad1": {
+        "status": "ACTIONED",
+        "note": "Centralized extractChecksum() in go/azurestore/azurestore.go:338 making x-ms-meta-pf_checksum primary SSOT and documenting fallbacks solely for legacy migration interoperability."
+      },
+      "sig:febbecb519fd28a8": {
+        "status": "ACTIONED",
+        "note": "Explicitly documented credential precedence hierarchy (SharedKey -> SAS -> Bearer -> nil) in AuthFromCredentials doc comment and in docs/AZURE-BLOB-ADAPTER.md."
+      },
+      "sig:b77b96219a5e56d6": {
+        "status": "ACTIONED",
+        "note": "Added comprehensive doc comment in go/azurestore/azurestore.go:34 explaining 10MB bound prevents XML expansion OOM DOS while comfortably allowing ~50,000 blob items per page."
+      },
+      "sig:d1ef8ed37f7f726c": {
+        "status": "ACTIONED",
+        "note": "Exported DefaultAzureAPIVersion = '2020-10-02' and added optional APIVersion field to SharedKeyAuth, SASTokenAuth, and BearerAuth."
+      }
+    }
   }
 }
