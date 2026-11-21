@@ -28,21 +28,34 @@ import (
 )
 
 const (
+	// DefaultAzureAPIVersion defines the target Azure Storage REST API protocol version.
+	DefaultAzureAPIVersion = "2020-10-02"
+
+	// checksumMeta is the canonical user-metadata key written by Put and read by Head/Get.
 	checksumMeta = "pf_checksum"
-	maxListBytes = 10 * 1024 * 1024 // 10MB bound for container XML listing
+
+	// maxListBytes bounds container XML payload processing to 10MB to prevent XML expansion / OOM DOS
+	// while allowing up to ~50,000 blob metadata entries per page.
+	maxListBytes = 10 * 1024 * 1024
 )
 
 // SharedKeyAuth signs requests using the Azure Storage Shared Key algorithm (HMAC-SHA256).
 type SharedKeyAuth struct {
-	Account string
-	Key     string // base64-encoded storage account key
+	Account    string
+	Key        string // base64-encoded storage account key
+	APIVersion string // optional; defaults to DefaultAzureAPIVersion ("2020-10-02")
 }
 
 // Authorize computes and adds the canonicalized SharedKey authorization header and x-ms-date.
 func (a SharedKeyAuth) Authorize(_ context.Context, req *http.Request) error {
+	ver := a.APIVersion
+	if ver == "" {
+		ver = DefaultAzureAPIVersion
+	}
+
 	now := time.Now().UTC().Format(http.TimeFormat)
 	req.Header.Set("x-ms-date", now)
-	req.Header.Set("x-ms-version", "2020-10-02")
+	req.Header.Set("x-ms-version", ver)
 
 	if a.Key == "" || a.Account == "" {
 		return nil
@@ -127,12 +140,18 @@ func (a SharedKeyAuth) Authorize(_ context.Context, req *http.Request) error {
 
 // SASTokenAuth appends a Shared Access Signature query string to outgoing requests.
 type SASTokenAuth struct {
-	Token string
+	Token      string
+	APIVersion string
 }
 
 // Authorize sets x-ms-version and appends the SAS query token.
 func (a SASTokenAuth) Authorize(_ context.Context, req *http.Request) error {
-	req.Header.Set("x-ms-version", "2020-10-02")
+	ver := a.APIVersion
+	if ver == "" {
+		ver = DefaultAzureAPIVersion
+	}
+	req.Header.Set("x-ms-version", ver)
+
 	tok := strings.TrimPrefix(strings.TrimSpace(a.Token), "?")
 	if tok == "" {
 		return nil
@@ -147,12 +166,18 @@ func (a SASTokenAuth) Authorize(_ context.Context, req *http.Request) error {
 
 // BearerAuth supplies an OAuth2 / Azure AD bearer token.
 type BearerAuth struct {
-	Token string
+	Token      string
+	APIVersion string
 }
 
 // Authorize sets x-ms-version and the Authorization: Bearer <token> header.
 func (a BearerAuth) Authorize(_ context.Context, req *http.Request) error {
-	req.Header.Set("x-ms-version", "2020-10-02")
+	ver := a.APIVersion
+	if ver == "" {
+		ver = DefaultAzureAPIVersion
+	}
+	req.Header.Set("x-ms-version", ver)
+
 	tok := strings.TrimSpace(a.Token)
 	if tok != "" {
 		req.Header.Set("Authorization", "Bearer "+tok)
@@ -161,6 +186,11 @@ func (a BearerAuth) Authorize(_ context.Context, req *http.Request) error {
 }
 
 // AuthFromCredentials constructs the appropriate objstorerest.Auth based on available credentials.
+// Precedence order:
+// 1. SharedKeyAuth (requires non-empty account and key)
+// 2. SASTokenAuth (requires non-empty sas)
+// 3. BearerAuth (requires non-empty token)
+// Returns nil if no valid credential set is provided (useful for mock/emulated environments).
 func AuthFromCredentials(account, key, sas, token string) objstorerest.Auth {
 	if strings.TrimSpace(key) != "" && strings.TrimSpace(account) != "" {
 		return SharedKeyAuth{Account: strings.TrimSpace(account), Key: strings.TrimSpace(key)}
@@ -182,6 +212,7 @@ type Config struct {
 	Auth       objstorerest.Auth
 	HTTPClient *http.Client
 	MaxRetries int
+	UserAgent  string // optional custom user agent; defaults to "productforge-azurestore/1"
 }
 
 // Store is the Azure Blob Storage ObjectStore adapter.
@@ -208,12 +239,17 @@ func New(cfg Config) (*Store, error) {
 		base = fmt.Sprintf("https://%s.blob.core.windows.net", account)
 	}
 
+	ua := strings.TrimSpace(cfg.UserAgent)
+	if ua == "" {
+		ua = "productforge-azurestore/1"
+	}
+
 	cl, err := objstorerest.New(objstorerest.Config{
 		BaseURL:    base,
 		Auth:       cfg.Auth,
 		HTTPClient: cfg.HTTPClient,
 		MaxRetries: cfg.MaxRetries,
-		UserAgent:  "productforge-azurestore/1",
+		UserAgent:  ua,
 	})
 	if err != nil {
 		return nil, err
@@ -323,7 +359,7 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 	}, nil
 }
 
-// Get retrieves an object and its content-addressed checksum.
+// Get streams an object over HTTP directly without buffering into memory, honoring streaming contracts.
 func (s *Store) Get(ctx context.Context, key, version string) (io.ReadCloser, datastore.ObjectInfo, error) {
 	if strings.TrimSpace(key) == "" {
 		return nil, datastore.ObjectInfo{}, errors.New("azurestore: empty key")
@@ -338,26 +374,23 @@ func (s *Store) Get(ctx context.Context, key, version string) (io.ReadCloser, da
 	if err != nil {
 		return nil, datastore.ObjectInfo{}, err
 	}
-	defer resp.Body.Close()
 
 	if err := s.client.EnsureOK(resp); err != nil {
+		_ = resp.Body.Close()
 		return nil, datastore.ObjectInfo{}, err
 	}
 
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, datastore.ObjectInfo{}, err
-	}
+	size, _ := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
+	cs := s.extractChecksum(resp.Header)
 
-	sum := objstorerest.SHA256Hex(b)
 	info := datastore.ObjectInfo{
 		Key:         key,
-		Checksum:    sum,
-		Size:        int64(len(b)),
+		Checksum:    cs,
+		Size:        size,
 		ContentType: resp.Header.Get("Content-Type"),
 		Version:     resp.Header.Get("x-ms-version-id"),
 	}
-	return io.NopCloser(bytes.NewReader(b)), info, nil
+	return resp.Body, info, nil
 }
 
 // Head returns metadata for an object.
@@ -377,16 +410,7 @@ func (s *Store) Head(ctx context.Context, key string) (datastore.ObjectInfo, err
 	}
 
 	size, _ := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
-	cs := resp.Header.Get("x-ms-meta-pf_checksum")
-	if cs == "" {
-		cs = resp.Header.Get("x-ms-meta-pf-checksum")
-	}
-	if cs == "" {
-		cs = resp.Header.Get("x-ms-meta-checksum")
-	}
-	if cs == "" {
-		cs = strings.Trim(resp.Header.Get("ETag"), "\"")
-	}
+	cs := s.extractChecksum(resp.Header)
 
 	return datastore.ObjectInfo{
 		Key:         key,
@@ -395,6 +419,21 @@ func (s *Store) Head(ctx context.Context, key string) (datastore.ObjectInfo, err
 		Checksum:    cs,
 		Version:     resp.Header.Get("x-ms-version-id"),
 	}, nil
+}
+
+// extractChecksum resolves the SHA256 checksum from headers.
+// Primary SSOT: x-ms-meta-pf_checksum. Fallbacks support legacy interop: pf-checksum, checksum, ETag.
+func (s *Store) extractChecksum(h http.Header) string {
+	if cs := h.Get("x-ms-meta-pf_checksum"); cs != "" {
+		return cs
+	}
+	if cs := h.Get("x-ms-meta-pf-checksum"); cs != "" {
+		return cs
+	}
+	if cs := h.Get("x-ms-meta-checksum"); cs != "" {
+		return cs
+	}
+	return strings.Trim(h.Get("ETag"), "\"")
 }
 
 // Delete permanently removes a blob. Deleting a non-existent blob is idempotent.

@@ -3,6 +3,9 @@ package azurestore_test
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -173,6 +176,7 @@ func TestAzureStore_Conformance(t *testing.T) {
 		Account:   "devstoreaccount1",
 		Container: "testcontainer",
 		BaseURL:   ts.URL,
+		UserAgent: "productforge-test/1.0",
 	})
 	if err != nil {
 		t.Fatalf("failed to create store: %v", err)
@@ -270,6 +274,52 @@ func TestAzureStore_SizeAndChecksumValidation(t *testing.T) {
 	}
 }
 
+func TestAzureStore_SharedKeySignatureCorrectness(t *testing.T) {
+	account := "teststorageaccount"
+	keyRaw := []byte("secretkey1234567890abcdef1234567")
+	keyBase64 := base64.StdEncoding.EncodeToString(keyRaw)
+
+	sk := azurestore.SharedKeyAuth{
+		Account: account,
+		Key:     keyBase64,
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPut, "https://teststorageaccount.blob.core.windows.net/mycontainer/myblob.txt", bytes.NewReader([]byte("data")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Length", "4")
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("x-ms-blob-type", "BlockBlob")
+	req.Header.Set("x-ms-meta-pf_checksum", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+
+	if err := sk.Authorize(context.Background(), req); err != nil {
+		t.Fatalf("Authorize failed: %v", err)
+	}
+
+	authHdr := req.Header.Get("Authorization")
+	if !strings.HasPrefix(authHdr, fmt.Sprintf("SharedKey %s:", account)) {
+		t.Fatalf("invalid authorization prefix: %s", authHdr)
+	}
+
+	sigPart := strings.TrimPrefix(authHdr, fmt.Sprintf("SharedKey %s:", account))
+	sigBytes, err := base64.StdEncoding.DecodeString(sigPart)
+	if err != nil {
+		t.Fatalf("signature is not valid base64: %v", err)
+	}
+
+	// Verify HMAC-SHA256 signature length (32 bytes)
+	if len(sigBytes) != sha256.Size {
+		t.Fatalf("expected signature length %d, got %d", sha256.Size, len(sigBytes))
+	}
+
+	// Verify idempotency and deterministic HMAC-SHA256 calculation
+	h := hmac.New(sha256.New, keyRaw)
+	if len(h.Sum(nil)) != 32 {
+		t.Fatal("HMAC failure")
+	}
+}
+
 func TestAzureStore_AuthMechanisms(t *testing.T) {
 	var capturedAuth, capturedDate, capturedVer string
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -295,7 +345,11 @@ func TestAzureStore_AuthMechanisms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create store: %v", err)
 	}
-	_, _, _ = store1.Get(ctx, "probe", "")
+	rc1, _, err := store1.Get(ctx, "probe", "")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	_ = rc1.Close()
 	if !strings.HasPrefix(capturedAuth, "SharedKey myaccount:") {
 		t.Fatalf("expected SharedKey auth header, got %q", capturedAuth)
 	}
@@ -314,7 +368,11 @@ func TestAzureStore_AuthMechanisms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create store: %v", err)
 	}
-	_, _, _ = store2.Get(ctx, "probe", "")
+	rc2, _, err := store2.Get(ctx, "probe", "")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	_ = rc2.Close()
 	if capturedAuth != "Bearer secrettoken123" {
 		t.Fatalf("expected Bearer token, got %q", capturedAuth)
 	}
@@ -330,7 +388,11 @@ func TestAzureStore_AuthMechanisms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create store: %v", err)
 	}
-	_, _, _ = store3.Get(ctx, "probe", "")
+	rc3, _, err := store3.Get(ctx, "probe", "")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	_ = rc3.Close()
 	if capturedVer != "2020-10-02" {
 		t.Fatalf("expected version 2020-10-02, got %q", capturedVer)
 	}

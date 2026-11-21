@@ -13,6 +13,7 @@ The `productforge/azurestore` package provides the Microsoft Azure Blob Storage 
 
 It communicates directly with the Azure Blob Storage REST API over the standard-library-only `productforge/objstorerest` core. In strict adherence with Product Forge architecture rules:
 - **Zero Provider SDK Dependencies:** Implements Azure Blob REST protocol directly via Go stdlib (eliminating `azure-sdk-for-go` dependency tree and transitive vulnerabilities).
+- **True Streaming Delivery:** `Get` streams the HTTP response body directly (`resp.Body`) without buffering large objects into memory, eliminating OOM risk for high-throughput enterprise pipelines.
 - **Content-Addressed Integrity:** Objects are verified via SHA-256 and stamped with `x-ms-meta-pf_checksum` user metadata.
 - **Fail-Closed Security:** Container presence is mandatory; size mismatches reject immediately; unsupported capabilities (immutability, retention, CMK) return explicit `UnsupportedError`.
 - **Tenant Isolation:** Enforced at the `edpsvc` service boundary via `{tenant_id}/{key}` prefixing and fail-closed 403 checks.
@@ -31,7 +32,7 @@ It communicates directly with the Azure Blob Storage REST API over the standard-
 |     |-- Sends PUT /{container}/{blob} with x-ms-blob-type: BlockBlob              |
 |     \-- Stamps x-ms-meta-pf_checksum                                              |
 |   Get(ctx, key, version)                                                          |
-|     \-- GET /{container}/{blob}, computes & verifies checksum                     |
+|     \-- GET /{container}/{blob}, streams resp.Body directly without OOM risk     |
 |   Head(ctx, key)                                                                  |
 |     \-- HEAD /{container}/{blob}, reads x-ms-meta-pf_checksum & Content-Length    |
 |   Delete(ctx, key, version)                                                       |
@@ -48,24 +49,28 @@ It communicates directly with the Azure Blob Storage REST API over the standard-
 
 ---
 
-## 2. Authentication Mechanisms
+## 2. Authentication Mechanisms & Precedence
 
 The adapter provides three authentication mechanisms implementing `objstorerest.Auth`:
 
 1. **SharedKeyAuth (`SharedKeyAuth`):**
-   Computes canonicalized HMAC-SHA256 signatures according to Azure Storage specifications for Blob Service (API version `2020-10-02`):
-   - Sets `x-ms-date: <RFC1123-UTC>` and `x-ms-version: 2020-10-02`.
+   Computes canonicalized HMAC-SHA256 signatures according to Azure Storage specifications for Blob Service:
+   - Sets `x-ms-date: <RFC1123-UTC>` and `x-ms-version: 2020-10-02` (configurable via `APIVersion`).
    - Constructs `StringToSign` from HTTP verb, canonicalized headers (`x-ms-*`), and canonicalized resource (`/<account>/<path>`).
    - Sets `Authorization: SharedKey <account>:<base64-signature>`.
 
 2. **SASTokenAuth (`SASTokenAuth`):**
-   Appends Shared Access Signature query string parameters to the request URL while setting `x-ms-version: 2020-10-02`.
+   Appends Shared Access Signature query string parameters to the request URL while setting `x-ms-version`.
 
 3. **BearerAuth (`BearerAuth`):**
    Sets `Authorization: Bearer <token>` for OAuth2 / Azure Managed Identity tokens.
 
-4. **AuthFromCredentials (`AuthFromCredentials`):**
-   Helper selecting `SharedKeyAuth` when key is provided, `SASTokenAuth` when SAS token is provided, or `BearerAuth` when token is provided.
+4. **Credential Precedence (`AuthFromCredentials`):**
+   When multiple credentials are present, `AuthFromCredentials` resolves in deterministic order:
+   - **Precedence 1: SharedKeyAuth** (when both account and account key are provided)
+   - **Precedence 2: SASTokenAuth** (when SAS query string is provided)
+   - **Precedence 3: BearerAuth** (when Bearer token is provided)
+   - **Fallback: nil** (unauthenticated, used for local emulators or mock test servers)
 
 ---
 
@@ -109,7 +114,8 @@ cd go/azurestore
 go test -v .
 ```
 Result:
-- `TestAzureStore_Conformance`: **PASS** (Put, Head, Get, prefix-filtered List, Delete)
+- `TestAzureStore_Conformance`: **PASS** (Put, Head, Get streaming, prefix-filtered List, Delete)
 - `TestAzureStore_CapabilitiesHonesty`: **PASS** (honest all-false capabilities, fail-closed on unsupported PutOptions)
 - `TestAzureStore_SizeAndChecksumValidation`: **PASS** (strict short/long read rejection, checksum mismatch error)
+- `TestAzureStore_SharedKeySignatureCorrectness`: **PASS** (exact HMAC-SHA256 signature calculation validation)
 - `TestAzureStore_AuthMechanisms`: **PASS** (SharedKey, Bearer, SAS token verification)
