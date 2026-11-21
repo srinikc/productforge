@@ -58,6 +58,18 @@
         "verdict": "aligned",
         "evidence": "BI-PF-0383 absorbed into BI-PF-0398",
         "recommendation": "support exclude_workers in EAP build"
+      },
+      {
+        "claim": "API CHECK: packaging CLI and release gate invocations; no public HTTP API surface exposed directly",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py:162, core/release.py:80",
+        "recommendation": "Preserve existing module API surface and CLI entry points"
+      },
+      {
+        "claim": "LANGUAGE CHECK: Python edits to core/packaging.py and core/release.py; Go compiler invocation for compiled binaries",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/language_rule_review.py BI-PF-0398",
+        "recommendation": "Adheres to language rule for shipped modules"
       }
     ],
     "reconciliation": {
@@ -65,7 +77,9 @@
         "Packaging execution provides dry-run/mock compilation support for test suites when native compilers are absent.",
         "NO-RAW-.py release gate applies strictly to customer editions (enterprise, on-prem, saas, oem)."
       ],
-      "divergences": [],
+      "divergences": [
+        "No architectural divergences; extends canonical core/packaging.py and core/release.py within existing interfaces."
+      ],
       "existing_path": [
         "core/packaging.py:162 (build), core/packaging.py:236 (validate)",
         "core/release.py:80 (gate)",
@@ -153,6 +167,88 @@
     "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/deploy_providers.py, core/merge_gate.py, core/model_gate.py"
   },
   "approach": "Wire a rebuildable pipeline that compiles Python (Nuitka) and Go (go build), signs, emits SBOM/LBOM, and fails the release gate if any raw .py is present; exclude the worker subsystem per edition at build time.",
+  "controls": [
+    {
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "CTRL-01",
+      "kind": "config",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+      "owner": "core.packaging",
+      "control": "compiled packaging pipeline builds native binary artifacts using Nuitka for Python and go build for Go",
+      "evidence": "core/packaging.py",
+      "dimension": "packaging_pipeline",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "CTRL-02",
+      "kind": "security",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+      "owner": "core.release",
+      "control": "fail-closed release gate inspects packaged edition distributions and blocks raw .py files",
+      "evidence": "core/release.py",
+      "dimension": "release_gate",
+      "applies_to": "core/release.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_raw_py_detected_blocks_release",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "CTRL-03",
+      "kind": "observability",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+      "owner": "core.packaging",
+      "control": "package builder produces CycloneDX SBOM, License BOM, and cryptographic digital signatures",
+      "evidence": "core/signing.py",
+      "dimension": "provenance_sbom",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_missing_sbom_fails_build",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-4",
+      "fr": "FR-4",
+      "id": "CTRL-04",
+      "kind": "failure",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+      "owner": "core.packaging",
+      "control": "build-time subsystem plug/unplug mechanism prunes worker modules from customer edition packages",
+      "evidence": "core/packaging.py",
+      "dimension": "subsystem_plug_unplug",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_mandatory_subsystem_exclusion_rejected",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-1",
+      "fr": "FR-5",
+      "id": "CTRL-05",
+      "kind": "config",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+      "owner": "core.packaging",
+      "control": "EAP manifest catalogs non-code asset bundles including prompt packs and UI/UX tokens",
+      "evidence": "core/packaging.py",
+      "dimension": "asset_catalog",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_corrupted_asset_bundle_rejected",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+      "failure_behavior": "fail_closed"
+    }
+  ],
   "evidence": [
     "pending",
     "Gate 1.5 architect review - model=gemini-2.5-flash sha=9152fbca750c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The design does not explicitly state the version pinning strategy for Nuitka and its associated C-compiler toolchain, which can lead to non-deterministic builds or compatibility issues over time.\n  - While SBOM/LBOM generation is mandated, the design does not explicitly mention validation of the generated SBOM/LBOM against their respective CycloneDX/SPDX schemas, which would enhance robustness.\n  - The design mentions cryptographic digital signatures but lacks details on the key management lifecycle (e.g., rotation, revocation, secure storage) for the signing keys, which is critical for long-term security.\nNIT:\n  - The `config/eap-registry.json` is a critical configuration artifact; consider adding a specific versioning strategy for its schema changes beyond just \"fully backward-compatible\" to manage evolution more formally.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
@@ -206,6 +302,16 @@
       "decision": "APPROVE",
       "findings_sha": "447230c75df0",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-21T17:57:00.105295+00:00",
+      "by": "hil:operator",
+      "seq": 5,
+      "gate": 1,
+      "decision": "APPROVE",
+      "findings_sha": "662085375b4c",
+      "hil_confirmed": true,
+      "findings_digest": "d02dbc946a69"
     }
   ],
   "execution": {
@@ -263,7 +369,7 @@
     "BI-PF-0394"
   ],
   "created_at": "2026-10-06T18:32:23.344615",
-  "updated_at": "2026-11-21T22:52:26.112837",
+  "updated_at": "2026-11-21T23:27:00.249700",
   "design_pack": {
     "item": "BI-PF-0398",
     "audit": {
@@ -297,75 +403,80 @@
         "fr": "FR-1",
         "id": "CTRL-01",
         "kind": "config",
-        "symbol": "core/packaging.py:build_compiled_package",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "owner": "core.packaging",
         "control": "compiled packaging pipeline builds native binary artifacts using Nuitka for Python and go build for Go",
         "evidence": "core/packaging.py",
-        "tenant_test": "N/A: platform build and packaging pipeline",
-        "candidate_sha": "dce1ec51",
+        "dimension": "packaging_pipeline",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
         "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling",
-        "observability": "A3_COMPILED_PACKAGING_PASS",
         "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
-        "concurrency_test": "N/A: deterministic build execution"
+        "failure_behavior": "fail_closed"
       },
       {
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "CTRL-02",
         "kind": "security",
-        "symbol": "core/release.py:no_raw_py_gate",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "owner": "core.release",
         "control": "fail-closed release gate inspects packaged edition distributions and blocks raw .py files",
         "evidence": "core/release.py",
-        "tenant_test": "N/A: platform release verification",
-        "candidate_sha": "dce1ec51",
+        "dimension": "release_gate",
+        "applies_to": "core/release.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
         "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_raw_py_detected_blocks_release",
-        "observability": "A3_NO_RAW_PY_GATE_ENFORCED",
         "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
-        "concurrency_test": "N/A: read-only package verification"
+        "failure_behavior": "fail_closed"
       },
       {
         "ac": "AC-3",
         "fr": "FR-3",
         "id": "CTRL-03",
         "kind": "observability",
-        "symbol": "core/packaging.py:attach_sbom_and_signatures",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "owner": "core.packaging",
         "control": "package builder produces CycloneDX SBOM, License BOM, and cryptographic digital signatures",
         "evidence": "core/signing.py",
-        "tenant_test": "N/A: artifact provenance verification",
-        "candidate_sha": "dce1ec51",
+        "dimension": "provenance_sbom",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
         "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_missing_sbom_fails_build",
-        "observability": "A3_SBOM_LBOM_ATTACHED",
         "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
-        "concurrency_test": "N/A: deterministic SBOM generation"
+        "failure_behavior": "fail_closed"
       },
       {
         "ac": "AC-4",
         "fr": "FR-4",
         "id": "CTRL-04",
         "kind": "failure",
-        "symbol": "core/packaging.py:apply_subsystem_exclusions",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "owner": "core.packaging",
         "control": "build-time subsystem plug/unplug mechanism prunes worker modules from customer edition packages",
         "evidence": "core/packaging.py",
-        "tenant_test": "N/A: edition pruning pipeline",
-        "candidate_sha": "dce1ec51",
+        "dimension": "subsystem_plug_unplug",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
         "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_mandatory_subsystem_exclusion_rejected",
-        "observability": "A3_SUBSYSTEM_EXCLUSIONS_PRUNED",
         "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
-        "concurrency_test": "N/A: deterministic module pruning"
+        "failure_behavior": "fail_closed"
       },
       {
         "ac": "AC-1",
         "fr": "FR-5",
         "id": "CTRL-05",
         "kind": "config",
-        "symbol": "core/packaging.py:eap_catalog_asset_bundles",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+        "owner": "core.packaging",
         "control": "EAP manifest catalogs non-code asset bundles including prompt packs and UI/UX tokens",
         "evidence": "core/packaging.py",
-        "tenant_test": "N/A: asset manifest cataloging",
-        "candidate_sha": "dce1ec51",
+        "dimension": "asset_catalog",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
         "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_corrupted_asset_bundle_rejected",
-        "observability": "A3_ASSET_BUNDLES_CATALOGED",
         "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
-        "concurrency_test": "N/A: deterministic asset hashing"
+        "failure_behavior": "fail_closed"
       }
     ],
     "coverage": [
@@ -1154,6 +1265,7 @@
   "verification": [
     "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 0}"
   ],
+  "language_rule": "python-edit-and-go-build",
   "priority_rank": 2,
   "review_ledger": [
     {
@@ -1536,31 +1648,31 @@
   },
   "control_evidence": [
     {
-      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-33c5a41e96a6",
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
       "result": "PASS",
       "evidence": "core/packaging.py",
       "control_id": "CTRL-01"
     },
     {
-      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-33c5a41e96a6",
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
       "result": "PASS",
       "evidence": "core/release.py",
       "control_id": "CTRL-02"
     },
     {
-      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-33c5a41e96a6",
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
       "result": "PASS",
       "evidence": "core/signing.py",
       "control_id": "CTRL-03"
     },
     {
-      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-33c5a41e96a6",
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
       "result": "PASS",
       "evidence": "core/packaging.py",
       "control_id": "CTRL-04"
     },
     {
-      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-33c5a41e96a6",
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
       "result": "PASS",
       "evidence": "core/packaging.py",
       "control_id": "CTRL-05"
@@ -1580,17 +1692,17 @@
     "diff": {
       "1": {
         "by": "hil:operator",
-        "note": "Implemented native compilation pipeline in build_compiled_package with compiler toolchain checks and dry_run control.",
+        "note": "Implemented native compilation pipeline in build_compiled_package with compiler toolchain checks and dry_run control. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "2": {
         "by": "hil:operator",
-        "note": "Production packaging rejects mock binaries and requires genuine compiler execution.",
+        "note": "Production packaging rejects mock binaries and requires genuine compiler execution. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "3": {
         "by": "hil:operator",
-        "note": "Updated attach_sbom_and_signatures to emit standard CycloneDX 1.5 schema and SPDX 2.3 LBOM format.",
+        "note": "Updated attach_sbom_and_signatures to emit standard CycloneDX 1.5 schema and SPDX 2.3 LBOM format. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "4": {
@@ -1605,37 +1717,37 @@
       },
       "6": {
         "by": "hil:operator",
-        "note": "dry_run controls synthetic binary generation for test/CI vs real native compilation for production.",
+        "note": "dry_run controls synthetic binary generation for test/CI vs real native compilation for production. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "7": {
         "by": "hil:operator",
-        "note": "Narrowed exception handling to specific IO/OS/Value errors.",
+        "note": "Narrowed exception handling to specific IO/OS/Value errors. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "8": {
         "by": "hil:operator",
-        "note": "Extracted COMPILED_BINARY_MAGIC constant.",
+        "note": "Extracted COMPILED_BINARY_MAGIC constant. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "9": {
         "by": "hil:operator",
-        "note": "Defensive copy prevents external caller mutation.",
+        "note": "Defensive copy prevents external caller mutation. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:04dcff61583a3314": {
         "by": "hil:operator",
-        "note": "Extracted COMPILED_BINARY_MAGIC constant.",
+        "note": "Extracted COMPILED_BINARY_MAGIC constant. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:12d0c4f7cddb376d": {
         "by": "hil:operator",
-        "note": "Expanded Nuitka compilation step in build_compiled_package to iterate over and compile all shipped modules in core/.",
+        "note": "Expanded Nuitka compilation step in build_compiled_package to iterate over and compile all shipped modules in core/. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:3237230125bbd821": {
         "by": "hil:operator",
-        "note": "Made individual module compilation non-zero returncode return structured NUITKA_BUILD_FAILED and fail closed.",
+        "note": "Made individual module compilation non-zero returncode return structured NUITKA_BUILD_FAILED and fail closed. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:49bfe11238c51429": {
@@ -1645,17 +1757,17 @@
       },
       "sig:510d0509aabdfce9": {
         "by": "hil:operator",
-        "note": "Defensive copy prevents external caller mutation.",
+        "note": "Defensive copy prevents external caller mutation. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:a8fb5e4287bb25a5": {
         "by": "hil:operator",
-        "note": "Updated attach_sbom_and_signatures to emit standard CycloneDX 1.5 schema and SPDX 2.3 LBOM format.",
+        "note": "Updated attach_sbom_and_signatures to emit standard CycloneDX 1.5 schema and SPDX 2.3 LBOM format. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:a91cb3053d47346d": {
         "by": "hil:operator",
-        "note": "Production packaging rejects mock binaries and requires genuine compiler execution.",
+        "note": "Production packaging rejects mock binaries and requires genuine compiler execution. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:aaab22ca44df2ad6": {
@@ -1665,29 +1777,29 @@
       },
       "sig:b4b2595fd7f437cb": {
         "by": "hil:operator",
-        "note": "Failed module compilation immediately halts packaging with error instead of omitting artifact silently.",
+        "note": "Failed module compilation immediately halts packaging with error instead of omitting artifact silently. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:cd55ea051a8f3149": {
         "by": "hil:operator",
-        "note": "Narrowed exception handling to specific IO/OS/Value errors.",
+        "note": "Narrowed exception handling to specific IO/OS/Value errors. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:ce9cbd9e1214a405": {
         "by": "hil:operator",
-        "note": "dry_run controls synthetic binary generation for test/CI vs real native compilation for production.",
+        "note": "dry_run controls synthetic binary generation for test/CI vs real native compilation for production. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:d66b41ac641e99d3": {
         "by": "hil:operator",
-        "note": "Implemented native compilation pipeline in build_compiled_package with compiler toolchain checks and dry_run control.",
+        "note": "Implemented native compilation pipeline in build_compiled_package with compiler toolchain checks and dry_run control. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       }
     },
     "design": {
       "1": {
         "by": "hil:operator",
-        "note": "ACTIONED: Compiler toolchain detection records toolchain version and minimum version requirements in build metadata.",
+        "note": "ACTIONED: Compiler toolchain detection records toolchain version and minimum version requirements in build metadata. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "2": {
@@ -1707,7 +1819,7 @@
       },
       "sig:292f22afeaaf8c4e": {
         "by": "hil:operator",
-        "note": "ACTIONED: Compiler toolchain detection records toolchain version and minimum version requirements in build metadata.",
+        "note": "ACTIONED: Compiler toolchain detection records toolchain version and minimum version requirements in build metadata. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
         "status": "ACTIONED"
       },
       "sig:2a963780e310d9b0": {
