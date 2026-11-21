@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1275",
+  "sha": "a5a6ee153986",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T06:06:34.196714+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0d353388652453d2d8f20f3e54828068b577e463",
+  "findings": {
+    "BLOCKER": [
+      "New daemon management logic in `core/events.py` is written in Python, violating the standard \"new shipped logic -> Go\"."
+    ],
+    "MAJOR": [
+      "The `--daemon` mode in `core/events.py` implements an infinite sleep loop, meaning the \"event bus daemon\" performs no actual event bus functionality.",
+      "The design contract requires structured logs for `BUS_DAEMON_STARTED`, `BUS_DAEMON_STOPPED`, `BUS_DAEMON_STATUS`, which are not implemented.",
+      "`taskkill /F` on Windows forces termination, contradicting the AC-3 requirement for graceful daemon termination.",
+      "Spawning a background process directly from the API service creates tight coupling and is not robust for enterprise-grade process management or horizontal scaling."
+    ],
+    "MINOR": [
+      "The OpenAPI specification uses generic `schema: {}` for 200 responses, lacking explicit contract definitions for API clients.",
+      "The `_bus_pid_file` function uses hardcoded directory names (`products`, `.events`), which reduces maintainability and adaptability.",
+      "Importing the private `_pid_alive` function from `core.capacity` breaks encapsulation and suggests a missing public utility or dedicated process management abstraction."
+    ],
+    "NIT": [
+      "The OpenAPI `requestBody` for POST endpoints uses a very generic `additionalProperties: true, type: object` schema, which could be more specific for clarity.",
+      "The `_main` function's `--project` argument defaults to an empty string, which then resolves to a global `products` directory, potentially unintended for project-scoped operations."
+    ],
+    "SUMMARY": []
+  }
+}

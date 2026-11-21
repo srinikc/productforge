@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1275",
+  "sha": "9af20c26be53",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-21T05:55:27.892255+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "7a502f60541b520250f927b62bcee9574849b497",
+  "findings": {
+    "BLOCKER": [
+      "The implementation of new API endpoints and supervisor logic in Python (`api/routers/events.py`, `core/events.py`) violates the `ARCHITECTURE-DECISIONS.md` language rule: \"new shipped logic -> Go\". This is a fundamental architectural decision."
+    ],
+    "MAJOR": [
+      "The reliance on host-level PID files for daemon management is brittle and not robust for containerized or orchestrated environments, impacting integrity and scalability.",
+      "The `GET /health` endpoint's `degraded` state lacks specific criteria beyond \"unreachable daemon\"; more granular states (e.g., `starting`, `stopping`, `error`) are needed for comprehensive observability."
+    ],
+    "MINOR": [
+      "The exact path and permissions for the `.events` directory used for PID lock files should be explicitly defined and secured to prevent unauthorized access or conflicts.",
+      "The `POST /api/v1/events/bus/start` and `POST /api/v1/events/bus/stop` responses could include more detailed status or error messages for improved debugging and maintainability.",
+      "The `uptime` field in `GET /api/v1/events/bus` should specify its exact format (e.g., raw seconds, ISO 8601 duration) for clear API contract."
+    ],
+    "NIT": [
+      "The `functional_spec` includes `api/app.py` in its scope, but `design_pack` and `review_scope` do not explicitly list it as an affected file. Clarify if `api/app.py` changes are in scope."
+    ],
+    "SUMMARY": []
+  }
+}

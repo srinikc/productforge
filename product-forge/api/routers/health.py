@@ -17,8 +17,22 @@ def health(request: Request):
                 "stale": fs["stale"]}
     except Exception as e:
         code = {"error": type(e).__name__}
-    return from_request(request, {"status": "ok", "service": "product-forge-api", "version": "v1",
-                                  "code": code}, resource="health")
+
+    bus_comp = {"status": "stopped"}
+    try:
+        from core import events
+        bst = events.bus_status()
+        bus_comp = {"status": "ok" if bst.get("running") else bst.get("status", "stopped"), **bst}
+    except Exception as e:
+        bus_comp = {"status": "error", "error": type(e).__name__}
+
+    components = {"event_bus": bus_comp}
+    resp = from_request(request, {"status": "ok", "service": "product-forge-api", "version": "v1",
+                                  "code": code, "components": components}, resource="health")
+    resp["components"] = components
+    resp["event_bus"] = bus_comp
+    return resp
+
 
 
 @router.get("/ready")

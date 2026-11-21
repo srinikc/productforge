@@ -96,7 +96,7 @@ def deliver_plane_a(item_id: str, scope: str = "product_forge", project: str | N
     if docs_status:
         print("[Deliver] Committing updated docs index...")
         _run_cmd(["git", "add", "docs/README.md"])
-        _run_cmd(["git", "commit", "-m", "docs: update docs index"])
+        _run_cmd(["git", "commit", "-m", f"docs({item_id}): update docs index"])
 
     # 7. Pre-merge verification (sync develop + wired audit)
     print("[Deliver] Running pre-merge verification (sync_develop & wired_audit)...")
