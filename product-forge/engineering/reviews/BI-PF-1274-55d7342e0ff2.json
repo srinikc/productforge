@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1274",
+  "sha": "55d7342e0ff2",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T05:03:17.383458+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "9007fdb5b32f82426979df5fab5689132b0cb343",
+  "findings": {
+    "BLOCKER": [
+      "The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data and potential data integrity issues in multi-process deployments.",
+      "The `tenant_id` for subscription CRUD operations is derived from user-supplied `body` or `query` parameters, allowing an operator to manage subscriptions for any tenant, bypassing RLS."
+    ],
+    "MAJOR": [
+      "The `events_stream` endpoint's `event_type` filter is only applied during backlog replay, not to the continuous active stream, leading to unfiltered live events.",
+      "The `events.read(d, limit=1000)` for backlog replay uses an arbitrary limit, which is not configurable and may be insufficient or excessive for varying backlog sizes.",
+      "The fallback logic in `_subscription_store_path` can lead to inconsistent storage locations for subscriptions, impacting maintainability and predictability."
+    ],
+    "MINOR": [
+      "The string stripping and defaulting logic for `project_or_tenant` is duplicated across `_subscription_store_path` and `_load_subscriptions`.",
+      "The `_VALID_TRANSPORTS` set is hardcoded in the router, requiring code changes and redeployment for new transport protocols.",
+      "The backlog replay logic checks `ev.get(\"occurred_at\") or ev.get(\"ts\")`, indicating potential inconsistency in event timestamp fields.",
+      "Test coverage for `test_events_stream_since_replay` does not explicitly verify the `event_type` filter or that only events *after* `since` are replayed."
+    ],
+    "NIT": [
+      "The `import time` statement in `patch_subscription` is unused."
+    ],
+    "SUMMARY": []
+  }
+}
