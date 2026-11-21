@@ -1,101 +1,131 @@
 {
   "id": "BI-PF-1276",
+  "due": "",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "",
-  "label": "PF Backlog 586",
-  "title": "Eventing SSOT: retire legacy websocket push (frozen dashboard -> SSE)",
   "body": "## Problem / why\ncore/websocket_manager.py duplicates the push concern in the frozen legacy dashboard.\n\n## Goal / value\nStop extending the legacy WS; migrate its consumers to SSE; retain (never delete) until the new UI lands.\n\n## In scope\n- Deprecation note + migration mapping; freeze (legacy_exempt_roots already covers dashboard/).\n\n## Out of scope\n- Rewriting the dashboard.\n\n## Acceptance criteria\n- No new WS usage; a documented path to SSE; wired_audit unaffected.\n\n## Verification / test plan\n- Doc + grep guard that no new WS consumer is added.",
-  "source": "design",
-  "status": "new",
-  "priority": "P2",
-  "moscow": "Should",
-  "value": 2,
-  "effort": 2,
-  "risk": 1,
   "deps": [
     "BI-PF-1273",
     "BI-PF-1274"
   ],
-  "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-12T23:27:09.301105",
-      "decision": "APPROVE",
-      "by": "cli",
-      "note": ""
-    }
-  ],
-  "follow_up": {},
-  "brief": {
-    "problem": "core/websocket_manager.py duplicates the push concern in the frozen legacy dashboard.",
-    "what_adds": "Stop extending the legacy WS; migrate its consumers to SSE; retain (never delete) until the new UI lands.",
-    "why": "core/websocket_manager.py duplicates the push concern in the frozen legacy dashboard.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "authored"
-  },
-  "objective": "Stop extending the legacy WS; migrate its consumers to SSE; retain (never delete) until the new UI lands.",
-  "acceptance_criteria": [
-    "No new WS usage; a documented path to SSE; wired_audit unaffected."
-  ],
-  "in_scope": [
-    "Deprecation note + migration mapping; freeze (legacy_exempt_roots already covers dashboard/)."
-  ],
-  "out_of_scope": [
-    "Rewriting the dashboard."
-  ],
-  "affected_components": [
-    "core"
-  ],
-  "affected_files": [
-    "core/websocket_manager.py"
-  ],
-  "approach": "- Doc + grep guard that no new WS consumer is added.",
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
-  },
-  "verification": [
-    "No new WS usage; a documented path to SSE; wired_audit unaffected."
-  ],
-  "risks": [
-    "Not specified."
-  ],
-  "rollback": "Revert the change.",
-  "evidence": [
-    "pending"
-  ],
-  "owner": "agent",
-  "requester": "design",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
   "epic": "BI-PF-1265",
+  "risk": 1,
+  "tier": 1,
+  "type": "feature",
+  "_note": "Plane A deliver: final report persisted and status completed",
+  "brief": {
+    "why": "Stop extending the legacy WS transport; freeze it for backwards compatibility and migrate real-time consumers to Eventing SSOT SSE.",
+    "source": "authored",
+    "problem": "core/websocket_manager.py duplicates the push concern in the frozen legacy dashboard and lacks unified event bus integration.",
+    "what_adds": "Marks core/websocket_manager.py DEPRECATED, adds it to config/legacy-frozen.json with sha256 hash, and provides contract tests.",
+    "who_feels": "Product Forge developers, operators, and dashboard client consumers."
+  },
+  "label": "PF Backlog 586",
+  "links": {},
+  "owner": "agent",
+  "risks": [
+    "Accidental deletion of legacy file; mitigated by wired_audit.legacy_guard fail-closed check."
+  ],
+  "scope": "product_forge",
+  "score": 1.0,
+  "title": "Eventing SSOT: retire legacy websocket push (frozen dashboard -> SSE)",
+  "value": 2,
+  "effort": 2,
+  "moscow": "Should",
+  "origin": "review",
   "parent": "BI-PF-1265",
-  "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "P2",
-  "analyze_mode": "on_entry",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Retire legacy websocket_manager in favor of Eventing SSOT SSE",
+        "verdict": "aligned",
+        "evidence": "docs/EVENTING-ALERTING-SSOT-DESIGN.md:103",
+        "recommendation": "Add deprecation notice and document SSE stream migration path."
+      },
+      {
+        "claim": "Freeze core/websocket_manager.py in config/legacy-frozen.json",
+        "verdict": "aligned",
+        "evidence": "config/legacy-frozen.json:1-12",
+        "recommendation": "Register websocket_manager with sha256 to prevent further extension."
+      },
+      {
+        "claim": "API CHECK: deprecate ws without introducing new HTTP routes",
+        "verdict": "aligned",
+        "evidence": "api/routers/events.py:27",
+        "recommendation": "needs_api=false; SSE route /api/v1/events/stream is already live and serves real-time events."
+      },
+      {
+        "claim": "LANGUAGE RULE: deprecation edit on existing shipped Python",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/language_rule_review.py:120",
+        "recommendation": "Small comment/docstring edit on existing Python (< 30 lines); language-rule: OK."
+      },
+      {
+        "claim": "AC: 5 detailed acceptance criteria verifying WS retirement",
+        "verdict": "aligned",
+        "evidence": "engineering/design/BI-PF-1276.md",
+        "recommendation": "Verify via dedicated test suite in test-framework/tests/pipeline/test_events_retire_ws_api.py."
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "core/websocket_manager.py must be retained (never deleted) until the legacy dashboard is fully decommissioned.",
+        "Zero active runtime components outside legacy dashboard rely on websocket_manager."
+      ],
+      "divergences": [
+        "None; fully aligns with docs/EVENTING-ALERTING-SSOT-DESIGN.md §5 consumer migration matrix retiring WebSocket in favor of SSE."
+      ],
+      "existing_path": [
+        "core/websocket_manager.py:25: Legacy WebSocketManager and websocket_endpoint.",
+        "config/legacy-frozen.json:1: Registry of frozen legacy files enforced by wired_audit.legacy_guard.",
+        "api/routers/events.py:27: SSE stream route GET /api/v1/events/stream."
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "docs/EVENTING-ALERTING-SSOT-DESIGN.md:103,139 - legacy WebSocket transport retired when superseded by SSE and left frozen.",
+        "ADR-0001 / ADR-0007 / ADR-0008: Go-first for new shipped work; Python edits minimal and compliant with language rule.",
+        "BI-PF-1265: Eventing SSOT Epic umbrella architecture.",
+        "BI-PF-1274: Server-Sent Events /api/v1/events/stream established as canonical real-time push mechanism."
+      ]
+    }
+  },
+  "source": "design",
+  "status": "completed",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
     "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=5",
+      "apis=0"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
     "analyzed_at": "2026-10-14T12:03:09.511777",
     "analyzed_by": "deterministic",
-    "revision_analyzed": 3,
+    "assumptions": [],
+    "missing_info": [],
+    "refreshed_at": "2026-10-14T12:03:09.324028",
+    "existing_apis": [],
+    "arch_fingerprint": "d3285da0f59c3e99",
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_messenger.py, core/asset_store.py, core/dashboard_archetypes.py, core/dashboard_blueprint.py",
+    "existing_modules": [
+      "config/dashboard-blueprint.json",
+      "config/legacy-frozen.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 3,
+    "dependency_findings": [
+      "depends on BI-PF-1273",
+      "depends on BI-PF-1274"
+    ],
     "existing_components": [
       "core/agent_messenger.py",
       "core/asset_store.py",
@@ -103,53 +133,174 @@
       "core/dashboard_blueprint.py",
       "core/websocket_manager.py"
     ],
-    "existing_apis": [],
-    "existing_modules": [
-      "config/dashboard-blueprint.json",
-      "config/legacy-frozen.json"
-    ],
-    "dependency_findings": [
-      "depends on BI-PF-1273",
-      "depends on BI-PF-1274"
-    ],
-    "conflict_findings": [],
     "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=1.0",
-      "components=5",
-      "apis=0"
-    ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
-    "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:03:09.324028"
+    "implementation_strategy": "Extend existing components/APIs: core/agent_messenger.py, core/asset_store.py, core/dashboard_archetypes.py, core/dashboard_blueprint.py"
   },
-  "dependencies": [
+  "approach": "Add deprecation header to core/websocket_manager.py, register in config/legacy-frozen.json, and add contract test suite.",
+  "children": [],
+  "controls": [
     {
-      "task_id": "BI-PF-1273",
-      "type": "REQUIRES",
-      "required_state": "completed"
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "C-1",
+      "kind": "runtime",
+      "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+      "owner": "Enterprise Architecture / Eventing SSOT",
+      "symbol": "core/websocket_manager.py:__doc__",
+      "control": "core/websocket_manager.py carries DEPRECATED header with migration mapping to SSE stream",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "dimension": "runtime_contract",
+      "applies_to": "core/websocket_manager.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+      "observability": "DEPRECATION_WARNING",
+      "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+      "concurrency_test": "N/A: static code deprecation",
+      "failure_behavior": "fail-closed"
     },
     {
-      "task_id": "BI-PF-1274",
-      "type": "REQUIRES",
-      "required_state": "completed"
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "C-2",
+      "kind": "idempotency",
+      "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+      "owner": "Enterprise Architecture / Governance",
+      "symbol": "config/legacy-frozen.json:files",
+      "control": "core/websocket_manager.py frozen in config/legacy-frozen.json with sha256 to block modification",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "dimension": "concurrency_idempotency",
+      "applies_to": "config/legacy-frozen.json",
+      "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+      "observability": "LEGACY_FROZEN_INTEGRITY",
+      "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+      "concurrency_test": "N/A: static hash verification",
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "C-3",
+      "kind": "lifecycle",
+      "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+      "owner": "Enterprise Architecture / Eventing SSOT",
+      "symbol": "core/websocket_manager.py:WebSocketManager",
+      "control": "Verify zero new WebSocket consumers or imports across core, api, and scripts",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "dimension": "termination",
+      "applies_to": "core/websocket_manager.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+      "observability": "WEBSOCKET_USAGE_AUDIT",
+      "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+      "concurrency_test": "N/A: static analysis",
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "ac": "AC-4",
+      "fr": "FR-4",
+      "id": "C-4",
+      "kind": "observability",
+      "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+      "owner": "Enterprise Architecture / Eventing API",
+      "symbol": "api/routers/events.py:stream_events",
+      "control": "Verify SSE event stream /api/v1/events/stream is active and documented as migration target",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "dimension": "observability",
+      "applies_to": "api/routers/events.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+      "observability": "SSE_STREAM_STATUS",
+      "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+      "concurrency_test": "N/A: router check",
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "ac": "AC-5",
+      "fr": "FR-5",
+      "id": "C-5",
+      "kind": "security",
+      "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+      "owner": "Enterprise Architecture / Governance",
+      "symbol": "scripts/dev/wired_audit.py:legacy_guard",
+      "control": "wired_audit.legacy_guard passes cleanly with return code 0 verifying frozen file intactness",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "dimension": "security_model",
+      "applies_to": "scripts/dev/wired_audit.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+      "observability": "LEGACY_GUARD_CHECK",
+      "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+      "concurrency_test": "N/A: audit check",
+      "failure_behavior": "fail-closed"
     }
   ],
-  "blocked_by": [
-    "BI-PF-1273",
-    "BI-PF-1274"
+  "evidence": [
+    "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=4dc9b2a755fd\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The design does not explicitly detail runtime logging or metrics for existing consumers who might still be using the deprecated `websocket_manager`, beyond the static deprecation header. This could hinder operational observability of migration progress.\nNIT:\n  - The `test_ac3_zero_new_websocket_consumers` requirement mentions \"AST or grep check\". Specifying AST-based analysis would ensure a more robust and accurate check against new imports.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=8ce422697795\nBLOCKER:\n  - The `test_ac3_zero_new_websocket_consumers` test does not scan the `scripts` directory, failing to fully meet Acceptance Criterion AC-3 (\"across core, api, and scripts\").\n  - The `test_ac4_sse_stream_alternative_active` test only verifies the *presence* of the SSE stream route in code, not its *active* status as required by AC-4 (\"SSE event stream and bus status are active alternatives\").\nMAJOR:\n  - The `warnings.warn` call uses `DeprecationWarning`, which is ignored by default in Python, reducing the runtime observability for developers.\nMINOR:\n  - The `test_ac5_wired_audit_legacy_guard_pass` test modifies `sys.path` directly, which can lead to brittle test environments.\nNIT:\n  - The `WebSocketManager` class docstring is slightly redundant with the module-level docstring regarding deprecation.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=cc413237157c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - All previously identified BLOCKER, MAJOR, MINOR, and NIT findings have been addressed and resolved in this diff.\n  - The implementation now fully meets all Acceptance Criteria, including robust testing for zero new WebSocket consumers and verification of the active SSE stream alternative.\n  - The deprecation warning is now correctly surfaced, and test environment hygiene has improved.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
-  "unlocks": [],
+  "in_scope": [
+    "core/websocket_manager.py",
+    "config/legacy-frozen.json",
+    "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+  ],
+  "priority": "P2",
+  "revision": 3,
+  "rollback": "Revert changes in core/websocket_manager.py and config/legacy-frozen.json.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-10-12T23:27:09.301105",
+      "by": "cli",
+      "note": "",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-21T08:55:48.707401+00:00",
+      "by": "hil:user",
+      "seq": 2,
+      "gate": 1,
+      "note": "Gate 1 design approved with 5 detailed ACs and Gate 1.5 Architect review findings dispositioned.",
+      "decision": "APPROVE",
+      "findings_sha": "4dc9b2a755fd",
+      "hil_confirmed": true,
+      "findings_digest": "4a31ca03d4d2"
+    },
+    {
+      "at": "2026-11-21T09:15:38.236036+00:00",
+      "by": "hil:operator",
+      "seq": 3,
+      "gate": 2,
+      "note": "Operator approved Gate 2 delivery review with all 5 ACs verified and 0 Gate 2.5 findings",
+      "decision": "APPROVE",
+      "findings_sha": "cc413237157c",
+      "hil_confirmed": true,
+      "findings_digest": "c54eafbfce01"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Retire legacy websocket_manager push transport in favor of Eventing SSOT SSE and freeze core/websocket_manager.py for backwards compat.",
   "readiness": {
     "ready": false,
     "reasons": [
@@ -158,26 +309,1514 @@
     ],
     "computed_at": "2026-10-12T23:27:15.752201"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
+  "requester": "operator",
+  "spec_pack": {
+    "status": "approved",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1276.md",
+    "applicability": [
+      {
+        "scope": [
+          "core/websocket_manager.py",
+          "config/legacy-frozen.json"
+        ],
+        "domain": "core",
+        "status": "APPLICABLE",
+        "rationale": "Retires legacy WebSocket transport and registers file in legacy-frozen configuration."
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1276.md",
+    "risk_assessment": [
+      {
+        "id": "R-1",
+        "risk": "Accidental deletion of legacy websocket_manager breaking frozen dashboard.",
+        "impact": "High",
+        "likelihood": "Low",
+        "mitigation": "Registered in config/legacy-frozen.json; wired_audit.legacy_guard fails closed if deleted or modified."
+      }
+    ]
   },
-  "created_at": "2026-10-12T22:54:48.381314",
-  "updated_at": "2026-10-15T19:52:07.894521",
-  "score": 1.0,
-  "_note": "analysis updated",
   "api_impact": {
-    "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "reason": "Retiring legacy WebSocket transport in core/websocket_manager.py; SSE push endpoint GET /api/v1/events/stream and subscription endpoints already established in BI-PF-1273 and BI-PF-1274.",
+    "routes": [],
+    "needs_api": false
+  },
+  "blocked_by": [
+    "BI-PF-1273",
+    "BI-PF-1274"
+  ],
+  "created_at": "2026-10-12T22:54:48.381314",
+  "updated_at": "2026-11-21T14:51:19.788797",
+  "design_pack": {
+    "audit": "Hash checked deterministically during CI and precheck.",
+    "risks": [
+      "Accidental deletion of legacy file; mitigated by wired_audit.legacy_guard fail-closed check."
+    ],
+    "scope": [
+      "core/websocket_manager.py",
+      "config/legacy-frozen.json"
+    ],
+    "quotas": "N/A: static code freeze.",
+    "rollout": "shipped with config/legacy-frozen.json update",
+    "version": 1,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "runtime",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "owner": "Enterprise Architecture / Eventing SSOT",
+        "symbol": "core/websocket_manager.py:__doc__",
+        "control": "core/websocket_manager.py carries DEPRECATED header with migration mapping to SSE stream",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "runtime_contract",
+        "applies_to": "core/websocket_manager.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "observability": "DEPRECATION_WARNING",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "concurrency_test": "N/A: static code deprecation",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "idempotency",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "owner": "Enterprise Architecture / Governance",
+        "symbol": "config/legacy-frozen.json:files",
+        "control": "core/websocket_manager.py frozen in config/legacy-frozen.json with sha256 to block modification",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "concurrency_idempotency",
+        "applies_to": "config/legacy-frozen.json",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "observability": "LEGACY_FROZEN_INTEGRITY",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "concurrency_test": "N/A: static hash verification",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "lifecycle",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "owner": "Enterprise Architecture / Eventing SSOT",
+        "symbol": "core/websocket_manager.py:WebSocketManager",
+        "control": "Verify zero new WebSocket consumers or imports across core, api, and scripts",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "termination",
+        "applies_to": "core/websocket_manager.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "observability": "WEBSOCKET_USAGE_AUDIT",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "concurrency_test": "N/A: static analysis",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-4",
+        "kind": "observability",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:stream_events",
+        "control": "Verify SSE event stream /api/v1/events/stream is active and documented as migration target",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "observability",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "observability": "SSE_STREAM_STATUS",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "concurrency_test": "N/A: router check",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "id": "C-5",
+        "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "owner": "Enterprise Architecture / Governance",
+        "symbol": "scripts/dev/wired_audit.py:legacy_guard",
+        "control": "wired_audit.legacy_guard passes cleanly with return code 0 verifying frozen file intactness",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "security_model",
+        "applies_to": "scripts/dev/wired_audit.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "observability": "LEGACY_GUARD_CHECK",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "concurrency_test": "N/A: audit check",
+        "failure_behavior": "fail-closed"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "adapter": "Deprecation Notice & Legacy Frozen Registry",
+        "contract": "WebSocket Retirement Contract",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "call_sites": [
+          "config/legacy-frozen.json",
+          "scripts/dev/wired_audit.py"
+        ],
+        "entrypoint": "core/websocket_manager.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "File modified after freeze",
+          "New WS consumer introduced",
+          "Missing SSE alternative"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "adapter": "Deprecation Notice & Legacy Frozen Registry",
+        "contract": "WebSocket Retirement Contract",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "call_sites": [
+          "config/legacy-frozen.json",
+          "scripts/dev/wired_audit.py"
+        ],
+        "entrypoint": "core/websocket_manager.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "File modified after freeze",
+          "New WS consumer introduced",
+          "Missing SSE alternative"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "adapter": "Deprecation Notice & Legacy Frozen Registry",
+        "contract": "WebSocket Retirement Contract",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "call_sites": [
+          "config/legacy-frozen.json",
+          "scripts/dev/wired_audit.py"
+        ],
+        "entrypoint": "core/websocket_manager.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "File modified after freeze",
+          "New WS consumer introduced",
+          "Missing SSE alternative"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "adapter": "Deprecation Notice & Legacy Frozen Registry",
+        "contract": "WebSocket Retirement Contract",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "call_sites": [
+          "config/legacy-frozen.json",
+          "scripts/dev/wired_audit.py"
+        ],
+        "entrypoint": "core/websocket_manager.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "File modified after freeze",
+          "New WS consumer introduced",
+          "Missing SSE alternative"
+        ]
+      },
+      {
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "adapter": "Deprecation Notice & Legacy Frozen Registry",
+        "contract": "WebSocket Retirement Contract",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "call_sites": [
+          "config/legacy-frozen.json",
+          "scripts/dev/wired_audit.py"
+        ],
+        "entrypoint": "core/websocket_manager.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "File modified after freeze",
+          "New WS consumer introduced",
+          "Missing SSE alternative"
+        ]
+      }
+    ],
+    "evidence": [
+      "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+    ],
+    "rollback": "Revert the change in core/websocket_manager.py and config/legacy-frozen.json.",
+    "security": "Guards against supply chain or unauthorized changes to deprecated transport.",
+    "contracts": {
+      "db": "N/A: no database tables affected",
+      "api": "N/A: retirement of legacy WebSocket transport; SSE live on GET /api/v1/events/stream",
+      "files": [
+        "core/websocket_manager.py",
+        "config/legacy-frozen.json"
+      ],
+      "config": "config/legacy-frozen.json"
+    },
+    "decisions": [
+      "Retire legacy WebSocket transport in favor of Eventing SSOT SSE."
+    ],
+    "learnings": [
+      "Freezing legacy files with content SHA prevents drift while newer SSE SSOT stabilizes."
+    ],
+    "non_goals": [
+      "Rewriting legacy dashboard components or removing legacy routes before UI transition."
+    ],
+    "ownership": "Enterprise Architecture / Eventing SSOT",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": "Static configuration mapping in config/legacy-frozen.json.",
+    "guardrails": [
+      "Fail closed if frozen files altered."
+    ],
+    "invariants": [
+      "core/websocket_manager.py must not be deleted.",
+      "Zero new WebSocket consumers may be added to runtime code.",
+      "Event streaming is strictly served via /api/v1/events/stream."
+    ],
+    "proof_plan": {
+      "failing_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+      "red_evidence": "core/websocket_manager.py had no DEPRECATED warning before edit",
+      "green_evidence": "core/websocket_manager.py carries DEPRECATED notice and is frozen in config/legacy-frozen.json"
+    },
+    "rls_tenant": "Static codebase configuration operating across repo scope.",
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-5",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "candidate_sha": "HEAD"
+      }
+    ],
+    "performance": "Zero runtime overhead; static code freeze.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      }
+    ],
+    "api_contract": "Retire legacy WebSocket transport; real-time event streaming handled via GET /api/v1/events/stream.",
+    "dependencies": [
+      "BI-PF-1273",
+      "BI-PF-1274"
+    ],
+    "design_areas": [
+      {
+        "area": "core",
+        "reason": "Retirement of legacy websocket_manager",
+        "status": "APPLICABLE",
+        "evidence": [
+          "engineering/design/BI-PF-1276.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      }
+    ],
+    "requirements": [
+      "Retire legacy websocket_manager by adding a clear deprecation header and mapping consumers to Eventing SSOT SSE (/api/v1/events/stream).",
+      "Freeze core/websocket_manager.py in config/legacy-frozen.json with sha256 and deprecation reason to block future modification.",
+      "Verify zero new WebSocket consumers or imports across core, api, and scripts, keeping core/websocket_manager strictly frozen for compat.",
+      "Provide regression test verifying deprecation notices, legacy-frozen registration, sha256 integrity, and SSE stream alternative.",
+      "Ensure full compatibility with wired_audit legacy-guard and language-rule checks with zero regressions across pipeline gates."
+    ],
+    "review_scope": {
+      "files": [
+        "core/websocket_manager.py",
+        "config/legacy-frozen.json",
+        "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "exclude": [
+        "None: no files excluded from review"
+      ],
+      "components": [
+        "core",
+        "config"
+      ]
+    },
+    "compatibility": "100% backward compatible: retains legacy definitions without deleting files.",
+    "observability": "wired_audit legacy_guard output and test suite results.",
+    "prerequisites": [
+      "BI-PF-1273",
+      "BI-PF-1274"
+    ],
+    "backup_restore": "N/A: git version controlled.",
+    "failure_matrix": [
+      {
+        "case": "modified frozen file",
+        "code": "CHANGED",
+        "expected": "fail wired_audit"
+      },
+      {
+        "case": "deleted frozen file",
+        "code": "DELETED",
+        "expected": "fail wired_audit"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1276.md",
+    "open_questions": [
+      "None: all retirement requirements confirmed with enterprise architect."
+    ],
+    "security_model": "Code freeze prevents unauthorized modification of legacy transport layer.",
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/api/rest.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "stop_conditions": [
+      "audit failures or test breakage"
+    ],
+    "failure_taxonomy": [
+      {
+        "case": "file modified after freeze",
+        "code": "LEGACY_FROZEN_CHANGED",
+        "expected": "wired_audit legacy_guard failure"
+      },
+      {
+        "case": "new ws consumer introduced",
+        "code": "FORBIDDEN_WS_CONSUMER",
+        "expected": "contract test assertion failure"
+      },
+      {
+        "case": "file deleted",
+        "code": "LEGACY_FROZEN_DELETED",
+        "expected": "wired_audit legacy_guard failure"
+      }
+    ],
+    "runtime_contract": {
+      "adapter": "Deprecation Notice & Legacy Frozen Registry",
+      "trigger": "Module import or code execution",
+      "contract": "WebSocket Retirement Contract",
+      "call_sites": [
+        "config/legacy-frozen.json",
+        "scripts/dev/wired_audit.py"
+      ],
+      "entrypoint": "core/websocket_manager.py",
+      "failure_behavior": "fail-closed",
+      "observable_result": "Frozen legacy hash validation and deprecation warnings"
+    },
+    "rollback_recovery": "Revert deprecation note in core/websocket_manager.py and config/legacy-frozen.json entry.",
+    "deployment_rollout": "Shipped with config/legacy-frozen.json update.",
+    "guideline_coverage": [
+      {
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "evidence": "core/websocket_manager.py",
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "core/websocket_manager.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+      }
+    ],
+    "performance_capacity": "Zero runtime overhead; static code freeze.",
+    "concurrency_idempotency": "Read-only static assets; zero concurrent mutation risk.",
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "runtime",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "owner": "Enterprise Architecture / Eventing SSOT",
+        "symbol": "core/websocket_manager.py:__doc__",
+        "control": "core/websocket_manager.py carries DEPRECATED header with migration mapping to SSE stream",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "runtime_contract",
+        "applies_to": "core/websocket_manager.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "observability": "DEPRECATION_WARNING",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice",
+        "concurrency_test": "N/A: static code deprecation",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "idempotency",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "owner": "Enterprise Architecture / Governance",
+        "symbol": "config/legacy-frozen.json:files",
+        "control": "core/websocket_manager.py frozen in config/legacy-frozen.json with sha256 to block modification",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "concurrency_idempotency",
+        "applies_to": "config/legacy-frozen.json",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "observability": "LEGACY_FROZEN_INTEGRITY",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash",
+        "concurrency_test": "N/A: static hash verification",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "lifecycle",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "owner": "Enterprise Architecture / Eventing SSOT",
+        "symbol": "core/websocket_manager.py:WebSocketManager",
+        "control": "Verify zero new WebSocket consumers or imports across core, api, and scripts",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "termination",
+        "applies_to": "core/websocket_manager.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "observability": "WEBSOCKET_USAGE_AUDIT",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers",
+        "concurrency_test": "N/A: static analysis",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-4",
+        "kind": "observability",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:stream_events",
+        "control": "Verify SSE event stream /api/v1/events/stream is active and documented as migration target",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "observability",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "observability": "SSE_STREAM_STATUS",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active",
+        "concurrency_test": "N/A: router check",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "id": "C-5",
+        "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "owner": "Enterprise Architecture / Governance",
+        "symbol": "scripts/dev/wired_audit.py:legacy_guard",
+        "control": "wired_audit.legacy_guard passes cleanly with return code 0 verifying frozen file intactness",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "dimension": "security_model",
+        "applies_to": "scripts/dev/wired_audit.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "observability": "LEGACY_GUARD_CHECK",
+        "positive_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass",
+        "concurrency_test": "N/A: audit check",
+        "failure_behavior": "fail-closed"
+      }
+    ]
+  },
+  "external_id": "",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1273",
+      "required_state": "completed"
+    },
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1274",
+      "required_state": "completed"
+    }
+  ],
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "57f2964b195ca722",
+    "total_time_ms": 1467508,
+    "sum_stage_ms": 59550,
+    "clock_skew": false,
+    "item": "BI-PF-1276",
+    "generated_at": "2026-11-21T09:21:19.629406+00:00",
+    "item_revision": 3,
+    "current_stage": "complete",
+    "acs": [
+      {
+        "ac": "AC-1",
+        "result": "PASS",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice"
+      },
+      {
+        "ac": "AC-2",
+        "result": "PASS",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash"
+      },
+      {
+        "ac": "AC-3",
+        "result": "PASS",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers"
+      },
+      {
+        "ac": "AC-4",
+        "result": "PASS",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active"
+      },
+      {
+        "ac": "AC-5",
+        "result": "PASS",
+        "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass"
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 437
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 1011
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 878
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 246
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 227
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 12452
+          }
+        ],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 15251
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "design_review",
+        "at": "2026-11-21T08:54:01.841575+00:00",
+        "duration_ms": 19728,
+        "input_tokens": 10170,
+        "output_tokens": 179,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-21T08:55:48.912104+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-21T08:59:53.247209+00:00",
+        "duration_ms": 23204,
+        "input_tokens": 15073,
+        "output_tokens": 277,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-21T09:07:28.262147+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-21T09:07:28.274768+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-21T09:07:56.013485+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T09:07:56.021998+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T09:07:56.030556+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T09:07:56.040058+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-21T09:12:35.708063+00:00",
+        "duration_ms": 16618,
+        "input_tokens": 15548,
+        "output_tokens": 99,
+        "cached_tokens": 15334,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-21T09:15:38.434485+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-21T09:18:09.114335+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-21T09:18:09.122964+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T09:18:29.329750+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T09:18:29.340602+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T09:18:29.349937+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 40791,
+      "output_tokens": 555,
+      "cached_tokens": 15334,
+      "cost_usd": 0.0,
+      "captured": 3,
+      "not_captured": 0,
+      "unpriced": 3
+    },
+    "started_at": "2026-11-21T08:54:01.841575+00:00",
+    "finished_at": "2026-11-21T09:18:29.349937+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-12T23:27:09.301105",
+        "by": "cli",
+        "note": "",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-21T08:55:48.707401+00:00",
+        "by": "hil:user",
+        "seq": 2,
+        "gate": 1,
+        "note": "Gate 1 design approved with 5 detailed ACs and Gate 1.5 Architect review findings dispositioned.",
+        "decision": "APPROVE",
+        "findings_sha": "4dc9b2a755fd",
+        "hil_confirmed": true,
+        "findings_digest": "4a31ca03d4d2"
+      },
+      {
+        "at": "2026-11-21T09:15:38.236036+00:00",
+        "by": "hil:operator",
+        "seq": 3,
+        "gate": 2,
+        "note": "Operator approved Gate 2 delivery review with all 5 ACs verified and 0 Gate 2.5 findings",
+        "decision": "APPROVE",
+        "findings_sha": "cc413237157c",
+        "hil_confirmed": true,
+        "findings_digest": "c54eafbfce01"
+      }
+    ],
+    "other_decisions": []
+  },
+  "fix_evidence": [
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "finding_sig": "sig:6d8372e8bc403879",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "C-3"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "finding_sig": "sig:78302a06ec537306",
+      "origin_class": "VERIFICATION_GAP",
+      "controls_rerun": [
+        "C-4"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/websocket_manager.py",
+      "finding_sig": "sig:96397e1868116144",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "C-1"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "finding_sig": "sig:54668507d1aad8f2",
+      "origin_class": "VERIFICATION_GAP",
+      "controls_rerun": [
+        "C-5"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/websocket_manager.py",
+      "finding_sig": "sig:78af62512f5a1a20",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "C-1"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice"
+    }
+  ],
+  "out_of_scope": [
+    "Rewriting legacy dashboard components or removing legacy routes before UI transition."
+  ],
+  "tier_reasons": [
+    "Retirement and freezing of legacy transport module with zero database mutations."
+  ],
+  "verification": [
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 0}"
+  ],
+  "language_rule": "language-rule: OK (no new shipped Python; docstring deprecation edit to existing file)",
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-21T08:54:01.424370+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1276-4dc9b2a755fd.json",
+      "findings": {
+        "NIT": [
+          "The `test_ac3_zero_new_websocket_consumers` requirement mentions \"AST or grep check\". Specifying AST-based analysis would ensure a more robust and accurate check against new imports."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "The design does not explicitly detail runtime logging or metrics for existing consumers who might still be using the deprecated `websocket_manager`, beyond the static deprecation header. This could hinder operational observability of migration progress."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "dc27f7c419805a48579003b4d32275511b10f378",
+      "review_sha": "4dc9b2a755fd",
+      "review_scope": "full_candidate",
+      "candidate_sha": "dc27f7c419805a48579003b4d32275511b10f378"
+    },
+    {
+      "at": "2026-11-21T08:59:52.870686+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1276-8ce422697795.json",
+      "findings": {
+        "NIT": [
+          "The `WebSocketManager` class docstring is slightly redundant with the module-level docstring regarding deprecation."
+        ],
+        "MAJOR": [
+          "The `warnings.warn` call uses `DeprecationWarning`, which is ignored by default in Python, reducing the runtime observability for developers."
+        ],
+        "MINOR": [
+          "The `test_ac5_wired_audit_legacy_guard_pass` test modifies `sys.path` directly, which can lead to brittle test environments."
+        ],
+        "BLOCKER": [
+          "The `test_ac3_zero_new_websocket_consumers` test does not scan the `scripts` directory, failing to fully meet Acceptance Criterion AC-3 (\"across core, api, and scripts\").",
+          "The `test_ac4_sse_stream_alternative_active` test only verifies the *presence* of the SSE stream route in code, not its *active* status as required by AC-4 (\"SSE event stream and bus status are active alternatives\")."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "239b96cbbe68c6991caaf2807a0722c31876df64",
+      "review_sha": "8ce422697795",
+      "review_scope": "full_candidate",
+      "candidate_sha": "239b96cbbe68c6991caaf2807a0722c31876df64"
+    },
+    {
+      "at": "2026-11-21T09:12:35.292913+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "239b96cbbe68c6991caaf2807a0722c31876df64",
+      "evidence": "BI-PF-1276-cc413237157c.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "All previously identified BLOCKER, MAJOR, MINOR, and NIT findings have been addressed and resolved in this diff.",
+          "The implementation now fully meets all Acceptance Criteria, including robust testing for zero new WebSocket consumers and verification of the active SSE stream alternative.",
+          "The deprecation warning is now correctly surfaced, and test environment hygiene has improved."
+        ]
+      },
+      "head_sha": "531f7a7acf0fdb1db43bbce408733db770e7ac01",
+      "review_sha": "cc413237157c",
+      "review_scope": "delta",
+      "candidate_sha": "531f7a7acf0fdb1db43bbce408733db770e7ac01"
+    }
+  ],
+  "affected_files": [
+    "core/websocket_manager.py",
+    "config/legacy-frozen.json",
+    "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice"
+    },
+    {
+      "ac": "AC-2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash"
+    },
+    {
+      "ac": "AC-3",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers"
+    },
+    {
+      "ac": "AC-4",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active"
+    },
+    {
+      "ac": "AC-5",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
+  "functional_spec": {
+    "dod": [
+      "All 5 Acceptance Criteria verified with automated contract and audit tests"
+    ],
+    "nfr": [
+      "Zero performance regression; zero new dependencies introduced"
+    ],
+    "owner": "Srinikc",
+    "scope": [
+      "core/websocket_manager.py",
+      "config/legacy-frozen.json",
+      "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+    ],
+    "actors": [
+      "operator",
+      "developer",
+      "dashboard_client"
+    ],
+    "domain": "eventing",
+    "source": "BI-PF-1276",
+    "status": "approved",
+    "outcome": "Retire legacy websocket_manager push transport in favor of Eventing SSOT SSE and freeze core/websocket_manager.py for backwards compat.",
+    "version": 1,
+    "rollback": "Revert deprecation docstring in core/websocket_manager.py and config/legacy-frozen.json entry",
+    "non_goals": [
+      "Rewriting legacy dashboard components or removing legacy routes before UI transition."
+    ],
+    "assumptions": [
+      "core/websocket_manager.py must be retained (never deleted) until the legacy dashboard is fully decommissioned."
+    ],
+    "dependencies": [
+      "BI-PF-1273",
+      "BI-PF-1274"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "public/code",
+        "title": "WebSocket Manager Deprecation Header and Migration Mapping",
+        "errors": [],
+        "inputs": [],
+        "source": "BI-PF-1276",
+        "outputs": [
+          "Clear DEPRECATED docstring header with pointer to SSE stream endpoint"
+        ],
+        "trigger": "Developer or consumer inspection of core/websocket_manager.py.",
+        "priority": "P0",
+        "acceptance": [
+          "Given websocket_manager.py, module contains DEPRECATED header and SSE pointer."
+        ],
+        "data_rules": [
+          "Includes BI-PF-1276 and /api/v1/events/stream references"
+        ],
+        "edge_cases": [
+          "File retained without deleting legacy class definitions"
+        ],
+        "idempotency": "Read-only docstring and deprecation annotation",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice"
+        ],
+        "preconditions": "core/websocket_manager.py exists in codebase."
+      },
+      {
+        "id": "FR-2",
+        "auth": "filesystem/config",
+        "title": "Legacy Frozen Configuration Registration",
+        "errors": [
+          "Verification failure if sha256 drifts or file is modified"
+        ],
+        "inputs": [
+          "core/websocket_manager.py sha256 hash"
+        ],
+        "source": "BI-PF-1276",
+        "outputs": [
+          "config/legacy-frozen.json entry with matching sha256"
+        ],
+        "trigger": "Execution of wired_audit.py or test suite.",
+        "priority": "P0",
+        "acceptance": [
+          "Given frozen config, contains core/websocket_manager.py with accurate sha256."
+        ],
+        "data_rules": [
+          "Normalized line-ending sha256 computation"
+        ],
+        "edge_cases": [
+          "Windows CRLF vs Linux LF checkout normalization"
+        ],
+        "idempotency": "Static configuration freeze",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash"
+        ],
+        "preconditions": "config/legacy-frozen.json exists."
+      },
+      {
+        "id": "FR-3",
+        "auth": "test/ci",
+        "title": "Zero New WebSocket Consumers Enforcement",
+        "errors": [
+          "Assertion failure if new consumers reference websocket_manager"
+        ],
+        "inputs": [
+          "AST or grep check of core/ and api/"
+        ],
+        "source": "BI-PF-1276",
+        "outputs": [
+          "Zero unauthorized imports of WebSocketManager"
+        ],
+        "trigger": "Automated regression test execution.",
+        "priority": "P0",
+        "acceptance": [
+          "Given runtime paths, no active modules import WebSocketManager."
+        ],
+        "data_rules": [
+          "core and api roots checked"
+        ],
+        "edge_cases": [
+          "Excludes legacy test framework and doc files"
+        ],
+        "idempotency": "Static analysis check",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers"
+        ],
+        "preconditions": "Codebase scan across core and api directories."
+      },
+      {
+        "id": "FR-4",
+        "auth": "authenticate",
+        "title": "SSE Stream Alternative Active Verification",
+        "errors": [],
+        "inputs": [],
+        "source": "BI-PF-1276",
+        "outputs": [
+          "Active SSE stream endpoint definition"
+        ],
+        "trigger": "API inspection of /api/v1/events/stream.",
+        "priority": "P1",
+        "acceptance": [
+          "Given events router, /stream route is present and active."
+        ],
+        "data_rules": [
+          "text/event-stream media type"
+        ],
+        "edge_cases": [
+          "Connection drop handles cleanly"
+        ],
+        "idempotency": "Read-only inspection",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active"
+        ],
+        "preconditions": "FastAPI event router active."
+      },
+      {
+        "id": "FR-5",
+        "auth": "governance/audit",
+        "title": "Wired Audit Legacy Guard Compatibility",
+        "errors": [
+          "Exit code 1 if frozen files modified"
+        ],
+        "inputs": [],
+        "source": "BI-PF-1276",
+        "outputs": [
+          "legacy-frozen: OK status"
+        ],
+        "trigger": "Precheck fast or wired_audit CLI execution.",
+        "priority": "P0",
+        "acceptance": [
+          "Given wired_audit run, legacy_guard passes cleanly with 0 violations."
+        ],
+        "data_rules": [
+          "Return code 0 on pass"
+        ],
+        "edge_cases": [
+          "All files in legacy-frozen.json verified"
+        ],
+        "idempotency": "Deterministic audit check",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass"
+        ],
+        "preconditions": "wired_audit.py executed in repo root."
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "design": "engineering/design/BI-PF-1276.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-2",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "design": "engineering/design/BI-PF-1276.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-3",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "design": "engineering/design/BI-PF-1276.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-4",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "design": "engineering/design/BI-PF-1276.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-5",
+        "test": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+        "design": "engineering/design/BI-PF-1276.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_retire_ws_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      }
+    ],
+    "compatibility": "100% backward compatible: legacy symbols remain intact for frozen dashboard",
+    "observability": "wired_audit.legacy_guard reports frozen file integrity",
+    "data_lifecycle": "Static file freeze and migration documentation",
+    "functional_sha": "69ac075d85b8",
+    "open_questions": [
+      "None: all retirement and freezing requirements confirmed."
+    ],
+    "config_contract": "config/legacy-frozen.json entries with sha256 content hashes",
+    "operation_matrix": [
+      {
+        "owner": "core/websocket_manager.py",
+        "failure": "fail closed",
+        "operation": "retire_websocket"
+      },
+      {
+        "owner": "config/legacy-frozen.json",
+        "failure": "fail closed",
+        "operation": "freeze_legacy"
+      },
+      {
+        "owner": "api/routers/events.py",
+        "failure": "fail closed",
+        "operation": "enforce_sse"
+      }
+    ]
+  },
+  "control_evidence": [
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-5"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-98f1d476e654",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-98f1d476e654",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-98f1d476e654",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-98f1d476e654",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-98f1d476e654",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-5"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-daaf156e8909",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-daaf156e8909",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-daaf156e8909",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-daaf156e8909",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "dc27f7c419805a48579003b4d32275511b10f378-daaf156e8909",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py",
+      "control_id": "C-5"
+    }
+  ],
+  "acceptance_criteria": [
+    "Retire legacy websocket_manager by adding a clear deprecation header and mapping consumers to Eventing SSOT SSE (/api/v1/events/stream).",
+    "Freeze core/websocket_manager.py in config/legacy-frozen.json with sha256 and deprecation reason to block future modification.",
+    "Verify zero new WebSocket consumers or imports across core, api, and scripts, keeping core/websocket_manager strictly frozen for compat.",
+    "Provide regression test verifying deprecation notices, legacy-frozen registration, sha256 integrity, and SSE stream alternative.",
+    "Ensure full compatibility with wired_audit legacy-guard and language-rule checks with zero regressions across pipeline gates."
+  ],
+  "affected_components": [
+    "core",
+    "config"
+  ],
+  "review_dispositions": {
+    "diff": {
+      "1": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Expanded scanned roots in test_ac3 to include core, api, and scripts, utilizing AST node traversal (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Integrated live FastAPI test client invocation in test_ac4 validating 200 OK operational envelope from /events/bus and verified route mounting in app.openapi() (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Switched runtime deprecation warning to FutureWarning to ensure standard visibility across Python environments without custom filter configuration (verified in core/websocket_manager.py).",
+        "status": "ACTIONED"
+      },
+      "4": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Wrapped wired_audit import with try/finally to restore sys.path and prevent test environment pollution (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "5": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Streamlined class docstring to eliminate redundancy with the module-level deprecation notice (verified in core/websocket_manager.py).",
+        "status": "ACTIONED"
+      }
+    },
+    "design": {
+      "1": {
+        "by": "hil:operator",
+        "note": "ACTIONED: A runtime deprecation warning is emitted when WebSocketManager is instantiated or connected, providing operational observability during migration (verified in core/websocket_manager.py and test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "ACTIONED: The static consumer audit uses Python AST parsing to verify zero unauthorized imports of WebSocketManager across runtime modules (verified in test-framework/tests/pipeline/test_events_retire_ws_api.py).",
+        "status": "ACTIONED"
+      }
+    }
   }
 }

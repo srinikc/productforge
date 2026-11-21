@@ -1,13 +1,14 @@
 """
-Conversation & Idea Ingestion - WebSocket Server
-
-Real-time updates for dashboard when conversations are received,
-compiled, or when change packages need approval.
+DEPRECATED: Legacy WebSocket transport (BI-PF-1276).
+Superseded by Eventing SSOT SSE (/api/v1/events/stream) and bus subscription API.
+Retained strictly for backwards compatibility with legacy UI clients.
+DO NOT extend or add new WebSocket endpoints.
 """
 
 import os
 import json
 import asyncio
+import warnings
 from datetime import datetime
 from typing import Dict, Set, Any
 from dataclasses import dataclass, asdict
@@ -26,6 +27,7 @@ class WebSocketManager:
     """Manages WebSocket connections for real-time updates."""
 
     def __init__(self):
+        warnings.warn("core.websocket_manager is deprecated (BI-PF-1276); use SSE /api/v1/events/stream", FutureWarning, stacklevel=2)
         self.active_connections: Set[WebSocket] = set()
         self.subscriptions: Dict[str, Set[WebSocket]] = {}  # topic -> connections
 
