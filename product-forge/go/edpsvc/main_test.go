@@ -689,3 +689,65 @@ func TestBuildObjectStore_GCS(t *testing.T) {
 		t.Fatalf("expected local store, got st=%v err=%v", st, err)
 	}
 }
+
+func TestBuildObjectStore_Azure(t *testing.T) {
+	origBackend := os.Getenv("PF_OBJECT_BACKEND")
+	origContainer := os.Getenv("PF_AZURE_CONTAINER")
+	origAccount := os.Getenv("PF_AZURE_ACCOUNT")
+	origKey := os.Getenv("PF_AZURE_KEY")
+	origSAS := os.Getenv("PF_AZURE_SAS_TOKEN")
+	origToken := os.Getenv("PF_AZURE_TOKEN")
+	origBaseURL := os.Getenv("PF_AZURE_BASE_URL")
+	defer func() {
+		os.Setenv("PF_OBJECT_BACKEND", origBackend)
+		os.Setenv("PF_AZURE_CONTAINER", origContainer)
+		os.Setenv("PF_AZURE_ACCOUNT", origAccount)
+		os.Setenv("PF_AZURE_KEY", origKey)
+		os.Setenv("PF_AZURE_SAS_TOKEN", origSAS)
+		os.Setenv("PF_AZURE_TOKEN", origToken)
+		os.Setenv("PF_AZURE_BASE_URL", origBaseURL)
+	}()
+
+	// Case 1: PF_OBJECT_BACKEND=azure without container -> fail closed
+	os.Setenv("PF_OBJECT_BACKEND", "azure")
+	os.Unsetenv("PF_AZURE_CONTAINER")
+	st, err := buildObjectStore()
+	if err == nil || st != nil {
+		t.Fatalf("expected error on missing PF_AZURE_CONTAINER, got st=%v err=%v", st, err)
+	}
+
+	// Case 2: PF_OBJECT_BACKEND=azure with container and shared key -> success
+	os.Setenv("PF_AZURE_CONTAINER", "testcontainer")
+	os.Setenv("PF_AZURE_ACCOUNT", "testaccount")
+	os.Setenv("PF_AZURE_KEY", "dGVzdGtleQ==")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on azure SharedKey config, got st=%v err=%v", st, err)
+	}
+
+	// Case 3: PF_OBJECT_BACKEND=azblob alias with SAS token -> success
+	os.Setenv("PF_OBJECT_BACKEND", "azblob")
+	os.Unsetenv("PF_AZURE_KEY")
+	os.Setenv("PF_AZURE_SAS_TOKEN", "sv=2020-10-02&sig=mock")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on azblob alias with SAS, got st=%v err=%v", st, err)
+	}
+
+	// Case 4: PF_OBJECT_BACKEND=azure with Bearer token -> success
+	os.Setenv("PF_OBJECT_BACKEND", "azure")
+	os.Unsetenv("PF_AZURE_SAS_TOKEN")
+	os.Setenv("PF_AZURE_TOKEN", "mock-ad-token")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on azure Bearer token, got st=%v err=%v", st, err)
+	}
+
+	// Case 5: PF_OBJECT_BACKEND=azure with BaseURL (emulator) -> success
+	os.Unsetenv("PF_AZURE_TOKEN")
+	os.Setenv("PF_AZURE_BASE_URL", "http://127.0.0.1:10000/devstoreaccount1")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on azure emulator BaseURL, got st=%v err=%v", st, err)
+	}
+}

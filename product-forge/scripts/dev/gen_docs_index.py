@@ -222,6 +222,7 @@ TOP = {
     "STORE-DATAFLOW.md": ("Generated", "Generated store data-flow inventory from config/store-registry.json (EDP-02/BI-PF-1294)", 100),
     "EDP-TENANT-AUTH-TRUST-BOUNDARY.md": ("Implemented", "EDP per-tenant authentication, gateway claims, and trust boundary architecture (BI-PF-1478)", 100),
     "GCS-ADAPTER-QUALIFICATION.md": ("Implemented", "GCS ObjectStore adapter streaming resumable upload and qualification runbook (BI-PF-1435)", 100),
+    "AZURE-BLOB-ADAPTER.md": ("Implemented", "Azure Blob Storage ObjectStore adapter specification and runbook (BI-PF-1433)", 100),
     "pipeline-diagrams-reference.md": ("Generated", "Regenerable diagram reference", 100),
     "pipeline-quick-reference.md": ("Adopted (reference)", "Quick reference", 100),
     "PIPELINE-RESUME-ProductForge-Dashboard.md": ("Adopted (reference)", "Old resume notes for a project", 50),

@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-21T23:19:27 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-21T23:30:30 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
 - **Open:** 128  |  **Closed:** 637
 - `blocked`: 1
-- `in_progress`: 2
-- `new`: 125
+- `in_progress`: 3
+- `new`: 124
 
-### new, by category (125)
+### new, by category (124)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1553 | Should | task | Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary | Define and automate the web console compilation pipeline to produce an embedded static SPA distribution served... |
 | BI-PF-1554 | Should | feature | Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation | Specify and package the Sovereign Edition distribution capable of operating with 100% network isolation and lo... |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (74)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -152,7 +152,6 @@
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
 | BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
-| BI-PF-1433 | Should | feature | ObjectStore adapter: Azure Blob (on go/objstorerest) | ObjectStore adapter: Azure Blob (on go/objstorerest) |
 | BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
 | BI-PF-1437 | Should | feature | Framework-agnostic skills home + resolver | PF owns the skill bodies; .opencode is a legacy fallback only. |
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
