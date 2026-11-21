@@ -1,17 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-21T14:51:21 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-21T15:48:25 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 127  |  **Closed:** 631
+- **Open:** 125  |  **Closed:** 633
 - `blocked`: 1
-- `executing`: 1
-- `in_progress`: 1
-- `new`: 124
+- `in_progress`: 2
+- `new`: 122
 
-### new, by category (124)
+### new, by category (122)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -65,7 +64,7 @@
 | BI-PF-1438 | Should | feature | UIUX knowledge ingestion (guidelines, design-systems, samples) | Distill UIUX/ into PF guidelines + reference baselines the existing loader already injects. |
 | BI-PF-1443 | Should | feature | Agent skill & knowledge-layer bindings | Bind the 8 skills + ui-ux/design-systems layers to the right agents. |
 
-**Licensing / tenancy** (6)
+**Licensing / tenancy** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
@@ -73,7 +72,6 @@
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
-| BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
 **Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
@@ -88,7 +86,7 @@
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 | BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
 
-**Wiring / tech-debt / API** (76)
+**Wiring / tech-debt / API** (75)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -131,7 +129,6 @@
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
-| BI-PF-1265 | Should | epic | EPIC: Eventing & Alerting SSOT - Go-first event bus + subscriber/alert transports | One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable contracts ... |
 | BI-PF-1277 | Should | epic | EPIC: Product-generation run (dogfood) execution + monitoring correctness | dogfood drives the same engine to completion (all stages/agents), then validates the generated product and ret... |
 | BI-PF-1278 | Should | feature | dogfood: drive pipeline to completion + correct post-run validation + fail-closed verdict | Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed. |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
@@ -366,5 +363,5 @@
 ---
 
 ## Totals
-- backend: 127 open / 631 closed
+- backend: 125 open / 633 closed
 - dashboard: 146 open / 3 closed
