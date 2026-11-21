@@ -1,0 +1,2420 @@
+{
+  "$schema": "pf-module-ip-inventory-v1",
+  "version": "1.0.0",
+  "description": "Authoritative IP-value assessment and rewrite-by-value migration inventory for Product Forge modules (BI-PF-0386 / ADR-0001).",
+  "summary": {
+    "total_modules": 340,
+    "tier_1_count": 28,
+    "tier_2_count": 284,
+    "tier_3_count": 24,
+    "tier_4_count": 4
+  },
+  "tier_definitions": {
+    "tier_1": {
+      "name": "High IP / Sensitive",
+      "target": "Go / Rust",
+      "distribution": "Native compiled binary",
+      "policy": "New logic must be Go; existing Python rewritten first; strict edit growth bounds"
+    },
+    "tier_2": {
+      "name": "Medium IP / Core Capabilities",
+      "target": "Go (Strangler)",
+      "distribution": "Native compiled binary (Nuitka stopgap until Go rewrite)",
+      "policy": "Migrate by value; edits allowed in Python within 60-line growth limit"
+    },
+    "tier_3": {
+      "name": "Low IP / Plumbing & Utilities",
+      "target": "compiled-Python",
+      "distribution": "Nuitka C-extension binary; zero readable .py at customer",
+      "policy": "Retain compiled Python; low migration priority"
+    },
+    "tier_4": {
+      "name": "Tooling & Build-Time",
+      "target": "Python",
+      "distribution": "Never shipped to customers",
+      "policy": "Stays Python; excluded from customer edition packaging"
+    }
+  },
+  "modules": {
+    "core/__init__.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "none",
+      "rationale": "Package initialization boilerplate; compiled into native module"
+    },
+    "core/a2a.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (a2a); strangler rewrite to Go by value"
+    },
+    "core/adopt_project.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (adopt_project); strangler rewrite to Go by value"
+    },
+    "core/agent_capabilities.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_capabilities); strangler rewrite to Go by value"
+    },
+    "core/agent_card_loader.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_card_loader); strangler rewrite to Go by value"
+    },
+    "core/agent_hierarchy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_hierarchy); strangler rewrite to Go by value"
+    },
+    "core/agent_ledger.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_ledger); strangler rewrite to Go by value"
+    },
+    "core/agent_memory.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Cross-agent semantic working memory and token-overlap indexing"
+    },
+    "core/agent_messenger.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_messenger); strangler rewrite to Go by value"
+    },
+    "core/agent_migrator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_migrator); strangler rewrite to Go by value"
+    },
+    "core/agent_model_override.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_model_override); strangler rewrite to Go by value"
+    },
+    "core/agent_readiness.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_readiness); strangler rewrite to Go by value"
+    },
+    "core/agent_requirements.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_requirements); strangler rewrite to Go by value"
+    },
+    "core/agent_rules.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_rules); strangler rewrite to Go by value"
+    },
+    "core/agent_runtime.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_runtime); strangler rewrite to Go by value"
+    },
+    "core/agent_spec.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_spec); strangler rewrite to Go by value"
+    },
+    "core/agent_structure.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_structure); strangler rewrite to Go by value"
+    },
+    "core/agent_summaries.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_summaries); strangler rewrite to Go by value"
+    },
+    "core/agent_tool_loop.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_tool_loop); strangler rewrite to Go by value"
+    },
+    "core/agui.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agui); strangler rewrite to Go by value"
+    },
+    "core/alerts.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (alerts); strangler rewrite to Go by value"
+    },
+    "core/api_docs.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (api_docs); strangler rewrite to Go by value"
+    },
+    "core/app_smoke.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (app_smoke); strangler rewrite to Go by value"
+    },
+    "core/architecture_diagram.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (architecture_diagram); compiled into native binary stopgap"
+    },
+    "core/artifact_formats.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (artifact_formats); compiled into native binary stopgap"
+    },
+    "core/artifact_registry.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Proprietary artifact storage index and tamper-proofing"
+    },
+    "core/artifact_store.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (artifact_store); strangler rewrite to Go by value"
+    },
+    "core/asset_store.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (asset_store); compiled into native binary stopgap"
+    },
+    "core/audit.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (audit); strangler rewrite to Go by value"
+    },
+    "core/audit_trail.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (audit_trail); strangler rewrite to Go by value"
+    },
+    "core/backlog.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (backlog); strangler rewrite to Go by value"
+    },
+    "core/backlog_link.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (backlog_link); strangler rewrite to Go by value"
+    },
+    "core/banner.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (banner); compiled into native binary stopgap"
+    },
+    "core/billing.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Metering, billing enforcement, usage quotas"
+    },
+    "core/bom.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Software Bill of Materials and License Bill of Materials generator"
+    },
+    "core/brief_check.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (brief_check); strangler rewrite to Go by value"
+    },
+    "core/budget.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (budget); strangler rewrite to Go by value"
+    },
+    "core/budget_allocator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (budget_allocator); strangler rewrite to Go by value"
+    },
+    "core/budget_conservation.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (budget_conservation); strangler rewrite to Go by value"
+    },
+    "core/budget_planner.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (budget_planner); strangler rewrite to Go by value"
+    },
+    "core/budget_protection.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (budget_protection); strangler rewrite to Go by value"
+    },
+    "core/budget_tracker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (budget_tracker); strangler rewrite to Go by value"
+    },
+    "core/build_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (build_manager); strangler rewrite to Go by value"
+    },
+    "core/build_utility.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (build_utility); strangler rewrite to Go by value"
+    },
+    "core/business_models_kb.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (business_models_kb); strangler rewrite to Go by value"
+    },
+    "core/business_skills_selector.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (business_skills_selector); strangler rewrite to Go by value"
+    },
+    "core/byot_integration.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (byot_integration); strangler rewrite to Go by value"
+    },
+    "core/call_ledger.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (call_ledger); strangler rewrite to Go by value"
+    },
+    "core/capability_bridge.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (capability_bridge); strangler rewrite to Go by value"
+    },
+    "core/capability_packs.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Dynamic capability composition and runtime bundle assembler"
+    },
+    "core/capacity.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (capacity); strangler rewrite to Go by value"
+    },
+    "core/change_log.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (change_log); strangler rewrite to Go by value"
+    },
+    "core/change_policy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (change_policy); strangler rewrite to Go by value"
+    },
+    "core/change_registry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (change_registry); strangler rewrite to Go by value"
+    },
+    "core/change_spec.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (change_spec); strangler rewrite to Go by value"
+    },
+    "core/ci_cd_model.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (ci_cd_model); strangler rewrite to Go by value"
+    },
+    "core/circuit_breaker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (circuit_breaker); strangler rewrite to Go by value"
+    },
+    "core/close_loop.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (close_loop); strangler rewrite to Go by value"
+    },
+    "core/code_analyzer.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (code_analyzer); strangler rewrite to Go by value"
+    },
+    "core/code_executor.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (code_executor); strangler rewrite to Go by value"
+    },
+    "core/code_quality_gate.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (code_quality_gate); strangler rewrite to Go by value"
+    },
+    "core/compliance_action_handler.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (compliance_action_handler); strangler rewrite to Go by value"
+    },
+    "core/compliance_check.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (compliance_check); strangler rewrite to Go by value"
+    },
+    "core/compliance_verifier.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (compliance_verifier); strangler rewrite to Go by value"
+    },
+    "core/context_discipline.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (context_discipline); strangler rewrite to Go by value"
+    },
+    "core/context_engine.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (context_engine); strangler rewrite to Go by value"
+    },
+    "core/context_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (context_manager); strangler rewrite to Go by value"
+    },
+    "core/context_policy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (context_policy); strangler rewrite to Go by value"
+    },
+    "core/context_preflight.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (context_preflight); strangler rewrite to Go by value"
+    },
+    "core/context_review.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (context_review); compiled into native binary stopgap"
+    },
+    "core/contracts.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (contracts); strangler rewrite to Go by value"
+    },
+    "core/control_plane.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (control_plane); strangler rewrite to Go by value"
+    },
+    "core/conversation_compiler.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (conversation_compiler); strangler rewrite to Go by value"
+    },
+    "core/conversation_models.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Multi-agent conversation context and execution state models"
+    },
+    "core/cost_kpi.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (cost_kpi); strangler rewrite to Go by value"
+    },
+    "core/cost_model.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (cost_model); strangler rewrite to Go by value"
+    },
+    "core/cost_modeling.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (cost_modeling); strangler rewrite to Go by value"
+    },
+    "core/credentials.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Provider secrets, vault integration, token encryption at rest"
+    },
+    "core/cross_project_learning.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (cross_project_learning); strangler rewrite to Go by value"
+    },
+    "core/cross_review.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (cross_review); compiled into native binary stopgap"
+    },
+    "core/customer_onboarding.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (customer_onboarding); compiled into native binary stopgap"
+    },
+    "core/dag_executor.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (dag_executor); strangler rewrite to Go by value"
+    },
+    "core/dashboard_archetypes.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (dashboard_archetypes); compiled into native binary stopgap"
+    },
+    "core/dashboard_blueprint.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (dashboard_blueprint); strangler rewrite to Go by value"
+    },
+    "core/dead_letter_queue.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (dead_letter_queue); strangler rewrite to Go by value"
+    },
+    "core/defect_loop.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (defect_loop); strangler rewrite to Go by value"
+    },
+    "core/delegation.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (delegation); strangler rewrite to Go by value"
+    },
+    "core/delivery.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (delivery); strangler rewrite to Go by value"
+    },
+    "core/deploy_providers.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Cloud deployment adapters and sensitive infrastructure orchestration"
+    },
+    "core/design_critic.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (design_critic); strangler rewrite to Go by value"
+    },
+    "core/design_guardrails.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (design_guardrails); strangler rewrite to Go by value"
+    },
+    "core/design_tokens.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (design_tokens); strangler rewrite to Go by value"
+    },
+    "core/diagram_render.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (diagram_render); compiled into native binary stopgap"
+    },
+    "core/discovery_engine.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Deep code and capability discovery algorithms"
+    },
+    "core/discovery_panel.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Autonomous feature discovery and technical reconnaissance engine"
+    },
+    "core/docker_compose_generator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (docker_compose_generator); strangler rewrite to Go by value"
+    },
+    "core/dogfood.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (dogfood); strangler rewrite to Go by value"
+    },
+    "core/dogfood_run.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (dogfood_run); strangler rewrite to Go by value"
+    },
+    "core/dogfood_schedule.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (dogfood_schedule); strangler rewrite to Go by value"
+    },
+    "core/domain_research.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (domain_research); strangler rewrite to Go by value"
+    },
+    "core/e2e_lifecycle.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (e2e_lifecycle); strangler rewrite to Go by value"
+    },
+    "core/engineering_flow.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (engineering_flow); strangler rewrite to Go by value"
+    },
+    "core/enhance.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (enhance); strangler rewrite to Go by value"
+    },
+    "core/env_flags.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (env_flags); strangler rewrite to Go by value"
+    },
+    "core/escalation.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (escalation); strangler rewrite to Go by value"
+    },
+    "core/event_bus.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (event_bus); strangler rewrite to Go by value"
+    },
+    "core/events.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (events); strangler rewrite to Go by value"
+    },
+    "core/execution_contract.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (execution_contract); strangler rewrite to Go by value"
+    },
+    "core/execution_trail.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (execution_trail); strangler rewrite to Go by value"
+    },
+    "core/feasibility.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Technical feasibility analysis and risk scoring"
+    },
+    "core/feature_flags.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (feature_flags); strangler rewrite to Go by value"
+    },
+    "core/finops.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (finops); strangler rewrite to Go by value"
+    },
+    "core/forced_convergence.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (forced_convergence); strangler rewrite to Go by value"
+    },
+    "core/forge_constitution.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (forge_constitution); strangler rewrite to Go by value"
+    },
+    "core/forge_store.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (forge_store); strangler rewrite to Go by value"
+    },
+    "core/generator_adapters.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (generator_adapters); strangler rewrite to Go by value"
+    },
+    "core/github.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (github); strangler rewrite to Go by value"
+    },
+    "core/global_orchestrator.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Top-level autonomous orchestration loop and state coordinator"
+    },
+    "core/go_host.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (go_host); strangler rewrite to Go by value"
+    },
+    "core/grooming.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (grooming); strangler rewrite to Go by value"
+    },
+    "core/guardrails.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (guardrails); strangler rewrite to Go by value"
+    },
+    "core/human_proxy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (human_proxy); strangler rewrite to Go by value"
+    },
+    "core/id_allocator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (id_allocator); strangler rewrite to Go by value"
+    },
+    "core/id_index.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (id_index); strangler rewrite to Go by value"
+    },
+    "core/insights.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (insights); strangler rewrite to Go by value"
+    },
+    "core/intake.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (intake); strangler rewrite to Go by value"
+    },
+    "core/intake_adapters.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (intake_adapters); strangler rewrite to Go by value"
+    },
+    "core/intake_api.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (intake_api); strangler rewrite to Go by value"
+    },
+    "core/intake_channels.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (intake_channels); strangler rewrite to Go by value"
+    },
+    "core/intake_files.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (intake_files); strangler rewrite to Go by value"
+    },
+    "core/integration_advisor.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (integration_advisor); strangler rewrite to Go by value"
+    },
+    "core/intent_router.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Natural language intent extraction and dispatch engine"
+    },
+    "core/interactive.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (interactive); strangler rewrite to Go by value"
+    },
+    "core/issue_tracker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (issue_tracker); strangler rewrite to Go by value"
+    },
+    "core/issues.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (issues); strangler rewrite to Go by value"
+    },
+    "core/iteration_planner.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (iteration_planner); strangler rewrite to Go by value"
+    },
+    "core/job_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (job_manager); strangler rewrite to Go by value"
+    },
+    "core/knowledge_compiler.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (knowledge_compiler); strangler rewrite to Go by value"
+    },
+    "core/knowledge_compliance_checker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (knowledge_compliance_checker); strangler rewrite to Go by value"
+    },
+    "core/knowledge_refresh.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (knowledge_refresh); strangler rewrite to Go by value"
+    },
+    "core/knowledge_registry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (knowledge_registry); strangler rewrite to Go by value"
+    },
+    "core/knowledge_router.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (knowledge_router); strangler rewrite to Go by value"
+    },
+    "core/learning_synth.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (learning_synth); strangler rewrite to Go by value"
+    },
+    "core/learnings.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (learnings); strangler rewrite to Go by value"
+    },
+    "core/licensing.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Licensing engine, cryptographic entitlement verification, key validation"
+    },
+    "core/llm_error_handler.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (llm_error_handler); strangler rewrite to Go by value"
+    },
+    "core/lock_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (lock_manager); strangler rewrite to Go by value"
+    },
+    "core/log_router.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (log_router); strangler rewrite to Go by value"
+    },
+    "core/logging_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (logging_manager); strangler rewrite to Go by value"
+    },
+    "core/loop_modes.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (loop_modes); strangler rewrite to Go by value"
+    },
+    "core/main.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (main); strangler rewrite to Go by value"
+    },
+    "core/maintenance.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (maintenance); strangler rewrite to Go by value"
+    },
+    "core/marketing.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (marketing); compiled into native binary stopgap"
+    },
+    "core/mcp.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (mcp); strangler rewrite to Go by value"
+    },
+    "core/media_context.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (media_context); strangler rewrite to Go by value"
+    },
+    "core/media_qa.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (media_qa); strangler rewrite to Go by value"
+    },
+    "core/memory_api.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (memory_api); strangler rewrite to Go by value"
+    },
+    "core/merge_gate.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (merge_gate); strangler rewrite to Go by value"
+    },
+    "core/mobile_tester.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (mobile_tester); strangler rewrite to Go by value"
+    },
+    "core/modality.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (modality); strangler rewrite to Go by value"
+    },
+    "core/model_catalog.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (model_catalog); strangler rewrite to Go by value"
+    },
+    "core/model_fit.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (model_fit); strangler rewrite to Go by value"
+    },
+    "core/model_gate.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Hard model capability validation and token guardrails"
+    },
+    "core/model_policy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (model_policy); strangler rewrite to Go by value"
+    },
+    "core/model_recommendation.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (model_recommendation); strangler rewrite to Go by value"
+    },
+    "core/model_registry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (model_registry); strangler rewrite to Go by value"
+    },
+    "core/model_strategy.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Model selection algorithms, token optimization, tier allocation"
+    },
+    "core/multi_model_review.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (multi_model_review); compiled into native binary stopgap"
+    },
+    "core/multimodal.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (multimodal); strangler rewrite to Go by value"
+    },
+    "core/net_ports.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (net_ports); strangler rewrite to Go by value"
+    },
+    "core/nfr_coverage.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (nfr_coverage); strangler rewrite to Go by value"
+    },
+    "core/nfr_runner.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (nfr_runner); strangler rewrite to Go by value"
+    },
+    "core/notification_system.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (notification_system); strangler rewrite to Go by value"
+    },
+    "core/ops_phase.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (ops_phase); strangler rewrite to Go by value"
+    },
+    "core/orchestration_context.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (orchestration_context); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/__init__.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "none",
+      "rationale": "Package initialization boilerplate; compiled into native module"
+    },
+    "core/orchestrator/agent_execution.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_execution); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/agent_runner.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (agent_runner); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/artifacts_map.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (artifacts_map); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/checkpoint.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (checkpoint); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/compliance.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (compliance); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/delegation_coord.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (delegation_coord); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/feature_tracker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (feature_tracker); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/llm_client.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (llm_client); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/model_router.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (model_router); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/phasing.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (phasing); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/prompt_builder.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (prompt_builder); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/reporting.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (reporting); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/stage_runner.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (stage_runner); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/status.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (status); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/storage.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (storage); strangler rewrite to Go by value"
+    },
+    "core/orchestrator/types.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (types); strangler rewrite to Go by value"
+    },
+    "core/otel.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (otel); strangler rewrite to Go by value"
+    },
+    "core/output_checklist.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (output_checklist); strangler rewrite to Go by value"
+    },
+    "core/packaging.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Commercial packaging, edition manifest compiler, distribution bounds"
+    },
+    "core/paths.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (paths); strangler rewrite to Go by value"
+    },
+    "core/pdf_generator.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (pdf_generator); compiled into native binary stopgap"
+    },
+    "core/persona.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (persona); strangler rewrite to Go by value"
+    },
+    "core/phase3_advanced.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (phase3_advanced); strangler rewrite to Go by value"
+    },
+    "core/pidl.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Product Intent Definition Language compiler and AST transformer"
+    },
+    "core/pipeline_capabilities.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (pipeline_capabilities); strangler rewrite to Go by value"
+    },
+    "core/pipeline_composition.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (pipeline_composition); strangler rewrite to Go by value"
+    },
+    "core/pipeline_executor.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Core DAG pipeline executor, phase lifecycle state machine"
+    },
+    "core/pipeline_store.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (pipeline_store); strangler rewrite to Go by value"
+    },
+    "core/pipeline_tailoring.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (pipeline_tailoring); strangler rewrite to Go by value"
+    },
+    "core/pipeline_telemetry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (pipeline_telemetry); strangler rewrite to Go by value"
+    },
+    "core/pipeline_templates.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (pipeline_templates); compiled into native binary stopgap"
+    },
+    "core/plan_evaluator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (plan_evaluator); strangler rewrite to Go by value"
+    },
+    "core/plugins.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (plugins); strangler rewrite to Go by value"
+    },
+    "core/port_config.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (port_config); strangler rewrite to Go by value"
+    },
+    "core/portfolio.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (portfolio); strangler rewrite to Go by value"
+    },
+    "core/pr_gate.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (pr_gate); strangler rewrite to Go by value"
+    },
+    "core/presentation_generator.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (presentation_generator); compiled into native binary stopgap"
+    },
+    "core/product_analyzer.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "Proprietary product intake, requirement decomposition, feasibility analyzer"
+    },
+    "core/product_design_spec.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (product_design_spec); strangler rewrite to Go by value"
+    },
+    "core/product_ingestion.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (product_ingestion); strangler rewrite to Go by value"
+    },
+    "core/product_page.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (product_page); strangler rewrite to Go by value"
+    },
+    "core/product_plan.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Epic/feature plan generator and requirement dependency graph"
+    },
+    "core/progress.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (progress); strangler rewrite to Go by value"
+    },
+    "core/project_archive.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (project_archive); strangler rewrite to Go by value"
+    },
+    "core/project_journal.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (project_journal); strangler rewrite to Go by value"
+    },
+    "core/project_store.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (project_store); strangler rewrite to Go by value"
+    },
+    "core/prompt_overlays.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (prompt_overlays); strangler rewrite to Go by value"
+    },
+    "core/provider_health.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (provider_health); strangler rewrite to Go by value"
+    },
+    "core/provider_kinds.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (provider_kinds); strangler rewrite to Go by value"
+    },
+    "core/qa_cycles.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (qa_cycles); strangler rewrite to Go by value"
+    },
+    "core/qa_intelligence.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (qa_intelligence); strangler rewrite to Go by value"
+    },
+    "core/qa_manifest.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (qa_manifest); strangler rewrite to Go by value"
+    },
+    "core/qa_report.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (qa_report); strangler rewrite to Go by value"
+    },
+    "core/qir.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (qir); strangler rewrite to Go by value"
+    },
+    "core/quality_metrics.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (quality_metrics); strangler rewrite to Go by value"
+    },
+    "core/queue_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (queue_manager); strangler rewrite to Go by value"
+    },
+    "core/reasoning_skills.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (reasoning_skills); strangler rewrite to Go by value"
+    },
+    "core/release.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Release orchestration, distribution signing, artifact validation"
+    },
+    "core/release_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (release_manager); strangler rewrite to Go by value"
+    },
+    "core/render.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (render); compiled into native binary stopgap"
+    },
+    "core/repo_setup.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (repo_setup); strangler rewrite to Go by value"
+    },
+    "core/requirement_link.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (requirement_link); strangler rewrite to Go by value"
+    },
+    "core/rerun_review.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (rerun_review); compiled into native binary stopgap"
+    },
+    "core/reservations.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (reservations); strangler rewrite to Go by value"
+    },
+    "core/result_aggregator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (result_aggregator); strangler rewrite to Go by value"
+    },
+    "core/review_ledger.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (review_ledger); compiled into native binary stopgap"
+    },
+    "core/run_breaker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_breaker); strangler rewrite to Go by value"
+    },
+    "core/run_entry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_entry); strangler rewrite to Go by value"
+    },
+    "core/run_guard.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_guard); strangler rewrite to Go by value"
+    },
+    "core/run_manifest.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_manifest); strangler rewrite to Go by value"
+    },
+    "core/run_plan.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_plan); strangler rewrite to Go by value"
+    },
+    "core/run_quality_gate.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_quality_gate); strangler rewrite to Go by value"
+    },
+    "core/run_state.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_state); strangler rewrite to Go by value"
+    },
+    "core/run_status.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (run_status); strangler rewrite to Go by value"
+    },
+    "core/runtime_freshness.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (runtime_freshness); strangler rewrite to Go by value"
+    },
+    "core/scheduler.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (scheduler); strangler rewrite to Go by value"
+    },
+    "core/schema_validator.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (schema_validator); strangler rewrite to Go by value"
+    },
+    "core/service_catalog.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Internal service taxonomy and runtime capability mapping"
+    },
+    "core/signing.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (signing); strangler rewrite to Go by value"
+    },
+    "core/sizing.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Cost, memory, and runtime capacity estimation engine"
+    },
+    "core/skill_contracts.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (skill_contracts); strangler rewrite to Go by value"
+    },
+    "core/skills_registry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (skills_registry); strangler rewrite to Go by value"
+    },
+    "core/sli.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (sli); strangler rewrite to Go by value"
+    },
+    "core/spec_review.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (spec_review); compiled into native binary stopgap"
+    },
+    "core/squad_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (squad_manager); strangler rewrite to Go by value"
+    },
+    "core/stage_paths.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (stage_paths); strangler rewrite to Go by value"
+    },
+    "core/state_checkpoint.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (state_checkpoint); strangler rewrite to Go by value"
+    },
+    "core/state_machine.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (state_machine); strangler rewrite to Go by value"
+    },
+    "core/status.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (status); strangler rewrite to Go by value"
+    },
+    "core/stop_conditions.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (stop_conditions); strangler rewrite to Go by value"
+    },
+    "core/target_advisor.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (target_advisor); strangler rewrite to Go by value"
+    },
+    "core/target_selector.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (target_selector); strangler rewrite to Go by value"
+    },
+    "core/task_contract.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (task_contract); strangler rewrite to Go by value"
+    },
+    "core/tech_stack.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Proprietary technology stack selector and architecture recommender"
+    },
+    "core/techstack_guidelines.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (techstack_guidelines); strangler rewrite to Go by value"
+    },
+    "core/tenancy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tenancy); strangler rewrite to Go by value"
+    },
+    "core/test_adapters.py": {
+      "tier": 4,
+      "tier_name": "Tier 4: Tooling / Build-Time (Stays Python)",
+      "target": "Python",
+      "sensitivity": "none",
+      "rationale": "Test module; never packaged into customer runtime distribution"
+    },
+    "core/test_framework_bridge.py": {
+      "tier": 4,
+      "tier_name": "Tier 4: Tooling / Build-Time (Stays Python)",
+      "target": "Python",
+      "sensitivity": "none",
+      "rationale": "Test module; never packaged into customer runtime distribution"
+    },
+    "core/test_framework_integration.py": {
+      "tier": 4,
+      "tier_name": "Tier 4: Tooling / Build-Time (Stays Python)",
+      "target": "Python",
+      "sensitivity": "none",
+      "rationale": "Test module; never packaged into customer runtime distribution"
+    },
+    "core/test_matrix.py": {
+      "tier": 4,
+      "tier_name": "Tier 4: Tooling / Build-Time (Stays Python)",
+      "target": "Python",
+      "sensitivity": "none",
+      "rationale": "Test module; never packaged into customer runtime distribution"
+    },
+    "core/tier_builder.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tier_builder); strangler rewrite to Go by value"
+    },
+    "core/tool_cache.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tool_cache); strangler rewrite to Go by value"
+    },
+    "core/tool_catalog.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tool_catalog); strangler rewrite to Go by value"
+    },
+    "core/tool_policy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tool_policy); strangler rewrite to Go by value"
+    },
+    "core/tool_registry.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tool_registry); strangler rewrite to Go by value"
+    },
+    "core/tool_settings.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tool_settings); strangler rewrite to Go by value"
+    },
+    "core/traceability.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (traceability); strangler rewrite to Go by value"
+    },
+    "core/tracing.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (tracing); strangler rewrite to Go by value"
+    },
+    "core/validation_engine.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (validation_engine); strangler rewrite to Go by value"
+    },
+    "core/vcs.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (vcs); strangler rewrite to Go by value"
+    },
+    "core/vendor.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (vendor); strangler rewrite to Go by value"
+    },
+    "core/vendor_adapters.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (vendor_adapters); strangler rewrite to Go by value"
+    },
+    "core/verification_policy.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (verification_policy); strangler rewrite to Go by value"
+    },
+    "core/verification_runner.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (verification_runner); strangler rewrite to Go by value"
+    },
+    "core/version_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (version_manager); strangler rewrite to Go by value"
+    },
+    "core/video_generation.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (video_generation); strangler rewrite to Go by value"
+    },
+    "core/views.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "low",
+      "rationale": "Plumbing/presentation/utility component (views); compiled into native binary stopgap"
+    },
+    "core/visual_qa.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (visual_qa); strangler rewrite to Go by value"
+    },
+    "core/websocket_manager.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (websocket_manager); strangler rewrite to Go by value"
+    },
+    "core/work_estimate.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (work_estimate); strangler rewrite to Go by value"
+    },
+    "core/worker.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (worker); strangler rewrite to Go by value"
+    },
+    "core/workflow_docs.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (workflow_docs); strangler rewrite to Go by value"
+    },
+    "core/write_safety.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "Core pipeline capability and domain logic (write_safety); strangler rewrite to Go by value"
+    },
+    "api/__init__.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "none",
+      "rationale": "Package initialization boilerplate; compiled into native module"
+    },
+    "api/app.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API foundation module (app); migrate to Go API service"
+    },
+    "api/auth.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "critical",
+      "rationale": "API authentication, bearer token verification, HMAC/Ed25519 validation"
+    },
+    "api/context.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API foundation module (context); migrate to Go API service"
+    },
+    "api/envelope.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Canonical API response envelope and error masking"
+    },
+    "api/errors.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API foundation module (errors); migrate to Go API service"
+    },
+    "api/idempotency.py": {
+      "tier": 1,
+      "tier_name": "Tier 1: High IP / Sensitive (Rewrite to Go/Rust)",
+      "target": "Go",
+      "sensitivity": "high",
+      "rationale": "Distributed idempotency keys and replay protection"
+    },
+    "api/pagination.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API foundation module (pagination); migrate to Go API service"
+    },
+    "api/routers/__init__.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "none",
+      "rationale": "Package initialization boilerplate; compiled into native module"
+    },
+    "api/routers/_common.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for _common; thin Python route until backing Go service migration"
+    },
+    "api/routers/agents.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for agents; thin Python route until backing Go service migration"
+    },
+    "api/routers/apidocs.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for apidocs; thin Python route until backing Go service migration"
+    },
+    "api/routers/artifacts.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for artifacts; thin Python route until backing Go service migration"
+    },
+    "api/routers/audit.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for audit; thin Python route until backing Go service migration"
+    },
+    "api/routers/backlog.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for backlog; thin Python route until backing Go service migration"
+    },
+    "api/routers/changes.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for changes; thin Python route until backing Go service migration"
+    },
+    "api/routers/dogfood.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for dogfood; thin Python route until backing Go service migration"
+    },
+    "api/routers/engineering.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for engineering; thin Python route until backing Go service migration"
+    },
+    "api/routers/enterprise.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for enterprise; thin Python route until backing Go service migration"
+    },
+    "api/routers/events.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for events; thin Python route until backing Go service migration"
+    },
+    "api/routers/evidence.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for evidence; thin Python route until backing Go service migration"
+    },
+    "api/routers/gates.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for gates; thin Python route until backing Go service migration"
+    },
+    "api/routers/github.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for github; thin Python route until backing Go service migration"
+    },
+    "api/routers/health.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for health; thin Python route until backing Go service migration"
+    },
+    "api/routers/intake.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for intake; thin Python route until backing Go service migration"
+    },
+    "api/routers/issues.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for issues; thin Python route until backing Go service migration"
+    },
+    "api/routers/packaging.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for packaging; thin Python route until backing Go service migration"
+    },
+    "api/routers/pipeline.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for pipeline; thin Python route until backing Go service migration"
+    },
+    "api/routers/portfolio.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for portfolio; thin Python route until backing Go service migration"
+    },
+    "api/routers/projects.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for projects; thin Python route until backing Go service migration"
+    },
+    "api/routers/release.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for release; thin Python route until backing Go service migration"
+    },
+    "api/routers/reservations.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for reservations; thin Python route until backing Go service migration"
+    },
+    "api/routers/runs.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for runs; thin Python route until backing Go service migration"
+    },
+    "api/routers/tests.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for tests; thin Python route until backing Go service migration"
+    },
+    "api/routers/tools.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for tools; thin Python route until backing Go service migration"
+    },
+    "api/routers/validation.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for validation; thin Python route until backing Go service migration"
+    },
+    "api/routers/vcs.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for vcs; thin Python route until backing Go service migration"
+    },
+    "api/routers/workers.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "API routing adapter for workers; thin Python route until backing Go service migration"
+    },
+    "adapters/claude/server.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "External adapter/integration interface (server); strangler rewrite to Go adapter"
+    },
+    "adapters/plugins/__init__.py": {
+      "tier": 3,
+      "tier_name": "Tier 3: Low IP / Plumbing (Compiled Python Stopgap)",
+      "target": "compiled-Python",
+      "sensitivity": "none",
+      "rationale": "Package initialization boilerplate; compiled into native module"
+    },
+    "adapters/plugins/example.py": {
+      "tier": 2,
+      "tier_name": "Tier 2: Medium IP (Strangler Migration to Go)",
+      "target": "Go",
+      "sensitivity": "medium",
+      "rationale": "External adapter/integration interface (example); strangler rewrite to Go adapter"
+    }
+  }
+}
