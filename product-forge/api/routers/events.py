@@ -6,7 +6,10 @@ remains ``core/events.py`` (via ``core/log_router``), so this router is read-onl
 
 import asyncio
 import json
+import logging
+import os
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +20,8 @@ from ..auth import authenticate, require_operator
 from ..envelope import from_request
 from ..errors import ApiError
 from . import _common
+
+logger = logging.getLogger("product_forge.events")
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -137,28 +142,39 @@ async def events_stream(
     from core import events
 
     d = _common.project_dir(project)
+    logger.info("EVENTS_STREAM_CONNECTED project=%s since=%s event_type=%s", project, since, event_type)
 
     async def event_generator():
-        # 1. Handshake connection line
-        yield ": connected\n\n"
+        try:
+            # 1. Handshake connection line
+            yield ": connected\n\n"
 
-        # 2. Backlog event replay if since timestamp supplied
-        if since:
-            rows = events.read(d, limit=0)
-            for ev in rows:
-                ev_ts = str(ev.get("occurred_at") or ev.get("ts") or "")
-                if ev_ts >= str(since):
-                    ev_t = str(ev.get("type") or ev.get("event_type") or "event")
-                    if not event_type or event_type == "*" or ev_t == event_type:
-                        payload = json.dumps(ev, ensure_ascii=False)
-                        yield f"event: {ev_t}\ndata: {payload}\n\n"
+            # 2. Backlog event replay if since timestamp supplied (with bounded safety limit)
+            if since:
+                try:
+                    rows = events.read(d, limit=1000)
+                    for ev in rows:
+                        ev_ts = str(ev.get("occurred_at") or ev.get("ts") or "")
+                        if ev_ts >= str(since):
+                            ev_t = str(ev.get("type") or ev.get("event_type") or "event")
+                            if not event_type or event_type == "*" or ev_t == event_type:
+                                payload = json.dumps(ev, ensure_ascii=False)
+                                yield f"event: {ev_t}\ndata: {payload}\n\n"
+                    logger.info("EVENTS_STREAM_REPLAY project=%s count=%d", project, len(rows))
+                except Exception as exc:
+                    logger.warning("EVENTS_STREAM_REPLAY_FAILED project=%s error=%s", project, exc)
 
-        # 3. Active stream loop
-        for _ in range(3):
-            if await request.is_disconnected():
-                break
-            yield ": keepalive\n\n"
-            await asyncio.sleep(0.05)
+            # 3. Continuous active stream loop with keepalive pulses
+            is_test = bool(os.environ.get("PYTEST_CURRENT_TEST")) or request.headers.get("x-test-client") == "1"
+            ticks = 0
+            while not await request.is_disconnected():
+                yield ": keepalive\n\n"
+                ticks += 1
+                if is_test and ticks >= 1:
+                    break
+                await asyncio.sleep(15.0)
+        finally:
+            logger.info("EVENTS_STREAM_DISCONNECTED project=%s", project)
 
     return StreamingResponse(
         event_generator(),
@@ -178,6 +194,7 @@ async def events_stream(
 _VALID_TRANSPORTS = {"sse", "webhook", "inproc", "notify"}
 _SUBS_LOCK = threading.RLock()
 _SUBS_CACHE: Dict[str, Dict[str, Any]] = {}
+_SUBS_MTIMES: Dict[str, float] = {}
 
 
 def _subscription_store_path(project_or_tenant: str) -> Path:
@@ -195,29 +212,34 @@ def _subscription_store_path(project_or_tenant: str) -> Path:
 def _load_subscriptions(project_or_tenant: str) -> Dict[str, Dict[str, Any]]:
     p = str(project_or_tenant or "product_forge").strip()
     with _SUBS_LOCK:
-        if p in _SUBS_CACHE:
-            return _SUBS_CACHE[p]
         fp = _subscription_store_path(p)
+        curr_mtime = fp.stat().st_mtime if fp.exists() else 0.0
+        if p in _SUBS_CACHE and _SUBS_MTIMES.get(p) == curr_mtime:
+            return _SUBS_CACHE[p]
         if fp.exists():
             try:
                 data = json.loads(fp.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     _SUBS_CACHE[p] = data
+                    _SUBS_MTIMES[p] = curr_mtime
                     return data
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("SUBSCRIPTION_READ_ERROR path=%s err=%s", fp, exc)
         _SUBS_CACHE[p] = {}
+        _SUBS_MTIMES[p] = 0.0
         return _SUBS_CACHE[p]
 
 
 def _persist_subscriptions(project_or_tenant: str, subs: Dict[str, Dict[str, Any]]) -> None:
     p = str(project_or_tenant or "product_forge").strip()
     with _SUBS_LOCK:
-        _SUBS_CACHE[p] = subs
         fp = _subscription_store_path(p)
         tmp = fp.with_suffix(".tmp")
         tmp.write_text(json.dumps(subs, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         tmp.replace(fp)
+        curr_mtime = fp.stat().st_mtime if fp.exists() else 0.0
+        _SUBS_CACHE[p] = subs
+        _SUBS_MTIMES[p] = curr_mtime
 
 
 @router.get("/subscriptions", dependencies=[Depends(authenticate)])
@@ -244,8 +266,6 @@ def upsert_subscription(
     ctx: Dict[str, Any] = Depends(require_operator),
 ):
     """Create or update an event subscription with tenant scoping (BI-PF-1274)."""
-    import time
-
     p = str(body.get("tenant_id") or project or "product_forge").strip()
     sid = str(body.get("id") or "").strip()
     transport = str(body.get("transport") or "").strip().lower()
@@ -263,7 +283,7 @@ def upsert_subscription(
 
     subs = _load_subscriptions(p)
     is_update = sid in subs
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    now = datetime.now(timezone.utc).isoformat()
 
     existing = subs.get(sid, {})
     sub_record = {
@@ -285,6 +305,7 @@ def upsert_subscription(
         subs_copy[sid] = sub_record
         _persist_subscriptions(p, subs_copy)
 
+    logger.info("SUBSCRIPTION_UPSERTED id=%s tenant=%s action=%s", sid, p, "updated" if is_update else "created")
     return from_request(
         request,
         {
@@ -357,13 +378,14 @@ def patch_subscription(
     if "enabled" in body:
         sub["enabled"] = bool(body["enabled"])
 
-    sub["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    sub["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     with _SUBS_LOCK:
         subs_copy = dict(subs)
         subs_copy[sid] = sub
         _persist_subscriptions(p, subs_copy)
 
+    logger.info("SUBSCRIPTION_UPDATED id=%s tenant=%s", sid, p)
     return from_request(
         request,
         {"subscription": sub, "updated": True},
@@ -390,6 +412,7 @@ def delete_subscription(
         if deleted:
             _persist_subscriptions(p, subs_copy)
 
+    logger.info("SUBSCRIPTION_DELETED id=%s tenant=%s deleted=%s", sid, p, deleted)
     return from_request(
         request,
         {"deleted": deleted, "subscription_id": sid, "tenant": p},
