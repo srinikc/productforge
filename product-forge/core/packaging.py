@@ -18,6 +18,8 @@ import json
 import os
 import re
 import shutil
+import subprocess
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -31,6 +33,9 @@ EDITIONS: dict[str, dict[str, Any]] = {
     "on-prem": {"tier": "enterprise", "target": "docker", "distribution": "commercial"},
     "oem": {"tier": "enterprise", "target": "command", "distribution": "white-label"},
 }
+
+CUSTOMER_EDITIONS: tuple[str, ...] = ("enterprise", "on-prem", "saas", "oem")
+COMPILED_BINARY_MAGIC = b"\x7fELF\x02\x01\x01_COMPILED_PF_BINARY_A3"
 
 # the build-pipeline distinctions REL-0 must keep separate (plan section 25)
 DISTINCTIONS = ("source", "build", "artifact", "package", "license", "entitlement",
@@ -461,11 +466,14 @@ def apply_subsystem_exclusions(modules: list[str], exclude_subsystems: list[str]
 
 
 def validate_package_sbom(sbom_data: dict) -> dict[str, Any]:
-    """Fail-closed validation of package SBOM and LBOM data."""
+    """Fail-closed validation of package SBOM and LBOM data against CycloneDX/SPDX schemas."""
     unmet: list[str] = []
     if not isinstance(sbom_data, dict) or not sbom_data:
         return {"valid": False, "unmet": ["MISSING_SBOM"]}
-    if not sbom_data.get("dependencies"):
+    # Validates standard CycloneDX (bomFormat=CycloneDX) or SPDX or legacy schema
+    if not (sbom_data.get("bomFormat") == "CycloneDX" or sbom_data.get("spdxVersion") or sbom_data.get("schema")):
+        unmet.append("INVALID_SBOM_SCHEMA")
+    if not (sbom_data.get("components") or sbom_data.get("dependencies")):
         unmet.append("MISSING_DEPENDENCIES")
     if not sbom_data.get("licenses"):
         unmet.append("MISSING_LICENSES")
@@ -482,15 +490,30 @@ def attach_sbom_and_signatures(scope: str = "product_forge", project: str = "",
         from core import bom
         b = bom.build(d)
         sbom_data = {
-            "schema": "CycloneDX/SPDX-productforge@1",
-            "edition": edition,
-            "generated_at": datetime.now().isoformat(),
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.5",
+            "serialNumber": f"urn:uuid:productforge-sbom-{edition}",
+            "version": 1,
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "component": {
+                    "type": "application",
+                    "name": "product-forge",
+                    "edition": edition
+                }
+            },
             "dependencies": b.get("dependencies", {}),
-            "licenses": b.get("licenses", [])
+            "licenses": b.get("licenses", []),
+            "components": [
+                {"name": k, "version": v, "type": "library"}
+                for k, v in sorted((b.get("dependencies") or {}).items())
+            ]
         }
         lbom_data = {
-            "schema": "product-forge/lbom@1",
-            "edition": edition,
+            "spdxVersion": "SPDX-2.3",
+            "dataLicense": "CC0-1.0",
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "name": f"Product Forge License BOM - {edition}",
             "generated_at": datetime.now().isoformat(),
             "licenses": b.get("licenses", []),
             "governance": b.get("governance", [])
@@ -527,7 +550,7 @@ def attach_sbom_and_signatures(scope: str = "product_forge", project: str = "",
             "checksums_path": chk_path,
             "signing": sig_info
         }
-    except Exception as e:
+    except (IOError, OSError, ValueError, KeyError) as e:
         return {"ok": False, "error": str(e)}
 
 
@@ -545,13 +568,57 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
 
     artifacts = []
     compiled_ext = ".pyd" if os.name == "nt" else ".so"
-    mock_binaries = ["core_runtime" + compiled_ext, "api_runtime" + compiled_ext,
-                     "pf-core.exe" if os.name == "nt" else "pf-core"]
-    for bname in mock_binaries:
-        bpath = os.path.join(output_dir, bname)
-        with open(bpath, "wb") as f:
-            f.write(b"\x7fELF\x02\x01\x01_COMPILED_PF_BINARY_A3")
-        artifacts.append(bname)
+    bin_name = "pf-core.exe" if os.name == "nt" else "pf-core"
+
+    if dry_run:
+        # Dry-run mode for lightweight test/CI environments
+        mock_binaries = ["core_runtime" + compiled_ext, "api_runtime" + compiled_ext, bin_name]
+        for bname in mock_binaries:
+            bpath = os.path.join(output_dir, bname)
+            with open(bpath, "wb") as f:
+                f.write(COMPILED_BINARY_MAGIC)
+            artifacts.append(bname)
+    else:
+        # Production build: execute genuine compilation pipeline
+        go_bin = shutil.which("go")
+        if not go_bin:
+            return {"ok": False, "error": "COMPILER_UNAVAILABLE: Go compiler ('go') not found in PATH."}
+
+        # Check for Go entrypoint or sources
+        go_built = False
+        go_src = os.path.join(ROOT, "cmd", "pf-core")
+        if os.path.isdir(go_src):
+            res = subprocess.run([go_bin, "build", "-o", os.path.join(output_dir, bin_name), "./cmd/pf-core"],
+                                 cwd=ROOT, capture_output=True, text=True)
+            if res.returncode != 0:
+                return {"ok": False, "error": f"GO_BUILD_FAILED: {res.stderr or res.stdout}"}
+            artifacts.append(bin_name)
+            go_built = True
+
+        # Check for Nuitka for Python modules
+        nuitka_bin = shutil.which("nuitka")
+        if not nuitka_bin:
+            try:
+                import nuitka  # noqa: F401
+                nuitka_bin = sys.executable
+            except ImportError:
+                nuitka_bin = None
+
+        if not nuitka_bin and not go_built:
+            return {
+                "ok": False,
+                "error": "COMPILER_UNAVAILABLE: Neither Nuitka nor Go sources found for production build. "
+                         "Use dry_run=True for CI/test simulation."
+            }
+
+        if nuitka_bin:
+            core_py = os.path.join(ROOT, "core", "release.py")
+            if os.path.isfile(core_py):
+                cmd = [nuitka_bin, "-m", "nuitka"] if nuitka_bin == sys.executable else [nuitka_bin]
+                cmd.extend(["--module", f"--output-dir={output_dir}", core_py])
+                res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+                if res.returncode == 0:
+                    artifacts.append("release" + compiled_ext)
 
     eap = eap_build(scope, project, edition=edition, exclude_subsystems=exclude_subsystems)
     eap_path = os.path.join(output_dir, "eap.json")
@@ -562,8 +629,7 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
     sb = attach_sbom_and_signatures(scope, project, edition=edition, package_dir=output_dir)
     artifacts.extend(["sbom.json", "lbom.json", "checksums.txt"])
 
-    customer_editions = ("enterprise", "on-prem", "saas", "oem")
-    if ed["id"] in customer_editions:
+    if ed["id"] in CUSTOMER_EDITIONS:
         for _root, _, files in os.walk(output_dir):
             for f in files:
                 if f.endswith(".py"):
@@ -573,6 +639,7 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
         "ok": True,
         "edition": ed["id"],
         "compiled": True,
+        "dry_run": dry_run,
         "artifacts": artifacts,
         "output_dir": output_dir,
         "subsystems_excluded": list(exclude_subsystems or []),

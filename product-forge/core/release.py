@@ -80,9 +80,9 @@ def _deployment(project_dir: str) -> dict[str, Any]:
 def no_raw_py_gate(dist_dir: str, edition: str = "enterprise") -> dict[str, Any]:
     """Fail-closed gate: customer editions (enterprise, on-prem, saas, oem) cannot contain readable .py source files."""
     ed = str(edition or "").strip().lower()
-    customer_editions = ("enterprise", "on-prem", "saas", "oem")
+    from core.packaging import CUSTOMER_EDITIONS
     violating: list[str] = []
-    if ed in customer_editions and os.path.isdir(dist_dir):
+    if ed in CUSTOMER_EDITIONS and os.path.isdir(dist_dir):
         for root, _, files in os.walk(dist_dir):
             for f in files:
                 if f.endswith(".py"):

@@ -106,7 +106,7 @@ def test_missing_sbom_fails_build():
 
 def test_subsystem_plug_unplug_workers():
     """AC-4: Build-time subsystem plug/unplug mechanism allows excluding the worker subsystem (BI-PF-0383)."""
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory():
         res = packaging.eap_build(
             scope="product_forge",
             project="",
@@ -148,3 +148,38 @@ def test_corrupted_asset_bundle_rejected():
     res = packaging.validate_asset_bundle({"id": "prompts_pack"})
     assert res["valid"] is False
     assert "MISSING_ASSET_CHECKSUM" in res["unmet"]
+
+
+def test_cyclonedx_sbom_spec_compliance():
+    """AC-3: Validate CycloneDX 1.5 and SPDX 2.3 schema compliance in emitted BOMs."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_dir = os.path.join(tmpdir, "pkg")
+        os.makedirs(out_dir, exist_ok=True)
+        res = packaging.attach_sbom_and_signatures("product_forge", "", edition="enterprise", package_dir=out_dir)
+        assert res["ok"] is True
+        with open(res["sbom_path"], encoding="utf-8") as f:
+            sbom = json.load(f)
+        assert sbom.get("bomFormat") == "CycloneDX"
+        assert sbom.get("specVersion") == "1.5"
+        assert "components" in sbom
+        with open(res["lbom_path"], encoding="utf-8") as f:
+            lbom = json.load(f)
+        assert lbom.get("spdxVersion") == "SPDX-2.3"
+        assert lbom.get("dataLicense") == "CC0-1.0"
+
+
+def test_production_compilation_validation():
+    """AC-1: Production compilation without dry_run validates compiler toolchain."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        res = packaging.build_compiled_package(
+            scope="product_forge",
+            project="",
+            edition="enterprise",
+            output_dir=os.path.join(tmpdir, "out"),
+            dry_run=False
+        )
+        # Without Nuitka on host, production packaging fails closed with structured compiler error
+        if not shutil.which("nuitka"):
+            assert res["ok"] is False
+            assert "COMPILER_UNAVAILABLE" in res["error"]
+
