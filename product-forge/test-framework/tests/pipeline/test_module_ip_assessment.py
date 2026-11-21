@@ -55,6 +55,8 @@ def test_inventory_schema_and_integrity():
     assert data["summary"]["total_modules"] > 0
     assert data["summary"]["tier_1_count"] > 0
     assert data["summary"]["tier_2_count"] > 0
+    assert data["summary"]["tier_3_count"] > 0
+    assert data["summary"]["tier_4_count"] > 0
     assert "tier_definitions" in data
     assert "modules" in data
     for mod_path, details in data["modules"].items():
@@ -80,18 +82,16 @@ def test_all_shipped_modules_classified():
 
 
 def test_sensitive_roots_contain_tier1_modules():
-    """AC-3: language-rule sensitive_roots contains core Tier 1 commercial/security roots."""
+    """AC-3: language-rule sensitive_roots contains all 28 Tier 1 sensitive modules."""
     pol = cp.policy(force_reload=True)
-    sensitive_roots = [cp.normalize(r) for r in pol.get("sensitive_roots", [])]
-    expected_tier1_roots = [
-        "core/licensing.py",
-        "core/billing.py",
-        "core/credentials.py",
-        "core/packaging.py",
-        "core/release.py",
-        "api/auth.py"
-    ]
-    for r in expected_tier1_roots:
+    sensitive_roots = {cp.normalize(r) for r in pol.get("sensitive_roots", [])}
+
+    with open(INVENTORY_FILE, encoding="utf-8") as f:
+        data = json.load(f)
+    tier1_modules = [m for m, d in data.get("modules", {}).items() if d.get("tier") == 1]
+    assert len(tier1_modules) == 28, f"Expected 28 Tier 1 modules, got {len(tier1_modules)}"
+
+    for r in tier1_modules:
         assert r in sensitive_roots, f"Tier 1 module '{r}' must be in sensitive_roots"
 
 
