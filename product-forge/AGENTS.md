@@ -60,13 +60,27 @@ Follow **`docs/ENGINEERING_OPERATING_STANDARD.md` (EOS)** for every change: feat
 atomic single-writer state, authorization at the boundary, tests that can fail, and the Definition of Done.
 Root-cause every defect via **`docs/RCCA_productForge.md`** (5-Why + a new guard).
 
-## Senior Enterprise Architect & Staff Principal Engineer Mindset (binding)
-Every agent, subagent, and contributor working in this repository must operate as a **Senior Enterprise Architect & Staff Principal Engineer**, not a junior or reactive developer:
-1. **360° Systems Analysis Upfront:** Evaluate all ripple effects across data stores (`config/store-registry.json`), language size limits (`config/language-rule.json`), API schemas (`api/openapi.json`), multi-process concurrency (atomic writes + `mtime` cache invalidation), and auth boundaries before writing code.
-2. **First-Time-Right, Zero-Loop Flow (< 20m target):** Perform upfront pre-flight checks at Gate 0 to prevent downstream gate failures and review churn. Commit with `<type>(<scope>): <ITEM-ID> <description>`.
-3. **Rigorous Quality & Human-In-The-Loop Boundary:** Gate 2 is strictly a human decision. Machine reviews (Gate 1.5, Gate 2.5) inform human decisions; they never replace them. Never mark status `completed` or invoke delivery without explicit operator approval.
-4. **Approval for Material Re-Review:** Any material change requiring re-review or budget overrun requires explicit operator sign-off first.
-5. **Systemic RCCA (5-Why + Guard):** Root-cause every defect with 5-Why analysis and a permanent guard; update the canonical reference and tools so failures cannot recur.
+## Senior Enterprise Architect & Staff Principal Engineer Operating Standard (binding)
+Every agent, subagent, and contributor working in this repository must operate under these **19 Mandatory Senior Enterprise Architect Guidelines**:
+1. **Guiding Principle:** Think → Design → 360° Systems Check → Backlog (API-only). Every item has context, brief, parent epic, and detailed AC (>= 40 chars). Backlog operations are strictly API-only (`core.backlog` with `$env:PF_EDP_TOKEN`), never direct file edits.
+2. **Feature Branch Isolation:** Strictly 1 item per branch (`feat/<ITEM-ID>-<slug>`). Tooling/process changes belong in a separate branch, backlog item, and PR. Stitched/wired without shortcuts.
+3. **Modular, Scalable & API-First:** Design/implement API endpoints following canonical schemas. Verify E2E against AC before declaring Definition of Done (DoD). Run dedicated tests before merge/push.
+4. **Framework Agnostic & No Legacy Dashboard:** Product Forge is framework agnostic (never reference OpenCode in runtime code). The existing dashboard is legacy/frozen—never depend on it.
+5. **Systemic RCCA (No Band-Aids):** When issues occur: Raise issue → 5-Why RCCA → Backlog item. Extend existing functionality cleanly or obtain approval for new components.
+6. **Plain-Language Summary & Approval:** State Epic #, Backlog #, title, what is changing, why it is needed, and present an Impact-Review table (LANGUAGE, API, AC) for approval before coding.
+7. **Delivery Lane Compliance:** Follow canonical delivery lane (`deliver.py`), merge `--no-ff` to `develop`, and push with delivery provenance stamped.
+8. **Reconciliation Before Implementation:** Mandatory for every change.
+9. **RECONCILIATION Block:** Author `PRIOR DECISIONS`, `EXISTING PATH` (`file:line`), `ASSUMPTIONS`, `DIVERGENCES`, and `OPEN QUESTIONS`.
+10. **Zero Unconfirmed Assumptions:** Every assumption requires explicit operator confirmation before implementation.
+11. **Zero Silent Divergences:** Re-scoping or design changes must amend decision records first.
+12. **Append-Only Decision Ledger:** Implementations cite recorded decision ledgers.
+13. **Zero Extrapolation of Unknowns:** Unknowns are investigated in code (`file:line`), never guessed.
+14. **Explicit Risk & Mitigation:** Plainly state Mitigated vs Open risks with concrete mitigations.
+15. **Reuse & Simplicity:** Reuse existing owners first; scope strictly to the change (no drive-by refactoring); ruthlessly delete dead code/unused imports introduced by the change.
+16. **Stay Close to Develop:** Run `python scripts/dev/sync_develop.py` at task start and fold in develop frequently via merge (never rebase/reset).
+17. **Binding Language Rule:** New shipped/sensitive logic → Go; extending existing shipped Python → Python edits OK (subject to 60-line growth threshold); tooling/tests/CI/docs → Python OK.
+18. **1-Line Plain Language Context:** Always state a 1-line plain language explanation before every shell command, gate, or action.
+19. **Strict Tooling Discipline:** 1. Read file; 2. Edit exact block (or Write new file); 3. Shell only for tests/gates/git; 4. Show `git diff --stat` after changes.
 
 1. **One truth per concern, one writer per file.** Only the owning module writes a store.
 2. **Work items live in the backlog** (`core/backlog.py`) — one backlog per scope
