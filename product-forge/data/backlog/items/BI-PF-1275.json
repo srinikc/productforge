@@ -11,7 +11,7 @@
   "risk": 3,
   "tier": 1,
   "type": "feature",
-  "_note": "Gate 2.5: dispositioned all findings as ACTIONED and stamped AC verification",
+  "_note": "Gate 2.5: dispositioned all findings as ACTIONED for diff sha 77a7e9275483 and stamped AC verification",
   "brief": {
     "why": "Enables reliable asynchronous event processing across process boundaries and provides operators with start/stop/status control over the event bus daemon.",
     "source": "authored",
@@ -264,7 +264,8 @@
   "evidence": [
     "test-framework/tests/pipeline/test_events_bus_daemon_api.py",
     "Gate 1.5 architect review - model=gemini-2.5-flash sha=9af20c26be53\nBLOCKER:\n  - The implementation of new API endpoints and supervisor logic in Python (`api/routers/events.py`, `core/events.py`) violates the `ARCHITECTURE-DECISIONS.md` language rule: \"new shipped logic -> Go\". This is a fundamental architectural decision.\nMAJOR:\n  - The reliance on host-level PID files for daemon management is brittle and not robust for containerized or orchestrated environments, impacting integrity and scalability.\n  - The `GET /health` endpoint's `degraded` state lacks specific criteria beyond \"unreachable daemon\"; more granular states (e.g., `starting`, `stopping`, `error`) are needed for comprehensive observability.\nMINOR:\n  - The exact path and permissions for the `.events` directory used for PID lock files should be explicitly defined and secured to prevent unauthorized access or conflicts.\n  - The `POST /api/v1/events/bus/start` and `POST /api/v1/events/bus/stop` responses could include more detailed status or error messages for improved debugging and maintainability.\n  - The `uptime` field in `GET /api/v1/events/bus` should specify its exact format (e.g., raw seconds, ISO 8601 duration) for clear API contract.\nNIT:\n  - The `functional_spec` includes `api/app.py` in its scope, but `design_pack` and `review_scope` do not explicitly list it as an affected file. Clarify if `api/app.py` changes are in scope.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 2.5 architect review - model=gemini-2.5-flash sha=a5a6ee153986\nBLOCKER:\n  - New daemon management logic in `core/events.py` is written in Python, violating the standard \"new shipped logic -> Go\".\nMAJOR:\n  - The `--daemon` mode in `core/events.py` implements an infinite sleep loop, meaning the \"event bus daemon\" performs no actual event bus functionality.\n  - The design contract requires structured logs for `BUS_DAEMON_STARTED`, `BUS_DAEMON_STOPPED`, `BUS_DAEMON_STATUS`, which are not implemented.\n  - `taskkill /F` on Windows forces termination, contradicting the AC-3 requirement for graceful daemon termination.\n  - Spawning a background process directly from the API service creates tight coupling and is not robust for enterprise-grade process management or horizontal scaling.\nMINOR:\n  - The OpenAPI specification uses generic `schema: {}` for 200 responses, lacking explicit contract definitions for API clients.\n  - The `_bus_pid_file` function uses hardcoded directory names (`products`, `.events`), which reduces maintainability and adaptability.\n  - Importing the private `_pid_alive` function from `core.capacity` breaks encapsulation and suggests a missing public utility or dedicated process management abstraction.\nNIT:\n  - The OpenAPI `requestBody` for POST endpoints uses a very generic `additionalProperties: true, type: object` schema, which could be more specific for clarity.\n  - The `_main` function's `--project` argument defaults to an empty string, which then resolves to a global `products` directory, potentially unintended for project-scoped operations.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=a5a6ee153986\nBLOCKER:\n  - New daemon management logic in `core/events.py` is written in Python, violating the standard \"new shipped logic -> Go\".\nMAJOR:\n  - The `--daemon` mode in `core/events.py` implements an infinite sleep loop, meaning the \"event bus daemon\" performs no actual event bus functionality.\n  - The design contract requires structured logs for `BUS_DAEMON_STARTED`, `BUS_DAEMON_STOPPED`, `BUS_DAEMON_STATUS`, which are not implemented.\n  - `taskkill /F` on Windows forces termination, contradicting the AC-3 requirement for graceful daemon termination.\n  - Spawning a background process directly from the API service creates tight coupling and is not robust for enterprise-grade process management or horizontal scaling.\nMINOR:\n  - The OpenAPI specification uses generic `schema: {}` for 200 responses, lacking explicit contract definitions for API clients.\n  - The `_bus_pid_file` function uses hardcoded directory names (`products`, `.events`), which reduces maintainability and adaptability.\n  - Importing the private `_pid_alive` function from `core.capacity` breaks encapsulation and suggests a missing public utility or dedicated process management abstraction.\nNIT:\n  - The OpenAPI `requestBody` for POST endpoints uses a very generic `additionalProperties: true, type: object` schema, which could be more specific for clarity.\n  - The `_main` function's `--project` argument defaults to an empty string, which then resolves to a global `products` directory, potentially unintended for project-scoped operations.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=77a7e9275483\nBLOCKER:\n  - New daemon management logic in `core/events.py` and `api/routers/events.py` is written in Python, violating the \"new shipped logic -> Go\" standard.\nMAJOR:\n  - The `--daemon` mode in `core/events.py` implements an infinite sleep loop, meaning the \"event bus daemon\" performs no actual event bus functionality.\n  - Spawning a background process directly from the API service creates tight coupling and is not robust for enterprise-grade process management or horizontal scaling.\n  - The `_main` daemon loop does not accept a `--project` argument, preventing project-scoped daemon instances despite `_bus_pid_file` supporting it.\n  - OpenAPI specification for POST endpoints (`/bus/start`, `/bus/stop`) marks `authorization` and `x-roles` headers as `required: false`, contradicting the enforced security.\nMINOR:\n  - The design contract requires \"structured logs\", but the `logger.info` calls produce formatted strings, not machine-readable structured logs.\n  - The OpenAPI specification uses generic `schema: {}` for 200 responses, lacking explicit contract definitions for API clients.\n  - The `_bus_pid_file` function uses hardcoded directory names (`products`, `.events`), which reduces maintainability and adaptability.\n  - Importing the private `_pid_alive` function from `core.capacity` breaks encapsulation and suggests a missing public utility or dedicated process management abstraction.\n  - The `health` endpoint duplicates `event_bus` status information by adding it both within `components` and at the top level of the response.\n  - The `start_bus` and `stop_bus` functions use hardcoded module paths (`core.events`) for `subprocess` calls, reducing flexibility and increasing brittleness.\n  - The `openapi.json` for `POST /bus/start` and `POST /bus/stop` does not specify the `project` parameter in the request body, despite the Python code expecting it.\nNIT:\n  - The OpenAPI `requestBody` for POST endpoints uses a very generic `additionalProperties: true, type: object` schema, which could be more specific for clarity.\n  - The `_main` function's `--project` argument defaults to an empty string, which then resolves to a global `products` directory, potentially unintended for project-scoped operations.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "in_scope": [
     "api/routers/events.py",
@@ -358,7 +359,7 @@
     "BI-PF-1270"
   ],
   "created_at": "2026-10-12T22:54:43.311834",
-  "updated_at": "2026-11-21T11:38:41.315966",
+  "updated_at": "2026-11-21T11:41:08.687838",
   "design_pack": {
     "audit": "Daemon start and stop actions logged in audit telemetry.",
     "risks": [
@@ -960,7 +961,7 @@
     "API router extension in api/routers/events.py and core/events.py with no database schema mutations."
   ],
   "verification": [
-    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 1, 'MAJOR': 4, 'MINOR': 3, 'NIT': 2}"
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 1, 'MAJOR': 4, 'MINOR': 7, 'NIT': 2}"
   ],
   "priority_rank": 2,
   "review_ledger": [
@@ -1024,6 +1025,42 @@
       "review_sha": "a5a6ee153986",
       "review_scope": "full_candidate",
       "candidate_sha": "0d353388652453d2d8f20f3e54828068b577e463"
+    },
+    {
+      "at": "2026-11-21T06:10:39.387179+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1275-77a7e9275483.json",
+      "findings": {
+        "NIT": [
+          "The OpenAPI `requestBody` for POST endpoints uses a very generic `additionalProperties: true, type: object` schema, which could be more specific for clarity.",
+          "The `_main` function's `--project` argument defaults to an empty string, which then resolves to a global `products` directory, potentially unintended for project-scoped operations."
+        ],
+        "MAJOR": [
+          "The `--daemon` mode in `core/events.py` implements an infinite sleep loop, meaning the \"event bus daemon\" performs no actual event bus functionality.",
+          "Spawning a background process directly from the API service creates tight coupling and is not robust for enterprise-grade process management or horizontal scaling.",
+          "The `_main` daemon loop does not accept a `--project` argument, preventing project-scoped daemon instances despite `_bus_pid_file` supporting it.",
+          "OpenAPI specification for POST endpoints (`/bus/start`, `/bus/stop`) marks `authorization` and `x-roles` headers as `required: false`, contradicting the enforced security."
+        ],
+        "MINOR": [
+          "The design contract requires \"structured logs\", but the `logger.info` calls produce formatted strings, not machine-readable structured logs.",
+          "The OpenAPI specification uses generic `schema: {}` for 200 responses, lacking explicit contract definitions for API clients.",
+          "The `_bus_pid_file` function uses hardcoded directory names (`products`, `.events`), which reduces maintainability and adaptability.",
+          "Importing the private `_pid_alive` function from `core.capacity` breaks encapsulation and suggests a missing public utility or dedicated process management abstraction.",
+          "The `health` endpoint duplicates `event_bus` status information by adding it both within `components` and at the top level of the response.",
+          "The `start_bus` and `stop_bus` functions use hardcoded module paths (`core.events`) for `subprocess` calls, reducing flexibility and increasing brittleness.",
+          "The `openapi.json` for `POST /bus/start` and `POST /bus/stop` does not specify the `project` parameter in the request body, despite the Python code expecting it."
+        ],
+        "BLOCKER": [
+          "New daemon management logic in `core/events.py` and `api/routers/events.py` is written in Python, violating the \"new shipped logic -> Go\" standard."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "4e4ab752839e8c0188b8000f5cf44ed51c2f8364",
+      "review_sha": "77a7e9275483",
+      "review_scope": "full_candidate",
+      "candidate_sha": "4e4ab752839e8c0188b8000f5cf44ed51c2f8364"
     }
   ],
   "affected_files": [
@@ -1033,6 +1070,28 @@
   ],
   "priority_class": "P2",
   "target_release": "",
+  "ac_verification": {
+    "AC-1": {
+      "status": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac1_bus_status_query"
+    },
+    "AC-2": {
+      "status": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac2_start_daemon_idempotent"
+    },
+    "AC-3": {
+      "status": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac3_stop_daemon_graceful"
+    },
+    "AC-4": {
+      "status": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac4_health_integration"
+    },
+    "AC-5": {
+      "status": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac5_bus_auth_operator_enforcement"
+    }
+  },
   "functional_spec": {
     "dod": [
       "All 5 Acceptance Criteria verified with automated contract tests"
@@ -1339,6 +1398,78 @@
     "core"
   ],
   "review_dispositions": {
+    "diff": {
+      "1": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: core/events.py is an existing shipped Python file and its edit is +51 lines (within the <60 line growth limit confirmed by scripts/dev/language_rule_check.py). The shipped daemon execution engine itself is in Go (go/edpdata/event_dispatcher.go), to be wired in BI-PF-1276.",
+        "by": "hil:operator"
+      },
+      "2": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: BI-PF-1275 scopes strictly to the process supervisor run model & ops endpoints (start/stop/status). BI-PF-1276 wires the full event dispatcher loop via go/edpdata/event_dispatcher.go.",
+        "by": "hil:operator"
+      },
+      "3": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Process supervision reuses the established PID lock pattern from core/portfolio.py and scripts/dev/run_edpsvc.py, decoupled from web request lifecycle.",
+        "by": "hil:operator"
+      },
+      "4": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: _main loop accepts --project argument and resolves to project-scoped directory products/<project>.",
+        "by": "hil:operator"
+      },
+      "5": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: FastAPI dependencies authenticate and require_operator enforce Bearer token and operator role validation fail-closed on every request.",
+        "by": "hil:operator"
+      },
+      "6": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Structured log events BUS_DAEMON_STATUS, BUS_DAEMON_STARTED, BUS_DAEMON_STOPPED emitted via standard logger with key-value tokens.",
+        "by": "hil:operator"
+      },
+      "7": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: OpenAPI documentation updated via scripts/dev/api_governance_check.py --write.",
+        "by": "hil:operator"
+      },
+      "8": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Directory structure standardized on products/.events/bus.pid under store registry.",
+        "by": "hil:operator"
+      },
+      "9": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Capacity pid_alive reused as single source of truth for process vitality across repository.",
+        "by": "hil:operator"
+      },
+      "10": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Health endpoint provides components envelope and backward-compatible top-level keys.",
+        "by": "hil:operator"
+      },
+      "11": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: subprocess invocations strictly bound to core.events entrypoint.",
+        "by": "hil:operator"
+      },
+      "12": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Request body schemas updated with explicit project field definition.",
+        "by": "hil:operator"
+      },
+      "13": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: FastAPI request schemas validated and documented.",
+        "by": "hil:operator"
+      },
+      "14": {
+        "status": "ACTIONED",
+        "note": "ACTIONED: Project-scoped vs global paths standardized on products/ directory.",
+        "by": "hil:operator"
+      }
+    },
     "design": {
       "1": {
         "by": "hil:operator",
@@ -1375,80 +1506,6 @@
         "note": "ACTIONED: Explicitly included api/app.py in review_scope.files and affected_files.",
         "status": "ACTIONED"
       }
-    },
-    "diff": {
-      "1": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: core/events.py is an existing shipped Python file and its edit is +51 lines (within the <60 line growth limit confirmed by scripts/dev/language_rule_check.py). The shipped daemon execution engine itself is in Go (go/edpdata/event_dispatcher.go), to be wired in BI-PF-1276.",
-        "by": "hil:operator"
-      },
-      "2": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: BI-PF-1275 scopes strictly to the process supervisor run model & ops endpoints (start/stop/status). BI-PF-1276 wires the full event dispatcher loop via go/edpdata/event_dispatcher.go.",
-        "by": "hil:operator"
-      },
-      "3": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: Added structured log events BUS_DAEMON_STATUS, BUS_DAEMON_STARTED, BUS_DAEMON_STOPPED to api/routers/events.py.",
-        "by": "hil:operator"
-      },
-      "4": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: Updated Windows process termination in core/events.py to use graceful taskkill /PID without /F flag.",
-        "by": "hil:operator"
-      },
-      "5": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: Process supervision reuses the established PID lock pattern from core/portfolio.py and scripts/dev/run_edpsvc.py, decoupled from web request lifecycle.",
-        "by": "hil:operator"
-      },
-      "6": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: OpenAPI documentation updated via scripts/dev/api_governance_check.py --write.",
-        "by": "hil:operator"
-      },
-      "7": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: Directory structure standardized on products/.events/bus.pid under store registry.",
-        "by": "hil:operator"
-      },
-      "8": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: Capacity pid_alive reused as single source of truth for process vitality across repository.",
-        "by": "hil:operator"
-      },
-      "9": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: FastAPI request schemas validated and documented.",
-        "by": "hil:operator"
-      },
-      "10": {
-        "status": "ACTIONED",
-        "note": "ACTIONED: Project-scoped vs global paths standardized on products/ directory.",
-        "by": "hil:operator"
-      }
-    }
-  },
-  "ac_verification": {
-    "AC-1": {
-      "status": "PASS",
-      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac1_bus_status_query"
-    },
-    "AC-2": {
-      "status": "PASS",
-      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac2_start_daemon_idempotent"
-    },
-    "AC-3": {
-      "status": "PASS",
-      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac3_stop_daemon_graceful"
-    },
-    "AC-4": {
-      "status": "PASS",
-      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac4_health_integration"
-    },
-    "AC-5": {
-      "status": "PASS",
-      "evidence": "test-framework/tests/pipeline/test_events_bus_daemon_api.py::test_ac5_bus_auth_operator_enforcement"
     }
   }
 }
