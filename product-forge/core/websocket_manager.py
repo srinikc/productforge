@@ -1,7 +1,7 @@
 """
 DEPRECATED: Legacy WebSocket transport (BI-PF-1276).
 Superseded by Eventing SSOT SSE (/api/v1/events/stream) and bus subscription API.
-Retained strictly for backwards compatibility with the frozen legacy dashboard.
+Retained strictly for backwards compatibility with legacy UI clients.
 DO NOT extend or add new WebSocket endpoints.
 """
 
