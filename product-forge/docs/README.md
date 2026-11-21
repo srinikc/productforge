@@ -104,6 +104,7 @@
 | [`FIX-IMPACT-CONTRACT.md`](FIX-IMPACT-CONTRACT.md) | SSOT | 100% | Fix impact contract: reproducer, regression test, evidence, rollback, artifacts, status | — | — |
 | [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
+| [`GCS-ADAPTER-QUALIFICATION.md`](GCS-ADAPTER-QUALIFICATION.md) | Implemented | 100% | GCS ObjectStore adapter streaming resumable upload and qualification runbook (BI-PF-1435) | — | — |
 | [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
 | [`GLOSSARY.md`](GLOSSARY.md) | SSOT | 100% | Pinned definitions (API=contract vs transport, service, caller classes, gates, dispositions, review terms, model-working terms) - define before building | — | — |
@@ -133,6 +134,7 @@
 | [`PF-API-SERVICE-OR-SERVER.md`](PF-API-SERVICE-OR-SERVER.md) | SSOT | 100% | PF Server/Service topology: many services serve API + operate PF; ownership by domain not language; language rule is Go-forward not a port; caller classes x transport; one instance per service per environment; interim: no PF token for internal | — | — |
 | [`PF-BASELINE.md`](PF-BASELINE.md) | Implemented | 100% | PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392) | — | — |
 | [`PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md`](PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md) | Design | 0% | Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360) | — | — |
+| [`PF-DELIVERY-BASELINE.md`](PF-DELIVERY-BASELINE.md) | SSOT | 100% | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled; customer contract (BI-PF-0387) | — | — |
 | [`PF-DESIGN-DELIVERY-CONTRACT.md`](PF-DESIGN-DELIVERY-CONTRACT.md) | Implemented | 100% | Design and delivery contract for PF work items | — | — |
 | [`PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md`](PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md) | Design | 10% | Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388) | — | — |
 | [`PFSSOT-P0-REUSE-MAP.md`](PFSSOT-P0-REUSE-MAP.md) | Design | 100% | PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate) | — | — |

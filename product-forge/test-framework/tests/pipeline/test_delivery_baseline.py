@@ -8,7 +8,6 @@ Verifies:
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -16,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core import change_policy as cp
-from core import packaging
+from core import change_policy as cp  # noqa: E402
+from core import packaging  # noqa: E402
 
 BASELINE_DOC = ROOT / "docs" / "PF-DELIVERY-BASELINE.md"
 ADR_DOC = ROOT / "docs" / "ARCHITECTURE-DECISIONS.md"
