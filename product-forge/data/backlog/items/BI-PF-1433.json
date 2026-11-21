@@ -24,6 +24,17 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-11-21T17:54:58.367257+00:00",
+      "by": "hil:operator",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "14f8b2215454",
+      "findings_digest": "d7dc7fc92e7f",
+      "seq": 2,
+      "note": "Gate 2 human approval received - proceed to merge",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -179,7 +190,7 @@
     "usage": {}
   },
   "created_at": "2026-10-17T22:39:55.386018",
-  "updated_at": "2026-11-21T22:24:54.237208",
+  "updated_at": "2026-11-21T23:24:58.485422",
   "score": 0.75,
   "_note": "brief.source authored",
   "affects_scope": [
@@ -286,5 +297,27 @@
         "note": "Actioned and verified in go/azurestore and go/edpsvc test suites."
       }
     }
-  }
+  },
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: The Azure Blob adapter implements datastore.ObjectStore on go/objstorerest and passes the hardened ConformObjectStore suite against the Azurite emulator/mock.",
+      "result": "PASS",
+      "evidence": [
+        "go test -C go/azurestore -v -run TestAzureStore_Conformance .",
+        "docs/AZURE-BLOB-ADAPTER.md"
+      ],
+      "verified_by": "hil:operator"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: Capabilities are declared honestly (immutability/legal-hold/versioning/CMK implemented or declared false and fail-closed) and the adapter is dependency-lean (no Azure SDK).",
+      "result": "PASS",
+      "evidence": [
+        "go test -C go/azurestore -v -run TestAzureStore_CapabilitiesHonesty .",
+        "docs/AZURE-BLOB-ADAPTER.md"
+      ],
+      "verified_by": "hil:operator"
+    }
+  ]
 }
