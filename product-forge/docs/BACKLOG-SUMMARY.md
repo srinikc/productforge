@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-21T17:42:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-21T17:48:20 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 124  |  **Closed:** 634
+- **Open:** 123  |  **Closed:** 635
 - `blocked`: 1
-- `in_progress`: 1
-- `new`: 122
+- `in_progress`: 2
+- `new`: 120
 
-### new, by category (122)
+### new, by category (120)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -86,7 +86,7 @@
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 | BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (73)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -97,7 +97,6 @@
 | BI-PF-0360 | Must | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable... |
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 | BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value ->... |
-| BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
 | BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBO... |
 | BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime pac... |
@@ -154,7 +153,6 @@
 | BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
 | BI-PF-1433 | Should | feature | ObjectStore adapter: Azure Blob (on go/objstorerest) | ObjectStore adapter: Azure Blob (on go/objstorerest) |
 | BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
-| BI-PF-1435 | Should | feature | GCS ObjectStore adapter: streaming/resumable upload + wire buildObjectStore (production-qualification) | Remove the GCS adapter's memory buffering/5 MB ceiling and wire it on the runtime path. |
 | BI-PF-1437 | Should | feature | Framework-agnostic skills home + resolver | PF owns the skill bodies; .opencode is a legacy fallback only. |
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
@@ -363,5 +361,5 @@
 ---
 
 ## Totals
-- backend: 124 open / 634 closed
+- backend: 123 open / 635 closed
 - dashboard: 146 open / 3 closed
