@@ -74,7 +74,7 @@ def deliver_plane_a(item_id: str, scope: str = "product_forge", project: str | N
         with open(item_json_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(it, indent=2, ensure_ascii=False) + "\n")
 
-    # 4. Commit review evidence separately (comply with pre-commit hook)
+    # 4. Commit review evidence and trail separately (comply with pre-commit hook)
     rev_pattern = str(Path(_ROOT) / "engineering" / "reviews" / f"{item_id}-*.json")
     rev_files = [f for f in glob.glob(rev_pattern) if os.path.isfile(f)]
     for rf in rev_files:
@@ -83,6 +83,17 @@ def deliver_plane_a(item_id: str, scope: str = "product_forge", project: str | N
             print(f"[Deliver] Committing review evidence: {Path(rf).name}...")
             _run_cmd(["git", "add", rf])
             _run_cmd(["git", "commit", "-m", f"docs(review): record Gate 2.5 delivery review evidence for {item_id}"])
+
+    trail_path = str(Path(_ROOT) / "engineering" / "trails" / f"{item_id}.json")
+    if os.path.isfile(trail_path):
+        t_status = _run_cmd(["git", "status", "--porcelain", trail_path]).stdout.strip()
+        if t_status:
+            print(f"[Deliver] Committing execution trail: {Path(trail_path).name}...")
+            _run_cmd(["git", "add", trail_path])
+            _run_cmd(["git", "commit", "-m", f"docs({item_id}): update execution trail"])
+
+    # Clean uncommitted generated doc artifacts that interfere with branch checkout
+    _run_cmd(["git", "checkout", "--", "dashboard/docs/", "config/id-blocks.json"], check=False)
 
     # 5. Commit backlog bookkeeping separately (comply with pre-commit hook)
     backlog_status = _run_cmd(["git", "status", "--porcelain", "data/backlog/"]).stdout.strip()
