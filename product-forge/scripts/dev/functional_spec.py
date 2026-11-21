@@ -49,6 +49,8 @@ def iter_items():
 def should_enforce(item: dict, cfg: dict) -> bool:
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
+    if item.get("status") in ("new", "draft", "triaged"):
+        return False
     created = _date(item.get("created_at"))
     start = _date(cfg.get("enforce_from"))
     return bool(created and start and created >= start)

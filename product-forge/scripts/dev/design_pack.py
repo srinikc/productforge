@@ -41,6 +41,8 @@ def _parse_date(value) -> date | None:
 def should_enforce(item: dict, cfg: dict) -> bool:
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
+    if item.get("status") in ("new", "draft", "triaged"):
+        return False
     try:
         created = _parse_date(item.get("created_at"))
         enforce = _parse_date(cfg.get("enforce_from"))

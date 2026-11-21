@@ -171,6 +171,8 @@ def validate_contract(item: dict) -> list[str]:
 def enforced(item: dict, cfg: dict) -> bool:
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
+    if item.get("status") in ("new", "draft", "triaged"):
+        return False
     created = str(item.get("created_at") or "")
     return bool(created and created >= str(cfg.get("enforce_from") or ""))
 

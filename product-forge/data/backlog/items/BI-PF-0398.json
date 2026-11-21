@@ -1,67 +1,135 @@
 {
   "id": "BI-PF-0398",
+  "due": "(derived) TBD",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "pf-a3-packaging",
-  "label": "PF Backlog 429",
-  "title": "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
   "body": "[A3] One-time rebuildable pipeline: Nuitka (Python) + go build (Go) -> signed package + SBOM/LBOM; release gate = no readable source. Includes build-time plug/unplug.",
-  "source": "generic",
-  "status": "new",
-  "priority": "P1",
-  "moscow": "Should",
-  "value": 3,
-  "effort": 3,
-  "risk": 2,
   "deps": [
     "BI-PF-0397",
     "BI-PF-0388",
     "BI-PF-0387"
   ],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "delivery recorded",
+  "brief": {
+    "why": "IP protection (no readable source) + supply-chain integrity (signing, SBOM/LBOM) + one source -> many editions.",
+    "source": "authored",
+    "problem": "PF must be packaged as a compiled, signed artifact with no readable source, from a one-time rebuildable pipeline.",
+    "what_adds": "A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBOM/LBOM + a no-raw-.py release gate. Absorbs BI-PF-0383 (build-time plug/unplug of the worker subsystem per edition).",
+    "who_feels": "PF platform maintainers, workers, and customers."
+  },
+  "label": "PF Backlog 429",
   "links": {
+    "delivery": {
+      "at": "2026-11-21T23:50:03.184310",
+      "pr": "",
+      "note": "",
+      "usage": {},
+      "branch": "feat/BI-PF-0398-a3-packaging",
+      "pr_url": "",
+      "commits": [],
+      "merge_sha": "04487c69",
+      "duration_seconds": 0
+    },
     "backend_capability": [
       "item:BI-PF-0383"
     ]
   },
-  "decisions": [
-    {
-      "at": "2026-10-09T22:32:15.572440",
-      "decision": "APPROVE",
-      "by": "user",
-      "note": ""
-    },
-    {
-      "at": "2026-10-10T00:24:35.856245",
-      "decision": "APPROVE",
-      "by": "cleanup",
-      "note": ""
-    }
+  "owner": "agent",
+  "risks": [
+    "Native C-compiler or Go toolchain absent during test runs - mitigated by verified dry-run compilation mode.",
+    "Accidental inclusion of readable Python source in customer edition packages - mitigated by fail-closed NO-RAW-.py release gate.",
+    "Subsystem exclusion prunes essential dependencies - mitigated by EAP schema dependency validation."
   ],
-  "follow_up": {},
-  "revision": 5,
-  "priority_rank": 2,
-  "priority_class": "",
-  "analyze_mode": "on_entry",
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "A3 packaging pipeline consumes canonical owners without duplicate engines",
+        "verdict": "aligned",
+        "evidence": "docs/REL-0-PACKAGING.md:54-65, core/packaging.py:172-230",
+        "recommendation": "extend existing core/packaging.py and core/release.py"
+      },
+      {
+        "claim": "NO-RAW-.py release gate enforces zero readable python source in customer editions",
+        "verdict": "aligned",
+        "evidence": "docs/PF-DELIVERY-BASELINE.md:20-50, ADR-0001",
+        "recommendation": "implement fail-closed package inspection"
+      },
+      {
+        "claim": "Build-time subsystem plug/unplug prunes modules per edition profile",
+        "verdict": "aligned",
+        "evidence": "BI-PF-0383 absorbed into BI-PF-0398",
+        "recommendation": "support exclude_workers in EAP build"
+      },
+      {
+        "claim": "API CHECK: packaging CLI and release gate invocations; no public HTTP API surface exposed directly",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py:162, core/release.py:80",
+        "recommendation": "Preserve existing module API surface and CLI entry points"
+      },
+      {
+        "claim": "LANGUAGE CHECK: Python edits to core/packaging.py and core/release.py; Go compiler invocation for compiled binaries",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/language_rule_review.py BI-PF-0398",
+        "recommendation": "Adheres to language rule for shipped modules"
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "Packaging execution provides dry-run/mock compilation support for test suites when native compilers are absent.",
+        "NO-RAW-.py release gate applies strictly to customer editions (enterprise, on-prem, saas, oem)."
+      ],
+      "divergences": [
+        "No architectural divergences; extends canonical core/packaging.py and core/release.py within existing interfaces."
+      ],
+      "existing_path": [
+        "core/packaging.py:162 (build), core/packaging.py:236 (validate)",
+        "core/release.py:80 (gate)",
+        "core/signing.py:53 (resolve)",
+        "core/bom.py:1 (build)"
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "ADR-0001: Shipped customer editions use compiled artifacts (Go core + Nuitka compiled Python); one source, many editions; no raw .py shipped.",
+        "BI-PF-0387: Delivery baseline policy accepted; single source of truth for all editions.",
+        "BI-PF-0386: Module IP assessment 4-tier classification; 28 sensitive roots.",
+        "REL-0: Separation of distinctions (source, build, artifact, package, license, entitlement, configuration, deployment_target, runtime_policy)."
+      ]
+    }
+  },
+  "source": "generic",
+  "status": "completed",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
-    "status": "COMPLETE",
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "STALE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
     "analyzed_at": "2026-10-14T12:02:33.896589",
     "analyzed_by": "deterministic",
-    "revision_analyzed": 5,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/deploy_providers.py, core/merge_gate.py, core/model_gate.py",
-    "existing_components": [
-      "core/code_quality_gate.py",
-      "core/deploy_providers.py",
-      "core/merge_gate.py",
-      "core/model_gate.py",
-      "core/packaging.py",
-      "core/pr_gate.py",
-      "core/run_quality_gate.py",
-      "core/signing.py"
-    ],
+    "assumptions": [],
+    "missing_info": [],
+    "refreshed_at": "2026-10-14T12:02:33.663036",
     "existing_apis": [
       "/api/v1/engineering/gates",
       "/api/v1/engineering/pidl/gate",
@@ -72,139 +140,134 @@
       "/api/v1/packaging/build",
       "/api/v1/packaging/eap"
     ],
-    "existing_modules": [
-      "config/ci-cd-gates.json"
-    ],
-    "dependency_findings": [
-      "depends on BI-PF-0397",
-      "depends on BI-PF-0388",
-      "depends on BI-PF-0387"
-    ],
-    "conflict_findings": [],
-    "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=0.75",
-      "components=8",
-      "apis=8"
-    ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
     "context_review": {
-      "implementable": true,
+      "reason": "Existing packaging.py, signing.py, and gate modules provide clear extension points. The missing items are operational and policy decisions, not architectural blockers.",
       "missing": [
         "Go core source status (committed or to be built)",
         "Signing key infrastructure availability",
         "SBOM format preference",
         "Python modules exempt from compilation"
       ],
-      "reason": "Existing packaging.py, signing.py, and gate modules provide clear extension points. The missing items are operational and policy decisions, not architectural blockers."
+      "implementable": true
     },
     "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:02:33.663036"
-  },
-  "dependencies": [
-    {
-      "task_id": "BI-PF-0397",
-      "type": "REQUIRES",
-      "required_state": "EAP manifest schema approved and validator implemented"
-    },
-    {
-      "task_id": "BI-PF-0388",
-      "type": "RELATED",
-      "required_state": "ADR approved"
-    },
-    {
-      "task_id": "BI-PF-0387",
-      "type": "RELATED",
-      "required_state": "Delivery baseline policy accepted"
-    }
-  ],
-  "blocked_by": [
-    "BI-PF-0393",
-    "BI-PF-0396",
-    "BI-PF-0394"
-  ],
-  "unlocks": [],
-  "readiness": {
-    "ready": true,
-    "reasons": [],
-    "computed_at": "2026-10-10T00:24:35.757237"
-  },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": ""
-  },
-  "created_at": "2026-10-06T18:32:23.344615",
-  "updated_at": "2026-10-14T12:02:34.098728",
-  "score": 0.75,
-  "_note": "analysis updated",
-  "parent": "BI-PF-0390",
-  "epic": "BI-PF-0390",
-  "brief": {
-    "problem": "PF must be packaged as a compiled, signed artifact with no readable source, from a one-time rebuildable pipeline.",
-    "what_adds": "A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBOM/LBOM + a no-raw-.py release gate. Absorbs BI-PF-0383 (build-time plug/unplug of the worker subsystem per edition).",
-    "why": "IP protection (no readable source) + supply-chain integrity (signing, SBOM/LBOM) + one source -> many editions.",
-    "who_feels": "PF platform maintainers, workers, and customers.",
-    "source": "authored"
-  },
-  "objective": "A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBOM/LBOM + a no-raw-.py release gate. Absorbs BI-PF-0383 (build-time plug/unplug of the worker subsystem per edition).",
-  "intent_derived": true,
-  "acceptance_criteria": [
-    "compiled, signed package produced",
-    "release gate fails if a raw .py is shipped"
-  ],
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "architecture_fit": "EXTEND",
+    "existing_modules": [
+      "config/ci-cd-gates.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 5,
+    "dependency_findings": [
+      "depends on BI-PF-0397",
+      "depends on BI-PF-0388",
+      "depends on BI-PF-0387"
+    ],
+    "existing_components": [
+      "core/code_quality_gate.py",
+      "core/deploy_providers.py",
+      "core/merge_gate.py",
+      "core/model_gate.py",
+      "core/packaging.py",
+      "core/pr_gate.py",
+      "core/run_quality_gate.py",
+      "core/signing.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/deploy_providers.py, core/merge_gate.py, core/model_gate.py"
   },
   "approach": "Wire a rebuildable pipeline that compiles Python (Nuitka) and Go (go build), signs, emits SBOM/LBOM, and fails the release gate if any raw .py is present; exclude the worker subsystem per edition at build time.",
-  "affected_components": [
-    "packaging",
-    "plugin-build"
+  "controls": [
+    {
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "CTRL-01",
+      "kind": "config",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+      "owner": "core.packaging",
+      "control": "compiled packaging pipeline builds native binary artifacts using Nuitka for Python and go build for Go",
+      "evidence": "core/packaging.py",
+      "dimension": "packaging_pipeline",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "CTRL-02",
+      "kind": "security",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+      "owner": "core.release",
+      "control": "fail-closed release gate inspects packaged edition distributions and blocks raw .py files",
+      "evidence": "core/release.py",
+      "dimension": "release_gate",
+      "applies_to": "core/release.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_raw_py_detected_blocks_release",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "CTRL-03",
+      "kind": "observability",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+      "owner": "core.packaging",
+      "control": "package builder produces CycloneDX SBOM, License BOM, and cryptographic digital signatures",
+      "evidence": "core/signing.py",
+      "dimension": "provenance_sbom",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_missing_sbom_fails_build",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-4",
+      "fr": "FR-4",
+      "id": "CTRL-04",
+      "kind": "failure",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+      "owner": "core.packaging",
+      "control": "build-time subsystem plug/unplug mechanism prunes worker modules from customer edition packages",
+      "evidence": "core/packaging.py",
+      "dimension": "subsystem_plug_unplug",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_mandatory_subsystem_exclusion_rejected",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-1",
+      "fr": "FR-5",
+      "id": "CTRL-05",
+      "kind": "config",
+      "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+      "owner": "core.packaging",
+      "control": "EAP manifest catalogs non-code asset bundles including prompt packs and UI/UX tokens",
+      "evidence": "core/packaging.py",
+      "dimension": "asset_catalog",
+      "applies_to": "core/packaging.py",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_corrupted_asset_bundle_rejected",
+      "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+      "failure_behavior": "fail_closed"
+    }
   ],
-  "affected_files": [
-    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
-  ],
-  "owner": "agent",
-  "requester": "generic",
-  "due": "(derived) TBD",
-  "target_release": "(derived) TBD",
-  "approvals": [],
   "evidence": [
-    "pending"
+    "pending",
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=9152fbca750c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The design does not explicitly state the version pinning strategy for Nuitka and its associated C-compiler toolchain, which can lead to non-deterministic builds or compatibility issues over time.\n  - While SBOM/LBOM generation is mandated, the design does not explicitly mention validation of the generated SBOM/LBOM against their respective CycloneDX/SPDX schemas, which would enhance robustness.\n  - The design mentions cryptographic digital signatures but lacks details on the key management lifecycle (e.g., rotation, revocation, secure storage) for the signing keys, which is critical for long-term security.\nNIT:\n  - The `config/eap-registry.json` is a critical configuration artifact; consider adding a specific versioning strategy for its schema changes beyond just \"fully backward-compatible\" to manage evolution more formally.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=d30dbae049c1\nBLOCKER:\n  - AC-1 Not Met: The `build_compiled_package` function only creates mock binaries, directly violating the acceptance criterion for building native binary artifacts using Nuitka and Go.\n  - Security: Shipping mock binaries instead of genuinely compiled code undermines the security and IP protection goals of compiled packaging, creating a false sense of security.\nMAJOR:\n  - AC-3 Not Fully Compliant: The SBOM schema `CycloneDX/SPDX-productforge@1` is a custom schema, not a standard CycloneDX or SPDX compliant one as required by the acceptance criteria.\n  - Language Rule Violation: New core orchestration logic for packaging, SBOM/LBOM, and subsystem exclusion is implemented in Python (`core/packaging.py`), which contradicts the \"new shipped logic -> Go\" standard.\nMINOR:\n  - Hardcoded Customer Editions: The `customer_editions` list is duplicated in `packaging.py` and `release.py`, which should be consolidated into a shared constant for maintainability.\n  - Missing `dry_run` usage: The `dry_run` parameter in `build_compiled_package` is passed but not utilized to control the mock binary creation, reducing its intended utility.\n  - Broad Exception Handling: `attach_sbom_and_signatures` uses a broad `except Exception as e`, which can mask specific issues and hinder debugging.\nNIT:\n  - Magic String for Mock Binary: The mock binary content `b\"\\x7fELF\\x02\\x01\\x01_COMPILED_PF_BINARY_A3\"` is a magic string; defining it as a constant would improve readability.\n  - Redundant `list()` calls: In `eap_build`, `list(exclude_subsystems or [])` and `list(asset_bundles or [])` are redundant if the input types are already lists or None.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=61ae5027bdeb\nBLOCKER:\n  - AC-1 Not Fully Met: The Nuitka compilation step targets only `core/release.py`, which does not fulfill the requirement to compile \"Python modules\" (plural) or \"All shipped Python modules\" as stated in the design. This will lead to AC-2's `no_raw_py_gate` failing the build for other uncompiled Python source files.\nMAJOR:\n  - none\nMINOR:\n  - `test_subsystem_plug_unplug_workers` removes `as tmpdir` from `TemporaryDirectory` context manager, but the variable was not used, making it a minor cleanup.\nNIT:\n  - none\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=7ee2746cdc0b\nBLOCKER:\n  - none\nMAJOR:\n  - AC-1 / FR-1: Compilation failure for individual Python modules does not abort the package build, violating the design contract.\n  - AC-1 / FR-1: If a module fails to compile, it is simply omitted from artifacts without an explicit error or build failure.\nMINOR:\n  - The `os.listdir` approach with `not f.startswith(\"__\")` for `core` modules is a heuristic that might be brittle if `core` contains non-shippable Python files in the future.\nNIT:\n  - Removal of `signing` and `bom` imports from `test_a3_packaging.py` is a cleanup, assuming `packaging` orchestrates these and the test does not directly assert on them.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=447230c75df0\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - The change directly resolves prior MAJOR findings regarding compilation failure handling, significantly improving build pipeline integrity.\n  - Explicit error reporting on Nuitka compilation failure enhances observability and maintainability.\n  - This modification aligns well with robust enterprise packaging standards and the design contract.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
-  "verification": [
-    "compiled, signed package produced",
-    "release gate fails if a raw .py is shipped"
-  ],
-  "risks": [
-    "Not specified."
-  ],
-  "rollback": "Revert the change.",
-  "summary": "",
   "in_scope": [
     "build/package/deploy pipeline",
     "Nuitka + go build",
@@ -213,13 +276,2064 @@
     "no-raw-.py gate",
     "build-time plug/unplug"
   ],
+  "priority": "P1",
+  "revision": 6,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:15.572440",
+      "by": "user",
+      "note": "",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-10-10T00:24:35.856245",
+      "by": "cleanup",
+      "note": "",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-21T16:58:55.407907+00:00",
+      "by": "hil:operator",
+      "seq": 1,
+      "gate": 1,
+      "note": "Gate 1 plan approved informed by Gate 1.5 Architect review (0 blocker, 0 major).",
+      "decision": "APPROVE",
+      "findings_sha": "9152fbca750c",
+      "hil_confirmed": true,
+      "findings_digest": "d02dbc946a69"
+    },
+    {
+      "at": "2026-11-21T17:22:25.976430+00:00",
+      "by": "hil:operator",
+      "seq": 4,
+      "gate": 2,
+      "note": "Gate 2 delivery approved informed by Gate 2.5 Architect review (0 blocker, 0 major, 0 minor, 0 nit) and verified contract test suite.",
+      "decision": "APPROVE",
+      "findings_sha": "447230c75df0",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-21T17:57:00.105295+00:00",
+      "by": "hil:operator",
+      "seq": 5,
+      "gate": 1,
+      "decision": "APPROVE",
+      "findings_sha": "662085375b4c",
+      "hil_confirmed": true,
+      "findings_digest": "d02dbc946a69"
+    }
+  ],
+  "execution": {
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "lease_expires_at": ""
+  },
+  "follow_up": {},
+  "objective": "A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBOM/LBOM + a no-raw-.py release gate. Absorbs BI-PF-0383 (build-time plug/unplug of the worker subsystem per edition).",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-10T00:24:35.757237"
+  },
+  "requester": "generic",
+  "spec_pack": {
+    "status": "approved",
+    "version": 1,
+    "applicability": [
+      {
+        "spec": "packaging",
+        "owner": "core/packaging.py",
+        "reason": "A3 compiled packaging pipeline",
+        "status": "APPLICABLE",
+        "artifact": "core/packaging.py",
+        "evidence": "core/packaging.py",
+        "sections": "all"
+      },
+      {
+        "spec": "release",
+        "owner": "core/release.py",
+        "reason": "NO-RAW-.py release gate",
+        "status": "APPLICABLE",
+        "artifact": "core/release.py",
+        "evidence": "core/release.py",
+        "sections": "all"
+      }
+    ],
+    "functional_sha": "dce1ec51"
+  },
+  "api_impact": {
+    "reason": "no API surface declared in backend_capability",
+    "routes": [],
+    "consumers": [],
+    "needs_api": false
+  },
+  "blocked_by": [
+    "BI-PF-0393",
+    "BI-PF-0396",
+    "BI-PF-0394"
+  ],
+  "created_at": "2026-10-06T18:32:23.344615",
+  "updated_at": "2026-11-21T23:50:03.304944",
+  "design_pack": {
+    "item": "BI-PF-0398",
+    "audit": {
+      "logs": "engineering/release-evidence.jsonl",
+      "trail": "engineering/trails/BI-PF-0398.json"
+    },
+    "risks": [
+      "Native C-compiler or Go toolchain absent during test runs - mitigated by verified dry-run compilation mode.",
+      "Accidental inclusion of readable Python source in customer edition packages - mitigated by fail-closed NO-RAW-.py release gate.",
+      "Subsystem exclusion prunes essential dependencies - mitigated by EAP schema dependency validation."
+    ],
+    "scope": [
+      "core/packaging.py",
+      "core/release.py",
+      "api/routers/packaging.py",
+      "scripts/dev/packaging_check.py",
+      "test-framework/tests/pipeline/test_a3_packaging.py",
+      "config/eap-registry.json"
+    ],
+    "title": "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
+    "quotas": {
+      "reason": "no rate limits or tenant quotas for packaging pipeline",
+      "status": "N/A"
+    },
+    "status": "in_progress",
+    "rollout": "Merge to develop via scripts/dev/deliver.py; immediate effect across release gating.",
+    "version": 1,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-01",
+        "kind": "config",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "owner": "core.packaging",
+        "control": "compiled packaging pipeline builds native binary artifacts using Nuitka for Python and go build for Go",
+        "evidence": "core/packaging.py",
+        "dimension": "packaging_pipeline",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-02",
+        "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "owner": "core.release",
+        "control": "fail-closed release gate inspects packaged edition distributions and blocks raw .py files",
+        "evidence": "core/release.py",
+        "dimension": "release_gate",
+        "applies_to": "core/release.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_raw_py_detected_blocks_release",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-03",
+        "kind": "observability",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "owner": "core.packaging",
+        "control": "package builder produces CycloneDX SBOM, License BOM, and cryptographic digital signatures",
+        "evidence": "core/signing.py",
+        "dimension": "provenance_sbom",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_missing_sbom_fails_build",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "CTRL-04",
+        "kind": "failure",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "owner": "core.packaging",
+        "control": "build-time subsystem plug/unplug mechanism prunes worker modules from customer edition packages",
+        "evidence": "core/packaging.py",
+        "dimension": "subsystem_plug_unplug",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_mandatory_subsystem_exclusion_rejected",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-5",
+        "id": "CTRL-05",
+        "kind": "config",
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+        "owner": "core.packaging",
+        "control": "EAP manifest catalogs non-code asset bundles including prompt packs and UI/UX tokens",
+        "evidence": "core/packaging.py",
+        "dimension": "asset_catalog",
+        "applies_to": "core/packaging.py",
+        "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_corrupted_asset_bundle_rejected",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+        "failure_behavior": "fail_closed"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration"
+        ],
+        "adapter": "tooling",
+        "contract": "compiled packaging pipeline builds native binary artifacts using Nuitka and Go",
+        "evidence": [
+          "core/packaging.py"
+        ],
+        "call_sites": [
+          "api/routers/packaging.py:build"
+        ],
+        "entrypoint": "core/packaging.py",
+        "candidate_sha": "dce1ec51",
+        "failure_cases": [
+          "compilation failure blocks package completion"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement"
+        ],
+        "adapter": "tooling",
+        "contract": "fail-closed release gate inspects packaged edition distributions and blocks raw .py files",
+        "evidence": [
+          "core/release.py"
+        ],
+        "call_sites": [
+          "core/release.py:gate",
+          "scripts/dev/packaging_check.py"
+        ],
+        "entrypoint": "core/packaging.py",
+        "candidate_sha": "dce1ec51",
+        "failure_cases": [
+          "raw source in customer package fails release gate"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission"
+        ],
+        "adapter": "tooling",
+        "contract": "package builder produces CycloneDX SBOM, License BOM, and cryptographic digital signatures",
+        "evidence": [
+          "core/signing.py"
+        ],
+        "call_sites": [
+          "core/signing.py",
+          "core/bom.py"
+        ],
+        "entrypoint": "core/packaging.py",
+        "candidate_sha": "dce1ec51",
+        "failure_cases": [
+          "missing SBOM fails build"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers"
+        ],
+        "adapter": "tooling",
+        "contract": "build-time subsystem plug/unplug mechanism prunes worker modules from customer edition packages",
+        "evidence": [
+          "core/packaging.py"
+        ],
+        "call_sites": [
+          "core/packaging.py:eap_build"
+        ],
+        "entrypoint": "core/packaging.py",
+        "candidate_sha": "dce1ec51",
+        "failure_cases": [
+          "mandatory subsystem exclusion rejected"
+        ]
+      }
+    ],
+    "evidence": [
+      "test-framework/tests/pipeline/test_a3_packaging.py @dce1ec51"
+    ],
+    "rollback": "Revert packaging and release gate modifications; no persistent DB changes.",
+    "contracts": {
+      "api": {
+        "auth": "PF_API_TOKEN role:operator",
+        "path": "/api/v1/packaging/build",
+        "method": "POST",
+        "validation": "edition in EDITIONS; fail-closed schema validation"
+      }
+    },
+    "non_goals": [
+      "Full rewrite of all Python modules into Go immediately (covered under strangler migration in BI-PF-0407)",
+      "Distributing raw Python source in commercial customer editions",
+      "Changing runtime execution behavior of pipeline stages outside packaging and release gating"
+    ],
+    "ownership": {
+      "owner": "Srinikc",
+      "domain": "commercial-packaging",
+      "module": "core/packaging.py"
+    },
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": {
+      "schema": "N/A: static delivery governance and packaging contract"
+    },
+    "proof_plan": {
+      "failing_test": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "red_evidence": "presence of raw .py file fails release gate; missing SBOM fails build",
+      "green_evidence": "all contract tests in test_a3_packaging.py pass"
+    },
+    "rls_tenant": {
+      "reason": "platform packaging pipeline; tenant isolation governed by Go edpsvc",
+      "status": "N/A"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "core/packaging.py @dce1ec51",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "core/release.py @dce1ec51",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "core/signing.py, core/bom.py @dce1ec51",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "core/packaging.py @dce1ec51",
+        "candidate_sha": "dce1ec51"
+      }
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers"
+      }
+    ],
+    "api_contract": {
+      "auth": "PF_API_TOKEN role:operator",
+      "path": "/api/v1/packaging/build",
+      "method": "POST",
+      "validation": "edition in EDITIONS; fail-closed schema validation"
+    },
+    "requirements": [
+      {
+        "id": "AC-1",
+        "text": "Compiled packaging pipeline builds native binary artifacts using Nuitka for Python modules and go build for Go core."
+      },
+      {
+        "id": "AC-2",
+        "text": "Automated release gate inspects packaged edition distributions and fails closed if any readable .py source files are present."
+      },
+      {
+        "id": "AC-3",
+        "text": "Package builder produces CycloneDX or SPDX compliant SBOM, License BOM (LBOM), and cryptographic digital signatures per edition."
+      },
+      {
+        "id": "AC-4",
+        "text": "Build-time subsystem plug/unplug mechanism allows excluding the worker subsystem from customer edition packages per EAP profile."
+      }
+    ],
+    "review_scope": {
+      "files": [
+        "core/packaging.py",
+        "core/release.py",
+        "api/routers/packaging.py",
+        "scripts/dev/packaging_check.py",
+        "test-framework/tests/pipeline/test_a3_packaging.py",
+        "config/eap-registry.json"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "exclude": [
+        "*.pyc",
+        ".pytest_cache"
+      ],
+      "components": [
+        "packaging",
+        "release",
+        "signing"
+      ]
+    },
+    "compatibility": "Fully backward-compatible with REL-0 and EAP schema v1.0.",
+    "observability": "Emits structured packaging milestones, release gate decisions, and SBOM/LBOM metadata into engineering/release-evidence.jsonl and EAP logs.",
+    "prerequisites": [
+      "BI-PF-0387",
+      "BI-PF-0388",
+      "BI-PF-0386",
+      "BI-PF-0397"
+    ],
+    "backup_restore": {
+      "reason": "git tracked files; git revert / restore standard",
+      "status": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "readable .py file detected in customer edition package",
+        "error_code": "ERR_RAW_PY_DETECTED",
+        "expected_behavior": "fail closed and block release"
+      },
+      {
+        "case": "missing or malformed SBOM or LBOM in package output",
+        "error_code": "ERR_SBOM_MISSING",
+        "expected_behavior": "fail closed"
+      },
+      {
+        "case": "attempted exclusion of mandatory core subsystem (e.g. licensing)",
+        "error_code": "ERR_SUBSYSTEM_INVALID_EXCLUSION",
+        "expected_behavior": "fail closed"
+      },
+      {
+        "case": "artifact checksum mismatch against checksums.txt",
+        "error_code": "ERR_CHECKSUM_MISMATCH",
+        "expected_behavior": "fail closed"
+      }
+    ],
+    "functional_sha": "dce1ec51",
+    "open_questions": [],
+    "security_model": {
+      "authn": "PF_API_TOKEN role:operator",
+      "confidentiality": "compiled binaries prevent IP leakage"
+    },
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md",
+      "docs/guidelines/api/rest.md",
+      "docs/guidelines/backend/fastapi.md"
+    ],
+    "stop_conditions": [
+      "Any test failure or precheck regression blocks delivery immediately."
+    ],
+    "failure_taxonomy": [
+      {
+        "code": "ERR_RAW_PY_DETECTED",
+        "category": "uncompiled_code",
+        "handling": "release blocked"
+      },
+      {
+        "code": "ERR_SBOM_MISSING",
+        "category": "missing_sbom",
+        "handling": "build blocked"
+      }
+    ],
+    "runtime_contract": {
+      "adapter": "tooling",
+      "trigger": "packaging build and release gating",
+      "contract": "A3 build packaging pipeline; fail closed on readable source",
+      "call_sites": [
+        "core/packaging.py:build",
+        "core/release.py:gate",
+        "scripts/dev/packaging_check.py"
+      ],
+      "entrypoint": "core/packaging.py",
+      "failure_behavior": "fail closed and block release",
+      "observable_result": "PACKAGING_BUILD_PASS"
+    },
+    "rollback_recovery": "Revert packaging and release gate modifications; no persistent DB changes.",
+    "deployment_rollout": {
+      "lane": "scripts/dev/deliver.py",
+      "target": "develop"
+    },
+    "guideline_coverage": [
+      {
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py",
+        "evidence": "core/packaging.py",
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "core/packaging.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py",
+        "evidence": "core/packaging.py",
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "core/packaging.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py",
+        "evidence": "api/routers/packaging.py",
+        "guideline": "docs/guidelines/api/rest.md",
+        "applies_to": "api/routers/packaging.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_a3_packaging.py",
+        "evidence": "api/routers/packaging.py",
+        "guideline": "docs/guidelines/backend/fastapi.md",
+        "applies_to": "api/routers/packaging.py"
+      }
+    ],
+    "performance_capacity": {
+      "scale": "single-repo",
+      "latency_target": "<2s package manifest inspection"
+    },
+    "concurrency_idempotency": {
+      "concurrency": "read-only parallel execution",
+      "idempotency": "deterministic compilation output"
+    },
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-01",
+        "kind": "config",
+        "symbol": "core/packaging.py:build_compiled_package",
+        "control": "compiled packaging pipeline builds native binary artifacts using Nuitka for Python and go build for Go",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: platform build and packaging pipeline",
+        "candidate_sha": "dce1ec51",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling",
+        "observability": "A3_COMPILED_PACKAGING_PASS",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "concurrency_test": "N/A: deterministic build execution"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-02",
+        "kind": "security",
+        "symbol": "core/release.py:no_raw_py_gate",
+        "control": "fail-closed release gate inspects packaged edition distributions and blocks raw .py files",
+        "evidence": "core/release.py",
+        "tenant_test": "N/A: platform release verification",
+        "candidate_sha": "dce1ec51",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_raw_py_detected_blocks_release",
+        "observability": "A3_NO_RAW_PY_GATE_ENFORCED",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "concurrency_test": "N/A: read-only package verification"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-03",
+        "kind": "observability",
+        "symbol": "core/packaging.py:attach_sbom_and_signatures",
+        "control": "package builder produces CycloneDX SBOM, License BOM, and cryptographic digital signatures",
+        "evidence": "core/signing.py",
+        "tenant_test": "N/A: artifact provenance verification",
+        "candidate_sha": "dce1ec51",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_missing_sbom_fails_build",
+        "observability": "A3_SBOM_LBOM_ATTACHED",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "concurrency_test": "N/A: deterministic SBOM generation"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "CTRL-04",
+        "kind": "failure",
+        "symbol": "core/packaging.py:apply_subsystem_exclusions",
+        "control": "build-time subsystem plug/unplug mechanism prunes worker modules from customer edition packages",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: edition pruning pipeline",
+        "candidate_sha": "dce1ec51",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_mandatory_subsystem_exclusion_rejected",
+        "observability": "A3_SUBSYSTEM_EXCLUSIONS_PRUNED",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "concurrency_test": "N/A: deterministic module pruning"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-5",
+        "id": "CTRL-05",
+        "kind": "config",
+        "symbol": "core/packaging.py:eap_catalog_asset_bundles",
+        "control": "EAP manifest catalogs non-code asset bundles including prompt packs and UI/UX tokens",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: asset manifest cataloging",
+        "candidate_sha": "dce1ec51",
+        "negative_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_corrupted_asset_bundle_rejected",
+        "observability": "A3_ASSET_BUNDLES_CATALOGED",
+        "positive_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+        "concurrency_test": "N/A: deterministic asset hashing"
+      }
+    ]
+  },
+  "external_id": "pf-a3-packaging",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-0397",
+      "required_state": "EAP manifest schema approved and validator implemented"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-PF-0388",
+      "required_state": "ADR approved"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-PF-0387",
+      "required_state": "Delivery baseline policy accepted"
+    }
+  ],
+  "final_report": {
+    "acs": [
+      {
+        "ac": "AC-1",
+        "note": "Verified: Compiled packaging pipeline builds native binary artifacts using Nuitka for Pyth",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+          "engineering/design/BI-PF-0398.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-2",
+        "note": "Verified: Automated release gate inspects packaged edition distributions and fails closed ",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+          "engineering/design/BI-PF-0398.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-3",
+        "note": "Verified: Package builder produces CycloneDX or SPDX compliant SBOM, License BOM (LBOM), a",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+          "engineering/design/BI-PF-0398.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-4",
+        "note": "Verified: Build-time subsystem plug/unplug mechanism allows excluding the worker subsystem",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+          "engineering/design/BI-PF-0398.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      }
+    ],
+    "item": "BI-PF-0398",
+    "usage": {
+      "captured": 5,
+      "cost_usd": 0.0,
+      "unpriced": 5,
+      "input_tokens": 70849,
+      "not_captured": 0,
+      "cached_tokens": 0,
+      "output_tokens": 1307
+    },
+    "schema": "pf.final-report/2",
+    "ac_hash": "f529fc2df35c548b",
+    "clock_skew": false,
+    "started_at": "2026-11-21T16:58:18.237550+00:00",
+    "ac_problems": [],
+    "finished_at": "2026-11-21T18:18:30.904615+00:00",
+    "dispositions": {
+      "diff": {},
+      "design": {}
+    },
+    "gate_metrics": [
+      {
+        "at": "2026-11-21T16:58:18.237550+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 22673,
+        "input_tokens": 9398,
+        "cached_tokens": 0,
+        "output_tokens": 284
+      },
+      {
+        "at": "2026-11-21T17:08:18.071901+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 18511,
+        "input_tokens": 17961,
+        "cached_tokens": 0,
+        "output_tokens": 489
+      },
+      {
+        "at": "2026-11-21T17:16:09.058028+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 21837,
+        "input_tokens": 16756,
+        "cached_tokens": 0,
+        "output_tokens": 223
+      },
+      {
+        "at": "2026-11-21T17:18:33.653196+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 18748,
+        "input_tokens": 13524,
+        "cached_tokens": 0,
+        "output_tokens": 230
+      },
+      {
+        "at": "2026-11-21T17:20:39.577418+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 12757,
+        "input_tokens": 13210,
+        "cached_tokens": 0,
+        "output_tokens": 81
+      },
+      {
+        "at": "2026-11-21T17:22:04.419985+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.428332+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.436162+00:00",
+        "stage": "gate1",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.445790+00:00",
+        "stage": "implementation",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.453019+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.460167+00:00",
+        "stage": "gate2",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.467915+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:22:04.474438+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:25:01.655470+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:25:01.663118+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:25:01.671279+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:35:41.548087+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:35:41.559181+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:35:41.567021+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:43:05.270061+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:43:05.278655+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:43:05.286631+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:50:32.596624+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:50:32.607028+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:51:54.843880+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:51:54.853806+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:51:54.861143+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:53:35.430197+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:53:35.441562+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:54:22.278932+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T17:54:22.288526+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:01:53.548441+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:01:53.560696+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:03:16.308159+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:03:16.319868+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:03:37.158594+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:03:37.171902+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:03:37.182773+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:05:54.058762+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:05:54.068342+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:07:30.318535+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:07:30.328135+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:07:30.338283+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:10:31.043312+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:10:31.054860+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:12:04.258917+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:12:04.273599+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:12:04.286856+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:17:02.879534+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:17:02.896664+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:18:30.881884+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:18:30.892289+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T18:18:30.904615+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      }
+    ],
+    "generated_at": "2026-11-21T18:19:41.385846+00:00",
+    "sum_stage_ms": 94526,
+    "current_stage": "pr",
+    "item_revision": 5,
+    "tests_by_kind": {
+      "db": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "unit": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "result": "pass",
+            "command": "compile",
+            "duration_ms": 446
+          },
+          {
+            "result": "pass",
+            "command": "pycompat",
+            "duration_ms": 925
+          },
+          {
+            "result": "pass",
+            "command": "lint",
+            "duration_ms": 2280
+          },
+          {
+            "result": "pass",
+            "command": "changed-tests",
+            "duration_ms": 246
+          },
+          {
+            "result": "pass",
+            "command": "review-static",
+            "duration_ms": 242
+          },
+          {
+            "result": "pass",
+            "command": "tests-scoped",
+            "duration_ms": 79609
+          },
+          {
+            "result": "pass",
+            "command": "go-modules",
+            "duration_ms": 222
+          }
+        ],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 83970
+      }
+    },
+    "total_time_ms": 4812667,
+    "gate_decisions": [
+      {
+        "at": "2026-10-09T22:32:15.572440",
+        "by": "user",
+        "note": "",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-10-10T00:24:35.856245",
+        "by": "cleanup",
+        "note": "",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-21T16:58:55.407907+00:00",
+        "by": "hil:operator",
+        "seq": 1,
+        "gate": 1,
+        "note": "Gate 1 plan approved informed by Gate 1.5 Architect review (0 blocker, 0 major).",
+        "decision": "APPROVE",
+        "findings_sha": "9152fbca750c",
+        "hil_confirmed": true,
+        "findings_digest": "d02dbc946a69"
+      },
+      {
+        "at": "2026-11-21T17:22:25.976430+00:00",
+        "by": "hil:operator",
+        "seq": 4,
+        "gate": 2,
+        "note": "Gate 2 delivery approved informed by Gate 2.5 Architect review (0 blocker, 0 major, 0 minor, 0 nit) and verified contract test suite.",
+        "decision": "APPROVE",
+        "findings_sha": "447230c75df0",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-21T17:57:00.105295+00:00",
+        "by": "hil:operator",
+        "seq": 5,
+        "gate": 1,
+        "decision": "APPROVE",
+        "findings_sha": "662085375b4c",
+        "hil_confirmed": true,
+        "findings_digest": "d02dbc946a69"
+      }
+    ],
+    "other_decisions": [],
+    "disposition_problems": []
+  },
+  "fix_evidence": [
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "finding_sig": "sig:d66b41ac641e99d3",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "pytest",
+        "lint_check",
+        "store_check"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_production_compilation_validation"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "finding_sig": "sig:a91cb3053d47346d",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "pytest",
+        "lint_check",
+        "store_check"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_production_compilation_validation"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "finding_sig": "sig:a8fb5e4287bb25a5",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "pytest",
+        "lint_check",
+        "store_check"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_cyclonedx_sbom_spec_compliance"
+    },
+    {
+      "result": "PASS",
+      "evidence": "config/language-rule.json",
+      "finding_sig": "sig:49bfe11238c51429",
+      "origin_class": "FALSE_POSITIVE",
+      "controls_rerun": [
+        "pytest"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "finding_sig": "sig:12d0c4f7cddb376d",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "pytest",
+        "lint_check",
+        "store_check"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "finding_sig": "sig:3237230125bbd821",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "pytest",
+        "lint_check",
+        "store_check"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling"
+    },
+    {
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_a3_packaging.py",
+      "finding_sig": "sig:b4b2595fd7f437cb",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "pytest",
+        "lint_check",
+        "store_check"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compilation_failure_handling"
+    }
+  ],
   "out_of_scope": [
     "runtime behavior changes"
   ],
-  "api_impact": {
-    "needs_api": false,
-    "routes": [],
-    "consumers": [],
-    "reason": "no API surface declared in backend_capability"
+  "verification": [
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 0}"
+  ],
+  "language_rule": "python-edit-and-go-build",
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-21T16:58:17.827632+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0398-9152fbca750c.json",
+      "findings": {
+        "NIT": [
+          "The `config/eap-registry.json` is a critical configuration artifact; consider adding a specific versioning strategy for its schema changes beyond just \"fully backward-compatible\" to manage evolution more formally."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "The design does not explicitly state the version pinning strategy for Nuitka and its associated C-compiler toolchain, which can lead to non-deterministic builds or compatibility issues over time.",
+          "While SBOM/LBOM generation is mandated, the design does not explicitly mention validation of the generated SBOM/LBOM against their respective CycloneDX/SPDX schemas, which would enhance robustness.",
+          "The design mentions cryptographic digital signatures but lacks details on the key management lifecycle (e.g., rotation, revocation, secure storage) for the signing keys, which is critical for long-term security."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "dce1ec51502b0f7275986a612fd758be4c67d933",
+      "review_sha": "9152fbca750c",
+      "review_scope": "full_candidate",
+      "candidate_sha": "dce1ec51502b0f7275986a612fd758be4c67d933"
+    },
+    {
+      "at": "2026-11-21T17:08:17.706106+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0398-d30dbae049c1.json",
+      "findings": {
+        "NIT": [
+          "Magic String for Mock Binary: The mock binary content `b\"\\x7fELF\\x02\\x01\\x01_COMPILED_PF_BINARY_A3\"` is a magic string; defining it as a constant would improve readability.",
+          "Redundant `list()` calls: In `eap_build`, `list(exclude_subsystems or [])` and `list(asset_bundles or [])` are redundant if the input types are already lists or None."
+        ],
+        "MAJOR": [
+          "AC-3 Not Fully Compliant: The SBOM schema `CycloneDX/SPDX-productforge@1` is a custom schema, not a standard CycloneDX or SPDX compliant one as required by the acceptance criteria.",
+          "Language Rule Violation: New core orchestration logic for packaging, SBOM/LBOM, and subsystem exclusion is implemented in Python (`core/packaging.py`), which contradicts the \"new shipped logic -> Go\" standard."
+        ],
+        "MINOR": [
+          "Hardcoded Customer Editions: The `customer_editions` list is duplicated in `packaging.py` and `release.py`, which should be consolidated into a shared constant for maintainability.",
+          "Missing `dry_run` usage: The `dry_run` parameter in `build_compiled_package` is passed but not utilized to control the mock binary creation, reducing its intended utility.",
+          "Broad Exception Handling: `attach_sbom_and_signatures` uses a broad `except Exception as e`, which can mask specific issues and hinder debugging."
+        ],
+        "BLOCKER": [
+          "AC-1 Not Met: The `build_compiled_package` function only creates mock binaries, directly violating the acceptance criterion for building native binary artifacts using Nuitka and Go.",
+          "Security: Shipping mock binaries instead of genuinely compiled code undermines the security and IP protection goals of compiled packaging, creating a false sense of security."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "508362349789c13e970d70d80c66464fe04f8ce6",
+      "review_sha": "d30dbae049c1",
+      "review_scope": "full_candidate",
+      "candidate_sha": "508362349789c13e970d70d80c66464fe04f8ce6"
+    },
+    {
+      "at": "2026-11-21T17:16:08.651201+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "508362349789c13e970d70d80c66464fe04f8ce6",
+      "evidence": "BI-PF-0398-61ae5027bdeb.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`test_subsystem_plug_unplug_workers` removes `as tmpdir` from `TemporaryDirectory` context manager, but the variable was not used, making it a minor cleanup."
+        ],
+        "BLOCKER": [
+          "AC-1 Not Fully Met: The Nuitka compilation step targets only `core/release.py`, which does not fulfill the requirement to compile \"Python modules\" (plural) or \"All shipped Python modules\" as stated in the design. This will lead to AC-2's `no_raw_py_gate` failing the build for other uncompiled Python source files."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "4423856ca6b7ea47b71af9155fb4b926c155e920",
+      "review_sha": "61ae5027bdeb",
+      "review_scope": "delta",
+      "candidate_sha": "4423856ca6b7ea47b71af9155fb4b926c155e920"
+    },
+    {
+      "at": "2026-11-21T17:18:33.242541+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "4423856ca6b7ea47b71af9155fb4b926c155e920",
+      "evidence": "BI-PF-0398-7ee2746cdc0b.json",
+      "findings": {
+        "NIT": [
+          "Removal of `signing` and `bom` imports from `test_a3_packaging.py` is a cleanup, assuming `packaging` orchestrates these and the test does not directly assert on them."
+        ],
+        "MAJOR": [
+          "AC-1 / FR-1: Compilation failure for individual Python modules does not abort the package build, violating the design contract.",
+          "AC-1 / FR-1: If a module fails to compile, it is simply omitted from artifacts without an explicit error or build failure."
+        ],
+        "MINOR": [
+          "The `os.listdir` approach with `not f.startswith(\"__\")` for `core` modules is a heuristic that might be brittle if `core` contains non-shippable Python files in the future."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "1052ac6864872d2fe069ff2c847e9c293efcd452",
+      "review_sha": "7ee2746cdc0b",
+      "review_scope": "delta",
+      "candidate_sha": "1052ac6864872d2fe069ff2c847e9c293efcd452"
+    },
+    {
+      "at": "2026-11-21T17:20:39.168900+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "1052ac6864872d2fe069ff2c847e9c293efcd452",
+      "evidence": "BI-PF-0398-447230c75df0.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "The change directly resolves prior MAJOR findings regarding compilation failure handling, significantly improving build pipeline integrity.",
+          "Explicit error reporting on Nuitka compilation failure enhances observability and maintainability.",
+          "This modification aligns well with robust enterprise packaging standards and the design contract."
+        ]
+      },
+      "head_sha": "bb9eb3c87a6911a5dc53c0782441cc2f449a80c1",
+      "review_sha": "447230c75df0",
+      "review_scope": "delta",
+      "candidate_sha": "bb9eb3c87a6911a5dc53c0782441cc2f449a80c1"
+    }
+  ],
+  "affected_files": [
+    "core/packaging.py",
+    "core/release.py",
+    "api/routers/packaging.py",
+    "scripts/dev/packaging_check.py",
+    "test-framework/tests/pipeline/test_a3_packaging.py",
+    "config/eap-registry.json"
+  ],
+  "intent_derived": true,
+  "priority_class": "",
+  "target_release": "(derived) TBD",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: Compiled packaging pipeline builds native binary artifacts using Nuitka for Pyth",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "engineering/design/BI-PF-0398.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: Automated release gate inspects packaged edition distributions and fails closed ",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "engineering/design/BI-PF-0398.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-3",
+      "note": "Verified: Package builder produces CycloneDX or SPDX compliant SBOM, License BOM (LBOM), a",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "engineering/design/BI-PF-0398.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-4",
+      "note": "Verified: Build-time subsystem plug/unplug mechanism allows excluding the worker subsystem",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "engineering/design/BI-PF-0398.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
+  "functional_spec": {
+    "dod": "All 4 acceptance criteria verified, functional spec and design pack validated, contract tests green, fast-band precheck PASS.",
+    "nfr": [
+      "Package manifest inspection and NO-RAW-.py scan completes in under 2 seconds.",
+      "Fail-closed validation; unknown format, missing SBOM, or exposed source code blocks release."
+    ],
+    "owner": "Srinikc",
+    "scope": [
+      "core/packaging.py",
+      "core/release.py",
+      "api/routers/packaging.py",
+      "scripts/dev/packaging_check.py",
+      "test-framework/tests/pipeline/test_a3_packaging.py",
+      "config/eap-registry.json"
+    ],
+    "actors": [
+      "platform release maintainer",
+      "security engineer",
+      "enterprise customer operator",
+      "automated CI/CD pipeline agent"
+    ],
+    "domain": "A3 packaging, compiled binaries, Nuitka C-extensions, NO-RAW-.py release gate, SBOM, LBOM, digital signing, subsystem plug/unplug, EAP delivery manifest.",
+    "source": "BI-PF-0398",
+    "status": "approved",
+    "outcome": "Product Forge platform A3 build->package->deploy pipeline operational: automated compilation of Python modules via Nuitka into C-extensions, Go core compilation via go build, digital signing and checksum manifest generation, CycloneDX/SPDX SBOM and License BOM (LBOM) emission, fail-closed NO-RAW-.py release gate enforcing zero raw source code in customer editions, build-time subsystem plug/unplug (absorbing BI-PF-0383), and future-proof asset bundling for prompt and UI/UX assets.",
+    "version": 1,
+    "rollback": "Revert packaging and release gate modifications; no persistent DB changes.",
+    "non_goals": [
+      "Full rewrite of all Python modules into Go immediately (covered under strangler migration in BI-PF-0407)",
+      "Distributing raw Python source in commercial customer editions",
+      "Changing runtime execution behavior of pipeline stages outside packaging and release gating"
+    ],
+    "assumptions": [
+      "Nuitka and Go compilers are invoked when available; mock/dry-run compilation orchestrator handles lightweight test environments.",
+      "Customer editions (enterprise, on-prem, saas, oem) strictly forbid raw .py files; community/dev may retain source if declared."
+    ],
+    "dependencies": [
+      "BI-PF-0387",
+      "BI-PF-0388",
+      "BI-PF-0386",
+      "BI-PF-0397"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "release maintainer / operator token",
+        "title": "Concrete A3 Compiled Packaging Orchestration",
+        "errors": "Compilation failure or missing required artifacts aborts package build with explicit error.",
+        "inputs": "scope, project, edition, subsystem options",
+        "source": "BI-PF-0398",
+        "outputs": "compiled package distribution structure and updated packaging manifest",
+        "trigger": "Packaging build execution via API or CLI.",
+        "priority": "P0",
+        "acceptance": "Given a build request for an edition, when running A3 packaging, then native binary artifacts are produced with zero readable Python source files.",
+        "data_rules": "All shipped Python modules compiled to C-extensions (.pyd/.so); Go modules compiled to native binaries.",
+        "edge_cases": "Handling platforms where native C-compiler is absent in CI dry-run environments.",
+        "idempotency": "Repeated build runs overwrite previous build outputs deterministically.",
+        "verification": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "preconditions": "Delivery baseline BI-PF-0387 and module IP inventory BI-PF-0386 are active."
+      },
+      {
+        "id": "FR-2",
+        "auth": "pipeline gate authority / fail-closed",
+        "title": "Fail-Closed NO-RAW-.py Release Gate",
+        "errors": "Any uncompiled .py file in a customer edition immediately fails closed with UNMET: RAW_PY_IN_SHIPPED_PACKAGE.",
+        "inputs": "packaged artifact directory or file manifest",
+        "source": "BI-PF-0398",
+        "outputs": "pass/fail gate verdict with violating file paths if any",
+        "trigger": "Release gate evaluation or precheck execution.",
+        "priority": "P0",
+        "acceptance": "Given a packaged customer edition, when inspected by the NO-RAW-.py gate, then the release is approved only if no raw .py files exist in the distribution.",
+        "data_rules": "Shipped customer editions (enterprise, on-prem, saas, oem) must contain exactly 0 raw .py files.",
+        "edge_cases": "Distinguishing between customer editions and community/dev edition.",
+        "idempotency": "Read-only inspection of package contents",
+        "verification": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "preconditions": "Packaging output directory or archive is generated."
+      },
+      {
+        "id": "FR-3",
+        "auth": "operator / signing key authority",
+        "title": "Automated SBOM, LBOM, and Digital Signing Emission",
+        "errors": "Missing SBOM or invalid signature material blocks package completion.",
+        "inputs": "package footprint, dependencies, and signing credentials",
+        "source": "BI-PF-0398",
+        "outputs": "sbom.json, lbom.json, checksums.txt, and detached digital signature",
+        "trigger": "Post-build packaging finalization.",
+        "priority": "P0",
+        "acceptance": "Given compiled package artifacts, when final packaging runs, then compliant SBOM, LBOM, and checksum manifests are attached.",
+        "data_rules": "SHA-256 checksums generated for all package files; licenses mapped to SPDX standards.",
+        "edge_cases": "Graceful handling when GPG key is absent in test environments by recording unsigned status.",
+        "idempotency": "Deterministic SBOM and checksum generation matching artifact bytes.",
+        "verification": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "preconditions": "Package artifacts successfully assembled."
+      },
+      {
+        "id": "FR-4",
+        "auth": "operator / edition configuration",
+        "title": "Build-Time Subsystem Plug/Unplug (Absorbing BI-PF-0383)",
+        "errors": "Attempting to exclude mandatory core subsystems (e.g. licensing or auth) is rejected.",
+        "inputs": "edition profile and subsystem exclusion flags (e.g. exclude_workers)",
+        "source": "BI-PF-0383 / BI-PF-0398",
+        "outputs": "pruned package manifest and distribution archive excluding designated subsystem",
+        "trigger": "Package composition and module pruning.",
+        "priority": "P1",
+        "acceptance": "Given an edition configured with exclude_workers=True, when packaging completes, then all worker fleet modules are excluded from the distribution package.",
+        "data_rules": "Excluded modules and their dependencies are completely pruned from the compiled archive.",
+        "edge_cases": "Ensuring orchestrator remains functional when workers are unplugged.",
+        "idempotency": "Predictable module exclusion based on declarative edition profile.",
+        "verification": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "preconditions": "Edition profile specifies subsystem inclusion/exclusion list."
+      },
+      {
+        "id": "FR-5",
+        "auth": "package orchestrator",
+        "title": "Future-Proof Asset Bundle Cataloging",
+        "errors": "Tampered or unmanifested asset bundles fail EAP validation.",
+        "inputs": "asset bundles (prompt packs, UI/UX tokens, web console)",
+        "source": "BI-PF-0398 / BI-PF-1550-1554",
+        "outputs": "EAP manifest containing verified asset bundle records",
+        "trigger": "EAP manifest construction.",
+        "priority": "P1",
+        "acceptance": "Given prompt and UI/UX asset bundles, when EAP builds, then all asset bundles are registered and validated alongside code artifacts.",
+        "data_rules": "Assets carry checksum, format, and destination metadata.",
+        "edge_cases": "Handling editions that omit optional asset bundles.",
+        "idempotency": "Deterministic cataloging of non-code asset bundles.",
+        "verification": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+        "preconditions": "EAP schema v1.0 active."
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "test-framework/tests/pipeline/test_a3_packaging.py::test_compiled_packaging_orchestration",
+        "design": "core/packaging.py",
+        "evidence": "core/packaging.py",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "fr": "FR-2",
+        "test": "test-framework/tests/pipeline/test_a3_packaging.py::test_no_raw_py_gate_enforcement",
+        "design": "core/release.py",
+        "evidence": "core/release.py",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "fr": "FR-3",
+        "test": "test-framework/tests/pipeline/test_a3_packaging.py::test_sbom_lbom_and_signing_emission",
+        "design": "core/signing.py",
+        "evidence": "core/signing.py",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "fr": "FR-4",
+        "test": "test-framework/tests/pipeline/test_a3_packaging.py::test_subsystem_plug_unplug_workers",
+        "design": "core/packaging.py",
+        "evidence": "core/packaging.py",
+        "candidate_sha": "dce1ec51"
+      },
+      {
+        "fr": "FR-5",
+        "test": "test-framework/tests/pipeline/test_a3_packaging.py::test_asset_bundle_cataloging",
+        "design": "core/packaging.py",
+        "evidence": "core/packaging.py",
+        "candidate_sha": "dce1ec51"
+      }
+    ],
+    "compatibility": "Fully backward-compatible with REL-0 and EAP schema v1.0.",
+    "observability": "Structured packaging milestones and release evidence logged to engineering/release-evidence.jsonl.",
+    "data_lifecycle": "Package manifest and checksum records are persisted with release candidate artifacts.",
+    "functional_sha": "dce1ec51",
+    "open_questions": [],
+    "config_contract": [
+      {
+        "name": "config/eap-registry.json",
+        "default": "canonical EAP schema registry",
+        "precedence": "repository config",
+        "valid_values": "valid json schema product-forge/eap@1",
+        "empty_behavior": "fail closed",
+        "invalid_behavior": "fail closed",
+        "startup_validation": "schema validation"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "standard",
+        "actor": "operator",
+        "error": "ERR_RAW_PY_DETECTED",
+        "scope": "product_forge",
+        "operation": "build_package",
+        "expected_result": "PASS"
+      }
+    ]
+  },
+  "control_evidence": [
+    {
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "CTRL-01"
+    },
+    {
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "result": "PASS",
+      "evidence": "core/release.py",
+      "control_id": "CTRL-02"
+    },
+    {
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "result": "PASS",
+      "evidence": "core/signing.py",
+      "control_id": "CTRL-03"
+    },
+    {
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "CTRL-04"
+    },
+    {
+      "sha": "dce1ec51502b0f7275986a612fd758be4c67d933-979e334ec9e7",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "CTRL-05"
+    },
+    {
+      "sha": "4bd01d26908d11c1ecbe71eee5ac0bcd27498ea9-eb755000c767",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "CTRL-01"
+    },
+    {
+      "sha": "4bd01d26908d11c1ecbe71eee5ac0bcd27498ea9-eb755000c767",
+      "result": "PASS",
+      "evidence": "core/release.py",
+      "control_id": "CTRL-02"
+    },
+    {
+      "sha": "4bd01d26908d11c1ecbe71eee5ac0bcd27498ea9-eb755000c767",
+      "result": "PASS",
+      "evidence": "core/signing.py",
+      "control_id": "CTRL-03"
+    },
+    {
+      "sha": "4bd01d26908d11c1ecbe71eee5ac0bcd27498ea9-eb755000c767",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "CTRL-04"
+    },
+    {
+      "sha": "4bd01d26908d11c1ecbe71eee5ac0bcd27498ea9-eb755000c767",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "CTRL-05"
+    }
+  ],
+  "acceptance_criteria": [
+    "Compiled packaging pipeline builds native binary artifacts using Nuitka for Python modules and go build for Go core.",
+    "Automated release gate inspects packaged edition distributions and fails closed if any readable .py source files are present.",
+    "Package builder produces CycloneDX or SPDX compliant SBOM, License BOM (LBOM), and cryptographic digital signatures per edition.",
+    "Build-time subsystem plug/unplug mechanism allows excluding the worker subsystem from customer edition packages per EAP profile."
+  ],
+  "affected_components": [
+    "packaging",
+    "plugin-build"
+  ],
+  "review_dispositions": {
+    "diff": {
+      "1": {
+        "by": "hil:operator",
+        "note": "Implemented native compilation pipeline in build_compiled_package with compiler toolchain checks and dry_run control. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "Production packaging rejects mock binaries and requires genuine compiler execution. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "Updated attach_sbom_and_signatures to emit standard CycloneDX 1.5 schema and SPDX 2.3 LBOM format. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "4": {
+        "by": "hil:operator",
+        "note": "Pre-approved exception: core/packaging.py is an existing module explicitly allowlisted in config/language-rule.json under edit_growth.allow.",
+        "status": "ACTIONED"
+      },
+      "5": {
+        "by": "hil:operator",
+        "note": "Consolidated customer_editions into shared CUSTOMER_EDITIONS constant in core/packaging.py and imported by core/release.py.",
+        "status": "ACTIONED"
+      },
+      "6": {
+        "by": "hil:operator",
+        "note": "dry_run controls synthetic binary generation for test/CI vs real native compilation for production. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "7": {
+        "by": "hil:operator",
+        "note": "Narrowed exception handling to specific IO/OS/Value errors. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "8": {
+        "by": "hil:operator",
+        "note": "Extracted COMPILED_BINARY_MAGIC constant. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "9": {
+        "by": "hil:operator",
+        "note": "Defensive copy prevents external caller mutation. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:04dcff61583a3314": {
+        "by": "hil:operator",
+        "note": "Extracted COMPILED_BINARY_MAGIC constant. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:12d0c4f7cddb376d": {
+        "by": "hil:operator",
+        "note": "Expanded Nuitka compilation step in build_compiled_package to iterate over and compile all shipped modules in core/. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:3237230125bbd821": {
+        "by": "hil:operator",
+        "note": "Made individual module compilation non-zero returncode return structured NUITKA_BUILD_FAILED and fail closed. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:49bfe11238c51429": {
+        "by": "hil:operator",
+        "note": "Pre-approved exception: core/packaging.py is an existing module explicitly allowlisted in config/language-rule.json under edit_growth.allow.",
+        "status": "ACTIONED"
+      },
+      "sig:510d0509aabdfce9": {
+        "by": "hil:operator",
+        "note": "Defensive copy prevents external caller mutation. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:a8fb5e4287bb25a5": {
+        "by": "hil:operator",
+        "note": "Updated attach_sbom_and_signatures to emit standard CycloneDX 1.5 schema and SPDX 2.3 LBOM format. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:a91cb3053d47346d": {
+        "by": "hil:operator",
+        "note": "Production packaging rejects mock binaries and requires genuine compiler execution. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:aaab22ca44df2ad6": {
+        "by": "hil:operator",
+        "note": "Consolidated customer_editions into shared CUSTOMER_EDITIONS constant in core/packaging.py and imported by core/release.py.",
+        "status": "ACTIONED"
+      },
+      "sig:b4b2595fd7f437cb": {
+        "by": "hil:operator",
+        "note": "Failed module compilation immediately halts packaging with error instead of omitting artifact silently. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:cd55ea051a8f3149": {
+        "by": "hil:operator",
+        "note": "Narrowed exception handling to specific IO/OS/Value errors. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:ce9cbd9e1214a405": {
+        "by": "hil:operator",
+        "note": "dry_run controls synthetic binary generation for test/CI vs real native compilation for production. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:d66b41ac641e99d3": {
+        "by": "hil:operator",
+        "note": "Implemented native compilation pipeline in build_compiled_package with compiler toolchain checks and dry_run control. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      }
+    },
+    "design": {
+      "1": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Compiler toolchain detection records toolchain version and minimum version requirements in build metadata. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Explicit schema validation for emitted sbom.json and lbom.json is enforced by packaging.validate_package_sbom.",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Cryptographic key lifecycle is governed by canonical owner core/signing.py and production issuance item BI-PF-1287.",
+        "status": "ACTIONED"
+      },
+      "4": {
+        "by": "hil:operator",
+        "note": "ACTIONED: eap-registry.json evolution is governed by standard product-forge/eap@1 semver compatibility ranges.",
+        "status": "ACTIONED"
+      },
+      "sig:292f22afeaaf8c4e": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Compiler toolchain detection records toolchain version and minimum version requirements in build metadata. [verified in core/packaging.py, core/release.py, test-framework/tests/pipeline/test_a3_packaging.py]",
+        "status": "ACTIONED"
+      },
+      "sig:2a963780e310d9b0": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Cryptographic key lifecycle is governed by canonical owner core/signing.py and production issuance item BI-PF-1287.",
+        "status": "ACTIONED"
+      },
+      "sig:2ee082550e77b3ed": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Explicit schema validation for emitted sbom.json and lbom.json is enforced by packaging.validate_package_sbom.",
+        "status": "ACTIONED"
+      },
+      "sig:50ece5c04365d93f": {
+        "by": "hil:operator",
+        "note": "ACTIONED: eap-registry.json evolution is governed by standard product-forge/eap@1 semver compatibility ranges.",
+        "status": "ACTIONED"
+      }
+    }
   }
 }
