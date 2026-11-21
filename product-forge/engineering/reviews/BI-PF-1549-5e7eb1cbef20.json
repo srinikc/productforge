@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1549",
+  "sha": "5e7eb1cbef20",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-21T03:51:53.448248+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "9534d6fa9d6b15bd15c73a6e9136a97c57908c2b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The test matrix primarily lists \"unit\" tests for an end-to-end delivery process. Comprehensive integration tests against a temporary, isolated git repository would provide stronger assurance for the full sequence of operations (git, external scripts, DB/disk stamping)."
+    ],
+    "MINOR": [
+      "The design states \"N/A: no custom configuration keys,\" implying hardcoded operational parameters like target branch names or script paths. Externalizing these into a configuration file would improve adaptability and maintainability.",
+      "While `DELIVER_` observability codes are mentioned, the design does not explicitly detail the actionable nature of the CLI output and JSON summary for troubleshooting by developers or automated systems.",
+      "The `deliver_plane_a` function name and the explicit `out_of_scope` for `Plane B` delivery suggest a lack of a generalized delivery abstraction, potentially leading to future code duplication or a monolithic script for other \"planes.\""
+    ],
+    "NIT": [
+      "The design mentions \"CLI output and JSON summary\" but lacks a clear contract for how JSON output is consistently emitted (e.g., always to stdout, or to a specific file) for automated consumption.",
+      "The \"clean check\" for a dirty working tree is mentioned as a mitigation but the specific mechanism (e.g., `git status --porcelain`) is not detailed for robustness."
+    ],
+    "SUMMARY": []
+  }
+}
