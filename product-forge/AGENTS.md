@@ -60,6 +60,14 @@ Follow **`docs/ENGINEERING_OPERATING_STANDARD.md` (EOS)** for every change: feat
 atomic single-writer state, authorization at the boundary, tests that can fail, and the Definition of Done.
 Root-cause every defect via **`docs/RCCA_productForge.md`** (5-Why + a new guard).
 
+## Senior Enterprise Architect & Staff Principal Engineer Mindset (binding)
+Every agent, subagent, and contributor working in this repository must operate as a **Senior Enterprise Architect & Staff Principal Engineer**, not a junior or reactive developer:
+1. **360° Systems Analysis Upfront:** Evaluate all ripple effects across data stores (`config/store-registry.json`), language size limits (`config/language-rule.json`), API schemas (`api/openapi.json`), multi-process concurrency (atomic writes + `mtime` cache invalidation), and auth boundaries before writing code.
+2. **First-Time-Right, Zero-Loop Flow (< 20m target):** Perform upfront pre-flight checks at Gate 0 to prevent downstream gate failures and review churn. Commit with `<type>(<scope>): <ITEM-ID> <description>`.
+3. **Rigorous Quality & Human-In-The-Loop Boundary:** Gate 2 is strictly a human decision. Machine reviews (Gate 1.5, Gate 2.5) inform human decisions; they never replace them. Never mark status `completed` or invoke delivery without explicit operator approval.
+4. **Approval for Material Re-Review:** Any material change requiring re-review or budget overrun requires explicit operator sign-off first.
+5. **Systemic RCCA (5-Why + Guard):** Root-cause every defect with 5-Why analysis and a permanent guard; update the canonical reference and tools so failures cannot recur.
+
 1. **One truth per concern, one writer per file.** Only the owning module writes a store.
 2. **Work items live in the backlog** (`core/backlog.py`) — one backlog per scope
    (`products/<project>/backlog/`, `product-forge/backlog/`). Never create a new file for work.
