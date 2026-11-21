@@ -244,7 +244,8 @@
   "evidence": [
     "test-framework/tests/pipeline/test_events_retire_ws_api.py",
     "Gate 1.5 architect review - model=gemini-2.5-flash sha=4dc9b2a755fd\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The design does not explicitly detail runtime logging or metrics for existing consumers who might still be using the deprecated `websocket_manager`, beyond the static deprecation header. This could hinder operational observability of migration progress.\nNIT:\n  - The `test_ac3_zero_new_websocket_consumers` requirement mentions \"AST or grep check\". Specifying AST-based analysis would ensure a more robust and accurate check against new imports.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 2.5 architect review - model=gemini-2.5-flash sha=8ce422697795\nBLOCKER:\n  - The `test_ac3_zero_new_websocket_consumers` test does not scan the `scripts` directory, failing to fully meet Acceptance Criterion AC-3 (\"across core, api, and scripts\").\n  - The `test_ac4_sse_stream_alternative_active` test only verifies the *presence* of the SSE stream route in code, not its *active* status as required by AC-4 (\"SSE event stream and bus status are active alternatives\").\nMAJOR:\n  - The `warnings.warn` call uses `DeprecationWarning`, which is ignored by default in Python, reducing the runtime observability for developers.\nMINOR:\n  - The `test_ac5_wired_audit_legacy_guard_pass` test modifies `sys.path` directly, which can lead to brittle test environments.\nNIT:\n  - The `WebSocketManager` class docstring is slightly redundant with the module-level docstring regarding deprecation.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=8ce422697795\nBLOCKER:\n  - The `test_ac3_zero_new_websocket_consumers` test does not scan the `scripts` directory, failing to fully meet Acceptance Criterion AC-3 (\"across core, api, and scripts\").\n  - The `test_ac4_sse_stream_alternative_active` test only verifies the *presence* of the SSE stream route in code, not its *active* status as required by AC-4 (\"SSE event stream and bus status are active alternatives\").\nMAJOR:\n  - The `warnings.warn` call uses `DeprecationWarning`, which is ignored by default in Python, reducing the runtime observability for developers.\nMINOR:\n  - The `test_ac5_wired_audit_legacy_guard_pass` test modifies `sys.path` directly, which can lead to brittle test environments.\nNIT:\n  - The `WebSocketManager` class docstring is slightly redundant with the module-level docstring regarding deprecation.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=cc413237157c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - All previously identified BLOCKER, MAJOR, MINOR, and NIT findings have been addressed and resolved in this diff.\n  - The implementation now fully meets all Acceptance Criteria, including robust testing for zero new WebSocket consumers and verification of the active SSE stream alternative.\n  - The deprecation warning is now correctly surfaced, and test environment hygiene has improved.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "in_scope": [
     "core/websocket_manager.py",
@@ -272,6 +273,17 @@
       "findings_sha": "4dc9b2a755fd",
       "hil_confirmed": true,
       "findings_digest": "4a31ca03d4d2"
+    },
+    {
+      "at": "2026-11-21T09:15:38.236036+00:00",
+      "by": "hil:operator",
+      "seq": 3,
+      "gate": 2,
+      "note": "Operator approved Gate 2 delivery review with all 5 ACs verified and 0 Gate 2.5 findings",
+      "decision": "APPROVE",
+      "findings_sha": "cc413237157c",
+      "hil_confirmed": true,
+      "findings_digest": "c54eafbfce01"
     }
   ],
   "execution": {
@@ -334,7 +346,7 @@
     "BI-PF-1274"
   ],
   "created_at": "2026-10-12T22:54:48.381314",
-  "updated_at": "2026-11-21T14:41:37.874328",
+  "updated_at": "2026-11-21T14:45:38.386707",
   "design_pack": {
     "audit": "Hash checked deterministically during CI and precheck.",
     "risks": [
@@ -968,7 +980,7 @@
     "Retirement and freezing of legacy transport module with zero database mutations."
   ],
   "verification": [
-    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 2, 'MAJOR': 1, 'MINOR': 1, 'NIT': 1}"
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 0}"
   ],
   "language_rule": "language-rule: OK (no new shipped Python; docstring deprecation edit to existing file)",
   "priority_rank": 2,
@@ -1021,6 +1033,28 @@
       "review_sha": "8ce422697795",
       "review_scope": "full_candidate",
       "candidate_sha": "239b96cbbe68c6991caaf2807a0722c31876df64"
+    },
+    {
+      "at": "2026-11-21T09:12:35.292913+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "239b96cbbe68c6991caaf2807a0722c31876df64",
+      "evidence": "BI-PF-1276-cc413237157c.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "All previously identified BLOCKER, MAJOR, MINOR, and NIT findings have been addressed and resolved in this diff.",
+          "The implementation now fully meets all Acceptance Criteria, including robust testing for zero new WebSocket consumers and verification of the active SSE stream alternative.",
+          "The deprecation warning is now correctly surfaced, and test environment hygiene has improved."
+        ]
+      },
+      "head_sha": "531f7a7acf0fdb1db43bbce408733db770e7ac01",
+      "review_sha": "cc413237157c",
+      "review_scope": "delta",
+      "candidate_sha": "531f7a7acf0fdb1db43bbce408733db770e7ac01"
     }
   ],
   "affected_files": [
@@ -1030,6 +1064,33 @@
   ],
   "priority_class": "P2",
   "target_release": "",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac1_websocket_manager_deprecation_notice"
+    },
+    {
+      "ac": "AC-2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac2_legacy_frozen_registration_and_hash"
+    },
+    {
+      "ac": "AC-3",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac3_zero_new_websocket_consumers"
+    },
+    {
+      "ac": "AC-4",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac4_sse_stream_alternative_active"
+    },
+    {
+      "ac": "AC-5",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_retire_ws_api.py::test_ac5_wired_audit_legacy_guard_pass"
+    }
+  ],
   "functional_spec": {
     "dod": [
       "All 5 Acceptance Criteria verified with automated contract and audit tests"
