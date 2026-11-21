@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	ErrUnauthenticated   = errors.New("unauthenticated: missing credential")
-	ErrInvalidCredential = errors.New("unauthenticated: invalid credential")
-	ErrExpiredCredential = errors.New("unauthenticated: expired credential")
+	ErrUnauthenticated     = errors.New("unauthenticated: missing credential")
+	ErrInvalidCredential   = errors.New("unauthenticated: invalid credential")
+	ErrExpiredCredential   = errors.New("unauthenticated: expired credential")
 	ErrPrematureCredential = errors.New("unauthenticated: credential not yet valid")
-	ErrInvalidClaims     = errors.New("unauthenticated: invalid tenant claim")
+	ErrInvalidClaims       = errors.New("unauthenticated: invalid tenant claim")
 )
 
 type ctxKey string
@@ -69,11 +69,11 @@ type GatewayClaims struct {
 
 // Authenticator verifies inbound credentials across admin, tenant tokens, and trusted gateway claims.
 type Authenticator struct {
-	adminHash        [32]byte
-	hasAdmin         bool
+	adminHash         [32]byte
+	hasAdmin          bool
 	tenantTokenHashes map[[32]byte]string
-	gatewaySecret    []byte
-	gatewaySecretOld []byte
+	gatewaySecret     []byte
+	gatewaySecretOld  []byte
 }
 
 // NewAuthenticator constructs an Authenticator with admin token, tenant token mapping, and gateway secrets.

@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/jackc/pgx/v5 v5.11.0
 	productforge/artifacts v0.0.0
+	productforge/azurestore v0.0.0
 	productforge/datastore v0.0.0
 	productforge/edpdata v0.0.0
 	productforge/gcsstore v0.0.0
@@ -37,6 +38,8 @@ require (
 )
 
 replace productforge/artifacts => ../artifacts
+
+replace productforge/azurestore => ../azurestore
 
 replace productforge/datastore => ../datastore
 

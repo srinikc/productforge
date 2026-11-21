@@ -1,181 +1,1496 @@
 {
   "id": "BI-PF-0387",
+  "due": "(derived) TBD",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "pf-delivery-baseline",
-  "label": "PF Backlog 418",
-  "title": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
   "body": "LOCKED delivery baseline (Go-first for new work): ONE source for all editions. NEW features -> Go (from day one; Go core B1 is mandatory). EXISTING Python -> shipped compiled (Nuitka). High-value legacy modules -> migrated to Go later by value (BI-PF-0386). No raw .py at the customer; build COMPILES (go build / Nuitka), never translates; one implementation per feature. Full Python->Go rewrite = non-goal/aspiration (compiled Python fallback for low-value remainder). SaaS runs the source; customer ships the compiled artifact + license.",
-  "source": "generic",
-  "status": "new",
-  "priority": "P0",
-  "moscow": "Should",
-  "value": 3,
-  "effort": 3,
-  "risk": 2,
   "deps": [
     "BI-PF-0388"
   ],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Plane A deliver: final report persisted and status completed",
+  "brief": {
+    "why": "LOCKED delivery baseline (Go-first for new work): ONE source for all editions. NEW features -> Go (from day one; Go core B1 is mandatory). EXISTING Python -> shipped compiled (Nuitka). High-value legacy modules -> migrated to Go later by value (BI-PF-0386). No raw .py at the customer; build COMPILES (go build / Nuitka), never translates; one implementation per feature. Full Python->Go rewrite = non-goal/aspiration (compiled Python fallback for low-value remainder). SaaS runs the source; customer ships the compiled artifact + license.",
+    "source": "extracted",
+    "problem": "LOCKED delivery baseline (Go-first for new work): ONE source for all editions. NEW features -> Go (from day one; Go core B1 is mandatory). EXISTING Python -> shipped compiled (Nuitka). High-value legacy modules -> migrated to Go later by value (BI-PF-0386). No raw .py at the customer; build COMPILES (go build / Nuitka), never translates; one implementation per feature. Full Python->Go rewrite = non-goal/aspiration (compiled Python fallback for low-value remainder). SaaS runs the source; customer ships the compiled artifact + license.",
+    "what_adds": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
+    "who_feels": "Product Forge maintainers and consumers."
+  },
+  "label": "PF Backlog 418",
   "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-09T22:32:12.217732",
-      "decision": "APPROVE",
-      "by": "user",
-      "note": ""
-    }
+  "owner": "agent",
+  "risks": [
+    "Risk of specification drift from runtime gate enforcement mitigated by automated contract tests."
   ],
-  "follow_up": {},
-  "revision": 5,
-  "priority_rank": 5,
-  "priority_class": "",
-  "analyze_mode": "on_entry",
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "at": "2026-11-21T17:47:00Z",
+    "reviewed_by": "hil:operator",
+    "impact_review": [
+      {
+        "claim": "LANGUAGE CHECK: new logic in Go by default; tooling, docs, and contract tests in Python",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/language_rule_review.py BI-PF-0387: OK",
+        "recommendation": "Python OK (governance docs and contract tests only; no new shipped Python modules)."
+      },
+      {
+        "claim": "API CHECK: evaluate whether HTTP API surface is required for baseline specification",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py:25",
+        "recommendation": "needs_api: false. Baseline specification & contract verification; no new HTTP API endpoint required."
+      },
+      {
+        "claim": "AC CHECK: acceptance criteria provide detailed verifiable conditions",
+        "verdict": "aligned",
+        "evidence": "acceptance_criteria",
+        "recommendation": "All 4 criteria are specific, unambiguous, and exceed 40 characters."
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "Customer distributions (on-prem, enterprise, oem) will exclusively package compiled binaries and extensions with zero readable .py files.",
+        "SaaS edition operates the server-hosted source, while distributed editions require asymmetric license validation."
+      ],
+      "divergences": [
+        "None. 100% aligned with ADR-0001 and Epic A specifications."
+      ],
+      "existing_path": [
+        "core/change_policy.py:17: classify_file and language_rule_findings enforcing baseline.",
+        "config/language-rule.json:1: declaration of shipped roots, sensitive roots, and Go roots.",
+        "core/packaging.py:25: EDITIONS dictionary defining distribution kind, licensing tier, and deploy targets.",
+        "scripts/dev/language_rule_review.py:1: plan-time sizing and language-rule validator."
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "ADR-0001: Chosen option 3 - one source, one implementation per feature; new shipped/sensitive -> Go; existing -> compiled; no raw .py in customer packages.",
+        "BI-PF-0388: ADR shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py.",
+        "BI-PF-0392: A0 baseline freeze and ADR register in docs/ARCHITECTURE-DECISIONS.md.",
+        "BI-PF-0390: EPIC A commercial and IP foundation needed-now delivery baseline."
+      ]
+    }
+  },
+  "source": "generic",
+  "status": "completed",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
-    "status": "COMPLETE",
-    "analyzed_at": "2026-10-14T12:02:30.961396",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 5,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/budget_allocator.py, core/call_ledger.py, core/delivery.py, core/id_allocator.py",
-    "existing_components": [
-      "core/budget_allocator.py",
-      "core/call_ledger.py",
-      "core/delivery.py",
-      "core/id_allocator.py"
-    ],
-    "existing_apis": [
-      "/api/v1/packaging/editions"
-    ],
-    "existing_modules": [],
-    "dependency_findings": [
-      "depends on BI-PF-0388"
-    ],
-    "conflict_findings": [],
-    "duplication_findings": [],
+    "mode": "deterministic",
+    "depth": "deep",
     "drift": "NONE",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
     "risks": [],
+    "status": "COMPLETE",
     "evidence": [
       "similar=4",
       "score=0.75",
       "components=4",
       "apis=1"
     ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
     "confidence": "high",
+    "analyzed_at": "2026-10-14T12:02:30.961396",
+    "analyzed_by": "deterministic",
+    "assumptions": [],
     "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
+    "refreshed_at": "2026-10-14T12:02:30.757446",
+    "existing_apis": [
+      "/api/v1/packaging/editions"
+    ],
     "context_review": {
-      "implementable": true,
+      "reason": "Existing delivery module and editions API provide concrete extension points; policy just needs enforcement wiring.",
       "missing": [
         "Sensitive-module list (from BI-PF-0386)",
         "Nuitka compatibility validation"
       ],
-      "reason": "Existing delivery module and editions API provide concrete extension points; policy just needs enforcement wiring."
+      "implementable": true
     },
     "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:02:30.757446"
+    "architecture_fit": "EXTEND",
+    "existing_modules": [],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 5,
+    "dependency_findings": [
+      "depends on BI-PF-0388"
+    ],
+    "existing_components": [
+      "core/budget_allocator.py",
+      "core/call_ledger.py",
+      "core/delivery.py",
+      "core/id_allocator.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/budget_allocator.py, core/call_ledger.py, core/delivery.py, core/id_allocator.py"
   },
-  "dependencies": [
+  "approach": "Adopt the locked delivery baseline: new features -> Go (B1 mandatory); existing Python -> compiled (Nuitka); high-value legacy -> migrated later by BI-PF-0386; no raw .py at the customer; one implementation per feature; SaaS runs source, customer ships compiled + license.",
+  "evidence": [
+    "pending",
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=9bd07467e7c3\nBLOCKER:\n  - The `review_scope.files` list excludes `core/change_policy.py` and `config/language-rule.json`, preventing the explicit verification of Acceptance Criterion AC-2.\n  - This scope limitation means the review cannot confirm the enforcement of the Go-first rule for new shipped logic or the blocking of raw Python in customer packages.\nMAJOR:\n  - The design relies on Nuitka for compiling existing Python code, but potential complexities such as build issues, debugging compiled artifacts, or compatibility challenges are not addressed. This impacts long-term maintainability and the reliability of the \"no raw .py\" invariant.\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=a6cf2d155b42\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - The test suite modifies `sys.path` directly (`sys.path.insert(0, str(ROOT))`), which can lead to unexpected import behavior in complex test environments.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+  ],
+  "in_scope": [
+    "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later"
+  ],
+  "priority": "P0",
+  "revision": 5,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
     {
-      "task_id": "BI-PF-0388",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
+      "at": "2026-10-09T22:32:12.217732",
+      "by": "user",
+      "note": "",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-21T12:32:24.147593+00:00",
+      "by": "hil:operator",
+      "seq": 1,
+      "gate": 1,
+      "note": "Gate 1 approved: delivery baseline specification and contract testing.",
+      "decision": "APPROVE",
+      "findings_sha": "9bd07467e7c3",
+      "hil_confirmed": true,
+      "findings_digest": "e416951ab8ab"
     }
   ],
-  "blocked_by": [
-    "BI-PF-0388"
-  ],
-  "unlocks": [],
+  "execution": {
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "lease_expires_at": ""
+  },
+  "follow_up": {},
+  "objective": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
   "readiness": {
     "ready": true,
     "reasons": [],
     "computed_at": "2026-10-09T22:32:12.131944"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": ""
+  "requester": "generic",
+  "api_impact": {
+    "reason": "Delivery baseline specification and contract verification; no runtime HTTP API addition required.",
+    "routes": [],
+    "consumers": [],
+    "needs_api": false
   },
-  "created_at": "2026-10-06T14:56:32.989101",
-  "updated_at": "2026-10-14T12:02:31.156170",
-  "score": 0.75,
-  "_note": "analysis updated",
-  "parent": "BI-PF-0390",
-  "epic": "BI-PF-0390",
-  "brief": {
-    "problem": "LOCKED delivery baseline (Go-first for new work): ONE source for all editions. NEW features -> Go (from day one; Go core B1 is mandatory). EXISTING Python -> shipped compiled (Nuitka). High-value legacy modules -> migrated to Go later by value (BI-PF-0386). No raw .py at the customer; build COMPILES (go build / Nuitka), never translates; one implementation per feature. Full Python->Go rewrite = non-goal/aspiration (compiled Python fallback for low-value remainder). SaaS runs the source; customer ships the compiled artifact + license.",
-    "what_adds": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
-    "why": "LOCKED delivery baseline (Go-first for new work): ONE source for all editions. NEW features -> Go (from day one; Go core B1 is mandatory). EXISTING Python -> shipped compiled (Nuitka). High-value legacy modules -> migrated to Go later by value (BI-PF-0386). No raw .py at the customer; build COMPILES (go build / Nuitka), never translates; one implementation per feature. Full Python->Go rewrite = non-goal/aspiration (compiled Python fallback for low-value remainder). SaaS runs the source; customer ships the compiled artifact + license.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "extracted"
-  },
-  "objective": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
-  "intent_derived": true,
-  "acceptance_criteria": [
-    "Objective achieved: PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later"
+  "blocked_by": [
+    "BI-PF-0388"
   ],
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+  "created_at": "2026-10-06T14:56:32.989101",
+  "updated_at": "2026-11-21T18:17:20.334053",
+  "design_pack": {
+    "audit": {
+      "logs": "pytest stdout",
+      "trail": "engineering/trails/BI-PF-0387.json"
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "risks": [
+      "Risk of specification drift from runtime gate enforcement mitigated by automated contract tests."
+    ],
+    "scope": [
+      "docs/PF-DELIVERY-BASELINE.md",
+      "docs/ARCHITECTURE-DECISIONS.md",
+      "test-framework/tests/pipeline/test_delivery_baseline.py"
+    ],
+    "quotas": {
+      "reason": "no rate limits or tenant quotas for delivery baseline",
+      "status": "N/A"
+    },
+    "rollout": "Merge to develop via scripts/dev/deliver.py; immediate effect across Plane A gates.",
+    "tooling": [
+      "pytest",
+      "scripts/dev/precheck.py",
+      "scripts/dev/deliver.py"
+    ],
+    "version": 1,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "config",
+        "symbol": "docs/PF-DELIVERY-BASELINE.md:delivery_baseline",
+        "control": "delivery baseline documentation establishes one-source compiled architecture",
+        "evidence": "docs/PF-DELIVERY-BASELINE.md",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_missing_section_fails",
+        "observability": "DELIVERY_BASELINE_DOC_VERIFIED",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "security",
+        "symbol": "core/change_policy.py:language_rule_findings",
+        "control": "sensitive roots require Go core integration and block raw Python",
+        "evidence": "core/change_policy.py",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_block_new_raw_py",
+        "observability": "DELIVERY_BASELINE_SECURITY_ENFORCED",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "failure",
+        "symbol": "core/packaging.py:validate_distribution_kind",
+        "control": "customer edition distribution rejects raw Python source code files",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_fail_on_raw_source",
+        "observability": "DELIVERY_BASELINE_NO_RAW_PY",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-4",
+        "kind": "config",
+        "symbol": "core/packaging.py:editions",
+        "control": "all commercial editions map to canonical licensing tiers without code forks",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_unknown_edition_rejected",
+        "observability": "DELIVERY_BASELINE_EDITIONS_MAPPED",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_editions_mapping_conformance",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-5",
+        "kind": "observability",
+        "symbol": "scripts/dev/precheck.py:run_gates",
+        "control": "baseline verification suite passes fast-band precheck gates cleanly",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_inconsistency_fails",
+        "observability": "DELIVERY_BASELINE_PRECHECK_CLEAN",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete"
+        ],
+        "adapter": "tooling",
+        "contract": "one source multi edition delivery baseline",
+        "evidence": [
+          "docs/PF-DELIVERY-BASELINE.md"
+        ],
+        "call_sites": [
+          "scripts/pipeline.py",
+          "precheck"
+        ],
+        "entrypoint": "docs/PF-DELIVERY-BASELINE.md",
+        "candidate_sha": "97b0bc2c",
+        "failure_cases": [
+          "uncompiled code in customer package fails"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core"
+        ],
+        "adapter": "tooling",
+        "contract": "sensitive roots require Go core integration and block raw Python",
+        "evidence": [
+          "core/change_policy.py"
+        ],
+        "call_sites": [
+          "scripts/dev/language_rule_check.py"
+        ],
+        "entrypoint": "docs/PF-DELIVERY-BASELINE.md",
+        "candidate_sha": "97b0bc2c",
+        "failure_cases": [
+          "new uncompiled Python in shipped root produces finding"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts"
+        ],
+        "adapter": "tooling",
+        "contract": "customer edition distribution rejects raw Python source code files",
+        "evidence": [
+          "core/packaging.py"
+        ],
+        "call_sites": [
+          "core/packaging.py:validate_distribution_kind"
+        ],
+        "entrypoint": "docs/PF-DELIVERY-BASELINE.md",
+        "candidate_sha": "97b0bc2c",
+        "failure_cases": [
+          "raw source code in commercial archive fails validation"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability"
+        ],
+        "adapter": "tooling",
+        "contract": "baseline verification suite passes fast-band precheck gates cleanly",
+        "evidence": [
+          "docs/ARCHITECTURE-DECISIONS.md"
+        ],
+        "call_sites": [
+          "scripts/dev/precheck.py"
+        ],
+        "entrypoint": "docs/PF-DELIVERY-BASELINE.md",
+        "candidate_sha": "97b0bc2c",
+        "failure_cases": [
+          "ADR-0001 inconsistency fails verification"
+        ]
+      }
+    ],
+    "evidence": [
+      "test-framework/tests/pipeline/test_delivery_baseline.py @97b0bc2c"
+    ],
+    "rollback": "Revert documentation and test suite additions; no persistent DB changes.",
+    "security": "Guarantees source code confidentiality and IP protection through native compilation; prevents reverse engineering of proprietary algorithms in customer environments.",
+    "contracts": {
+      "db": "N/A: no persisted database schema additions",
+      "api": {
+        "reason": "tooling, governance, and contract test suite only; no HTTP routes or API endpoints",
+        "status": "N/A"
+      },
+      "files": [
+        "docs/PF-DELIVERY-BASELINE.md",
+        "docs/ARCHITECTURE-DECISIONS.md",
+        "test-framework/tests/pipeline/test_delivery_baseline.py"
+      ],
+      "config": [
+        {
+          "name": "config/language-rule.json",
+          "default": "canonical roots",
+          "precedence": "repository config",
+          "valid_values": "valid json",
+          "empty_behavior": "fail closed",
+          "invalid_behavior": "fail closed",
+          "startup_validation": "schema validation"
+        }
+      ]
+    },
+    "decisions": [
+      "ADR-0001: Go-first compiled delivery (one source, many editions)",
+      "BI-PF-0388: Shipped editions use compiled artifacts, never raw .py"
+    ],
+    "learnings": "Explicit implementation controls provide complete end-to-end traceability between AC, FR, and tests.",
+    "non_goals": [
+      "Full rewrite of existing Python codebase into Go."
+    ],
+    "ownership": {
+      "owner": "Srinikc",
+      "domain": "commercial-packaging",
+      "module": "core/packaging.py"
+    },
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": {
+      "schema": "N/A: static delivery governance and contract testing"
+    },
+    "guardrails": [
+      "Fail closed on unknown paths or unclassified extensions."
+    ],
+    "invariants": [
+      "One source codebase for all editions; zero code forks across editions.",
+      "Customer deployments strictly contain compiled artifacts (Go build binaries and Nuitka compiled Python extensions).",
+      "No readable .py files in customer-shipped packages."
+    ],
+    "proof_plan": {
+      "failing_test": "test-framework/tests/pipeline/test_delivery_baseline.py",
+      "red_evidence": "missing baseline or raw py in customer package fails",
+      "green_evidence": "all delivery baseline contract tests pass"
+    },
+    "rls_tenant": {
+      "reason": "platform delivery baseline; tenant isolation governed by Go edpsvc",
+      "status": "N/A"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "docs/PF-DELIVERY-BASELINE.md @97b0bc2c",
+        "candidate_sha": "97b0bc2c"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "core/change_policy.py @97b0bc2c",
+        "candidate_sha": "97b0bc2c"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "core/packaging.py @97b0bc2c",
+        "candidate_sha": "97b0bc2c"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md @97b0bc2c",
+        "candidate_sha": "97b0bc2c"
+      }
+    ],
+    "performance": "Zero runtime latency; static policy evaluation and test suite runs in under 1 second.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "contract",
+        "test": "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability"
+      }
+    ],
+    "api_contract": {
+      "reason": "tooling, governance, and contract test suite only; no HTTP routes or API endpoints",
+      "status": "N/A"
+    },
+    "dependencies": [
+      "BI-PF-0388",
+      "BI-PF-0390",
+      "BI-PF-0392"
+    ],
+    "design_areas": [
+      {
+        "area": "commercial delivery baseline",
+        "reason": "specifies compiled distribution and language rules across editions",
+        "status": "APPLICABLE",
+        "evidence": [
+          "docs/PF-DELIVERY-BASELINE.md",
+          "docs/ARCHITECTURE-DECISIONS.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      }
+    ],
+    "requirements": [
+      "Document and establish the delivery baseline specification in docs/PF-DELIVERY-BASELINE.md defining one-source multi-edition architecture, Go-first rule for new shipped logic, and compiled artifacts for customer deployments.",
+      "Verify change policy in core/change_policy.py and language-rule configuration in config/language-rule.json correctly enforce the delivery baseline rules and block raw Python in customer-shipped packages.",
+      "Add automated contract tests validating the delivery baseline constraints including Go-first for sensitive modules, no raw Python files in package distribution, and edition alignment.",
+      "Verify end-to-end alignment with ADR-0001 and ensure gate0, spec contracts, and fast-band precheck tests pass cleanly without regression."
+    ],
+    "review_scope": {
+      "files": [
+        "docs/PF-DELIVERY-BASELINE.md",
+        "docs/ARCHITECTURE-DECISIONS.md",
+        "test-framework/tests/pipeline/test_delivery_baseline.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "exclude": [
+        "*.pyc",
+        ".pytest_cache"
+      ],
+      "components": [
+        "platform",
+        "packaging",
+        "governance"
+      ]
+    },
+    "compatibility": "Fully backward-compatible with existing A0-A6 components and ADR-0001.",
+    "observability": "Standardized policy finding codes and test assertions with failure tokens.",
+    "prerequisites": [
+      "BI-PF-0388 (ADR)",
+      "BI-PF-0390 (Epic A)",
+      "BI-PF-0392 (A0)"
+    ],
+    "backup_restore": {
+      "reason": "git tracked files; git revert / restore standard",
+      "status": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "uncompiled source in customer edition",
+        "code": "CUSTOMER_PACKAGE_RAW_PY",
+        "expected": "fail closed"
+      },
+      {
+        "case": "new shipped logic in python",
+        "code": "LANGUAGE_RULE_VIOLATION",
+        "expected": "fail closed"
+      },
+      {
+        "case": "unmapped edition queried",
+        "code": "UNKNOWN_EDITION",
+        "expected": "fail closed"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-0387.md",
+    "open_questions": [],
+    "security_model": {
+      "authn": "N/A: static policy",
+      "confidentiality": "compiled binaries prevent IP leakage"
+    },
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "stop_conditions": [
+      "Any test failure or precheck regression blocks delivery immediately."
+    ],
+    "failure_taxonomy": [
+      {
+        "code": "DELIVERY_ERR_UNCOMPILED",
+        "category": "uncompiled_code",
+        "handling": "release blocked"
+      }
+    ],
+    "runtime_contract": {
+      "adapter": "tooling",
+      "trigger": "precheck and release packaging",
+      "contract": "compiled artifacts enforced; zero raw .py at customer",
+      "call_sites": [
+        "precheck",
+        "packaging"
+      ],
+      "entrypoint": "scripts/dev/precheck.py",
+      "failure_behavior": "fail closed and block release",
+      "observable_result": "gate verification PASS or rejection finding"
+    },
+    "rollback_recovery": "Revert documentation and test suite additions; no persistent DB changes.",
+    "deployment_rollout": {
+      "lane": "scripts/dev/deliver.py",
+      "target": "develop"
+    },
+    "guideline_coverage": [
+      {
+        "check": "pytest test-framework/tests/pipeline/test_delivery_baseline.py",
+        "evidence": "test-framework/tests/pipeline/test_delivery_baseline.py",
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "test-framework/tests/pipeline/test_delivery_baseline.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_delivery_baseline.py",
+        "evidence": "test-framework/tests/pipeline/test_delivery_baseline.py",
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/pipeline/test_delivery_baseline.py"
+      }
+    ],
+    "tech_stack_evidence": "Python 3.10+ stdlib, pytest, Go pfcore host.",
+    "performance_capacity": {
+      "scale": "single-repo",
+      "latency_target": "<100ms policy evaluation"
+    },
+    "concurrency_idempotency": {
+      "concurrency": "read-only parallel execution",
+      "idempotency": "stateless evaluation"
+    },
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "config",
+        "symbol": "docs/PF-DELIVERY-BASELINE.md:delivery_baseline",
+        "control": "delivery baseline documentation establishes one-source compiled architecture",
+        "evidence": "docs/PF-DELIVERY-BASELINE.md",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_missing_section_fails",
+        "observability": "DELIVERY_BASELINE_DOC_VERIFIED",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "security",
+        "symbol": "core/change_policy.py:language_rule_findings",
+        "control": "sensitive roots require Go core integration and block raw Python",
+        "evidence": "core/change_policy.py",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_block_new_raw_py",
+        "observability": "DELIVERY_BASELINE_SECURITY_ENFORCED",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "failure",
+        "symbol": "core/packaging.py:validate_distribution_kind",
+        "control": "customer edition distribution rejects raw Python source code files",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_fail_on_raw_source",
+        "observability": "DELIVERY_BASELINE_NO_RAW_PY",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-4",
+        "kind": "config",
+        "symbol": "core/packaging.py:editions",
+        "control": "all commercial editions map to canonical licensing tiers without code forks",
+        "evidence": "core/packaging.py",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_unknown_edition_rejected",
+        "observability": "DELIVERY_BASELINE_EDITIONS_MAPPED",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_editions_mapping_conformance",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-5",
+        "kind": "observability",
+        "symbol": "scripts/dev/precheck.py:run_gates",
+        "control": "baseline verification suite passes fast-band precheck gates cleanly",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md",
+        "tenant_test": "N/A: platform delivery baseline specification",
+        "candidate_sha": "97b0bc2c",
+        "negative_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_inconsistency_fails",
+        "observability": "DELIVERY_BASELINE_PRECHECK_CLEAN",
+        "positive_test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability",
+        "concurrency_test": "N/A: static delivery baseline policy"
+      }
+    ]
   },
-  "approach": "Adopt the locked delivery baseline: new features -> Go (B1 mandatory); existing Python -> compiled (Nuitka); high-value legacy -> migrated later by BI-PF-0386; no raw .py at the customer; one implementation per feature; SaaS runs source, customer ships compiled + license.",
+  "external_id": "pf-delivery-baseline",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-0388",
+      "required_state": "COMPLETE"
+    }
+  ],
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "2b91da8bcae567e1",
+    "total_time_ms": 1027443,
+    "sum_stage_ms": 55997,
+    "clock_skew": false,
+    "item": "BI-PF-0387",
+    "generated_at": "2026-11-21T12:47:20.166063+00:00",
+    "item_revision": 5,
+    "current_stage": "pr",
+    "acs": [
+      {
+        "ac": "AC-1",
+        "note": "Verified: Document and establish the delivery baseline specification in docs/PF-DELIVERY-B",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete",
+          "engineering/design/BI-PF-0387.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-2",
+        "note": "Verified: Verify change policy in core/change_policy.py and language-rule configuration in",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core",
+          "engineering/design/BI-PF-0387.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-3",
+        "note": "Verified: Add automated contract tests validating the delivery baseline constraints includ",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts",
+          "engineering/design/BI-PF-0387.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-4",
+        "note": "Verified: Verify end-to-end alignment with ADR-0001 and ensure gate0, spec contracts, and ",
+        "result": "PASS",
+        "evidence": [
+          "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability",
+          "engineering/design/BI-PF-0387.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 378
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 905
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 330
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 234
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 265
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 3601
+          }
+        ],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 5713
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "design_review",
+        "at": "2026-11-21T12:29:57.138503+00:00",
+        "duration_ms": 21755,
+        "input_tokens": 8377,
+        "output_tokens": 227,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-21T12:36:07.325869+00:00",
+        "duration_ms": 17978,
+        "input_tokens": 18060,
+        "output_tokens": 153,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-21T12:37:38.102487+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-21T12:37:38.111297+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-21T12:37:38.118448+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-21T12:37:38.126324+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T12:37:38.133057+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-21T12:37:38.141289+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T12:37:38.148489+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T12:37:38.156357+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T12:40:14.985615+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T12:40:14.994515+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T12:40:15.001816+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T12:43:53.265544+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T12:43:53.274274+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T12:43:53.281725+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-21T12:45:07.863621+00:00",
+        "duration_ms": 16264,
+        "input_tokens": 18630,
+        "output_tokens": 99,
+        "cached_tokens": 0,
+        "cost_usd": null,
+        "cost_source": "unavailable"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-21T12:47:04.566424+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-21T12:47:04.574509+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-21T12:47:04.582390+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 45067,
+      "output_tokens": 479,
+      "cached_tokens": 0,
+      "cost_usd": 0.0,
+      "captured": 3,
+      "not_captured": 0,
+      "unpriced": 3
+    },
+    "started_at": "2026-11-21T12:29:57.138503+00:00",
+    "finished_at": "2026-11-21T12:47:04.582390+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-09T22:32:12.217732",
+        "by": "user",
+        "note": "",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-21T12:32:24.147593+00:00",
+        "by": "hil:operator",
+        "seq": 1,
+        "gate": 1,
+        "note": "Gate 1 approved: delivery baseline specification and contract testing.",
+        "decision": "APPROVE",
+        "findings_sha": "9bd07467e7c3",
+        "hil_confirmed": true,
+        "findings_digest": "e416951ab8ab"
+      }
+    ],
+    "other_decisions": []
+  },
+  "out_of_scope": [
+    "full Python->Go rewrite (aspiration)",
+    "per-edition forks"
+  ],
+  "verification": [
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 1}"
+  ],
+  "language_rule": "ok",
+  "priority_rank": 5,
+  "review_ledger": [
+    {
+      "at": "2026-11-21T12:29:56.758291+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0387-9bd07467e7c3.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [
+          "The design relies on Nuitka for compiling existing Python code, but potential complexities such as build issues, debugging compiled artifacts, or compatibility challenges are not addressed. This impacts long-term maintainability and the reliability of the \"no raw .py\" invariant."
+        ],
+        "MINOR": [],
+        "BLOCKER": [
+          "The `review_scope.files` list excludes `core/change_policy.py` and `config/language-rule.json`, preventing the explicit verification of Acceptance Criterion AC-2.",
+          "This scope limitation means the review cannot confirm the enforcement of the Go-first rule for new shipped logic or the blocking of raw Python in customer packages."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "97b0bc2cedd70c532faa944ae01edf7eae03c114",
+      "review_sha": "9bd07467e7c3",
+      "review_scope": "full_candidate",
+      "candidate_sha": "97b0bc2cedd70c532faa944ae01edf7eae03c114"
+    },
+    {
+      "at": "2026-11-21T12:36:06.956696+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0387-a6cf2d155b42.json",
+      "findings": {
+        "NIT": [
+          "The test suite modifies `sys.path` directly (`sys.path.insert(0, str(ROOT))`), which can lead to unexpected import behavior in complex test environments."
+        ],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "f6628f84fc898cda593b90e3de10ce2d462eeefb",
+      "review_sha": "a6cf2d155b42",
+      "review_scope": "full_candidate",
+      "candidate_sha": "f6628f84fc898cda593b90e3de10ce2d462eeefb"
+    },
+    {
+      "at": "2026-11-21T12:45:07.831274+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0387-ac90d42acbd1.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "The implementation fully meets all acceptance criteria by establishing comprehensive documentation and robust contract tests.",
+          "Strong alignment with ADR-0001 and the Go-first compiled delivery strategy is verified through automated tests.",
+          "The added tests provide excellent coverage for IP protection, edition mapping, and language rule enforcement, enhancing long-term integrity and security."
+        ]
+      },
+      "head_sha": "bbb4ccb4da95a5983d71ce321c1b292804bd30d1",
+      "review_sha": "ac90d42acbd1",
+      "review_scope": "full_candidate",
+      "candidate_sha": "bbb4ccb4da95a5983d71ce321c1b292804bd30d1"
+    }
+  ],
+  "affected_files": [
+    "docs/PF-DELIVERY-BASELINE.md",
+    "docs/ARCHITECTURE-DECISIONS.md",
+    "test-framework/tests/pipeline/test_delivery_baseline.py"
+  ],
+  "intent_derived": true,
+  "priority_class": "",
+  "target_release": "(derived) TBD",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: Document and establish the delivery baseline specification in docs/PF-DELIVERY-B",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete",
+        "engineering/design/BI-PF-0387.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: Verify change policy in core/change_policy.py and language-rule configuration in",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core",
+        "engineering/design/BI-PF-0387.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-3",
+      "note": "Verified: Add automated contract tests validating the delivery baseline constraints includ",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts",
+        "engineering/design/BI-PF-0387.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-4",
+      "note": "Verified: Verify end-to-end alignment with ADR-0001 and ensure gate0, spec contracts, and ",
+      "result": "PASS",
+      "evidence": [
+        "pytest test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability",
+        "engineering/design/BI-PF-0387.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
+  "functional_spec": {
+    "dod": "All 4 acceptance criteria verified, functional spec and design pack validated, contract tests green, fast-band precheck PASS.",
+    "nfr": [
+      "100% deterministic policy verification",
+      "zero runtime performance overhead on production paths"
+    ],
+    "owner": "Srinikc",
+    "scope": [
+      "docs/PF-DELIVERY-BASELINE.md",
+      "docs/ARCHITECTURE-DECISIONS.md",
+      "test-framework/tests/pipeline/test_delivery_baseline.py"
+    ],
+    "actors": [
+      "platform maintainer",
+      "release engineer",
+      "customer consumer"
+    ],
+    "domain": "commercial delivery baseline and packaging governance",
+    "source": "BI-PF-0387",
+    "status": "approved",
+    "outcome": "Canonical delivery baseline established for all Product Forge editions: one source, new shipped/sensitive logic in Go, existing Python compiled (Nuitka), no raw .py shipped to customers, and migration by value later.",
+    "version": 1,
+    "rollback": "Revert documentation and test suite additions; no persistent DB changes.",
+    "non_goals": [
+      "Full Python-to-Go rewrite (non-goal / aspiration)",
+      "Per-edition code forks"
+    ],
+    "assumptions": [
+      "Customer deployments strictly ship compiled artifacts (Go binaries + Nuitka compiled Python).",
+      "SaaS edition runs the server-hosted source."
+    ],
+    "dependencies": [
+      "BI-PF-0388",
+      "BI-PF-0390",
+      "BI-PF-0392"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "tooling / release only",
+        "title": "Canonical Delivery Baseline Specification",
+        "errors": "Missing baseline blocks delivery",
+        "inputs": "delivery baseline policy",
+        "source": "BI-PF-0387",
+        "outputs": "docs/PF-DELIVERY-BASELINE.md",
+        "trigger": "Build or release packaging.",
+        "priority": "P0",
+        "acceptance": "Given the delivery baseline, when reviewing platform architecture, then one-source multi-edition rules and compiled packaging guarantees are formally defined.",
+        "data_rules": "One source for all editions",
+        "edge_cases": "Evaluation of community vs commercial tiers",
+        "idempotency": "Read-only specification",
+        "verification": "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete",
+        "preconditions": "ADR-0001 is accepted."
+      },
+      {
+        "id": "FR-2",
+        "auth": "precheck gate",
+        "title": "Policy and Configuration Enforcement",
+        "errors": "New raw Python in sensitive roots fails closed",
+        "inputs": "changed files list",
+        "source": "BI-PF-0387",
+        "outputs": "classification and policy findings",
+        "trigger": "Change classification or precheck gate.",
+        "priority": "P0",
+        "acceptance": "Given changed files, when language-rule checks run, then new shipped/sensitive Python is blocked unless in Go or compiled.",
+        "data_rules": "Sensitive modules must integrate with Go core",
+        "edge_cases": "Allowlisted governance modules",
+        "idempotency": "Pure function analysis",
+        "verification": "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core",
+        "preconditions": "config/language-rule.json and core/change_policy.py are active."
+      },
+      {
+        "id": "FR-3",
+        "auth": "packaging runtime",
+        "title": "Multi-Edition Packaging Alignment",
+        "errors": "Unknown edition or uncompiled customer package rejected",
+        "inputs": "target edition id",
+        "source": "BI-PF-0387",
+        "outputs": "edition metadata and tier mapping",
+        "trigger": "Edition package manifest generation.",
+        "priority": "P0",
+        "acceptance": "Given an edition, when packaging queries edition attributes, then commercial editions require compiled artifacts with no raw .py.",
+        "data_rules": "All editions map to canonical tiers",
+        "edge_cases": "OEM and Community distribution kinds",
+        "idempotency": "Deterministic lookup",
+        "verification": "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts",
+        "preconditions": "core/packaging.py defines EDITIONS."
+      },
+      {
+        "id": "FR-4",
+        "auth": "CI / precheck",
+        "title": "Automated Delivery Baseline Contract Tests",
+        "errors": "Test failure blocks merge",
+        "inputs": "test suite",
+        "source": "BI-PF-0387",
+        "outputs": "test results and evidence",
+        "trigger": "pytest test execution.",
+        "priority": "P0",
+        "acceptance": "Given delivery baseline contract tests, when pytest executes, then all 5 contract tests pass cleanly.",
+        "data_rules": "Zero test flakes",
+        "edge_cases": "Offline test execution mode",
+        "idempotency": "Stateless test execution",
+        "verification": "pytest test-framework/tests/pipeline/test_delivery_baseline.py",
+        "preconditions": "test-framework is installed."
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_baseline_doc_present_and_complete",
+        "design": "docs/PF-DELIVERY-BASELINE.md",
+        "evidence": "docs/PF-DELIVERY-BASELINE.md",
+        "candidate_sha": "97b0bc2c"
+      },
+      {
+        "fr": "FR-2",
+        "test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_sensitive_roots_enforce_go_core",
+        "design": "config/language-rule.json",
+        "evidence": "core/change_policy.py",
+        "candidate_sha": "97b0bc2c"
+      },
+      {
+        "fr": "FR-3",
+        "test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_customer_editions_require_compiled_artifacts",
+        "design": "core/packaging.py",
+        "evidence": "core/packaging.py",
+        "candidate_sha": "97b0bc2c"
+      },
+      {
+        "fr": "FR-4",
+        "test": "test-framework/tests/pipeline/test_delivery_baseline.py::test_adr0001_traceability",
+        "design": "docs/ARCHITECTURE-DECISIONS.md",
+        "evidence": "docs/ARCHITECTURE-DECISIONS.md",
+        "candidate_sha": "97b0bc2c"
+      }
+    ],
+    "compatibility": "Fully backward-compatible with existing A0-A6 components and ADR-0001.",
+    "observability": "Precheck gate output and pytest structured results.",
+    "data_lifecycle": "Static documentation and test suite; no ephemeral or mutating data stores.",
+    "functional_sha": "97b0bc2c",
+    "open_questions": [],
+    "config_contract": [
+      {
+        "name": "config/language-rule.json",
+        "default": "canonical roots",
+        "precedence": "repository config",
+        "valid_values": "valid json",
+        "empty_behavior": "fail closed",
+        "invalid_behavior": "fail closed",
+        "startup_validation": "schema validation"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "standard",
+        "actor": "precheck",
+        "error": "SPEC_DRIFT",
+        "scope": "product_forge",
+        "operation": "verify_baseline",
+        "expected_result": "PASS"
+      }
+    ]
+  },
+  "control_evidence": [
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-a6cf2d155b42",
+      "result": "PASS",
+      "evidence": "docs/PF-DELIVERY-BASELINE.md",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-a6cf2d155b42",
+      "result": "PASS",
+      "evidence": "core/change_policy.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-a6cf2d155b42",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-a6cf2d155b42",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-a6cf2d155b42",
+      "result": "PASS",
+      "evidence": "docs/ARCHITECTURE-DECISIONS.md",
+      "control_id": "C-5"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-ac90d42acbd1",
+      "result": "PASS",
+      "evidence": "docs/PF-DELIVERY-BASELINE.md",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-ac90d42acbd1",
+      "result": "PASS",
+      "evidence": "core/change_policy.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-ac90d42acbd1",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-ac90d42acbd1",
+      "result": "PASS",
+      "evidence": "core/packaging.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "a11fd9ca407a91d2a5f91de8b14bc14e16310f56-ac90d42acbd1",
+      "result": "PASS",
+      "evidence": "docs/ARCHITECTURE-DECISIONS.md",
+      "control_id": "C-5"
+    }
+  ],
+  "acceptance_criteria": [
+    "Document and establish the delivery baseline specification in docs/PF-DELIVERY-BASELINE.md defining one-source multi-edition architecture, Go-first rule for new shipped logic, and compiled artifacts for customer deployments.",
+    "Verify change policy in core/change_policy.py and language-rule configuration in config/language-rule.json correctly enforce the delivery baseline rules and block raw Python in customer-shipped packages.",
+    "Add automated contract tests validating the delivery baseline constraints including Go-first for sensitive modules, no raw Python files in package distribution, and edition alignment.",
+    "Verify end-to-end alignment with ADR-0001 and ensure gate0, spec contracts, and fast-band precheck tests pass cleanly without regression."
+  ],
   "affected_components": [
     "platform",
     "packaging",
     "go-core"
   ],
-  "affected_files": [
-    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
-  ],
-  "owner": "agent",
-  "requester": "generic",
-  "due": "(derived) TBD",
-  "target_release": "(derived) TBD",
-  "approvals": [],
-  "evidence": [
-    "pending"
-  ],
-  "verification": [
-    "no raw .py in a customer package",
-    "new shipped/sensitive features are Go",
-    "one implementation per feature (no forks)"
-  ],
-  "risks": [
-    "Not specified."
-  ],
-  "rollback": "Revert the change.",
-  "summary": "",
-  "in_scope": [
-    "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later"
-  ],
-  "out_of_scope": [
-    "full Python->Go rewrite (aspiration)",
-    "per-edition forks"
-  ],
-  "api_impact": {
-    "needs_api": false,
-    "routes": [],
-    "consumers": [],
-    "reason": "no API surface declared in backend_capability"
+  "review_dispositions": {
+    "diff": {
+      "1": {
+        "by": "hil:operator",
+        "note": "Standard test pattern across pipeline tests for direct execution outside PYTHONPATH.",
+        "status": "ACTIONED"
+      },
+      "sig:4f858742d98e46bf": {
+        "by": "hil:operator",
+        "note": "Standard test pattern across pipeline tests for direct execution outside PYTHONPATH.",
+        "status": "ACTIONED"
+      }
+    },
+    "design": {
+      "1": {
+        "by": "hil:operator",
+        "note": "ACTIONED: AC-2 explicitly exercises core/change_policy.py and config/language-rule.json via test-framework/tests/pipeline/test_delivery_baseline.py, which is under review_scope.files.",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Enforced by test-framework/tests/pipeline/test_delivery_baseline.py and audited by scripts/dev/language_rule_review.py.",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Compilation execution pipeline and error handling is owned by A3 (BI-PF-0398); BI-PF-0387 defines the architecture baseline and contract policy.",
+        "status": "ACTIONED"
+      },
+      "sig:5fe24e376268cda3": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Enforced by test-framework/tests/pipeline/test_delivery_baseline.py and audited by scripts/dev/language_rule_review.py.",
+        "status": "ACTIONED"
+      },
+      "sig:81726d5831b43149": {
+        "by": "hil:operator",
+        "note": "ACTIONED: AC-2 explicitly exercises core/change_policy.py and config/language-rule.json via test-framework/tests/pipeline/test_delivery_baseline.py, which is under review_scope.files.",
+        "status": "ACTIONED"
+      },
+      "sig:81cbe04496e8fb59": {
+        "by": "hil:operator",
+        "note": "ACTIONED: Compilation execution pipeline and error handling is owned by A3 (BI-PF-0398); BI-PF-0387 defines the architecture baseline and contract policy.",
+        "status": "ACTIONED"
+      }
+    }
   }
 }
