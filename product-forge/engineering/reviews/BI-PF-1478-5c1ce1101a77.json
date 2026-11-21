@@ -1,0 +1,26 @@
+{
+  "item": "BI-PF-1478",
+  "sha": "5c1ce1101a77",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T10:12:54.268435+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0dbca435b735762b1bb5ab8b4d7961a44fce4e9d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "The `s.auth()` method in `main.go` performs redundant lazy initialization of the `Authenticator` by re-reading environment variables, even though it's already initialized in `main()`. This is inefficient and could lead to unexpected behavior if environment variables change at runtime.",
+      "The `parseTenantTokens` function in `tenant_auth.go` supports two distinct input formats (JSON map and semicolon-separated key-value pairs) for `PF_TENANT_TOKENS`. Standardizing on a single, well-defined format (e.g., JSON) would improve clarity, reduce parsing complexity, and enhance maintainability.",
+      "The `parseTenantTokens` function interprets 64-character hex strings as pre-hashed SHA256 digests, but also hashes raw tokens. This dual interpretation of keys in `PF_TENANT_TOKENS` adds complexity and potential for misconfiguration."
+    ],
+    "NIT": [
+      "The `Principal.ExpiresAt` field is populated but not actively enforced after the initial authentication check. While the current middleware design re-authenticates per request, this field could be a source of confusion or a potential vulnerability if principal caching is introduced without re-validation.",
+      "The `Authenticate` function supports a custom `X-Tenant-Claim` header for gateway tokens. While mentioned in the design contract, explicit client-facing documentation for this header would improve API clarity and usability.",
+      "The `adminOnly` and `tenantOrAdmin` wrappers attempt to re-authenticate if a principal is not found in the context. While robust, this is redundant if the `authMiddleware` has already run successfully, leading to minor, negligible overhead."
+    ],
+    "SUMMARY": []
+  }
+}
