@@ -44,9 +44,11 @@ import (
 	"productforge/edpsvc/internal/limits"
 	"productforge/edpsvc/internal/observe"
 	"productforge/edpsvc/internal/storeguard"
+	"productforge/gcsstore"
 	"productforge/migrate"
 	"productforge/objpolicy"
 	"productforge/objstore"
+	"productforge/objstorerest"
 	"productforge/s3store"
 	"productforge/store"
 )
@@ -98,9 +100,11 @@ func (s *server) reserveBacklog() backlogStore {
 	return s.newBacklog(s.st)
 }
 
-// buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
+// buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3 / EDP-14 GCS) by PF_OBJECT_BACKEND.
 func buildObjectStore() (datastore.ObjectStore, error) {
-	if strings.EqualFold(os.Getenv("PF_OBJECT_BACKEND"), "s3") {
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("PF_OBJECT_BACKEND")))
+	switch backend {
+	case "s3":
 		return s3store.New(context.Background(), s3store.Config{
 			Endpoint:  os.Getenv("PF_S3_ENDPOINT"),
 			AccessKey: os.Getenv("PF_S3_ACCESS_KEY"),
@@ -110,8 +114,31 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 			UseSSL:    os.Getenv("PF_S3_USE_SSL") == "1",
 			Ensure:    os.Getenv("PF_S3_ENSURE") == "1",
 		})
+	case "gcs":
+		bucket := strings.TrimSpace(os.Getenv("PF_GCS_BUCKET"))
+		if bucket == "" {
+			return nil, errors.New("edpsvc: PF_GCS_BUCKET is required when PF_OBJECT_BACKEND=gcs")
+		}
+		var auth objstorerest.Auth
+		if tok := strings.TrimSpace(os.Getenv("PF_GCS_TOKEN")); tok != "" {
+			auth = gcsstore.TokenAuth{Token: tok}
+		} else if credsFile := strings.TrimSpace(os.Getenv("PF_GCS_CREDENTIALS_FILE")); credsFile != "" {
+			data, err := os.ReadFile(credsFile)
+			if err != nil {
+				return nil, fmt.Errorf("edpsvc: read PF_GCS_CREDENTIALS_FILE: %w", err)
+			}
+			auth = gcsstore.AuthFromCredentials(data)
+		} else if credsJSON := strings.TrimSpace(os.Getenv("PF_GCS_CREDENTIALS_JSON")); credsJSON != "" {
+			auth = gcsstore.AuthFromCredentials([]byte(credsJSON))
+		}
+		return gcsstore.New(gcsstore.Config{
+			Bucket:  bucket,
+			BaseURL: strings.TrimSpace(os.Getenv("PF_GCS_BASE_URL")),
+			Auth:    auth,
+		})
+	default:
+		return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
 	}
-	return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
 }
 
 func (s *server) storeGuard(store, tenant string, fn func() error) error {

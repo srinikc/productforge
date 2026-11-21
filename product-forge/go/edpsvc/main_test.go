@@ -627,3 +627,50 @@ func TestTenantAuth_EndToEnd(t *testing.T) {
 		t.Fatalf("expired token want 401, got %d", rrExpired.Code)
 	}
 }
+
+func TestBuildObjectStore_GCS(t *testing.T) {
+	origBackend := os.Getenv("PF_OBJECT_BACKEND")
+	origBucket := os.Getenv("PF_GCS_BUCKET")
+	origToken := os.Getenv("PF_GCS_TOKEN")
+	origBaseURL := os.Getenv("PF_GCS_BASE_URL")
+	origCredsJSON := os.Getenv("PF_GCS_CREDENTIALS_JSON")
+	defer func() {
+		os.Setenv("PF_OBJECT_BACKEND", origBackend)
+		os.Setenv("PF_GCS_BUCKET", origBucket)
+		os.Setenv("PF_GCS_TOKEN", origToken)
+		os.Setenv("PF_GCS_BASE_URL", origBaseURL)
+		os.Setenv("PF_GCS_CREDENTIALS_JSON", origCredsJSON)
+	}()
+
+	// Case 1: PF_OBJECT_BACKEND=gcs without bucket -> fail closed
+	os.Setenv("PF_OBJECT_BACKEND", "gcs")
+	os.Unsetenv("PF_GCS_BUCKET")
+	st, err := buildObjectStore()
+	if err == nil || st != nil {
+		t.Fatalf("expected error on missing PF_GCS_BUCKET, got st=%v err=%v", st, err)
+	}
+
+	// Case 2: PF_OBJECT_BACKEND=gcs with bucket and token -> success
+	os.Setenv("PF_GCS_BUCKET", "test-bucket")
+	os.Setenv("PF_GCS_TOKEN", "test-bearer-token")
+	os.Setenv("PF_GCS_BASE_URL", "https://storage.googleapis.com")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on valid gcs config, got st=%v err=%v", st, err)
+	}
+
+	// Case 3: PF_OBJECT_BACKEND=gcs with credentials JSON -> success
+	os.Unsetenv("PF_GCS_TOKEN")
+	os.Setenv("PF_GCS_CREDENTIALS_JSON", `{"access_token": "json-derived-token"}`)
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on gcs credentials JSON, got st=%v err=%v", st, err)
+	}
+
+	// Case 4: Default or local backend -> local store
+	os.Setenv("PF_OBJECT_BACKEND", "local")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected local store, got st=%v err=%v", st, err)
+	}
+}

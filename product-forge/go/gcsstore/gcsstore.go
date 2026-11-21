@@ -9,6 +9,8 @@ package gcsstore
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +27,43 @@ import (
 	"productforge/objstorerest"
 )
 
-const checksumMeta = "pf-checksum"
+const (
+	checksumMeta       = "pf-checksum"
+	ResumableThreshold = int64(5 * 1024 * 1024) // 5 MB threshold for resumable uploads (AC-1)
+	ChunkSize          = 5 * 1024 * 1024         // 5 MB chunk size (20 * 256 KiB chunks)
+)
+
+// TokenAuth implements objstorerest.Auth for static OAuth2 / Bearer tokens (e.g. PF_GCS_TOKEN).
+type TokenAuth struct {
+	Token string
+}
+
+// Authorize adds the Bearer token to the Authorization header if non-empty.
+func (a TokenAuth) Authorize(_ context.Context, req *http.Request) error {
+	tok := strings.TrimSpace(a.Token)
+	if tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+	return nil
+}
+
+// AuthFromCredentials parses raw credentials data (token string or JSON) into an objstorerest.Auth.
+func AuthFromCredentials(data []byte) objstorerest.Auth {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err == nil {
+		if tok, ok := m["access_token"].(string); ok && strings.TrimSpace(tok) != "" {
+			return TokenAuth{Token: strings.TrimSpace(tok)}
+		}
+		if tok, ok := m["token"].(string); ok && strings.TrimSpace(tok) != "" {
+			return TokenAuth{Token: strings.TrimSpace(tok)}
+		}
+	}
+	return TokenAuth{Token: trimmed}
+}
 
 // Config configures the GCS adapter.
 type Config struct {
@@ -70,8 +108,18 @@ func (s *Store) objectURL(key string) string {
 	return fmt.Sprintf("%s/storage/v1/b/%s/o/%s", s.client.BaseURL(), url.PathEscape(s.bucket), url.PathEscape(key))
 }
 
-// Put uploads an object (multipart/related: metadata + media) and returns its content-addressed info.
+// Put uploads an object and returns its content-addressed info.
+// For objects > ResumableThreshold (or when size is not known upfront, size < 0), it uses
+// the GCS resumable upload protocol to stream chunks without buffering the whole payload into memory.
+// Objects <= ResumableThreshold use the fast multipart/related upload path.
 func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, opts datastore.PutOptions) (datastore.ObjectInfo, error) {
+	if size > ResumableThreshold || size < 0 {
+		return s.putResumable(ctx, key, r, size, opts)
+	}
+	return s.putMultipart(ctx, key, r, size, opts)
+}
+
+func (s *Store) putMultipart(ctx context.Context, key string, r io.Reader, size int64, opts datastore.PutOptions) (datastore.ObjectInfo, error) {
 	body, err := io.ReadAll(r)
 	if err != nil {
 		return datastore.ObjectInfo{}, err
@@ -84,6 +132,9 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 		ct = "application/octet-stream"
 	}
 	sum := objstorerest.SHA256Hex(body)
+	if opts.Checksum != "" && opts.Checksum != sum {
+		return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: checksum mismatch: declared %s, computed %s", opts.Checksum, sum)
+	}
 	payload, contentType, err := multipartUpload(key, ct, sum, body)
 	if err != nil {
 		return datastore.ObjectInfo{}, err
@@ -104,6 +155,178 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 		return datastore.ObjectInfo{}, err
 	}
 	return o.toInfo(key, sum), nil
+}
+
+func (s *Store) putResumable(ctx context.Context, key string, r io.Reader, size int64, opts datastore.PutOptions) (datastore.ObjectInfo, error) {
+	ct := opts.ContentType
+	if ct == "" {
+		ct = "application/octet-stream"
+	}
+
+	// 1. Initiate resumable upload session
+	initURL := fmt.Sprintf("%s/upload/storage/v1/b/%s/o?uploadType=resumable", s.client.BaseURL(), url.PathEscape(s.bucket))
+	initMeta := map[string]any{
+		"name":        key,
+		"contentType": ct,
+	}
+	if opts.Checksum != "" {
+		initMeta["metadata"] = map[string]string{checksumMeta: opts.Checksum}
+	}
+	initBody, err := json.Marshal(initMeta)
+	if err != nil {
+		return datastore.ObjectInfo{}, err
+	}
+
+	headers := map[string]string{
+		"Content-Type":          "application/json; charset=UTF-8",
+		"X-Upload-Content-Type": ct,
+	}
+	if size >= 0 {
+		headers["X-Upload-Content-Length"] = strconv.FormatInt(size, 10)
+	}
+
+	initResp, err := s.client.Do(ctx, http.MethodPost, initURL, bytes.NewReader(initBody), func() (io.Reader, error) {
+		return bytes.NewReader(initBody), nil
+	}, headers)
+	if err != nil {
+		return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: initiate resumable upload: %w", err)
+	}
+	defer initResp.Body.Close()
+	if err := s.client.EnsureOK(initResp); err != nil {
+		return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: initiate resumable upload: %w", err)
+	}
+
+	sessionURL := initResp.Header.Get("Location")
+	if sessionURL == "" {
+		return datastore.ObjectInfo{}, errors.New("gcsstore: resumable upload initiation missing Location header")
+	}
+	if !strings.HasPrefix(sessionURL, "http://") && !strings.HasPrefix(sessionURL, "https://") {
+		sessionURL = s.client.BaseURL() + sessionURL
+	}
+
+	// 2. Stream chunks bounded to ChunkSize
+	hasher := sha256.New()
+	buf := make([]byte, ChunkSize)
+	var totalStreamed int64
+	var lastObj gcsObject
+
+	for {
+		n, readErr := io.ReadFull(r, buf)
+		if n == 0 {
+			if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
+				break
+			}
+			if readErr != nil {
+				return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: read chunk: %w", readErr)
+			}
+		}
+
+		chunkData := buf[:n]
+		hasher.Write(chunkData)
+		startByte := totalStreamed
+		endByte := totalStreamed + int64(n) - 1
+		totalStreamed += int64(n)
+
+		isFinal := false
+		if size >= 0 {
+			if totalStreamed == size {
+				isFinal = true
+			} else if totalStreamed > size {
+				return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: size mismatch: declared %d, read more than declared", size)
+			}
+		} else if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
+			isFinal = true
+		}
+
+		var contentRange string
+		if isFinal {
+			contentRange = fmt.Sprintf("bytes %d-%d/%d", startByte, endByte, totalStreamed)
+		} else if size >= 0 {
+			contentRange = fmt.Sprintf("bytes %d-%d/%d", startByte, endByte, size)
+		} else {
+			contentRange = fmt.Sprintf("bytes %d-%d/*", startByte, endByte)
+		}
+
+		chunkReader := bytes.NewReader(chunkData)
+		putHeaders := map[string]string{
+			"Content-Type":   ct,
+			"Content-Range":  contentRange,
+			"Content-Length": strconv.Itoa(n),
+		}
+
+		resp, err := s.client.Do(ctx, http.MethodPut, sessionURL, chunkReader, func() (io.Reader, error) {
+			return bytes.NewReader(chunkData), nil
+		}, putHeaders)
+		if err != nil {
+			return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: put chunk [%d-%d]: %w", startByte, endByte, err)
+		}
+
+		if resp.StatusCode == 308 {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if isFinal {
+				return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: unexpected 308 on final chunk (%s)", contentRange)
+			}
+		} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			defer resp.Body.Close()
+			if err := json.NewDecoder(resp.Body).Decode(&lastObj); err != nil {
+				return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: decode resumable response: %w", err)
+			}
+			break
+		} else {
+			defer resp.Body.Close()
+			return datastore.ObjectInfo{}, s.client.EnsureOK(resp)
+		}
+
+		if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
+			break
+		}
+	}
+
+	// 3. Size validation
+	if size >= 0 && totalStreamed != size {
+		return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: size mismatch: declared %d, read %d", size, totalStreamed)
+	}
+
+	computedChecksum := hex.EncodeToString(hasher.Sum(nil))
+	if opts.Checksum != "" && opts.Checksum != computedChecksum {
+		return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: checksum mismatch: declared %s, computed %s", opts.Checksum, computedChecksum)
+	}
+
+	// 4. If pf-checksum was not set in initial metadata, patch it now
+	if opts.Checksum == "" {
+		patched, err := s.patchMetadata(ctx, key, computedChecksum)
+		if err == nil {
+			lastObj = patched
+		}
+	}
+
+	return lastObj.toInfo(key, computedChecksum), nil
+}
+
+func (s *Store) patchMetadata(ctx context.Context, key, checksum string) (gcsObject, error) {
+	u := s.objectURL(key)
+	body, err := json.Marshal(map[string]any{
+		"metadata": map[string]string{checksumMeta: checksum},
+	})
+	if err != nil {
+		return gcsObject{}, err
+	}
+	resp, err := s.client.Do(ctx, http.MethodPatch, u, bytes.NewReader(body), func() (io.Reader, error) {
+		return bytes.NewReader(body), nil
+	}, map[string]string{"Content-Type": "application/json; charset=UTF-8"})
+	if err != nil {
+		return gcsObject{}, err
+	}
+	defer resp.Body.Close()
+	if err := s.client.EnsureOK(resp); err != nil {
+		return gcsObject{}, err
+	}
+	var o gcsObject
+	if err := json.NewDecoder(resp.Body).Decode(&o); err != nil {
+		return gcsObject{}, err
+	}
+	return o, nil
 }
 
 // Get downloads an object; the returned info carries the recomputed sha256 (content-addressed).
