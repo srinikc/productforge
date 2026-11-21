@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/auth"
 	"productforge/edpsvc/internal/cache"
 	"productforge/edpsvc/internal/limits"
 	"productforge/store"
@@ -519,5 +520,110 @@ func TestBacklogTenantErrorMapping(t *testing.T) {
 		if rr.Code != c.code {
 			t.Fatalf("%v: got %d want %d", c.err, rr.Code, c.code)
 		}
+	}
+}
+
+func TestTenantAuth_EndToEnd(t *testing.T) {
+	adminToken := "adm-token-32-chars-long-secret"
+	gwSecret := "gw-secret-32-chars-long-hmac-key"
+	tenantTokens := "tok_alpha=tenant_a;tok_beta=tenant_b"
+
+	authenticator := auth.NewAuthenticator(adminToken, tenantTokens, gwSecret, "")
+	cfg := limits.DefaultConfig()
+	q := limits.NewQuota(cfg, nil, limits.NewMetrics())
+	m := limits.NewMetrics()
+	roleGuard := limits.NewRoleGuard()
+	roleGuard.Set(limits.Role{Name: "pf_app"})
+
+	s := &server{
+		admin:         adminToken,
+		authenticator: authenticator,
+		cfg:           cfg,
+		quota:         q,
+		metrics:       m,
+		role:          roleGuard,
+		cacheStore:    cache.New(),
+	}
+
+	handler := limits.Chain(limits.EnvelopeFallback(s.buildMux()), cfg, q, m, roleGuard.OK, s.authorize)
+
+	// 1. Unauthenticated request -> 401
+	reqUnauth := httptest.NewRequest(http.MethodGet, "/admin/limits", nil)
+	rrUnauth := httptest.NewRecorder()
+	handler.ServeHTTP(rrUnauth, reqUnauth)
+	if rrUnauth.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth want 401, got %d", rrUnauth.Code)
+	}
+
+	// 2. Admin token on admin route -> 200
+	reqAdmin := httptest.NewRequest(http.MethodGet, "/admin/limits", nil)
+	reqAdmin.Header.Set("Authorization", "Bearer "+adminToken)
+	rrAdmin := httptest.NewRecorder()
+	handler.ServeHTTP(rrAdmin, reqAdmin)
+	if rrAdmin.Code != http.StatusOK {
+		t.Fatalf("admin want 200, got %d", rrAdmin.Code)
+	}
+
+	// 3. Tenant token attempting admin route -> 401/403
+	reqTenantAdmin := httptest.NewRequest(http.MethodGet, "/admin/limits", nil)
+	reqTenantAdmin.Header.Set("Authorization", "Bearer tok_alpha")
+	rrTenantAdmin := httptest.NewRecorder()
+	handler.ServeHTTP(rrTenantAdmin, reqTenantAdmin)
+	if rrTenantAdmin.Code != http.StatusUnauthorized {
+		t.Fatalf("tenant token on admin route want 401, got %d", rrTenantAdmin.Code)
+	}
+
+	// 4. Valid Gateway Signed Claim
+	claims := auth.GatewayClaims{
+		Tenant:    "tenant_a",
+		Principal: "user_a",
+		ExpiresAt: time.Now().Unix() + 3600,
+		IssuedAt:  time.Now().Unix() - 10,
+	}
+	gwToken, err := auth.SignGatewayClaim(claims, []byte(gwSecret))
+	if err != nil {
+		t.Fatalf("SignGatewayClaim failed: %v", err)
+	}
+
+	// 5. Cross-tenant mismatch (authenticated as tenant_a, requests tenant_b via query or header) -> 403
+	reqCrossQuery := httptest.NewRequest(http.MethodGet, "/backlog?tenant=tenant_b", nil)
+	reqCrossQuery.Header.Set("Authorization", "Bearer "+gwToken)
+	rrCrossQuery := httptest.NewRecorder()
+	handler.ServeHTTP(rrCrossQuery, reqCrossQuery)
+	if rrCrossQuery.Code != http.StatusForbidden {
+		t.Fatalf("cross-tenant query want 403, got %d", rrCrossQuery.Code)
+	}
+
+	reqCrossHeader := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	reqCrossHeader.Header.Set("Authorization", "Bearer "+gwToken)
+	reqCrossHeader.Header.Set("X-Tenant-Id", "tenant_b")
+	rrCrossHeader := httptest.NewRecorder()
+	handler.ServeHTTP(rrCrossHeader, reqCrossHeader)
+	if rrCrossHeader.Code != http.StatusForbidden {
+		t.Fatalf("cross-tenant header want 403, got %d", rrCrossHeader.Code)
+	}
+
+	// 6. Forged gateway claim -> 401
+	forgedToken, _ := auth.SignGatewayClaim(claims, []byte("wrong-signing-secret-attacker-key"))
+	reqForged := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	reqForged.Header.Set("Authorization", "Bearer "+forgedToken)
+	rrForged := httptest.NewRecorder()
+	handler.ServeHTTP(rrForged, reqForged)
+	if rrForged.Code != http.StatusUnauthorized {
+		t.Fatalf("forged token want 401, got %d", rrForged.Code)
+	}
+
+	// 7. Expired gateway claim -> 401
+	expiredClaims := auth.GatewayClaims{
+		Tenant:    "tenant_a",
+		ExpiresAt: time.Now().Unix() - 100,
+	}
+	expiredToken, _ := auth.SignGatewayClaim(expiredClaims, []byte(gwSecret))
+	reqExpired := httptest.NewRequest(http.MethodGet, "/backlog", nil)
+	reqExpired.Header.Set("Authorization", "Bearer "+expiredToken)
+	rrExpired := httptest.NewRecorder()
+	handler.ServeHTTP(rrExpired, reqExpired)
+	if rrExpired.Code != http.StatusUnauthorized {
+		t.Fatalf("expired token want 401, got %d", rrExpired.Code)
 	}
 }
