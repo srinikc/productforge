@@ -36,6 +36,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"productforge/artifacts"
+	"productforge/azurestore"
 	"productforge/datastore"
 	"productforge/edpdata"
 	"productforge/edpsvc/internal/auth"
@@ -135,6 +136,22 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 			Bucket:  bucket,
 			BaseURL: strings.TrimSpace(os.Getenv("PF_GCS_BASE_URL")),
 			Auth:    auth,
+		})
+	case "azure", "azblob":
+		container := strings.TrimSpace(os.Getenv("PF_AZURE_CONTAINER"))
+		if container == "" {
+			return nil, errors.New("edpsvc: PF_AZURE_CONTAINER is required when PF_OBJECT_BACKEND=azure")
+		}
+		account := strings.TrimSpace(os.Getenv("PF_AZURE_ACCOUNT"))
+		key := strings.TrimSpace(os.Getenv("PF_AZURE_KEY"))
+		sas := strings.TrimSpace(os.Getenv("PF_AZURE_SAS_TOKEN"))
+		token := strings.TrimSpace(os.Getenv("PF_AZURE_TOKEN"))
+		auth := azurestore.AuthFromCredentials(account, key, sas, token)
+		return azurestore.New(azurestore.Config{
+			Account:   account,
+			Container: container,
+			BaseURL:   strings.TrimSpace(os.Getenv("PF_AZURE_BASE_URL")),
+			Auth:      auth,
 		})
 	default:
 		return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)

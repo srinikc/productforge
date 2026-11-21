@@ -356,4 +356,3 @@ func TestTenantQuota_HardIsolation(t *testing.T) {
 		t.Fatalf("req6 want 200 for isolated tenant_beta, got %d", rr6.Code)
 	}
 }
-
