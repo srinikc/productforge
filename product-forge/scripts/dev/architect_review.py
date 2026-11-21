@@ -245,7 +245,14 @@ ARCHITECT_SYSTEM = (
 
 
 def _api_key() -> str:
-    key = (os.environ.get("OPENCODE_ZEN_API_KEY") or os.environ.get("PF_ARCHITECT_REVIEW_KEY") or "").strip()
+    cfg = _config()
+    env_name = cfg.get("api_key_env")
+    key = ""
+    if env_name and os.environ.get(env_name):
+        key = os.environ.get(env_name, "").strip()
+    if not key:
+        key = (os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY")
+               or os.environ.get("PF_ARCHITECT_REVIEW_KEY") or "").strip()
     if key:
         return key
     for p in (ROOT / ".opencode" / "opencode.key", ROOT / "opencode.key"):
