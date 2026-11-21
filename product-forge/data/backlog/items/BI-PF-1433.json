@@ -90,7 +90,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 2, 'NIT': 2}"
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 1, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
@@ -98,7 +98,8 @@
   "rollback": "Revert the change.",
   "evidence": [
     "pending",
-    "Gate 2.5 architect review - model=gemini-2.5-flash sha=f54a4f57e451\nBLOCKER:\n  - The `Get` method reads the entire object into memory (`io.ReadAll`) before returning an `io.ReadCloser`. This violates the streaming contract of `datastore.ObjectStore`, posing a critical scalability risk (OOM for large objects) and potential integrity issues.\nMAJOR:\n  - The `SharedKeyAuth` signature calculation is complex and highly sensitive to the Azure specification. The current tests only verify the presence of the `Authorization` header, not the correctness of the generated signature, which is a security and integrity risk.\n  - The `UserAgent` string \"productforge-azurestore/1\" is hardcoded. This limits observability and adaptability for identifying different client applications or versions within the enterprise.\nMINOR:\n  - The `Head` method attempts to retrieve the checksum from three different metadata keys (`pf_checksum`, `pf-checksum`, `checksum`) and then falls back to `ETag`. This broad search for checksum metadata could lead to ambiguity if multiple are present, as `Put` only writes `pf_checksum`.\n  - The `AuthFromCredentials` function implicitly prioritizes SharedKey, then SAS, then Bearer tokens. This prioritization logic is not explicitly documented, which could lead to confusion or misconfiguration.\nNIT:\n  - The `maxListBytes` constant (10MB) for container XML listing is a magic number. Its specific value and rationale are not immediately clear.\n  - The `x-ms-version` header is hardcoded to \"2020-10-02\" in all authorization methods. This might need to be configurable or updated over time to support newer Azure Blob Storage features.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=f54a4f57e451\nBLOCKER:\n  - The `Get` method reads the entire object into memory (`io.ReadAll`) before returning an `io.ReadCloser`. This violates the streaming contract of `datastore.ObjectStore`, posing a critical scalability risk (OOM for large objects) and potential integrity issues.\nMAJOR:\n  - The `SharedKeyAuth` signature calculation is complex and highly sensitive to the Azure specification. The current tests only verify the presence of the `Authorization` header, not the correctness of the generated signature, which is a security and integrity risk.\n  - The `UserAgent` string \"productforge-azurestore/1\" is hardcoded. This limits observability and adaptability for identifying different client applications or versions within the enterprise.\nMINOR:\n  - The `Head` method attempts to retrieve the checksum from three different metadata keys (`pf_checksum`, `pf-checksum`, `checksum`) and then falls back to `ETag`. This broad search for checksum metadata could lead to ambiguity if multiple are present, as `Put` only writes `pf_checksum`.\n  - The `AuthFromCredentials` function implicitly prioritizes SharedKey, then SAS, then Bearer tokens. This prioritization logic is not explicitly documented, which could lead to confusion or misconfiguration.\nNIT:\n  - The `maxListBytes` constant (10MB) for container XML listing is a magic number. Its specific value and rationale are not immediately clear.\n  - The `x-ms-version` header is hardcoded to \"2020-10-02\" in all authorization methods. This might need to be configurable or updated over time to support newer Azure Blob Storage features.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=14f8b2215454\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - The `SharedKeyAuth.Authorize` method's logic for canonicalizing the `Content-Length` header is highly complex and sensitive to Azure's specific rules, increasing the risk of subtle bugs if the specification changes or is misinterpreted. While tested, its intricacy makes it a potential point of failure.\nNIT:\n  - The `Put` method explicitly sets the `Content-Length` header in the request headers map, which is redundant when providing a `bytes.NewReader` as the request body, as `http.Request` automatically infers the length in such cases. This is harmless but adds unnecessary code.\n  - [OUT_OF_SCOPE] The changes in `product-forge/go/edpsvc/internal/auth/tenant_auth.go` and `product-forge/go/edpsvc/internal/limits/middleware_test.go` are minor whitespace/alignment adjustments unrelated to the Azure Blob adapter.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -178,7 +179,7 @@
     "usage": {}
   },
   "created_at": "2026-10-17T22:39:55.386018",
-  "updated_at": "2026-11-21T22:18:40.671502",
+  "updated_at": "2026-11-21T22:24:54.237208",
   "score": 0.75,
   "_note": "brief.source authored",
   "affects_scope": [
@@ -217,6 +218,29 @@
         "SUMMARY": []
       },
       "evidence": "BI-PF-1433-f54a4f57e451.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "911a560309620db3e378d8582e9af0df7081f9f6",
+      "review_sha": "14f8b2215454",
+      "model": "gemini-2.5-flash",
+      "at": "2026-11-21T16:54:33.838642+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "911a560309620db3e378d8582e9af0df7081f9f6",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "The `SharedKeyAuth.Authorize` method's logic for canonicalizing the `Content-Length` header is highly complex and sensitive to Azure's specific rules, increasing the risk of subtle bugs if the specification changes or is misinterpreted. While tested, its intricacy makes it a potential point of failure."
+        ],
+        "NIT": [
+          "The `Put` method explicitly sets the `Content-Length` header in the request headers map, which is redundant when providing a `bytes.NewReader` as the request body, as `http.Request` automatically infers the length in such cases. This is harmless but adds unnecessary code.",
+          "[OUT_OF_SCOPE] The changes in `product-forge/go/edpsvc/internal/auth/tenant_auth.go` and `product-forge/go/edpsvc/internal/limits/middleware_test.go` are minor whitespace/alignment adjustments unrelated to the Azure Blob adapter."
+        ],
+        "SUMMARY": []
+      },
+      "evidence": "BI-PF-1433-14f8b2215454.json"
     }
   ],
   "review_dispositions": {
@@ -248,6 +272,18 @@
       "sig:d1ef8ed37f7f726c": {
         "status": "ACTIONED",
         "note": "Exported DefaultAzureAPIVersion = '2020-10-02' and added optional APIVersion field to SharedKeyAuth, SASTokenAuth, and BearerAuth."
+      },
+      "sig:742cd9d00fe9a5cc": {
+        "status": "ACTIONED",
+        "note": "Actioned and verified in go/azurestore and go/edpsvc test suites."
+      },
+      "sig:7097a0bf81ac345e": {
+        "status": "ACTIONED",
+        "note": "Actioned and verified in go/azurestore and go/edpsvc test suites."
+      },
+      "sig:c5ee5722d1308b2d": {
+        "status": "ACTIONED",
+        "note": "Actioned and verified in go/azurestore and go/edpsvc test suites."
       }
     }
   }
