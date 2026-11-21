@@ -421,3 +421,34 @@ def delete_subscription(
     )
 
 
+# ---------------------------------------------------------------------------
+# Event Bus Daemon & Service Run Model (BI-PF-1275)
+# ---------------------------------------------------------------------------
+
+@router.get("/bus", dependencies=[Depends(authenticate)])
+def get_bus_status(request: Request, project: Optional[str] = None, ctx: Dict[str, Any] = Depends(authenticate)):
+    """Return operational status of the event bus daemon (BI-PF-1275)."""
+    from core import events
+    st = events.bus_status(project=project)
+    return from_request(request, st, resource="event_bus")
+
+
+@router.post("/bus/start", dependencies=[Depends(require_operator)])
+def start_bus_daemon(request: Request, body: Optional[Dict[str, Any]] = None, ctx: Dict[str, Any] = Depends(require_operator)):
+    """Launch the event bus daemon idempotently under PID lock (BI-PF-1275)."""
+    from core import events
+    project = (body or {}).get("project")
+    res = events.start_bus(project=project)
+    return from_request(request, res, resource="event_bus")
+
+
+@router.post("/bus/stop", dependencies=[Depends(require_operator)])
+def stop_bus_daemon(request: Request, body: Optional[Dict[str, Any]] = None, ctx: Dict[str, Any] = Depends(require_operator)):
+    """Gracefully terminate live event bus daemon (BI-PF-1275)."""
+    from core import events
+    project = (body or {}).get("project")
+    res = events.stop_bus(project=project)
+    return from_request(request, res, resource="event_bus")
+
+
+
