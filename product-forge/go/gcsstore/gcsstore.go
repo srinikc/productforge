@@ -30,7 +30,7 @@ import (
 const (
 	checksumMeta       = "pf-checksum"
 	ResumableThreshold = int64(5 * 1024 * 1024) // 5 MB threshold for resumable uploads (AC-1)
-	ChunkSize          = 5 * 1024 * 1024         // 5 MB chunk size (20 * 256 KiB chunks)
+	ChunkSize          = 5 * 1024 * 1024        // 5 MB chunk size (20 * 256 KiB chunks)
 )
 
 // TokenAuth implements objstorerest.Auth for static OAuth2 / Bearer tokens (e.g. PF_GCS_TOKEN).
