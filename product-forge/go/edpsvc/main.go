@@ -536,17 +536,6 @@ func (s *server) auth() *auth.Authenticator {
 	return s.authenticator
 }
 
-func (s *server) authorized(r *http.Request) bool {
-	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil {
-		return p.IsAdmin
-	}
-	p, err := s.auth().Authenticate(r)
-	if err != nil || p == nil {
-		return false
-	}
-	return p.IsAdmin
-}
-
 func (s *server) authorize(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
 	p, err := s.auth().Authenticate(r)
 	if err != nil || p == nil {

@@ -94,10 +94,24 @@ func isExempt(path string) bool {
 	return path == "/health" || path == "/ready" || path == "/metrics"
 }
 
+// AuthFunc authenticates the incoming request and optionally binds principal/tenant context to the request.
+// It returns the updated request and true on success, or writes an error response and returns false on failure.
+type AuthFunc func(http.ResponseWriter, *http.Request) (*http.Request, bool)
+
+// LegacyAuth adapts a boolean auth function into an AuthFunc.
+func LegacyAuth(fn func(http.ResponseWriter, *http.Request) bool) AuthFunc {
+	if fn == nil {
+		return nil
+	}
+	return func(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
+		return r, fn(w, r)
+	}
+}
+
 // Chain composes the guardrail middleware. Order (outer to inner):
 // RequestID -> Instrument -> Recover -> RoleGate -> Timeout -> BodyLimit -> Quota -> handler.
 func Chain(next http.Handler, cfg Config, q *Quota, m *Metrics, roleOK func() bool,
-	auth ...any) http.Handler {
+	auth ...AuthFunc) http.Handler {
 	h := next
 	if cfg.Enforce {
 		h = tenantQuotaMiddleware(h, q)
@@ -189,28 +203,20 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func authMiddleware(next http.Handler, authFn any) http.Handler {
+func authMiddleware(next http.Handler, authFn AuthFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		switch fn := authFn.(type) {
-		case func(http.ResponseWriter, *http.Request) (*http.Request, bool):
-			newR, ok := fn(w, r)
+		if authFn != nil {
+			newR, ok := authFn(w, r)
 			if !ok {
 				return
 			}
 			if newR != nil {
 				r = newR
 			}
-		case func(http.ResponseWriter, *http.Request) bool:
-			if !fn(w, r) {
-				return
-			}
-		default:
-			next.ServeHTTP(w, r)
-			return
 		}
 		next.ServeHTTP(w, r)
 	})

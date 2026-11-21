@@ -250,7 +250,7 @@ func TestAuthMiddlewareReturns401(t *testing.T) {
 		WriteError(w, r, http.StatusUnauthorized, "no token")
 		return false
 	}
-	h := Chain(okHandler(), cfg, NewQuota(cfg, nil, NewMetrics()), NewMetrics(), nil, auth)
+	h := Chain(okHandler(), cfg, NewQuota(cfg, nil, NewMetrics()), NewMetrics(), nil, LegacyAuth(auth))
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/limits", nil))
 	if rr.Code != http.StatusUnauthorized {
@@ -267,7 +267,7 @@ func TestUnauthenticated401ConsumesGlobalQuota(t *testing.T) {
 		return false
 	}
 	h := Chain(okHandler(), cfg, NewQuota(cfg, func() time.Time { return time.Unix(1, 0) }, NewMetrics()),
-		NewMetrics(), nil, auth)
+		NewMetrics(), nil, LegacyAuth(auth))
 	if rr := httptest.NewRecorder(); func() int { h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/x", nil)); return rr.Code }() != http.StatusUnauthorized {
 		t.Fatalf("first want 401")
 	}

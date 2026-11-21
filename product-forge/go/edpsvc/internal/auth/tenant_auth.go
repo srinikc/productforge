@@ -270,23 +270,12 @@ func (a *Authenticator) verifyGatewayClaim(token string) (*Principal, error) {
 }
 
 func decodeBase64URL(s string) ([]byte, error) {
-	// Standard RawURLEncoding (no padding)
-	b, err := base64.RawURLEncoding.DecodeString(s)
-	if err == nil {
+	// RFC 7515 Section 2 specifies Base64url encoding without padding.
+	if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
 		return b, nil
 	}
-	// Standard URLEncoding (with padding)
-	b, err = base64.URLEncoding.DecodeString(s)
-	if err == nil {
-		return b, nil
-	}
-	// RawStdEncoding
-	b, err = base64.RawStdEncoding.DecodeString(s)
-	if err == nil {
-		return b, nil
-	}
-	// StdEncoding
-	return base64.StdEncoding.DecodeString(s)
+	// Fallback to padded Base64url if caller supplied padding.
+	return base64.URLEncoding.DecodeString(s)
 }
 
 // SignGatewayClaim generates a signed JWT-formatted claim token for trusted gateway clients.
