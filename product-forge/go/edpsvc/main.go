@@ -46,6 +46,7 @@ import (
 	"productforge/edpsvc/internal/observe"
 	"productforge/edpsvc/internal/storeguard"
 	"productforge/gcsstore"
+	"productforge/gdrivestore"
 	"productforge/migrate"
 	"productforge/objpolicy"
 	"productforge/objstore"
@@ -152,6 +153,18 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 			Container: container,
 			BaseURL:   strings.TrimSpace(os.Getenv("PF_AZURE_BASE_URL")),
 			Auth:      auth,
+		})
+	case "gdrive", "googledrive":
+		rootFolder := strings.TrimSpace(os.Getenv("PF_GDRIVE_ROOT_FOLDER_ID"))
+		if rootFolder == "" {
+			return nil, errors.New("edpsvc: PF_GDRIVE_ROOT_FOLDER_ID is required when PF_OBJECT_BACKEND=gdrive")
+		}
+		token := strings.TrimSpace(os.Getenv("PF_GDRIVE_TOKEN"))
+		return gdrivestore.New(gdrivestore.Config{
+			RootFolderID:  rootFolder,
+			BaseURL:       strings.TrimSpace(os.Getenv("PF_GDRIVE_BASE_URL")),
+			UploadBaseURL: strings.TrimSpace(os.Getenv("PF_GDRIVE_UPLOAD_BASE_URL")),
+			Auth:          gdrivestore.AuthFromToken(token),
 		})
 	default:
 		return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)

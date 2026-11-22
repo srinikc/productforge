@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1434",
+  "sha": "21598c74fb51",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-21T18:10:32.772642+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "4bd01d26908d11c1ecbe71eee5ac0bcd27498ea9",
+  "findings": {
+    "BLOCKER": [
+      "The \"permanent DELETE before Put\" strategy violates the reversibility guardrail; a failure during the subsequent upload results in total data loss of the existing object with no recovery path.",
+      "The \"Query -> Delete -> Put\" sequence is non-atomic; concurrent writes to the same key will result in race conditions, orphaned files, or duplicate entries for the same logical key.",
+      "The design fails the \"integrity\" lens by relying on Google Drive's eventually consistent search index for collision detection, which allows duplicate keys to be created if the index is lagging."
+    ],
+    "MAJOR": [
+      "Manual implementation of multipart/related uploads using `net/http` without the official SDK increases maintenance surface and risk of protocol non-compliance (e.g., boundary handling, chunking).",
+      "High API call amplification: each `Put` operation requires at least three API calls (List/Query, Delete, Upload), which will rapidly exhaust Google Drive's per-user rate limits.",
+      "Lack of a \"Trash\" or \"Soft-delete\" phase in the collision policy prevents administrative recovery from accidental overwrites or system malfunctions."
+    ],
+    "MINOR": [
+      "Google Drive custom properties have a 124-character limit; while SHA256 fits, the design should explicitly define the schema to prevent future property bloat from breaking writes.",
+      "The design does not specify a strategy for handling \"orphaned\" files that may result from interrupted multipart uploads or failed delete-and-replace cycles."
+    ],
+    "NIT": [
+      "`SignedURLs = false` is the correct posture given Google Drive's lack of native S3-compatible pre-signed URL support.",
+      "Bounded JSON parsing for `List` is a positive architectural choice for memory safety."
+    ],
+    "SUMMARY": [
+      "The design is REJECTED due to high risk of data loss and lack of atomicity in the collision policy.",
+      "Top risks: Irreversible data deletion on failed writes, race conditions during concurrent access, and eventual consistency issues leading to duplicate keys.",
+      "Recommendation: Redesign to use a \"Write-then-Delete\" or \"Versioned-Rename\" flow to ensure data integrity."
+    ]
+  }
+}

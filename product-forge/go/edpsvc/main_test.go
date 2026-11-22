@@ -751,3 +751,43 @@ func TestBuildObjectStore_Azure(t *testing.T) {
 		t.Fatalf("expected store on azure emulator BaseURL, got st=%v err=%v", st, err)
 	}
 }
+
+func TestBuildObjectStore_GDrive(t *testing.T) {
+	origBackend := os.Getenv("PF_OBJECT_BACKEND")
+	origFolder := os.Getenv("PF_GDRIVE_ROOT_FOLDER_ID")
+	origToken := os.Getenv("PF_GDRIVE_TOKEN")
+	origBaseURL := os.Getenv("PF_GDRIVE_BASE_URL")
+	origUploadURL := os.Getenv("PF_GDRIVE_UPLOAD_BASE_URL")
+	defer func() {
+		os.Setenv("PF_OBJECT_BACKEND", origBackend)
+		os.Setenv("PF_GDRIVE_ROOT_FOLDER_ID", origFolder)
+		os.Setenv("PF_GDRIVE_TOKEN", origToken)
+		os.Setenv("PF_GDRIVE_BASE_URL", origBaseURL)
+		os.Setenv("PF_GDRIVE_UPLOAD_BASE_URL", origUploadURL)
+	}()
+
+	// Case 1: PF_OBJECT_BACKEND=gdrive without root folder -> fail closed
+	os.Setenv("PF_OBJECT_BACKEND", "gdrive")
+	os.Unsetenv("PF_GDRIVE_ROOT_FOLDER_ID")
+	st, err := buildObjectStore()
+	if err == nil || st != nil {
+		t.Fatalf("expected error on missing PF_GDRIVE_ROOT_FOLDER_ID, got st=%v err=%v", st, err)
+	}
+
+	// Case 2: PF_OBJECT_BACKEND=gdrive with root folder and token -> success
+	os.Setenv("PF_GDRIVE_ROOT_FOLDER_ID", "0B-root-folder-12345")
+	os.Setenv("PF_GDRIVE_TOKEN", "ya29.test-bearer-token")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on gdrive token config, got st=%v err=%v", st, err)
+	}
+
+	// Case 3: PF_OBJECT_BACKEND=googledrive alias with custom BaseURL and UploadBaseURL -> success
+	os.Setenv("PF_OBJECT_BACKEND", "googledrive")
+	os.Setenv("PF_GDRIVE_BASE_URL", "http://127.0.0.1:8090")
+	os.Setenv("PF_GDRIVE_UPLOAD_BASE_URL", "http://127.0.0.1:8090")
+	st, err = buildObjectStore()
+	if err != nil || st == nil {
+		t.Fatalf("expected store on googledrive alias with custom URLs, got st=%v err=%v", st, err)
+	}
+}

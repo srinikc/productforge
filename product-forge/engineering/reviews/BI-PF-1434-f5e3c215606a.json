@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1434",
+  "sha": "f5e3c215606a",
+  "model": "gemini-3-flash-preview",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T04:41:57.289508+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "7446e07b51282a6938e213cae34ce236f7e23dad",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "[OUT_OF_SCOPE] `Put` implementation still buffers the entire object into memory via `io.ReadAll` or `make([]byte, size)` (lines 218-241), violating the \"True Streaming Delivery\" requirement in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large files.",
+      "`retireSuperseded` and `Delete` (lines 323, 448) use `defer resp.Body.Close()` inside a loop, which can lead to file descriptor exhaustion when processing many files; bodies must be closed immediately after use."
+    ],
+    "MINOR": [
+      "`findActiveFile` (line 197) and `retireSuperseded` (line 310) hardcode `pageSize=10` and `pageSize=50` respectively; if a key has more active versions than the page size, the adapter may fail to find the latest or fail to clean up all old versions.",
+      "`Put` uses `time.Now().UnixNano()` for the multipart boundary (line 249); while improved, standard practice suggests using a cryptographically random string to prevent boundary collisions with binary payloads."
+    ],
+    "NIT": [
+      "`boundKey` (line 164) uses a hardcoded prefix length of 83; while safe for the 124-byte limit, it lacks a constant definition explaining the derivation (124 - 1 (separator) - 16 (hash) - 24 (buffer)).",
+      "`fileToObjectInfo` (line 595) attempts to parse `f.Size` without checking the error; while Drive API usually returns valid integers, `strconv.ParseInt` error should be handled or logged."
+    ],
+    "SUMMARY": [
+      "The adapter successfully implements the `datastore.ObjectStore` interface and satisfies the permanent delete requirement.",
+      "Top risks include OOM on large uploads due to memory buffering and potential file descriptor leaks in batch deletion loops."
+    ]
+  }
+}
