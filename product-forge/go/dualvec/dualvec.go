@@ -2,7 +2,9 @@ package dualvec
 
 import (
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"productforge/datastore"
 )
@@ -14,6 +16,33 @@ const (
 	EngineSQLite   EngineType = "sqlite"
 	EnginePostgres EngineType = "postgres"
 )
+
+// Observer receives events for dualvec storage operations.
+type Observer interface {
+	Observe(engine EngineType, op string, tenant string, project string, duration time.Duration, err error)
+}
+
+type defaultObserver struct{}
+
+func (defaultObserver) Observe(engine EngineType, op string, tenant string, project string, duration time.Duration, err error) {
+	status := "ok"
+	if err != nil {
+		status = "error"
+	}
+	log.Printf("[dualvec] engine=%s op=%s tenant=%s project=%s duration_ms=%d status=%s err=%v",
+		engine, op, tenant, project, duration.Milliseconds(), status, err)
+}
+
+var currentObserver Observer = defaultObserver{}
+
+// SetObserver configures the package-level observer.
+func SetObserver(o Observer) {
+	if o == nil {
+		currentObserver = defaultObserver{}
+		return
+	}
+	currentObserver = o
+}
 
 // Config holds initialization parameters for the dual-engine vector store.
 type Config struct {
@@ -27,6 +56,9 @@ type Config struct {
 
 	// Dimension defines the embedding dimension (defaults to 1536).
 	Dimension int
+
+	// Observer is an optional telemetry observer for operations.
+	Observer Observer
 }
 
 // DetectEngine inspects a connection string and returns the target engine type.
@@ -42,6 +74,9 @@ func DetectEngine(dsn string) EngineType {
 func New(cfg Config) (datastore.MemoryRepository, error) {
 	if cfg.Dimension <= 0 {
 		cfg.Dimension = EmbeddingDim
+	}
+	if cfg.Observer != nil {
+		SetObserver(cfg.Observer)
 	}
 
 	engine := DetectEngine(cfg.DSN)
@@ -63,3 +98,4 @@ func New(cfg Config) (datastore.MemoryRepository, error) {
 		return nil, fmt.Errorf("dualvec: unsupported engine type %q", engine)
 	}
 }
+

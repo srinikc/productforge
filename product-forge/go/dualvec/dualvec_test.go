@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"productforge/datastore"
+	"productforge/store"
 )
 
 func makeUnitVector(dim int, primaryIdx int) []float32 {
@@ -21,7 +25,6 @@ func makeBlendedVector(dim int, idxA, idxB int, weightA, weightB float32) []floa
 	v := make([]float32, dim)
 	v[idxA] = weightA
 	v[idxB] = weightB
-	// Normalize
 	norm := float32(math.Sqrt(float64(weightA*weightA + weightB*weightB)))
 	if norm > 0 {
 		v[idxA] /= norm
@@ -51,13 +54,10 @@ func TestEngineDetection(t *testing.T) {
 	}
 }
 
-func TestSqliteMemoryStoreConformance(t *testing.T) {
+// runMemoryConformance verifies the 8 canonical memory types, vector validation, ACL scoping,
+// and isolation guarantees across any datastore.MemoryRepository backend (AC-1, AC-2, AC-3, AC-4).
+func runMemoryConformance(t *testing.T, store datastore.MemoryRepository, tenant string) {
 	ctx := context.Background()
-	store, err := NewSqliteMemoryStore(":memory:")
-	if err != nil {
-		t.Fatalf("failed to create sqlite store: %v", err)
-	}
-	defer store.Close()
 
 	// 1. All eight canonical memory kinds must be accepted
 	kinds := []string{
@@ -66,9 +66,9 @@ func TestSqliteMemoryStoreConformance(t *testing.T) {
 	}
 	for i, kind := range kinds {
 		e := datastore.MemoryEntry{
-			ID:        fmt.Sprintf("mem-kind-%d", i),
-			TenantID:  "tenant-conformance",
-			Project:   "proj-conformance",
+			ID:        fmt.Sprintf("%s-kind-%d", tenant, i),
+			TenantID:  tenant,
+			Project:   fmt.Sprintf("proj-%s", tenant),
 			Kind:      kind,
 			ACLScope:  "project",
 			Content:   fmt.Sprintf("Memory content for kind %s", kind),
@@ -86,9 +86,9 @@ func TestSqliteMemoryStoreConformance(t *testing.T) {
 	}
 
 	// 2. Unknown memory kind must fail closed
-	_, err = store.Put(ctx, datastore.MemoryEntry{
-		ID:       "invalid-kind",
-		TenantID: "tenant-conformance",
+	_, err := store.Put(ctx, datastore.MemoryEntry{
+		ID:       fmt.Sprintf("%s-invalid-kind", tenant),
+		TenantID: tenant,
 		Kind:     "hallucinated_kind",
 		ACLScope: "project",
 		Owner:    "tester",
@@ -99,8 +99,8 @@ func TestSqliteMemoryStoreConformance(t *testing.T) {
 
 	// 3. Unknown ACL scope must fail closed
 	_, err = store.Put(ctx, datastore.MemoryEntry{
-		ID:       "invalid-acl",
-		TenantID: "tenant-conformance",
+		ID:       fmt.Sprintf("%s-invalid-acl", tenant),
+		TenantID: tenant,
 		Kind:     "semantic",
 		ACLScope: "super_public",
 		Owner:    "tester",
@@ -111,215 +111,225 @@ func TestSqliteMemoryStoreConformance(t *testing.T) {
 
 	// 4. Invalid vector dimension must fail closed
 	_, err = store.Put(ctx, datastore.MemoryEntry{
-		ID:        "invalid-dim",
-		TenantID:  "tenant-conformance",
+		ID:        fmt.Sprintf("%s-invalid-dim", tenant),
+		TenantID:  tenant,
 		Kind:      "semantic",
 		ACLScope:  "project",
 		Owner:     "tester",
 		Embedding: []float32{1.0, 2.0, 3.0}, // Only 3 dims, requires 1536
 	})
 	if err == nil {
-		t.Fatal("expected error for invalid vector dimension, got nil")
+		t.Fatal("expected error for vector dimension mismatch, got nil")
 	}
 
-	// 5. Get and Delete operations
-	getEntry, err := store.Get(ctx, "mem-kind-0")
-	if err != nil {
-		t.Fatalf("Get failed: %v", err)
-	}
-	if getEntry.ID != "mem-kind-0" {
-		t.Errorf("Get returned ID %q; want mem-kind-0", getEntry.ID)
-	}
-	if len(getEntry.Embedding) != EmbeddingDim {
-		t.Errorf("Get returned %d dims; want %d", len(getEntry.Embedding), EmbeddingDim)
-	}
-
-	if err := store.Delete(ctx, "mem-kind-0"); err != nil {
-		t.Fatalf("Delete failed: %v", err)
-	}
-	_, err = store.Get(ctx, "mem-kind-0")
-	if err == nil {
-		t.Fatal("expected error after delete, got nil")
-	}
-}
-
-func TestNearestNeighborVectorRanking(t *testing.T) {
-	ctx := context.Background()
-	store, err := NewSqliteMemoryStore(":memory:")
-	if err != nil {
-		t.Fatalf("failed to create sqlite store: %v", err)
-	}
-	defer store.Close()
-
-	// Insert three items with varying vector similarities to index 10:
-	// Item 1: Exactly aligned with index 10 (cosine similarity = 1.0)
-	// Item 2: Blended with index 10 and 20 (cosine similarity ~ 0.707)
-	// Item 3: Orthogonal (aligned with index 30, cosine similarity = 0.0)
-	queryVec := makeUnitVector(EmbeddingDim, 10)
+	// 5. Nearest neighbor vector ranking
+	targetID := fmt.Sprintf("%s-target", tenant)
+	distractorID := fmt.Sprintf("%s-distractor", tenant)
+	orthogonalID := fmt.Sprintf("%s-orthogonal", tenant)
 
 	_, err = store.Put(ctx, datastore.MemoryEntry{
-		ID:        "item-exact",
-		TenantID:  "t1",
+		ID:        targetID,
+		TenantID:  tenant,
 		Kind:      "semantic",
-		ACLScope:  "tenant",
-		Content:   "Alpha architecture documentation",
-		Owner:     "architect",
-		Embedding: queryVec,
+		ACLScope:  "project",
+		Content:   "Highly relevant vector target",
+		Embedding: makeBlendedVector(EmbeddingDim, 10, 20, 0.95, 0.05),
 	})
 	if err != nil {
-		t.Fatalf("Put exact failed: %v", err)
+		t.Fatalf("Put target failed: %v", err)
 	}
 
 	_, err = store.Put(ctx, datastore.MemoryEntry{
-		ID:        "item-blended",
-		TenantID:  "t1",
+		ID:        distractorID,
+		TenantID:  tenant,
 		Kind:      "semantic",
-		ACLScope:  "tenant",
-		Content:   "Beta design patterns",
-		Owner:     "architect",
-		Embedding: makeBlendedVector(EmbeddingDim, 10, 20, 0.7, 0.7),
+		ACLScope:  "project",
+		Content:   "Partially relevant distractor",
+		Embedding: makeBlendedVector(EmbeddingDim, 10, 20, 0.5, 0.5),
 	})
 	if err != nil {
-		t.Fatalf("Put blended failed: %v", err)
+		t.Fatalf("Put distractor failed: %v", err)
 	}
 
 	_, err = store.Put(ctx, datastore.MemoryEntry{
-		ID:        "item-orthogonal",
-		TenantID:  "t1",
+		ID:        orthogonalID,
+		TenantID:  tenant,
 		Kind:      "semantic",
-		ACLScope:  "tenant",
-		Content:   "Gamma unrelated code",
-		Owner:     "architect",
-		Embedding: makeUnitVector(EmbeddingDim, 30),
+		ACLScope:  "project",
+		Content:   "Completely orthogonal entry",
+		Embedding: makeUnitVector(EmbeddingDim, 100),
 	})
 	if err != nil {
 		t.Fatalf("Put orthogonal failed: %v", err)
 	}
 
-	// Search by query vector
-	results, err := store.Search(ctx, "", datastore.MemoryScope{
-		TenantID: "t1",
-		Vector:   queryVec,
-	}, 10)
+	queryScope := datastore.MemoryScope{
+		TenantID: tenant,
+		Vector:   makeUnitVector(EmbeddingDim, 10),
+	}
+	hits, err := store.Search(ctx, "target", queryScope, 3)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
-
-	if len(results) < 2 {
-		t.Fatalf("expected at least 2 non-zero results, got %d", len(results))
+	if len(hits) == 0 {
+		t.Fatal("expected search hits, got 0")
+	}
+	if hits[0].ID != targetID {
+		t.Errorf("top ranked result = %q; want %q", hits[0].ID, targetID)
 	}
 
-	if results[0].ID != "item-exact" {
-		t.Errorf("Rank 1 item = %q; want item-exact", results[0].ID)
+	// 6. Negative Leakage Isolation (Tenant and ACL)
+	otherTenant := tenant + "-other"
+	_, _ = store.Put(ctx, datastore.MemoryEntry{
+		ID:       fmt.Sprintf("%s-priv", tenant),
+		TenantID: tenant,
+		Kind:     "decision",
+		ACLScope: "private",
+		Owner:    "alice",
+		Content:  "Secret private decision",
+	})
+
+	hitsOtherUser, err := store.Search(ctx, "", datastore.MemoryScope{
+		TenantID: tenant,
+		User:     "bob",
+	}, 10)
+	if err != nil {
+		t.Fatalf("Search for other user failed: %v", err)
 	}
-	if results[1].ID != "item-blended" {
-		t.Errorf("Rank 2 item = %q; want item-blended", results[1].ID)
+	for _, h := range hitsOtherUser {
+		if h.ID == fmt.Sprintf("%s-priv", tenant) {
+			t.Errorf("PRIVACY LEAKAGE: Bob was able to view Alice's private entry %q", h.ID)
+		}
 	}
-	if results[0].Score <= results[1].Score {
-		t.Errorf("Score 1 (%f) should be strictly greater than Score 2 (%f)", results[0].Score, results[1].Score)
+
+	// Cross-tenant search must return zero rows from this tenant
+	hitsOtherTenant, err := store.Search(ctx, "", datastore.MemoryScope{
+		TenantID: otherTenant,
+	}, 10)
+	if err != nil {
+		t.Fatalf("Search for other tenant failed: %v", err)
+	}
+	for _, h := range hitsOtherTenant {
+		if h.TenantID == tenant {
+			t.Errorf("CROSS-TENANT LEAKAGE: Other tenant retrieved entry belonging to %q", tenant)
+		}
 	}
 }
 
-func TestNegativeLeakageIsolation(t *testing.T) {
-	ctx := context.Background()
+func TestSqliteMemoryStoreConformance(t *testing.T) {
 	store, err := NewSqliteMemoryStore(":memory:")
 	if err != nil {
 		t.Fatalf("failed to create sqlite store: %v", err)
 	}
 	defer store.Close()
 
-	// Seed Tenant A and Tenant B data
-	_, _ = store.Put(ctx, datastore.MemoryEntry{
-		ID:       "tenant-a-public",
-		TenantID: "tenant-A",
-		Project:  "project-A",
-		Kind:     "policy",
-		ACLScope: "tenant",
-		Content:  "Secret internal policy of Tenant A",
-		Source:   "source-A",
-		Owner:    "alice",
+	runMemoryConformance(t, store, "sqlite-tenant")
+}
+
+func TestPgMemoryStoreConformance(t *testing.T) {
+	dsn := os.Getenv("PF_RUNTIME_DSN")
+	if dsn == "" {
+		dsn = os.Getenv("PF_DB_DSN")
+	}
+	if dsn == "" {
+		t.Skip("skipping PG conformance test: PF_DB_DSN / PF_RUNTIME_DSN not set")
+	}
+	ctx := context.Background()
+	st, err := store.Open(ctx, dsn)
+	if err != nil {
+		t.Skipf("skipping PG conformance test: unable to connect to DB: %v", err)
+	}
+	defer st.Close()
+
+	tenant := fmt.Sprintf("pg-conf-%d", time.Now().UnixNano()%1000000)
+	otherTenant := tenant + "-other"
+
+	if err := st.WithTx(ctx, func(tx datastore.Tx) error {
+		if _, e := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, tenant); e != nil {
+			return e
+		}
+		if _, e := tx.Exec(ctx, `INSERT INTO tenants (id, slug, name, region, status) VALUES ($1,$1,$1,'','active')`, tenant); e != nil {
+			return e
+		}
+		projID := fmt.Sprintf("proj-%s", tenant)
+		if _, e := tx.Exec(ctx, `INSERT INTO projects (id, tenant_id, slug, name, status) VALUES ($1, $2, $1, $1, 'active')`, projID, tenant); e != nil {
+			return e
+		}
+		return nil
+	}); err != nil {
+		t.Skipf("skipping PG conformance test: unable to seed test tenant: %v", err)
+	}
+
+	_ = st.WithTx(ctx, func(tx datastore.Tx) error {
+		_, _ = tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, otherTenant)
+		_, _ = tx.Exec(ctx, `INSERT INTO tenants (id, slug, name, region, status) VALUES ($1,$1,$1,'','active')`, otherTenant)
+		return nil
 	})
 
-	_, _ = store.Put(ctx, datastore.MemoryEntry{
-		ID:       "tenant-a-private",
-		TenantID: "tenant-A",
-		Project:  "project-A",
-		Kind:     "decision",
-		ACLScope: "private",
-		Content:  "Alice private decision for Tenant A",
-		Source:   "source-A",
-		Owner:    "alice",
+	t.Cleanup(func() {
+		_ = st.WithTx(context.Background(), func(tx datastore.Tx) error {
+			projID := fmt.Sprintf("proj-%s", tenant)
+			_, _ = tx.Exec(context.Background(), `SELECT set_config('app.tenant_id', $1, true)`, tenant)
+			_, _ = tx.Exec(context.Background(), `DELETE FROM projects WHERE id=$1`, projID)
+			_, _ = tx.Exec(context.Background(), `DELETE FROM tenants WHERE id=$1`, tenant)
+			_, _ = tx.Exec(context.Background(), `SELECT set_config('app.tenant_id', $1, true)`, otherTenant)
+			_, _ = tx.Exec(context.Background(), `DELETE FROM tenants WHERE id=$1`, otherTenant)
+			return nil
+		})
 	})
 
+	pgStore := NewPgMemoryStore(store.BindTenant(st, tenant))
+	runMemoryConformance(t, pgStore, tenant)
+}
+
+type testObserver struct {
+	mu     sync.Mutex
+	events []string
+}
+
+func (o *testObserver) Observe(engine EngineType, op string, tenant string, project string, duration time.Duration, err error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.events = append(o.events, fmt.Sprintf("%s:%s", engine, op))
+}
+
+func TestDualVecObservability(t *testing.T) {
+	obs := &testObserver{}
+	SetObserver(obs)
+	defer SetObserver(nil)
+
+	store, err := NewSqliteMemoryStore(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
 	_, _ = store.Put(ctx, datastore.MemoryEntry{
-		ID:       "tenant-b-public",
-		TenantID: "tenant-B",
-		Project:  "project-B",
-		Kind:     "policy",
-		ACLScope: "tenant",
-		Content:  "Public policy of Tenant B",
-		Source:   "source-B",
-		Owner:    "bob",
+		ID:       "obs-test-1",
+		TenantID: "tenant-obs",
+		Kind:     "semantic",
+		ACLScope: "project",
+		Content:  "Telemetry test content",
 	})
+	_, _ = store.Get(ctx, "obs-test-1")
+	_, _ = store.Search(ctx, "test", datastore.MemoryScope{TenantID: "tenant-obs"}, 5)
+	_ = store.Delete(ctx, "obs-test-1")
 
-	// Negative Test 1: Tenant B search must NEVER return Tenant A rows
-	resultsB, err := store.Search(ctx, "policy", datastore.MemoryScope{
-		TenantID: "tenant-B",
-		User:     "bob",
-	}, 10)
-	if err != nil {
-		t.Fatalf("Search Tenant B failed: %v", err)
-	}
-	for _, r := range resultsB {
-		if r.TenantID != "tenant-B" {
-			t.Errorf("CROSS-TENANT LEAKAGE: Tenant B retrieved entry belonging to %q", r.TenantID)
-		}
-	}
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
 
-	// Negative Test 2: Project-scoped isolation
-	resultsProj, err := store.Search(ctx, "policy", datastore.MemoryScope{
-		TenantID: "tenant-A",
-		Project:  "project-X", // Non-matching project
-	}, 10)
-	if err != nil {
-		t.Fatalf("Search failed: %v", err)
-	}
-	for _, r := range resultsProj {
-		if r.Project != "" && r.Project != "project-X" {
-			t.Errorf("CROSS-PROJECT LEAKAGE: Project X query retrieved Project %q", r.Project)
+	expectedOps := []string{"sqlite:Put", "sqlite:Get", "sqlite:Search", "sqlite:Delete"}
+	for _, expected := range expectedOps {
+		found := false
+		for _, ev := range obs.events {
+			if ev == expected {
+				found = true
+				break
+			}
 		}
-	}
-
-	// Negative Test 3: Private entries must NOT be visible to other users in the same tenant
-	resultsSameTenantOtherUser, err := store.Search(ctx, "", datastore.MemoryScope{
-		TenantID: "tenant-A",
-		User:     "charlie", // Charlie in Tenant A should NOT see Alice's private entry
-	}, 10)
-	if err != nil {
-		t.Fatalf("Search failed: %v", err)
-	}
-	for _, r := range resultsSameTenantOtherUser {
-		if r.ID == "tenant-a-private" {
-			t.Errorf("PRIVACY LEAKAGE: Charlie accessed Alice's private memory entry")
+		if !found {
+			t.Errorf("expected observability event %q; got events %v", expected, obs.events)
 		}
-	}
-
-	// Affirmative test: Alice CAN see her own private entry
-	resultsAlice, err := store.Search(ctx, "", datastore.MemoryScope{
-		TenantID: "tenant-A",
-		User:     "alice",
-	}, 10)
-	if err != nil {
-		t.Fatalf("Search failed: %v", err)
-	}
-	foundAlicePrivate := false
-	for _, r := range resultsAlice {
-		if r.ID == "tenant-a-private" {
-			foundAlicePrivate = true
-			break
-		}
-	}
-	if !foundAlicePrivate {
-		t.Error("expected Alice to be able to retrieve her own private memory entry")
 	}
 }

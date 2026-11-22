@@ -156,6 +156,13 @@ func lexicalScore(query, content string) float32 {
 
 // Put upserts a memory entry validating taxonomy and dimension contracts.
 func (s *SqliteMemoryStore) Put(ctx context.Context, e datastore.MemoryEntry) (datastore.MemoryEntry, error) {
+	start := time.Now()
+	res, err := s.putInternal(ctx, e)
+	currentObserver.Observe(EngineSQLite, "Put", e.TenantID, e.Project, time.Since(start), err)
+	return res, err
+}
+
+func (s *SqliteMemoryStore) putInternal(ctx context.Context, e datastore.MemoryEntry) (datastore.MemoryEntry, error) {
 	if e.ID == "" || e.TenantID == "" {
 		return datastore.MemoryEntry{}, errors.New("dualvec: memory id and tenant_id are required")
 	}
@@ -211,9 +218,12 @@ func (s *SqliteMemoryStore) Put(ctx context.Context, e datastore.MemoryEntry) (d
 
 // Get reads a memory entry by ID.
 func (s *SqliteMemoryStore) Get(ctx context.Context, id string) (datastore.MemoryEntry, error) {
+	start := time.Now()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.getLocked(ctx, id)
+	entry, err := s.getLocked(ctx, id)
+	currentObserver.Observe(EngineSQLite, "Get", entry.TenantID, entry.Project, time.Since(start), err)
+	return entry, err
 }
 
 func (s *SqliteMemoryStore) getLocked(ctx context.Context, id string) (datastore.MemoryEntry, error) {
@@ -244,16 +254,22 @@ func (s *SqliteMemoryStore) getLocked(ctx context.Context, id string) (datastore
 
 // Delete removes a memory entry by ID.
 func (s *SqliteMemoryStore) Delete(ctx context.Context, id string) error {
+	start := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	res, err := s.db.ExecContext(ctx, "DELETE FROM memory_entries WHERE id = ?", id)
 	if err != nil {
-		return fmt.Errorf("dualvec: delete failed: %w", err)
+		err = fmt.Errorf("dualvec: delete failed: %w", err)
+		currentObserver.Observe(EngineSQLite, "Delete", "", "", time.Since(start), err)
+		return err
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return errors.New("dualvec: memory entry not found")
+		err = errors.New("dualvec: memory entry not found")
+		currentObserver.Observe(EngineSQLite, "Delete", "", "", time.Since(start), err)
+		return err
 	}
+	currentObserver.Observe(EngineSQLite, "Delete", "", "", time.Since(start), nil)
 	return nil
 }
 
@@ -264,6 +280,13 @@ type scoredEntry struct {
 
 // Search queries memory entries applying strict tenant, project, ACL, and kind filters.
 func (s *SqliteMemoryStore) Search(ctx context.Context, q string, scope datastore.MemoryScope, k int) ([]datastore.MemoryEntry, error) {
+	start := time.Now()
+	entries, err := s.searchInternal(ctx, q, scope, k)
+	currentObserver.Observe(EngineSQLite, "Search", scope.TenantID, scope.Project, time.Since(start), err)
+	return entries, err
+}
+
+func (s *SqliteMemoryStore) searchInternal(ctx context.Context, q string, scope datastore.MemoryScope, k int) ([]datastore.MemoryEntry, error) {
 	if scope.TenantID == "" {
 		return nil, errors.New("dualvec: tenant_id scope is required")
 	}
