@@ -136,7 +136,7 @@ class PlaneADeployer:
             res = {
                 "provider": self.provider,
                 "status": "provisioned",
-                "output": proc.stdout[-1000:],
+                "output": proc.stdout[-5000:] if proc.stdout else "",
             }
             self._record_step("provision_infrastructure", "SUCCESS", res)
             return res
@@ -165,7 +165,7 @@ class PlaneADeployer:
             res = {
                 "release_name": release_name,
                 "status": "deployed",
-                "output": proc.stdout[-1000:],
+                "output": proc.stdout[-5000:] if proc.stdout else "",
             }
             self._record_step("deploy_helm_stack", "SUCCESS", res)
             return res

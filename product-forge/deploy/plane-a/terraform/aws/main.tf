@@ -78,6 +78,39 @@ resource "aws_eks_cluster" "pf_eks" {
   depends_on = [aws_iam_role.eks_cluster_role]
 }
 
+resource "aws_iam_role" "eks_node_role" {
+  name = "${var.cluster_name}-node-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_eks_node_group" "pf_nodes" {
+  cluster_name    = aws_eks_cluster.pf_eks.name
+  node_group_name = "${var.cluster_name}-node-group"
+  node_role_arn   = aws_iam_role.eks_node_role.arn
+  subnet_ids      = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+
+  scaling_config {
+    desired_size = 3
+    max_size     = 10
+    min_size     = 2
+  }
+
+  instance_types = ["m6i.xlarge"]
+
+  depends_on = [
+    aws_iam_role.eks_node_role,
+    aws_eks_cluster.pf_eks,
+  ]
+}
+
 # --- High-Availability Multi-AZ PostgreSQL Database ---
 resource "aws_db_subnet_group" "pf_db_subnet_group" {
   name       = "${var.cluster_name}-db-subnet-group"

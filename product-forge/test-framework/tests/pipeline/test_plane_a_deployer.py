@@ -82,6 +82,7 @@ def test_terraform_module_definitions():
     aws_content = aws_main.read_text(encoding="utf-8")
     assert "aws_vpc" in aws_content
     assert "aws_eks_cluster" in aws_content
+    assert "aws_eks_node_group" in aws_content
     assert "aws_db_instance" in aws_content
     assert "multi_az               = true" in aws_content
     assert "vector" in aws_content
