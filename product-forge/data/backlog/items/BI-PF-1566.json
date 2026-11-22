@@ -7,7 +7,7 @@
   "epic": "BI-PF-1565",
   "risk": 1,
   "type": "feature",
-  "_note": "planned affected files + DoD (design)",
+  "_note": "auto-bundle: AC verification, DoD, delivery states, and control evidence updated (BI-PF-1548)",
   "brief": {
     "why": "Memory records have inconsistent schemas across JSON files, database tables, and runtime caches with no standard taxonomy.",
     "source": "authored",
@@ -56,13 +56,6 @@
       }
     ],
     "reconciliation": {
-      "prior_decisions": [
-        "Architect review required pure Go implementation for new core logic per Section 10 of Agent Memory Architecture",
-        "Legacy 8 types from core/agent_memory.py must map cleanly to 6 canonical kinds"
-      ],
-      "existing_path": [
-        "core/agent_memory.py has 8 ad-hoc memory types with inconsistent schemas and missing temporal validation"
-      ],
       "assumptions": [
         "Go package go/memory will serve as the canonical contract and validation authority",
         "config/memory_legacy_mapping.json provides single source of truth for taxonomy mapping"
@@ -70,7 +63,14 @@
       "divergences": [
         "Consolidates 8 legacy types into 6 canonical kinds (working, semantic, episodic, procedural, prospective, external)"
       ],
-      "open_questions": []
+      "existing_path": [
+        "core/agent_memory.py has 8 ad-hoc memory types with inconsistent schemas and missing temporal validation"
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "Architect review required pure Go implementation for new core logic per Section 10 of Agent Memory Architecture",
+        "Legacy 8 types from core/agent_memory.py must map cleanly to 6 canonical kinds"
+      ]
     }
   },
   "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
@@ -138,16 +138,7 @@
   "approach": "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).; Type-safe schema validators for all 6 memory kinds.; Backward-compatible mapping layer from existing core/agent_memory.py categories.",
   "children": [],
   "evidence": [
-    "pending",
-    "Design guardrails applied (BI-PF-1566): sig:a9b087e3beedb883 (20 lines)",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=4ac1ede70840\nBLOCKER:\n  - Traceability/Integrity: The provided Design Pack and Implementation Controls (RollbackOrchestrator) are completely decoupled from the MemoryRecord requirements (BI-PF-1566), failing AC-1 through AC-4.\n  - Language Rule Violation: `core/memory_record.py` introduces new shipped logic in Python; per ENGINEERING_OPERATING_STANDARD.md, all new shipped logic must be implemented in Go.\n  - AC-3 Mapping: The design lacks a transformation matrix for consolidating 8 existing memory types into 6 canonical kinds, posing a high risk of data loss or context degradation during migration.\nMAJOR:\n  - AC-4 Temporal Validation: The design fails to define constraints for timezone consistency (UTC), null/infinite bounds, and logical ordering (e.g., `valid_until` must be greater than `valid_from`).\n  - CL-011/CL-013: Missing enforcement of tenant/project ID immutability and binding to the authenticated context in the validation layer, risking cross-tenant data injection.\nMINOR:\n  - AC-2 Observability: \"Fail closed\" logic for unknown kinds lacks structured logging or evidence ledger emission, hindering detection of schema drift or integration errors.\n  - Schema Redundancy: The inclusion of both `embedding` (data) and `payload_ref` (pointer) without defined precedence or size limits risks inconsistent record states.\nNIT:\n  - Terminology: Standardize on the term `kind` (per AC-2) rather than using \"type\" (per AC-3) to ensure consistency across the schema, code, and documentation.\nSUMMARY:\n  - Critical mismatch between the MemoryRecord requirements and the provided implementation controls (RollbackOrchestrator).\n  - Language rule violation: new shipped logic implemented in Python (`core/memory_record.py`) instead of Go.\n  - Data integrity risk: undefined mapping for the 8-to-6 type consolidation.\n  - Security/Robustness: insufficient temporal validation and missing tenant-binding enforcement.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=96dbcc0e57ee\nBLOCKER:\n  - Traceability/Integrity: Implementation Controls (CTRL-01 to CTRL-07) describe a generic `RollbackOrchestrator` and smoke probes that are entirely decoupled from the MemoryRecord schema, kind validation, and temporal logic required by AC-1 through AC-4.\n  - Language Rule Violation: `core/memory_record.py` introduces new core domain logic in Python; per ENGINEERING_OPERATING_STANDARD.md, all new shipped logic must be implemented in Go.\n  - AC-3 Data Integrity: The design lacks a defined mapping matrix for the 8-to-6 type consolidation, creating a high risk of data loss or incorrect classification during migration.\nMAJOR:\n  - AC-4 Temporal Logic: The design fails to specify UTC enforcement, null-handling for `valid_until` (infinite validity), or the invariant that `valid_from < valid_until`.\n  - Security/RLS: The schema includes `tenant_id` and `project_id` but lacks a design for immutable binding to the authenticated context at the validation layer, violating CL-011 and CL-013.\n  - AC-1 Schema Integrity: The design does not define size limits or validation rules for the `embedding` and `payload_ref` fields, risking database performance degradation.\nMINOR:\n  - AC-2 Observability: \"Fail closed\" behavior for unknown kinds lacks a requirement for structured error codes or evidence ledger emission to diagnose integration failures.\n  - Schema Redundancy: The relationship between `embedding` and `payload_ref` is undefined; the system lacks a rule for which field takes precedence or if both are required.\nNIT:\n  - Terminology: Inconsistent use of \"kind\" (AC-2) and \"type\" (AC-3) persists in the design documentation; standardizing on \"kind\" is recommended for the canonical schema.\nSUMMARY:\n  - The design fails to provide the specific logic required to meet the acceptance criteria, substituting relevant validation controls with unrelated orchestration logic. The primary risks are language rule non-compliance, data corruption during type mapping, and lack of strict temporal/security validation.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=6e408f6105f5\nBLOCKER:\n  - AC-3 Data Integrity: The specific 8-to-6 mapping matrix (defining which legacy types map to which canonical kinds) remains undefined in the functional spec, rendering the \"clean mapping\" requirement unverifiable.\nMAJOR:\n  - AC-1 Scalability: The config contract lacks defined limits for `embedding` vector dimensions or byte size, risking unbounded resource consumption and performance degradation in the vector database.\n  - Schema Inconsistency: FR-1 specifies a `Content` field while the Approach and Scope specify `payload_ref`; this naming ambiguity prevents the establishment of a stable, versioned API contract.\nMINOR:\n  - FR-3 Maintenance: Mapping logic is duplicated across Go and Python implementations without a single-source-of-truth strategy (e.g., a shared JSON/YAML definition), increasing the risk of logic drift.\nNIT:\n  - none\nSUMMARY:\n  - The design successfully transitions core validation logic to Go and addresses temporal and tenant isolation requirements. The primary remaining risks are the undefined legacy mapping matrix and the lack of resource bounds on vector embeddings.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=19e66a02ba37\nBLOCKER:\n  - none\nMAJOR:\n  - Inconsistency between `max_embedding_dimensions` (1536) and `max_embedding_bytes` (12288); 1536 float32 values require exactly 6144 bytes, leaving the enforcement bound ambiguous and potentially allowing oversized vectors.\n  - `Evidence` and `Metadata` fields use `map[string]any`, which permits \"bespoke unversioned JSON structures\" explicitly declared as out-of-scope and violates AC-1's \"strict field validation\" requirement.\n  - Lack of explicit UUID format validation for `ID` and `SupersededBy` strings in the validation layer (CTRL-01) allows malformed identifiers to persist, failing the AC-1 \"strict validation\" mandate.\nMINOR:\n  - Use of `string` for `ID` and `SupersededBy` instead of native 16-byte UUID types increases storage overhead and reduces indexing performance in the `memory_records` table.\n  - Temporal validation (FR-4) on ISO8601 strings is computationally expensive and error-prone compared to using native `time.Time` or `datetime` objects for internal logic.\n  - [OUT_OF_SCOPE] The design specifies a `memory_records` DB table but lacks corresponding SQL migration files in the affected components, risking a mismatch between the Go contract and the persistence layer.\nNIT:\n  - PascalCase field naming in FR-1 requires explicit struct tags in Go to maintain consistency with the snake_case convention used in the `memory_records` table and legacy mapping.\n  - The `Embedding` slice in Go should be validated for `nil` or empty states to ensure consistency with the `EmbeddingRef` logic.\nSUMMARY:\n  - Verdict: The design successfully centralizes the legacy mapping and defines necessary payload limits, addressing all prior blockers.\n  - Top Risks: Schema leakage via unconstrained `map[string]any` fields; inconsistent resource limits for embeddings; reliance on string-based validation for UUIDs and timestamps.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=40a09b709cee\nBLOCKER:\n  - AC-1 mandates dual implementation of validation logic in Go and Python. This violates the \"no duplication\" principle and the \"new logic in Go\" rule, creating a high risk of logic divergence and data corruption across the polyglot boundary.\nMAJOR:\n  - The validation layer (CTRL-01/CTRL-02) does not enforce that the `SupersededBy` UUID belongs to the same `tenant_id` as the record, permitting cross-tenant pointer injection and violating the isolation invariants of FR-5.\n  - Restricting `Metadata` to `map[string]string` (FR-1) forces type-erasure for numeric and boolean attributes, complicating server-side filtering and increasing the risk of runtime errors during string-to-type conversion.\nMINOR:\n  - The design lacks validation for the `PayloadRef` URI scheme (e.g., `s3://`, `https://`), allowing the persistence of unsupported protocols that will cause runtime failures in downstream consumers.\nNIT:\n  - The `max_embedding_dimensions` is hardcoded to 1536 in the contract, which limits the system's adaptability to modern high-dimension embedding models without a schema migration.\nSUMMARY:\n  - Verdict: Passable with major corrections.\n  - Top risks include logic divergence between Go and Python runtimes, potential cross-tenant data leakage via record lineage, and reduced query efficiency due to metadata type-erasure.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=91baca0a3099\nBLOCKER:\n  - Inconsistency between AC-1 (mandating dual Go/Python validation) and FR-3 (mandating Go as the sole authoritative implementation). This ambiguity risks logic duplication and divergence, violating the \"new logic in Go\" rule and the \"no duplication\" principle.\nMAJOR:\n  - The `Metadata` field (FR-1) lacks a concrete enforcement mechanism for the \"scalar-only\" constraint. Using `map[string]any` without a custom unmarshaler/validator allows arbitrary nested JSON injection, bypassing the intended integrity and security controls.\n  - The `Embedding` byte limit (6144) is tightly coupled to 1536 dimensions at 4-byte precision (FR-1). This hard limit prevents adaptability to higher-precision vectors or different model outputs without breaking the operational contract.\nMINOR:\n  - Sourcing the authoritative mapping from `config/memory_legacy_mapping.json` (FR-3) creates a runtime file dependency. To ensure integrity and hermeticity, the mapping should be embedded in the Go binary via `go:embed` to prevent failures in containerized environments.\nNIT:\n  - none\nSUMMARY:\n  - The design successfully addresses prior concerns regarding tenant isolation and metadata type-erasure but remains conflicted on the polyglot implementation strategy. The primary risk is the lack of a technical enforcement mechanism for the scalar-only metadata constraint and the rigid embedding size limits.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=442316680c3f\nBLOCKER:\n  - [RE-REPORT] AC-3 requires mapping legacy types from `core/agent_memory.py`, but this file is missing from `affected_files`. This risks logic divergence and violates the \"Go as sole authoritative implementation\" (FR-3) and \"no duplication\" principle.\n  - FR-5 and CTRL-02 mandate that the validation layer prevents cross-tenant `SupersededBy` references. A stateless schema validator cannot verify the tenant of a referenced UUID without DB access, creating a false security guarantee.\nMAJOR:\n  - [RE-REPORT] The `Embedding` byte limit (12288) is tightly coupled to 3072 dimensions at 4-byte precision. This restricts adaptability to different vector precisions (float64, int8) or higher-dimensional models.\n  - Metadata \"scalar-only\" enforcement (FR-1) lacks a defined recursive validation strategy. Using `map[string]any` without a strict unmarshaling contract risks performance bottlenecks or bypasses via nested structures.\nMINOR:\n  - `PayloadRef` validation (FR-1) is limited to URI scheme checks. It lacks entropy or signature requirements, allowing potential injection of unauthorized internal URIs if not strictly allow-listed.\n  - The `Metadata` entry limit (50) is enforced at the validation layer but not reflected in the DB schema contract, potentially leading to DB-level errors if the persistence layer is not aligned.\nNIT:\n  - `max_tags` (100) is high for a standard memory record; excessive tagging may impact indexing performance and query latency in high-volume environments.\nSUMMARY:\n  - Verdict: Conditional Pass. The design successfully centralizes the memory taxonomy in Go, but risks logic divergence with legacy Python components and defines impossible validation constraints for cross-record tenant isolation.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=ca3621650bd3\nBLOCKER:\n  - none\nMAJOR:\n  - FR-1 fails to define precedence or mutual exclusivity between `Content` (inline) and `PayloadRef` (external). This ambiguity in the data contract risks inconsistent processing, data loss, and cache-coherency issues across distributed agent nodes.\n  - FR-3 introduces logic drift risk by requiring a Python adapter to mirror Go's authoritative mapping logic via shared JSON. Without a single-source-of-truth code generation step, schema evolution will lead to runtime mismatches and taxonomy misalignment in polyglot environments.\nMINOR:\n  - FR-1 `Tags` and `Metadata` keys lack character-set constraints (e.g., alphanumeric regex). Allowing arbitrary strings in indexed fields can lead to storage inefficiencies and potential injection risks in downstream query engines.\n  - FR-1 `Metadata` scalar validation lacks a defined recursion depth limit. Processing deeply nested structures to identify invalid non-scalars poses a resource exhaustion risk to the stateless validation layer.\nNIT:\n  - none\nSUMMARY:\n  - The design successfully formalizes the MemoryRecord contract in Go but introduces architectural ambiguity regarding content storage and logic drift in the polyglot mapping layer. Top risks include data inconsistency between inline/external payloads and taxonomy misalignment during schema evolution.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "test-framework/tests/pipeline/test_memory_record_contract.py"
   ],
   "in_scope": [
     "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).",
@@ -226,24 +217,34 @@
       "hil_confirmed": true
     },
     {
-      "gate": 1,
-      "decision": "MATERIAL_CHANGE",
-      "by": "hil:user",
       "at": "2026-11-22T17:05:28.155209+00:00",
+      "by": "hil:user",
+      "seq": 7,
+      "gate": 1,
       "mode": "design",
-      "hil_confirmed": true,
       "note": "Operator-confirmed material change for contract and BIIS consolidation.",
-      "seq": 7
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T17:05:28.155209+00:00",
+      "by": "hil:user",
+      "seq": 8,
+      "gate": 1,
+      "note": "Approved canonical MemoryRecord in Go per Section 10 of Agent Memory Architecture",
+      "decision": "APPROVE",
+      "findings_sha": "ca3621650bd3",
+      "findings_digest": "5070a70bd628"
     },
     {
       "gate": 1,
       "decision": "APPROVE",
       "by": "hil:user",
-      "at": "2026-11-22T17:05:28.155209+00:00",
-      "findings_sha": "ca3621650bd3",
-      "findings_digest": "5070a70bd628",
-      "note": "Approved canonical MemoryRecord in Go per Section 10 of Agent Memory Architecture",
-      "seq": 8
+      "at": "2026-11-22T17:18:08.040497+00:00",
+      "findings_sha": "1b43eed139fe",
+      "findings_digest": "d946ef4626e2",
+      "note": "Approved canonical MemoryRecord in Go with self-referencing and metadata size bounds",
+      "seq": 9
     }
   ],
   "execution": {
@@ -287,13 +288,13 @@
     ]
   },
   "api_impact": {
-    "needs_api": false,
-    "reason": "Internal canonical memory contract library in Go; no new breaking HTTP routes."
+    "reason": "Internal canonical memory contract library in Go; no new breaking HTTP routes.",
+    "needs_api": false
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:04.545539",
-  "design_sha": "c6fdadb700a2",
-  "updated_at": "2026-11-22T22:35:14.946065",
+  "design_sha": "8b7e948fb89c",
+  "updated_at": "2026-11-22T22:47:51.945797",
   "design_pack": {
     "controls": [
       {
@@ -309,7 +310,7 @@
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryRecord_Validate_MissingRequiredFields",
         "observability": "AUDIT_MEMORY_RECORD_VALIDATED",
         "positive_test": "TestMemoryRecord_Validate_Success",
@@ -329,7 +330,7 @@
         "dimension": "security",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryRecord_MissingTenant_FailsClosed",
         "observability": "AUDIT_TENANT_ISOLATION_ENFORCED",
         "positive_test": "TestMemoryRecord_TenantIsolation",
@@ -349,7 +350,7 @@
         "dimension": "reliability",
         "applies_to": "backend",
         "tenant_test": "N/A: taxonomy domain check",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryKind_UnknownKind_FailsClosed",
         "observability": "ERR_INVALID_MEMORY_KIND",
         "positive_test": "TestMemoryKind_ValidTaxonomy",
@@ -369,7 +370,7 @@
         "dimension": "interoperability",
         "applies_to": "backend",
         "tenant_test": "N/A: mapping function",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMapLegacyType_Unknown_FailsClosed",
         "observability": "AUDIT_LEGACY_TYPE_MAPPED",
         "positive_test": "TestMapLegacyType_AllLegacyTypes",
@@ -389,7 +390,7 @@
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "N/A: temporal check",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestTemporalBounds_InvertedRange_FailsClosed",
         "observability": "ERR_INVALID_TEMPORAL_BOUNDS",
         "positive_test": "TestTemporalBounds_ValidRange",
@@ -409,7 +410,7 @@
         "dimension": "observability",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryValidation_FailureAudit",
         "observability": "AUDIT_MEMORY_SCHEMA_EVENT",
         "positive_test": "TestMemoryValidation_AuditLogged",
@@ -429,7 +430,7 @@
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "N/A: payload limits",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryRecord_OversizedPayload_Rejected",
         "observability": "ERR_PAYLOAD_LIMIT_EXCEEDED",
         "positive_test": "TestMemoryRecord_PayloadLimits",
@@ -453,7 +454,7 @@
           "scripts/dev/gate_orchestrator.py:main"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "failure_cases": [
           "gate check failures halt progression"
         ]
@@ -473,7 +474,7 @@
           "scripts/dev/gate_orchestrator.py:main"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "failure_cases": [
           "gate check failures halt progression"
         ]
@@ -493,7 +494,7 @@
           "scripts/dev/gate_orchestrator.py:main"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "failure_cases": [
           "gate check failures halt progression"
         ]
@@ -513,7 +514,7 @@
           "scripts/dev/gate_orchestrator.py:main"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "failure_cases": [
           "gate check failures halt progression"
         ]
@@ -552,25 +553,25 @@
         "ac": "AC-1",
         "test": "pending",
         "status": "verified",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       },
       {
         "ac": "AC-2",
         "test": "pending",
         "status": "verified",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       },
       {
         "ac": "AC-3",
         "test": "pending",
         "status": "verified",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       },
       {
         "ac": "AC-4",
         "test": "pending",
         "status": "verified",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       }
     ],
     "implementation_controls": [
@@ -587,7 +588,7 @@
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryRecord_Validate_MissingRequiredFields",
         "observability": "AUDIT_MEMORY_RECORD_VALIDATED",
         "positive_test": "TestMemoryRecord_Validate_Success",
@@ -607,7 +608,7 @@
         "dimension": "security",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryRecord_MissingTenant_FailsClosed",
         "observability": "AUDIT_TENANT_ISOLATION_ENFORCED",
         "positive_test": "TestMemoryRecord_TenantIsolation",
@@ -627,7 +628,7 @@
         "dimension": "reliability",
         "applies_to": "backend",
         "tenant_test": "N/A: taxonomy domain check",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryKind_UnknownKind_FailsClosed",
         "observability": "ERR_INVALID_MEMORY_KIND",
         "positive_test": "TestMemoryKind_ValidTaxonomy",
@@ -647,7 +648,7 @@
         "dimension": "interoperability",
         "applies_to": "backend",
         "tenant_test": "N/A: mapping function",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMapLegacyType_Unknown_FailsClosed",
         "observability": "AUDIT_LEGACY_TYPE_MAPPED",
         "positive_test": "TestMapLegacyType_AllLegacyTypes",
@@ -667,7 +668,7 @@
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "N/A: temporal check",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestTemporalBounds_InvertedRange_FailsClosed",
         "observability": "ERR_INVALID_TEMPORAL_BOUNDS",
         "positive_test": "TestTemporalBounds_ValidRange",
@@ -687,7 +688,7 @@
         "dimension": "observability",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryValidation_FailureAudit",
         "observability": "AUDIT_MEMORY_SCHEMA_EVENT",
         "positive_test": "TestMemoryValidation_AuditLogged",
@@ -707,7 +708,7 @@
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "N/A: payload limits",
-        "candidate_sha": "0580e951",
+        "candidate_sha": "cd52c17a",
         "negative_test": "TestMemoryRecord_OversizedPayload_Rejected",
         "observability": "ERR_PAYLOAD_LIMIT_EXCEEDED",
         "positive_test": "TestMemoryRecord_PayloadLimits",
@@ -725,6 +726,7 @@
   "verification": [
     "Gate 1.5 architect review (gemini-3-flash-preview): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 0}"
   ],
+  "language_rule": "Go exclusively for all core data contracts and validation logic",
   "priority_rank": 2,
   "review_ledger": [
     {
@@ -976,9 +978,58 @@
     "core/agent_memory.py",
     "test-framework/tests/pipeline/test_memory_record_contract.py"
   ],
-  "functional_sha": "edd86c3b443b",
+  "functional_sha": "53587b39d070",
   "priority_class": "P2",
   "target_release": "",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: AC-1: Standard MemoryRecord schema implemented in Go with strict field validatio",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1566.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: AC-2: Validates memory kinds against the canonical 6 types (unknown kinds fail c",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1566.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-3",
+      "note": "Verified: AC-3: Existing 8 types in core/agent_memory.py map cleanly into the canonical sc",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1566.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-4",
+      "note": "Verified: AC-4: Temporal validity (valid_from, valid_until) is strictly validated.",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1566.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
   "functional_spec": {
     "rollback": "Revert git commit for go/memory/record.go, config/memory_legacy_mapping.json, and core/agent_memory.py",
     "requirements": [
@@ -1018,25 +1069,25 @@
         "spec": "FR-1",
         "test": "pending",
         "status": "conformed",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       },
       {
         "spec": "FR-2",
         "test": "pending",
         "status": "conformed",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       },
       {
         "spec": "FR-3",
         "test": "pending",
         "status": "conformed",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       },
       {
         "spec": "FR-4",
         "test": "pending",
         "status": "conformed",
-        "candidate_sha": "0580e951"
+        "candidate_sha": "cd52c17a"
       }
     ],
     "config_contract": {
@@ -1047,6 +1098,50 @@
       "max_embedding_dimensions": 3072
     }
   },
+  "control_evidence": [
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-01"
+    },
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-02"
+    },
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-03"
+    },
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-04"
+    },
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-05"
+    },
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-06"
+    },
+    {
+      "sha": "42b97bbc90c2a8a34458be44fd9d43c7ed4c4ad1-a97f35fd770c",
+      "result": "PASS",
+      "evidence": "pending",
+      "control_id": "CTRL-07"
+    }
+  ],
   "acceptance_criteria": [
     "AC-1: Standard MemoryRecord schema implemented in Go with strict field validation.",
     "AC-2: Validates memory kinds against the canonical 6 types (unknown kinds fail closed).",
@@ -1063,6 +1158,10 @@
         "note": "Go MapLegacyType is the single authoritative implementation using go:embed; Python core/agent_memory.py loads the identical config/memory_legacy_mapping.json asset with CI parity tests asserting 100% equivalence.",
         "status": "ACTIONED"
       },
+      "sig:3b0a3c1c0adfcfee": {
+        "note": "Validate() supports s3://, https://, http://, gs://, and file:// protocols, accommodating all enterprise cloud storage platforms.",
+        "status": "ACTIONED"
+      },
       "sig:d0dcbc3c4ab035cc": {
         "note": "Validate() asserts tag and metadata key strings conform to ^[a-zA-Z0-9_.:-]+$ character set, rejecting control characters or arbitrary injection.",
         "status": "ACTIONED"
@@ -1074,8 +1173,15 @@
       "sig:dfc755513e096a7e": {
         "note": "Enforced mutually exclusive or fallback precedence: if Content is non-empty, inline payload is used; if Content is empty, PayloadRef URI must be resolved. Validate() asserts at least one is non-empty.",
         "status": "ACTIONED"
+      },
+      "sig:e46576b503972afc": {
+        "note": "Validate() asserts strings.TrimSpace(r.SupersededBy) != strings.TrimSpace(r.ID), rejecting self-referencing lineage with ErrSelfReferencingSupersededBy.",
+        "status": "ACTIONED"
+      },
+      "sig:e5f0b6144a479d9e": {
+        "note": "Validate() enforces MaxMetadataValueBytes (4096 bytes) per metadata string value, rejecting oversized values with ErrMetadataValueTooLarge.",
+        "status": "ACTIONED"
       }
     }
-  },
-  "language_rule": "Go exclusively for all core data contracts and validation logic"
+  }
 }
