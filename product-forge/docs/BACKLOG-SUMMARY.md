@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-22T14:08:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-22T15:33:52 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 125  |  **Closed:** 640
+- **Open:** 140  |  **Closed:** 641
 - `blocked`: 1
-- `in_progress`: 2
-- `new`: 122
+- `in_progress`: 3
+- `new`: 136
 
-### new, by category (122)
+### new, by category (136)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@
 | BI-PF-1406 | Must | feature | API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces | API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build miss... |
 | BI-PF-1444 | Should | feature | Accessibility engine + fail-closed gate + templates | WCAG 2.2 AA becomes a real fail-closed ship gate. |
 
-**Knowledge / KB** (6)
+**Knowledge / KB** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
@@ -64,8 +64,16 @@
 | BI-PF-1436 | Should | epic | Design System & UI/UX Knowledge (framework-agnostic) | Merge the UIUX/ corpus and the OpenCode skills into a PF-owned framework-agnostic knowledge+skills base, and l... |
 | BI-PF-1438 | Should | feature | UIUX knowledge ingestion (guidelines, design-systems, samples) | Distill UIUX/ into PF guidelines + reference baselines the existing loader already injects. |
 | BI-PF-1443 | Should | feature | Agent skill & knowledge-layer bindings | Bind the 8 skills + ui-ux/design-systems layers to the right agents. |
+| BI-PF-1557 | Must | epic | EPIC: RAG, CAG & Governed Knowledge Fabric (Unified Retrieval & Context Substrate) | Implement the unified, governed Knowledge Fabric, Cache-Augmented Generation (CAG), and hybrid RAG architectur... |
+| BI-PF-1558 | Should | feature | Context & Knowledge Router: query intent classification, retrieval mode selection, and budget routing | Build the Context/Knowledge Router that analyzes incoming agent queries and dynamically routes between prompt ... |
+| BI-PF-1559 | Should | feature | Governed Knowledge Fabric & Registry: asset registration, schema validation, authority tiers, and SHA-256 provenance tracking | Implement the Knowledge Fabric registry inside Product Forge to register, validate, version, and trace all aut... |
+| BI-PF-1560 | Should | feature | Pluggable Hybrid Retrieval Engine: Reciprocal Rank Fusion (RRF), BM25 keyword scoring, and semantic reranking over MemoryRepository | Implement hybrid retrieval combining dense vector embeddings (via datastore.MemoryRepository) with BM25 full-t... |
+| BI-PF-1561 | Should | feature | CAG Context Cache: pre-computed static context caching, prefix KV-cache reuse, and deterministic invalidation hooks | Deliver Cache-Augmented Generation (CAG) with pre-computed prefix caching and deterministic invalidation hooks... |
+| BI-PF-1562 | Should | feature | Context & Prompt Compiler: dynamic budget allocation, sliding token budgets, section prioritization, and truncation defense | Implement the Context and Prompt Compiler enforcing strict token budgets per agent and stage, with determinist... |
+| BI-PF-1563 | Should | feature | Knowledge Authority & Conflict Resolution: hierarchy enforcement, contradiction detection, and fail-closed HIL escalation | Enforce strict authority ordering (SSOT > ADR > Decision > Learned) and fail-closed contradiction detection be... |
+| BI-PF-1564 | Should | feature | Retrieval & Context Evaluation: Precision@k, Recall@k, faithfulness scoring, ground-truth benchmark suite, and latency observability | Build an automated evaluation harness measuring retrieval precision, recall, faithfulness, and latency across ... |
 
-**Licensing / tenancy** (5)
+**Licensing / tenancy** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
@@ -73,8 +81,9 @@
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
+| BI-PF-1567 | Should | feature | Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering | Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict ten... |
 
-**Specs / cache / context / artifacts** (11)
+**Specs / cache / context / artifacts** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -88,8 +97,11 @@
 | BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
 | BI-PF-1553 | Should | task | Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary | Define and automate the web console compilation pipeline to produce an embedded static SPA distribution served... |
 | BI-PF-1554 | Should | feature | Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation | Specify and package the Sovereign Edition distribution capable of operating with 100% network isolation and lo... |
+| BI-PF-1568 | Should | feature | Memory Compiler: persona-specific retrieval profiles (Coding, QA, Security), relevance ranking, and context injection | Implement the Memory Compiler to assemble persona-specific memory contexts (Coding, QA, Security) under strict... |
+| BI-PF-1571 | Should | feature | Prospective Memory Engine: tracking deferred actions, future stage obligations, scheduled triggers, and cross-stage handoff notes | Deliver the Prospective Memory engine to track deferred actions, trigger conditions, and cross-stage obligatio... |
+| BI-PF-1572 | Should | feature | Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API | Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reas... |
 
-**Wiring / tech-debt / API** (72)
+**Wiring / tech-debt / API** (74)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -161,16 +173,18 @@
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
 | BI-PF-1551 | Should | feature | Universal Model Gateway and Dynamic Router: unified provider adapter with token budgeting and fallback chains | Implement an extensible multi-model gateway and dynamic router supporting multi-provider fallback chains, quot... |
-| BI-PF-1552 | Should | feature | Dual-Engine RAG and Memory Storage Adapter: embedded SQLite-vss for local editions and PostgreSQL pgvector for enterprise | Build a pluggable dual-engine vector adapter supporting embedded SQLite-vss for community/local editions and p... |
-| BI-PF-1555 | Should | feature | Plane A One-Click Cloud Provisioner: Helm chart and Terraform modules for automated Product Forge cluster deployment | Build automated Helm chart and Terraform infrastructure modules for one-click turnkey deployment of Plane A Pr... |
 | BI-PF-1556 | Should | feature | Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests | Implement automated fail-closed rollback orchestration that triggers instant reversion to the prior stable rel... |
+| BI-PF-1565 | Must | epic | EPIC: Unified Agent Memory Platform (6-Type Memory Model, Lifecycle, and Consolidation) | Implement the Unified Agent Memory Architecture from docs/Product_Forge_Agent_Memory_Architecture_Integration.... |
+| BI-PF-1566 | Should | feature | Canonical Memory Record Contract: schema definition, 6-type taxonomy classification, and storage mapping | Define the standard MemoryRecord contract and classify all memory assets into the 6 canonical types (Working, ... |
+| BI-PF-1569 | Should | feature | Memory Consolidator: post-execution distillation, episodic trace distillation into semantic/procedural patterns, and failure promotion guards | Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memo... |
+| BI-PF-1570 | Should | feature | Memory Governance & Lifecycle: explicit supersession tracking, temporal expiration, validity windows, and audit logging | Implement full lifecycle governance for memory records with explicit supersession, temporal expiration, and co... |
 
 ---
 
 ## Dashboard (ProductForge-Dashboard) (`project:ProductForge-Dashboard`)
 
-- **Open:** 146  |  **Closed:** 3
-- `new`: 141
+- **Open:** 147  |  **Closed:** 3
+- `new`: 142
 - `parked`: 5
 
 ### parked (5)
@@ -182,7 +196,7 @@
 | BI-0014 | Could | feature | Deferred: ops / post-production console (stage 13 + incidents) | Deferred: ops / post-production console (stage 13 + incidents) |
 | BI-0022 | Could | enhancement | Deferred (designed): reply-by-email control actions (approve / answer / act) | Deferred (designed): reply-by-email control actions (approve / answer / act) |
 
-### new, by category (141)
+### new, by category (142)
 **API / reports / HIL / misc** (18)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -276,10 +290,11 @@
 | BI-0085 | Should | feature | Run view: concurrent/parallel agent execution + speedup indicator | Run view: concurrent/parallel agent execution + speedup indicator |
 | BI-0144 | Should | feature | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) |
 
-**Wiring / tech-debt / API** (80)
+**Wiring / tech-debt / API** (81)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0001 | Must | feature | Project creation workflow | a user can create a project that enters the pipeline with its idea captured |
+| BI-DASH-CI-1 | None | feature | PF-GP parity fixture |  |
 | BI-0002 | Must | feature | Multi-project portfolio view | Multi-project portfolio view |
 | BI-0004 | Must | feature | Model tier selection and customization | Model tier selection and customization |
 | BI-0005 | Must | feature | Pipeline monitoring and logging | Pipeline monitoring and logging |
@@ -363,5 +378,5 @@
 ---
 
 ## Totals
-- backend: 125 open / 640 closed
-- dashboard: 146 open / 3 closed
+- backend: 140 open / 641 closed
+- dashboard: 147 open / 3 closed

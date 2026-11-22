@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "product-forge.fullname" . }}-config
+  labels:
+    {{- include "product-forge.labels" . | nindent 4 }}
+data:
+  PF_ENV: {{ .Values.api.env.PF_ENV | quote }}
+  LOG_LEVEL: {{ .Values.api.env.LOG_LEVEL | quote }}
+  BACKLOG_STORE_BACKEND: {{ .Values.api.env.BACKLOG_STORE_BACKEND | quote }}
+  POSTGRES_HOST: {{ .Values.postgres.host | default (printf "%s-postgres" (include "product-forge.fullname" .)) | quote }}
+  POSTGRES_PORT: {{ .Values.postgres.service.port | quote }}
+  POSTGRES_DB: {{ .Values.postgres.auth.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.auth.username | quote }}
+  MINIO_ENDPOINT: "http://{{ include "product-forge.fullname" . }}-minio:{{ .Values.minio.service.port }}"
+  MINIO_DEFAULT_BUCKET: {{ .Values.minio.defaultBucket | quote }}

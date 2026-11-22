@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "product-forge.fullname" . }}-api
+  labels:
+    {{- include "product-forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: core-api
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "product-forge.name" . }}-api
+    app.kubernetes.io/instance: {{ .Release.Name }}

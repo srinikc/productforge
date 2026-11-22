@@ -1,0 +1,23 @@
+{{- if .Values.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "product-forge.fullname" . }}-minio
+  labels:
+    {{- include "product-forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: objectstore
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.minio.service.port }}
+      targetPort: s3
+      protocol: TCP
+      name: s3
+    - port: {{ .Values.minio.service.consolePort }}
+      targetPort: console
+      protocol: TCP
+      name: console
+  selector:
+    app.kubernetes.io/name: {{ include "product-forge.name" . }}-minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
