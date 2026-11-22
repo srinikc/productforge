@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-21T23:49:44 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-22T10:26:10 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 127  |  **Closed:** 638
+- **Open:** 126  |  **Closed:** 639
 - `blocked`: 1
 - `in_progress`: 2
-- `new`: 124
+- `new`: 123
 
-### new, by category (124)
+### new, by category (123)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1553 | Should | task | Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary | Define and automate the web console compilation pipeline to produce an embedded static SPA distribution served... |
 | BI-PF-1554 | Should | feature | Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation | Specify and package the Sovereign Edition distribution capable of operating with 100% network isolation and lo... |
 
-**Wiring / tech-debt / API** (74)
+**Wiring / tech-debt / API** (73)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -100,7 +100,6 @@
 | BI-PF-0360 | Must | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable... |
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
-| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime pac... |
 | BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7 — vertical slice: Requirement -> Tech -> Factory -> EAP -> RDC -> compiled + signed package, containing no ... |
 | BI-PF-0401 | Should | feature | B2: gateways (Model/Tool/Memory/Infrastructure) | B2 — gateways for Model / Tool / Memory / Infrastructure so core depends on ports, not concrete providers. |
 | BI-PF-0402 | Should | feature | B3: persistence adapters (SQLite/JSON/PostgreSQL) | B3 — persistence adapters (SQLite / JSON / PostgreSQL) behind one persistence port. |
@@ -365,5 +364,5 @@
 ---
 
 ## Totals
-- backend: 127 open / 638 closed
+- backend: 126 open / 639 closed
 - dashboard: 146 open / 3 closed
