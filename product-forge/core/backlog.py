@@ -329,10 +329,14 @@ def _db_for(scope: str | None, project: str | None = None) -> bool:
         return False
     if (project and str(project).startswith(("_test_", "test_"))) or (scope and str(scope).startswith(("_test_", "test_"))):
         return False
-    key = _scope_key(str(scope or project or "product_forge"))
-    if key in _backlog_db_scopes():
+    scopes = _backlog_db_scopes()
+    kp = _scope_key(project) if project else ""
+    ks = _scope_key(scope) if scope else ""
+    if (kp and kp in scopes) or (ks and ks in scopes):
         return mode == "on"
-    _raise_unlisted(key)
+    if not project and not scope and "product_forge" in scopes:
+        return mode == "on"
+    _raise_unlisted(kp or ks or "product_forge")
 
 
 def db_tenant(scope: str | None, project: str | None = None) -> str:
@@ -347,10 +351,14 @@ def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
         return False
     if (project and str(project).startswith(("_test_", "test_"))) or (scope and str(scope).startswith(("_test_", "test_"))):
         return False
-    key = _scope_key(str(scope or project or "product_forge"))
-    if key in _backlog_db_scopes():
+    scopes = _backlog_db_scopes()
+    kp = _scope_key(project) if project else ""
+    ks = _scope_key(scope) if scope else ""
+    if (kp and kp in scopes) or (ks and ks in scopes):
         return True
-    _raise_unlisted(key)
+    if not project and not scope and "product_forge" in scopes:
+        return True
+    _raise_unlisted(kp or ks or "product_forge")
 
 
 def _mirror_item_to_db(item: dict) -> None:
