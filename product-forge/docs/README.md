@@ -106,6 +106,7 @@
 | [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
 | [`GCS-ADAPTER-QUALIFICATION.md`](GCS-ADAPTER-QUALIFICATION.md) | Implemented | 100% | GCS ObjectStore adapter streaming resumable upload and qualification runbook (BI-PF-1435) | — | — |
+| [`GDRIVE-ADAPTER.md`](GDRIVE-ADAPTER.md) | Implemented | 100% | Google Drive ObjectStore adapter specification and runbook (BI-PF-1434) | — | — |
 | [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
 | [`GLOSSARY.md`](GLOSSARY.md) | SSOT | 100% | Pinned definitions (API=contract vs transport, service, caller classes, gates, dispositions, review terms, model-working terms) - define before building | — | — |
