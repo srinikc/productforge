@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,31 +18,28 @@ import (
 var embeddedLegacyMappingJSON []byte
 
 var (
-	ErrInvalidID               = errors.New("invalid record ID: must be valid UUID v4")
-	ErrMissingTenant           = errors.New("missing mandatory tenant_id")
-	ErrMissingProject          = errors.New("missing mandatory project_id")
-	ErrInvalidKind             = errors.New("invalid memory kind: unknown taxonomy classification")
-	ErrInvalidAuthorityTier    = errors.New("invalid authority tier")
-	ErrEmptyPayload            = errors.New("record must contain either non-empty content or payload_ref")
-	ErrPayloadTooLarge         = errors.New("content exceeds maximum allowed size (1MB)")
-	ErrEmbeddingTooLarge       = errors.New("embedding dimensions exceed configured maximum (3072)")
-	ErrInvalidTemporalBounds   = errors.New("invalid temporal bounds: valid_from must be strictly before valid_until")
-	ErrInvalidSupersededBy     = errors.New("invalid superseded_by identifier: must be valid UUID")
-	ErrTooManyTags             = errors.New("too many tags: maximum 50 allowed")
-	ErrInvalidTagFormat        = errors.New("invalid tag format: must match ^[a-zA-Z0-9_.:-]+$")
-	ErrTooManyMetadataEntries  = errors.New("too many metadata entries: maximum 50 allowed")
-	ErrInvalidMetadataKey      = errors.New("invalid metadata key format: must match ^[a-zA-Z0-9_.:-]+$")
-	ErrInvalidMetadataScalar   = errors.New("invalid metadata value: only scalar types (string, float64, bool, int64) allowed")
-	ErrMetadataValueTooLarge   = errors.New("metadata string value exceeds maximum length (4096 bytes)")
+	ErrInvalidID                  = errors.New("invalid record ID: must be valid UUID v4")
+	ErrMissingTenant              = errors.New("missing mandatory tenant_id")
+	ErrMissingProject             = errors.New("missing mandatory project_id")
+	ErrInvalidKind                = errors.New("invalid memory kind: unknown taxonomy classification")
+	ErrInvalidAuthorityTier       = errors.New("invalid authority tier")
+	ErrEmptyPayload               = errors.New("record must contain either non-empty content or payload_ref")
+	ErrPayloadTooLarge            = errors.New("content exceeds maximum allowed size (1MB)")
+	ErrEmbeddingTooLarge          = errors.New("embedding dimensions exceed configured maximum (3072)")
+	ErrInvalidTemporalBounds      = errors.New("invalid temporal bounds: valid_from must be strictly before valid_until")
+	ErrInvalidSupersededBy        = errors.New("invalid superseded_by identifier: must be valid UUID")
 	ErrSelfReferencingSupersededBy = errors.New("record cannot supersede itself: superseded_by cannot equal id")
-	ErrInvalidPayloadRefScheme = errors.New("invalid payload_ref: must use a supported URI scheme (s3://, https://, http://, gs://, file://)")
-	ErrUnknownLegacyType       = errors.New("unknown legacy memory type")
+	ErrTooManyTags                = errors.New("too many tags: maximum 50 allowed")
+	ErrInvalidTagFormat           = errors.New("invalid tag format: must match ^[a-zA-Z0-9_.:-]+$")
+	ErrTooManyMetadataEntries     = errors.New("too many metadata entries: maximum 50 allowed")
+	ErrInvalidMetadataKey         = errors.New("invalid metadata key format: must match ^[a-zA-Z0-9_.:-]+$")
+	ErrInvalidMetadataScalar      = errors.New("invalid metadata value: only scalar types (string, float64, bool, int64) allowed")
+	ErrMetadataValueTooLarge      = errors.New("metadata string value exceeds maximum length (4096 bytes)")
+	ErrInvalidPayloadRefScheme    = errors.New("invalid payload_ref: must be a well-formed URI using a supported scheme (s3, https, http, gs, file)")
+	ErrUnknownLegacyType          = errors.New("unknown legacy memory type")
 )
 
-var (
-	tagRegex         = regexp.MustCompile(`^[a-zA-Z0-9_.:-]+$`)
-	metadataKeyRegex = regexp.MustCompile(`^[a-zA-Z0-9_.:-]+$`)
-)
+var identifierRegex = regexp.MustCompile(`^[a-zA-Z0-9_.:-]+$`)
 
 const (
 	MaxContentBytes        = 1048576 // 1MB
@@ -143,14 +142,14 @@ func (r *MemoryRecord) ValidateTenant() error {
 	return nil
 }
 
-// ValidateTemporalBounds asserts UTC time consistency and temporal ordering.
+// ValidateTemporalBounds asserts UTC time consistency and strict temporal ordering.
 func ValidateTemporalBounds(from time.Time, until *time.Time) error {
 	if from.IsZero() {
 		return fmt.Errorf("%w: valid_from cannot be zero", ErrInvalidTemporalBounds)
 	}
 	if until != nil {
-		if !from.Before(*until) {
-			return fmt.Errorf("%w: valid_from (%v) is not strictly before valid_until (%v)", ErrInvalidTemporalBounds, from, *until)
+		if !from.Before(*until) || from.Equal(*until) {
+			return fmt.Errorf("%w: valid_from (%v) must be strictly before valid_until (%v)", ErrInvalidTemporalBounds, from, *until)
 		}
 	}
 	return nil
@@ -167,13 +166,25 @@ func ValidatePayloadBounds(content string, embedding []float32) error {
 	return nil
 }
 
-// AuditCallback can be hooked for observability telemetry.
-var AuditCallback func(recordID, tenantID, status string, err error)
+var (
+	auditMu       sync.RWMutex
+	auditCallback func(recordID, tenantID, status string, err error)
+)
 
-// EmitMemoryValidationAudit records structured validation audit events.
+// SetAuditCallback registers a thread-safe telemetry listener.
+func SetAuditCallback(fn func(recordID, tenantID, status string, err error)) {
+	auditMu.Lock()
+	defer auditMu.Unlock()
+	auditCallback = fn
+}
+
+// EmitMemoryValidationAudit records structured validation audit events safely.
 func EmitMemoryValidationAudit(recordID, tenantID, status string, err error) {
-	if AuditCallback != nil {
-		AuditCallback(recordID, tenantID, status, err)
+	auditMu.RLock()
+	fn := auditCallback
+	auditMu.RUnlock()
+	if fn != nil {
+		fn(recordID, tenantID, status, err)
 	}
 }
 
@@ -213,14 +224,15 @@ func (r *MemoryRecord) Validate() error {
 	}
 
 	if r.PayloadRef != "" {
-		validScheme := false
-		for _, s := range []string{"s3://", "https://", "http://", "gs://", "file://"} {
-			if strings.HasPrefix(r.PayloadRef, s) {
-				validScheme = true
-				break
-			}
+		u, err := url.Parse(r.PayloadRef)
+		if err != nil || u.Scheme == "" {
+			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", ErrInvalidPayloadRefScheme)
+			return ErrInvalidPayloadRefScheme
 		}
-		if !validScheme {
+		switch strings.ToLower(u.Scheme) {
+		case "s3", "https", "http", "gs", "file":
+			// Valid schemes
+		default:
 			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", ErrInvalidPayloadRefScheme)
 			return ErrInvalidPayloadRefScheme
 		}
@@ -238,13 +250,13 @@ func (r *MemoryRecord) Validate() error {
 		return errOut
 	}
 
-	// 7. Temporal ordering
+	// 7. Temporal ordering (strictly valid_from < valid_until)
 	if err := ValidateTemporalBounds(r.ValidFrom, r.ValidUntil); err != nil {
 		EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", err)
 		return err
 	}
 
-	// 8. SupersededBy UUID format if set
+	// 8. SupersededBy UUID format and non-self-referencing check
 	if strings.TrimSpace(r.SupersededBy) != "" {
 		if strings.TrimSpace(r.SupersededBy) == strings.TrimSpace(r.ID) {
 			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", ErrSelfReferencingSupersededBy)
@@ -263,7 +275,7 @@ func (r *MemoryRecord) Validate() error {
 		return ErrTooManyTags
 	}
 	for _, tag := range r.Tags {
-		if !tagRegex.MatchString(tag) {
+		if !identifierRegex.MatchString(tag) {
 			errOut := fmt.Errorf("%w: %q", ErrInvalidTagFormat, tag)
 			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", errOut)
 			return errOut
@@ -276,7 +288,7 @@ func (r *MemoryRecord) Validate() error {
 		return ErrTooManyMetadataEntries
 	}
 	for k, v := range r.Metadata {
-		if !metadataKeyRegex.MatchString(k) {
+		if !identifierRegex.MatchString(k) {
 			errOut := fmt.Errorf("%w: %q", ErrInvalidMetadataKey, k)
 			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", errOut)
 			return errOut

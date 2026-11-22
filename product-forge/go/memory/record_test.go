@@ -204,11 +204,11 @@ func TestTemporalBounds_InvertedRange_FailsClosed(t *testing.T) {
 func TestMemoryValidation_AuditLogged(t *testing.T) {
 	var loggedStatus string
 	var loggedID string
-	AuditCallback = func(recordID, tenantID, status string, err error) {
+	SetAuditCallback(func(recordID, tenantID, status string, err error) {
 		loggedID = recordID
 		loggedStatus = status
-	}
-	defer func() { AuditCallback = nil }()
+	})
+	defer func() { SetAuditCallback(nil) }()
 
 	rec := validRecord()
 	if err := rec.Validate(); err != nil {
@@ -221,10 +221,10 @@ func TestMemoryValidation_AuditLogged(t *testing.T) {
 
 func TestMemoryValidation_FailureAudit(t *testing.T) {
 	var loggedStatus string
-	AuditCallback = func(recordID, tenantID, status string, err error) {
+	SetAuditCallback(func(recordID, tenantID, status string, err error) {
 		loggedStatus = status
-	}
-	defer func() { AuditCallback = nil }()
+	})
+	defer func() { SetAuditCallback(nil) }()
 
 	rec := validRecord()
 	rec.Kind = "invalid_kind"
