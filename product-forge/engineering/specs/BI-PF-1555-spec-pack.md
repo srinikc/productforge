@@ -1,4 +1,4 @@
-# Conditional Spec Pack — BI-PF-1555 — Plane A One-Click Cloud Provisioner
+# Conditional Spec Pack — BI-PF-1555 — Plane A One-Click Cloud Provisioner: Helm chart and Terraform modules for automated Product Forge cluster deployment
 
 - **Version:** 1
 - **Status:** approved
@@ -9,13 +9,22 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 
 | Spec | Status | Owner | Reason | Artifact | Sections | Evidence |
 |---|---|---|---|---|---|---|
-| Turnkey Production Helm Chart | APPLICABLE | Srinikc | Official Kubernetes deployment chart for Plane A | deploy/plane-a/helm/product-forge/Chart.yaml | all | test-framework/tests/pipeline/test_plane_a_deployer.py |
-| Cloud Terraform Provisioning Modules | APPLICABLE | Srinikc | Multi-cloud VPC, K8s, and managed DB automation | deploy/plane-a/terraform/main.tf | all | test-framework/tests/pipeline/test_plane_a_deployer.py |
-| Single-Command Deployment Orchestrator | APPLICABLE | Srinikc | Python CLI runner executing e2e deploy flow | core/plane_a_deployer.py | all | test-framework/tests/pipeline/test_plane_a_deployer.py |
-| Automated Post-Deploy Health Check | APPLICABLE | Srinikc | Sub-10min end-to-end verification and probe | core/plane_a_deployer.py | verify_health | test-framework/tests/pipeline/test_plane_a_deployer.py |
-| Local/CI Emulation Target | APPLICABLE | Srinikc | Verification on local/dry-run without live cloud spend | core/plane_a_deployer.py | deploy_local | test-framework/tests/pipeline/test_plane_a_deployer.py |
+| product_design_spec | N/A | engineering | Platform infrastructure and cloud provisioning without end-user UI interaction changes. |  |  |  |
+| api_contract | APPLICABLE | engineering | Deploys platform services exposing standard system health probe endpoints. | engineering/design/BI-PF-1555.md | design_pack.api_contract | deploy/plane-a/helm/product-forge/templates/deployment.yaml |
+| data_contract | APPLICABLE | engineering | Provisions PostgreSQL with pgvector extension and persistent volume retention. | engineering/design/BI-PF-1555.md | design_pack.data_model, design_pack.contracts.db | deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml, deploy/plane-a/terraform/aws/main.tf |
+| config_contract | APPLICABLE | engineering | Defines Helm values.yaml and Terraform variables.tf for multi-cloud configuration. | engineering/design/BI-PF-1555.md | design_pack.contracts.config, design_pack.runtime_contract | deploy/plane-a/helm/product-forge/values.yaml, deploy/plane-a/terraform/aws/variables.tf |
+| nfr_slo | APPLICABLE | engineering | Enforces sub-10 minute warm deployment SLA and sub-25 minute cold cloud provisioning. | engineering/design/BI-PF-1555.md | design_pack.performance_capacity, design_pack.performance | scripts/dev/plane_a_deployer.py |
+| security_threat_model | APPLICABLE | engineering | Kubernetes secrets management and non-root pod security contexts across containers. | engineering/design/BI-PF-1555.md | design_pack.security_model, design_pack.security | deploy/plane-a/helm/product-forge/templates/secret.yaml |
+| migration_backfill | N/A | engineering | New infrastructure provisioning capability; no existing cluster data backfill required. |  |  |  |
+| rollback_dr | APPLICABLE | engineering | Non-destructive helm rollback and PVC Retain policy on storage volume failures. | engineering/design/BI-PF-1555.md | design_pack.rollback_recovery, design_pack.rollback | scripts/dev/plane_a_deployer.py |
+| observability_runbook | APPLICABLE | engineering | Structured JSON logging and Prometheus scraping annotations on services. | engineering/design/BI-PF-1555.md | design_pack.observability | deploy/plane-a/helm/product-forge/templates/deployment.yaml |
+| accessibility_i18n | N/A | engineering | Infrastructure and CLI deployment tooling with no end-user localized web UI. |  |  |  |
+| privacy_compliance | N/A | engineering | Cluster infrastructure provisioning handles no customer personal data or PII directly. |  |  |  |
+| implementation_plan | APPLICABLE | engineering | Ordered infrastructure plan -> apply -> helm install -> health probe verification sequence. | engineering/design/BI-PF-1555.md | design_pack.runtime_contract, design_pack.test_matrix | scripts/dev/plane_a_deployer.py |
+| release_verification | APPLICABLE | engineering | Automated e2e pytest test suite verifying plan, manifests, and CLI orchestration. | engineering/design/BI-PF-1555.md | design_pack.test_matrix, design_pack.ac_evidence | test-framework/tests/pipeline/test_plane_a_deployer.py |
 
-## Mandatory 360 Design & Functional Specification
+
+## Mandatory 360? Design & Functional Specification
 
 Every item must provide all five before Gate 1:
 
@@ -25,7 +34,7 @@ Every item must provide all five before Gate 1:
 2. Complete functional and technical design: journeys, workflows, rules, UI/UX where applicable,
    architecture, components, APIs, data models, integrations, configuration, permissions, errors,
    notifications, dependencies, end-to-end interaction.
-3. 360 scenario and impact coverage: normal, alternative, negative, boundary, edge, exception,
+3. 360? scenario and impact coverage: normal, alternative, negative, boundary, edge, exception,
    failure, recovery, concurrency, security, performance, scalability, accessibility,
    backward-compatibility; impacts on existing features, shared components, integrations, data and
    workflows; regression risks and mitigation.
@@ -36,3 +45,6 @@ Every item must provide all five before Gate 1:
    security and end-user review; missing requirements, gaps, contradictions, ambiguity, broken
    workflows, disconnected components, dependencies, untestable ACs; full traceability; assumptions,
    decisions, risks, open questions, completion status.
+
+No superficial, generic, abbreviated or half-baked specification. Never invent requirements or
+silently assume missing decisions; label assumptions and raise clarification.
