@@ -1055,3 +1055,56 @@ def create_agent_memory(
         A configured AgentMemory instance.
     """
     return AgentMemory(products_dir=products_dir, project=project)
+
+
+# ======================================================================
+# Canonical Memory Mapping Adapter (BI-PF-1566)
+# ======================================================================
+
+_LEGACY_MAPPING_CACHE: Optional[Dict[str, Dict[str, Any]]] = None
+
+def _load_legacy_mapping() -> Dict[str, Dict[str, Any]]:
+    global _LEGACY_MAPPING_CACHE
+    if _LEGACY_MAPPING_CACHE is not None:
+        return _LEGACY_MAPPING_CACHE
+
+    mapping_file = Path(__file__).resolve().parent.parent / "config" / "memory_legacy_mapping.json"
+    if mapping_file.is_file():
+        try:
+            data = json.loads(mapping_file.read_text(encoding="utf-8"))
+            _LEGACY_MAPPING_CACHE = data.get("mappings", {})
+            return _LEGACY_MAPPING_CACHE
+        except Exception:
+            pass
+
+    # Fallback default taxonomy mapping
+    _LEGACY_MAPPING_CACHE = {
+        "raw_evidence": {"kind": "external", "tags": ["legacy:raw_evidence"]},
+        "semantic": {"kind": "semantic", "tags": ["legacy:semantic"]},
+        "episodic": {"kind": "episodic", "tags": ["legacy:episodic"]},
+        "decision": {"kind": "procedural", "tags": ["legacy:decision"]},
+        "procedural": {"kind": "procedural", "tags": ["legacy:procedural"]},
+        "failure": {"kind": "episodic", "tags": ["legacy:failure"]},
+        "policy": {"kind": "semantic", "tags": ["legacy:policy"]},
+        "working": {"kind": "working", "tags": ["legacy:working"]},
+    }
+    return _LEGACY_MAPPING_CACHE
+
+
+def map_legacy_type_to_canonical(legacy_type: Any) -> Tuple[str, List[str]]:
+    """Maps a legacy memory type string or enum to canonical 6-kind taxonomy and tags.
+
+    Conforms to config/memory_legacy_mapping.json and Section 10 of Agent Memory Architecture.
+    """
+    if hasattr(legacy_type, "value"):
+        key = str(legacy_type.value).lower().strip()
+    else:
+        key = str(legacy_type).lower().strip()
+
+    mappings = _load_legacy_mapping()
+    if key not in mappings:
+        raise ValueError(f"Unknown legacy memory type: {legacy_type}")
+
+    entry = mappings[key]
+    return entry["kind"], list(entry.get("tags") or [])
+
