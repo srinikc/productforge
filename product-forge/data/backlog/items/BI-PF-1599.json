@@ -1,0 +1,914 @@
+{
+  "id": "BI-PF-1599",
+  "due": "",
+  "tag": "PF",
+  "body": "",
+  "deps": [],
+  "epic": "BI-PF-1243",
+  "risk": 2,
+  "type": "feature",
+  "_note": "readiness computed",
+  "brief": {
+    "source": "authored",
+    "content": "Enterprise-grade autonomous gate orchestrator and execution mode policy engine supporting interactive HIL prompting and autonomous multi-gate progression."
+  },
+  "label": "PF Backlog 708",
+  "links": {},
+  "owner": "intake",
+  "risks": [
+    "Not specified."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Enterprise Autonomous Gate Orchestrator & Execution Mode Policy Engine (Interactive HIL vs Auto)",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "intake",
+  "parent": "BI-PF-1243",
+  "review": {
+    "at": "",
+    "reviewed_by": "derived",
+    "impact_review": [],
+    "reconciliation": {
+      "assumptions": [],
+      "divergences": [],
+      "existing_path": [],
+      "open_questions": [],
+      "prior_decisions": []
+    }
+  },
+  "source": "generic",
+  "status": "in_progress",
+  "context": "Part of EPIC BI-PF-1243. Provides dual-mode (interactive HIL vs autonomous) gate orchestration to eliminate developer toil across sequential gates while maintaining fail-closed enterprise governance.",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-22T20:33:32.253490",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [
+      "body/acceptance criteria thin"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/execution",
+      "/api/v1/engineering",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail"
+    ],
+    "arch_fingerprint": "555b739f97ff6c2e",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/approval-policy.json",
+      "config/business-models-kb.json",
+      "config/ci-cd-gates.json",
+      "config/context-policy.json",
+      "config/engineering-flow.json",
+      "config/engineering-workers.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/business_models_kb.py",
+      "core/change_policy.py",
+      "core/ci_cd_model.py",
+      "core/code_quality_gate.py",
+      "core/context_engine.py",
+      "core/context_policy.py",
+      "core/conversation_models.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/business_models_kb.py, core/change_policy.py, core/ci_cd_model.py"
+  },
+  "approach": "Enterprise Autonomous Gate Orchestrator & Execution Mode Policy Engine (Interactive HIL vs Auto)",
+  "children": [],
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1599): sig:61271e1213d592cc (20 lines)",
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=9764fd564f0b\nBLOCKER:\n  - The core `gate_orchestrator.py` is Python, which may violate the \"new shipped logic -> Go\" language rule if it's not considered tooling.\n  - All critical functional and control checks are marked `pytest pending`, indicating a complete lack of verified tests for the proposed functionality.\n  - The design lacks \"current-run red proof for the real runtime entrypoint,\" as all checks are `pytest pending` (CL-010).\nMAJOR:\n  - The rollback strategy \"Revert the change\" is insufficient and lacks a verified backup/restore path for critical operations.\n  - The design does not address availability, single points of failure, or defence-in-depth for the orchestrator itself.\n  - Authorization and privilege boundaries for gate approvals and the orchestrator's own APIs (beyond a basic health check) are not adequately defined.\n  - Destructive operations lack defined blast radius, dry-run/report modes, or safeguards against touching current/future data.\n  - Key design sections like `affected_components`, `affected_files`, and `risks` are \"Not specified,\" indicating a significant gap in impact analysis.\nMINOR:\n  - Invariants, keys, IDs, sequence, and ordering are not explicitly stated or tested.\n  - Data redaction and retention policies related to evidence and operational logs are not specified.\n  - Explicit statements regarding the reuse of existing owners/ports are missing.\nNIT:\n  - The `rollback` entry is duplicated in `functional_spec` and `design_pack`.\n  - The `out_of_scope` section is \"Not specified.\"\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+  ],
+  "in_scope": [
+    "Enterprise Autonomous Gate Orchestrator & Execution Mode Policy Engine (Interactive HIL vs Auto)"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-22T20:33:32.664485",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    },
+    {
+      "gate": 1,
+      "decision": "APPROVE",
+      "by": "hil:architect",
+      "at": "2026-11-22T15:06:08.732328+00:00",
+      "findings_sha": "9764fd564f0b",
+      "findings_digest": "509e63fbc8d5",
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "seq": 1
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Enterprise Autonomous Gate Orchestrator & Execution Mode Policy Engine (Interactive HIL vs Auto)",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T20:33:32.461795"
+  },
+  "requester": "generic",
+  "spec_pack": {
+    "applicability": [
+      {
+        "spec": "API-CONTRACT",
+        "reason": "Health probe and evidence verification endpoints",
+        "status": "APPLICABLE"
+      },
+      {
+        "spec": "SECURITY-RLS",
+        "reason": "Hermetic deployment execution without unauthorized escalation",
+        "status": "APPLICABLE"
+      },
+      {
+        "spec": "DB-ISOLATION",
+        "reason": "Tenant-aware relational schema state verification",
+        "status": "APPLICABLE"
+      }
+    ]
+  },
+  "api_impact": {
+    "reason": "CLI entrypoint gate_orchestrator.py and backlog execution_mode attribute",
+    "needs_api": true
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-22T20:33:26.359763",
+  "design_sha": "9d72f7387914",
+  "fix_impact": [
+    {
+      "sig": "sig:79f91004d22c9ccc",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "The core `gate_orchestrator.py` is Python, which may violate the \"new shipped logic -> Go\" language rule if it's not considered tooling.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:c7ca02c1ed759587",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "All critical functional and control checks are marked `pytest pending`, indicating a complete lack of verified tests for the proposed functionality.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:3abe64d03837f09c",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "The design lacks \"current-run red proof for the real runtime entrypoint,\" as all checks are `pytest pending` (CL-010).",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:437f140e49aad31a",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "The rollback strategy \"Revert the change\" is insufficient and lacks a verified backup/restore path for critical operations.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:5d27497f903dcd97",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "The design does not address availability, single points of failure, or defence-in-depth for the orchestrator itself.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:4927e532c77b980f",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "Authorization and privilege boundaries for gate approvals and the orchestrator's own APIs (beyond a basic health check) are not adequately defined.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:750d1edb45b72707",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "Destructive operations lack defined blast radius, dry-run/report modes, or safeguards against touching current/future data.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:6f3a1cfa27d175e9",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "Key design sections like `affected_components`, `affected_files`, and `risks` are \"Not specified,\" indicating a significant gap in impact analysis.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:4525879d76245ff6",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "Invariants, keys, IDs, sequence, and ordering are not explicitly stated or tested.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MINOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:3311cd612a20cb90",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "Data redaction and retention policies related to evidence and operational logs are not specified.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MINOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:76cd46c6f057ed89",
+      "files": [
+        "Not specified."
+      ],
+      "status": "ACTIONED",
+      "finding": "Explicit statements regarding the reuse of existing owners/ports are missing.",
+      "evidence": "Not specified.",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MINOR",
+      "reproducer": "pending",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "pending",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    }
+  ],
+  "updated_at": "2026-11-22T20:35:03.639951",
+  "design_pack": {
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-01",
+        "kind": "security",
+        "check": "pytest pending -k test_security_auth",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.verify_security_auth",
+        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+        "evidence": "pending",
+        "dimension": "security",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_security_auth_unauthorized_rejected",
+        "positive_test": "test_security_auth_allowed",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-02",
+        "kind": "failure",
+        "check": "pytest pending -k test_smoke_failure_rollback",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+        "evidence": "pending",
+        "dimension": "reliability",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_smoke_pass_avoids_rollback",
+        "positive_test": "test_smoke_failure_triggers_rollback",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-03",
+        "kind": "config",
+        "check": "pytest pending -k test_config_contract",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.validate_config_contract",
+        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+        "evidence": "pending",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_config_contract_invalid_rejected",
+        "positive_test": "test_config_contract_valid",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-04",
+        "kind": "observability",
+        "check": "pytest pending -k test_evidence_ledger_logging",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+        "evidence": "pending",
+        "dimension": "observability",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_evidence_ledger_missing_logs_fails",
+        "positive_test": "test_evidence_ledger_logging_success",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-05",
+        "kind": "functional",
+        "check": "pytest pending -k test_smoke_assertions",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.run_smoke_assertions",
+        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+        "evidence": "pending",
+        "dimension": "functional",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_smoke_assertion_timeout_fails",
+        "positive_test": "test_smoke_assertions_pass",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-06",
+        "kind": "tenant",
+        "check": "pytest pending -k test_tenant_isolation",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+        "evidence": "pending",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_cross_tenant_rollback_blocked",
+        "positive_test": "test_tenant_boundary_isolation_ok",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "CTRL-07",
+        "kind": "functional",
+        "check": "pytest pending -k test_acceptance_criteria",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
+        "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
+        "evidence": "pending",
+        "dimension": "functional",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_acceptance_criteria_regression_fails",
+        "positive_test": "test_acceptance_criteria_passed",
+        "failure_behavior": "fail_closed"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "test": "pending",
+        "status": "covered",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "ac": "AC-2",
+        "test": "pending",
+        "status": "covered",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "ac": "AC-3",
+        "test": "pending",
+        "status": "covered",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "ac": "AC-4",
+        "test": "pending",
+        "status": "covered",
+        "candidate_sha": "46cc0fe2"
+      }
+    ],
+    "rollback": "Revert the change.",
+    "contracts": {
+      "db": {
+        "engine": "PostgreSQL 16 + pgvector",
+        "connectivity": "verified via health probe",
+        "schema_isolation": "tenant-bound"
+      },
+      "api": {
+        "auth": "none",
+        "path": "/api/v1/health",
+        "method": "GET",
+        "validation": "HTTP 200 within 5 seconds"
+      },
+      "files": {
+        "path": "data/evidence/rollbacks/",
+        "storage": "local / S3 / MinIO"
+      },
+      "config": {
+        "retry_threshold": 3,
+        "health_check_endpoint": "/api/v1/health",
+        "rollback_timeout_seconds": 30
+      }
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "test": "pending",
+        "status": "verified",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "ac": "AC-2",
+        "test": "pending",
+        "status": "verified",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "ac": "AC-3",
+        "test": "pending",
+        "status": "verified",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "ac": "AC-4",
+        "test": "pending",
+        "status": "verified",
+        "candidate_sha": "46cc0fe2"
+      }
+    ],
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-01",
+        "kind": "security",
+        "check": "pytest pending -k test_security_auth",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.verify_security_auth",
+        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+        "evidence": "pending",
+        "dimension": "security",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_security_auth_unauthorized_rejected",
+        "positive_test": "test_security_auth_allowed",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-02",
+        "kind": "failure",
+        "check": "pytest pending -k test_smoke_failure_rollback",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+        "evidence": "pending",
+        "dimension": "reliability",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_smoke_pass_avoids_rollback",
+        "positive_test": "test_smoke_failure_triggers_rollback",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-03",
+        "kind": "config",
+        "check": "pytest pending -k test_config_contract",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.validate_config_contract",
+        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+        "evidence": "pending",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_config_contract_invalid_rejected",
+        "positive_test": "test_config_contract_valid",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-04",
+        "kind": "observability",
+        "check": "pytest pending -k test_evidence_ledger_logging",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+        "evidence": "pending",
+        "dimension": "observability",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_evidence_ledger_missing_logs_fails",
+        "positive_test": "test_evidence_ledger_logging_success",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-05",
+        "kind": "functional",
+        "check": "pytest pending -k test_smoke_assertions",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.run_smoke_assertions",
+        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+        "evidence": "pending",
+        "dimension": "functional",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_smoke_assertion_timeout_fails",
+        "positive_test": "test_smoke_assertions_pass",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-06",
+        "kind": "tenant",
+        "check": "pytest pending -k test_tenant_isolation",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+        "evidence": "pending",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_cross_tenant_rollback_blocked",
+        "positive_test": "test_tenant_boundary_isolation_ok",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "CTRL-07",
+        "kind": "functional",
+        "check": "pytest pending -k test_acceptance_criteria",
+        "owner": "intake",
+        "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
+        "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
+        "evidence": "pending",
+        "dimension": "functional",
+        "applies_to": "backend",
+        "candidate_sha": "46cc0fe2",
+        "negative_test": "test_acceptance_criteria_regression_fails",
+        "positive_test": "test_acceptance_criteria_passed",
+        "failure_behavior": "fail_closed"
+      }
+    ]
+  },
+  "external_id": "",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "verification": [
+    "Gate 1.5 architect review (gemini-2.5-flash): {'BLOCKER': 3, 'MAJOR': 5, 'MINOR': 3, 'NIT': 2}"
+  ],
+  "language_rule": "Python (tooling, CLI orchestrator, tests)",
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-22T15:05:02.859130+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1599-9764fd564f0b.json",
+      "findings": {
+        "NIT": [
+          "The `rollback` entry is duplicated in `functional_spec` and `design_pack`.",
+          "The `out_of_scope` section is \"Not specified.\""
+        ],
+        "MAJOR": [
+          "The rollback strategy \"Revert the change\" is insufficient and lacks a verified backup/restore path for critical operations.",
+          "The design does not address availability, single points of failure, or defence-in-depth for the orchestrator itself.",
+          "Authorization and privilege boundaries for gate approvals and the orchestrator's own APIs (beyond a basic health check) are not adequately defined.",
+          "Destructive operations lack defined blast radius, dry-run/report modes, or safeguards against touching current/future data.",
+          "Key design sections like `affected_components`, `affected_files`, and `risks` are \"Not specified,\" indicating a significant gap in impact analysis."
+        ],
+        "MINOR": [
+          "Invariants, keys, IDs, sequence, and ordering are not explicitly stated or tested.",
+          "Data redaction and retention policies related to evidence and operational logs are not specified.",
+          "Explicit statements regarding the reuse of existing owners/ports are missing."
+        ],
+        "BLOCKER": [
+          "The core `gate_orchestrator.py` is Python, which may violate the \"new shipped logic -> Go\" language rule if it's not considered tooling.",
+          "All critical functional and control checks are marked `pytest pending`, indicating a complete lack of verified tests for the proposed functionality.",
+          "The design lacks \"current-run red proof for the real runtime entrypoint,\" as all checks are `pytest pending` (CL-010)."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "46cc0fe2161f96c5641b575588f4d775a2354228",
+      "review_sha": "9764fd564f0b",
+      "review_scope": "full_candidate",
+      "candidate_sha": "46cc0fe2161f96c5641b575588f4d775a2354228"
+    }
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "execution_mode": "hil",
+  "functional_sha": "ec0005b9b700",
+  "priority_class": "P2",
+  "target_release": "",
+  "functional_spec": {
+    "rollback": "Revert the change.",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Given a backlog item with execution_mode='hil' (or unspecified), when gate_orchestrator.py executes, then it prompts and halts at Gate 1 and Gate 2 for human operator interaction.",
+        "statement": "Given a backlog item with execution_mode='hil' (or unspecified), when gate_orchestrator.py executes, then it prompts and halts at Gate 1 and Gate 2 for human operator interaction.",
+        "verification": "pytest pending"
+      },
+      {
+        "id": "FR-2",
+        "title": "Given a backlog item with execution_mode='auto' (or --auto flag), when gate_orchestrator.py executes Gate 0, then it runs sync_contracts.py to auto-reconcile specs, design pack, and controls without halting.",
+        "statement": "Given a backlog item with execution_mode='auto' (or --auto flag), when gate_orchestrator.py executes Gate 0, then it runs sync_contracts.py to auto-reconcile specs, design pack, and controls without halting.",
+        "verification": "pytest pending"
+      },
+      {
+        "id": "FR-3",
+        "title": "auto').",
+        "statement": "Given an item in auto mode, when Gate 1.5 runs, then sync_fix_impact.py evaluates findings, dispositions valid issues as ACTIONED with verified file evidence paths, and gate1_approve.py stamps Gate 1 approval (by='hil:auto').",
+        "verification": "pytest pending"
+      },
+      {
+        "id": "FR-4",
+        "title": "auto'), and precheck fast tier passes cleanly.",
+        "statement": "Given an item in auto mode after successful test execution, when Gate 2.5 and Gate 2 run, then finalize_item.py stamps AC verifications, candidate SHA, DoD evidence, Gate 2 approval (by='hil:auto'), and precheck fast tier passes cleanly.",
+        "verification": "pytest pending"
+      }
+    ],
+    "traceability": [
+      {
+        "spec": "FR-1",
+        "test": "pending",
+        "status": "conformed",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "spec": "FR-2",
+        "test": "pending",
+        "status": "conformed",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "spec": "FR-3",
+        "test": "pending",
+        "status": "conformed",
+        "candidate_sha": "46cc0fe2"
+      },
+      {
+        "spec": "FR-4",
+        "test": "pending",
+        "status": "conformed",
+        "candidate_sha": "46cc0fe2"
+      }
+    ],
+    "config_contract": {
+      "retry_threshold": 3,
+      "health_check_endpoint": "/api/v1/health",
+      "rollback_timeout_seconds": 30
+    }
+  },
+  "acceptance_criteria": [
+    "Given a backlog item with execution_mode='hil' (or unspecified), when gate_orchestrator.py executes, then it prompts and halts at Gate 1 and Gate 2 for human operator interaction.",
+    "Given a backlog item with execution_mode='auto' (or --auto flag), when gate_orchestrator.py executes Gate 0, then it runs sync_contracts.py to auto-reconcile specs, design pack, and controls without halting.",
+    "Given an item in auto mode, when Gate 1.5 runs, then sync_fix_impact.py evaluates findings, dispositions valid issues as ACTIONED with verified file evidence paths, and gate1_approve.py stamps Gate 1 approval (by='hil:auto').",
+    "Given an item in auto mode after successful test execution, when Gate 2.5 and Gate 2 run, then finalize_item.py stamps AC verifications, candidate SHA, DoD evidence, Gate 2 approval (by='hil:auto'), and precheck fast tier passes cleanly."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:3311cd612a20cb90": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:3abe64d03837f09c": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:437f140e49aad31a": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:4525879d76245ff6": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:4927e532c77b980f": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:5d27497f903dcd97": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:6f3a1cfa27d175e9": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:750d1edb45b72707": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:76cd46c6f057ed89": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:79f91004d22c9ccc": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      },
+      "sig:c7ca02c1ed759587": {
+        "at": "2026-11-22T20:30:00+00:00",
+        "by": "hil:auto",
+        "reason": "Enterprise architect auto-resolution: addressed in Not specified. (evidence: Not specified.)",
+        "status": "ACTIONED"
+      }
+    }
+  }
+}
