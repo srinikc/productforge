@@ -30,21 +30,59 @@
   "review": {
     "impact_review": [
       {
-        "claim": "Plane A provisioner",
+        "claim": "Plane A Turnkey Cloud Provisioner",
         "verdict": "aligned",
-        "evidence": "deploy/helm/",
-        "recommendation": "approve"
+        "evidence": "deploy/plane-a/helm/, deploy/plane-a/terraform/",
+        "recommendation": "APPROVE: Author authoritative Plane A infrastructure assets."
+      },
+      {
+        "claim": "API CHECK: System Health and Readiness",
+        "verdict": "aligned",
+        "evidence": "api/routers/system.py:1",
+        "recommendation": "APPROVE: Post-deploy verification queries existing GET /api/v1/health; no new routes required."
+      },
+      {
+        "claim": "AC: Detailed Acceptance Criteria",
+        "verdict": "aligned",
+        "evidence": "engineering/specs/BI-PF-1555.md:85",
+        "recommendation": "APPROVE: 3 detailed criteria (each >= 40 chars) covering Helm stack, Terraform multi-cloud, and sub-10m e2e deployment."
+      },
+      {
+        "claim": "LANGUAGE RULE: Infrastructure as Code & Tooling",
+        "verdict": "aligned",
+        "evidence": "config/language-rule.json:4",
+        "recommendation": "APPROVE: Helm YAML + Terraform HCL + Python orchestration runner in core/plane_a_deployer.py compliant with language rule."
       }
     ],
-    "reconciliation": [
-      {
-        "topic": "Turnkey deployment",
-        "status": "settled"
-      }
-    ]
+    "reconciliation": {
+      "assumptions": [
+        "Cloud target environments for Plane A provisioner: AWS (EKS + RDS PostgreSQL) and GCP (GKE + Cloud SQL).",
+        "Local/Dev target supported via Minikube / Kind + Docker compose with single-click script.",
+        "Helm chart packages productforge-core, edpsvc, postgres-pgvector, and object store configuration.",
+        "Provisioning runner operates hermetically with dry-run and health check verification."
+      ],
+      "divergences": [
+        "None: Establishes the authoritative Plane A turnkey cloud deployment assets without duplicating Plane B app-runner logic."
+      ],
+      "existing_path": [
+        "core/deploy_providers.py:1: Plane B project deployment providers (Docker, K8s, Helm).",
+        "deploy/ or deploy/plane-a/: (none exists for turnkey Plane A cloud provisioning).",
+        "go/edpsvc/: native enterprise data plane service."
+      ],
+      "open_questions": [
+        "None: Requirements align with production cloud native standards."
+      ],
+      "prior_decisions": [
+        "ADR-0001 / BI-PF-0388: Single-source, multi-target platform; Plane A runtime lives in native Go + containerized services.",
+        "BI-PF-1307: Artifact & Object storage abstractions (S3/GCS/MinIO/Local).",
+        "BI-PF-1309: Multi-tenant database architecture (PostgreSQL + pgvector).",
+        "BI-PF-1434: GDrive / S3 storage adapters.",
+        "docs/E2E-WORKFLOW.md: Plane A (Product Forge platform itself) vs Plane B (generated customer apps)."
+      ]
+    }
   },
   "source": "generic",
-  "status": "new",
+  "status": "in_progress",
   "project": "",
   "summary": "Build an official Helm chart and Terraform reference module for Product Forge (Plane A) that provisions PostgreSQL, S3/blob storage, mounts secrets, runs migrations, and deploys the compiled platform container services.",
   "unlocks": [],
@@ -139,12 +177,12 @@
   },
   "requester": "product:architect",
   "api_impact": {
-    "reason": "Packaging, deployment, and verification CLI/core capability; no dedicated HTTP routes required",
+    "reason": "Infrastructure-as-code and deployment orchestration CLI tooling; leverages existing GET /api/v1/health endpoint",
     "needs_api": false
   },
   "blocked_by": [],
   "created_at": "2026-11-21T22:17:47.970502",
-  "updated_at": "2026-11-21T23:44:03.060768",
+  "updated_at": "2026-11-22T13:48:12.763747",
   "external_id": "ARCH-PLANE-A-ONE-CLICK-PROVISIONER-01",
   "analyze_mode": "on_entry",
   "dependencies": [],
