@@ -13,9 +13,8 @@ import sys
 from pathlib import Path
 
 # Ensure repo root is on sys.path
-ROOT = Path(__file__).resolve().parent.parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from core.paths import ROOT
 if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 

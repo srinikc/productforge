@@ -19,7 +19,7 @@ import urllib.request
 import urllib.error
 
 logger = logging.getLogger("plane_a_deployer")
-ROOT = Path(__file__).resolve().parent.parent.parent
+from core.paths import ROOT
 
 
 class DeploymentError(Exception):
