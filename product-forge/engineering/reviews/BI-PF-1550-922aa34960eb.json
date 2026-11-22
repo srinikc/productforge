@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1550",
+  "sha": "922aa34960eb",
+  "model": "gemini-flash-lite-latest",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:31:11.621760+00:00",
+  "review_scope": "delta",
+  "base_sha": "ffa0b76b16e25903d19477b29e91635c188237bc",
+  "head_sha": "bf60f1216a8fa617a799f4d8f2c11916996600f4",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`scripts/dev/prompt_compiler.py` introduces an `allow_default_key` parameter defaulting to `True`, which permits falling back to a hardcoded default key if `PF_PROMPT_KEY` is absent; production pipeline runs should explicitly force `allow_default_key=False` to prevent silent insecure compilation."
+    ],
+    "NIT": [
+      "Magic header constants and binary bundle layout schema versions remain duplicated between Python (`prompt_compiler.py`) and Go (`compiler.go`) comments without a shared constants reference."
+    ],
+    "SUMMARY": [
+      "The delta successfully updates `resolve_compiler_config` in `prompt_compiler.py` to support strict fail-closed validation when `allow_default_key=False`.",
+      "All requested acceptance criteria (AC-1, AC-2, AC-3) and design contracts remain structurally intact and verified by the test suite.",
+      "Top risks: Ensuring production deployment pipelines explicitly pass `allow_default_key=False` to eliminate fallback exposure."
+    ]
+  },
+  "rereview_reason": "Fixes finding from prior review sha 98091c33c1ea with fail-closed key validation and schema comments",
+  "rereview_reason_sha256": "2f862fef4789da5097ff9ef2e518dff7adf24cfabac253b429793fafeb346950"
+}
