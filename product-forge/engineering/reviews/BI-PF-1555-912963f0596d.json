@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1555",
+  "sha": "912963f0596d",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T09:47:07.271895+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f21d4c8ddb2962e46874948c1d7f73ce9f8f034c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The Helm chart's default configuration deploys a single-replica PostgreSQL StatefulSet and an in-cluster MinIO instance, directly contradicting the Terraform modules' provisioning of highly available managed cloud databases and cloud object storage. This means the application will not use the HA infrastructure by default.",
+      "The GCP Terraform module grants overly broad `cloud-platform` OAuth scope to GKE node pools, violating the principle of least privilege and posing a significant security vulnerability.",
+      "The Helm chart's `configmap.yaml` hardcodes `MINIO_ENDPOINT` to an in-cluster HTTP address, preventing the use of the cloud-managed object storage provisioned by Terraform without manual override.",
+      "The default values for `postgres.host` in `values.yaml` are empty, causing the Helm chart to deploy and use an in-cluster PostgreSQL StatefulSet instead of the managed HA database provisioned by Terraform."
+    ],
+    "MINOR": [
+      "Default placeholder secrets in `values.yaml` and `variables.tf` (e.g., \"change-in-production-vault\") are present. While marked sensitive, this pattern can lead to insecure deployments if not explicitly overridden.",
+      "The `plane_a_deployer.py` `health_check` method defaults to `http://127.0.0.1:8000/api/v1/health`, which is unlikely to work for remote Kubernetes clusters without additional setup.",
+      "Terraform modules hardcode specific instance types for EKS node groups (`m6i.xlarge`) and GKE node pools (`e2-standard-4`), limiting flexibility for different cost/performance profiles."
+    ],
+    "NIT": [
+      "The `plane_a_deployer.py` captures only the last 5000 characters of `subprocess.run` stdout. For complex Terraform outputs, this might truncate important information.",
+      "The `Chart.yaml` `maintainers` email `ops@productforge.internal` uses an internal domain, which might not be resolvable or appropriate for external consumers of the chart."
+    ],
+    "SUMMARY": []
+  }
+}
