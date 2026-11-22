@@ -367,11 +367,11 @@ func (s *Store) retireSuperseded(ctx context.Context, key, exceptID string) erro
 			if pErr != nil {
 				return pErr
 			}
-			defer pResp.Body.Close()
-			if pResp.StatusCode != http.StatusNotFound {
-				if err := s.client.EnsureOK(pResp); err != nil {
-					return err
-				}
+			status := pResp.StatusCode
+			err := s.client.EnsureOK(pResp)
+			_ = pResp.Body.Close()
+			if status != http.StatusNotFound && err != nil {
+				return err
 			}
 		}
 	}
@@ -503,11 +503,11 @@ func (s *Store) Delete(ctx context.Context, key, version string) error {
 			if dErr != nil {
 				return dErr
 			}
-			defer dResp.Body.Close()
-			if dResp.StatusCode != http.StatusNotFound {
-				if err := s.client.EnsureOK(dResp); err != nil {
-					return err
-				}
+			status := dResp.StatusCode
+			err := s.client.EnsureOK(dResp)
+			_ = dResp.Body.Close()
+			if status != http.StatusNotFound && err != nil {
+				return err
 			}
 		}
 	}
