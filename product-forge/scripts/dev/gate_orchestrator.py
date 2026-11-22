@@ -160,20 +160,21 @@ class GateOrchestrator:
     def run_tests(self, test_cmd: list[str] | None = None) -> bool:
         """Execute scoped unit/integration tests."""
         print(f"[Tests] Running targeted tests for {self.item_id}...")
-        evidence = [e for e in (self.item.get("evidence") or []) if e and e != "pending"]
+        py_evidence = [e for e in (self.item.get("evidence") or []) if e and e != "pending" and str(e).endswith(".py")]
         
         # 1. Run Python tests if applicable
-        if not test_cmd:
-            if evidence:
-                test_cmd = ["python", "-m", "pytest", *evidence]
-            else:
-                test_cmd = ["python", "-m", "pytest", "test-framework/tests/pipeline/test_memory_record_contract.py"]
-
-        res = _run(test_cmd, check=False)
-        if res.returncode != 0:
-            print(f"[Tests] FAIL: Python test execution failed:\n{res.stdout}\n{res.stderr}")
-            self.stages["tests"] = "FAIL"
-            return False
+        if test_cmd:
+            res = _run(test_cmd, check=False)
+            if res.returncode != 0:
+                print(f"[Tests] FAIL: Python test execution failed:\n{res.stdout}\n{res.stderr}")
+                self.stages["tests"] = "FAIL"
+                return False
+        elif py_evidence:
+            res = _run(["python", "-m", "pytest", *py_evidence], check=False)
+            if res.returncode != 0:
+                print(f"[Tests] FAIL: Python test execution failed:\n{res.stdout}\n{res.stderr}")
+                self.stages["tests"] = "FAIL"
+                return False
 
         # 2. Run Go tests if affected files include go/
         affected = self.item.get("affected_files") or []
