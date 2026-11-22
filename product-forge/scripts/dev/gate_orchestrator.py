@@ -97,17 +97,62 @@ class GateOrchestrator:
             print("[Gate 1] PASS (Auto-Approved)")
             return True
 
-        # In HIL mode, verify existing decision or halt
+        # In HIL mode, verify existing decision or render HIL surface and halt
         it = backlog.get_epic(self.scope, self.project, self.item_id)
-        approved = any(d.get("gate") == 1 and str(d.get("decision")).upper() == "APPROVE" for d in (it.get("decisions") or []))
+        approved = any(d.get("gate") == 1 and str(d.get("decision")).upper() in ("APPROVE", "APPROVE_WITH_ATTENTION") for d in (it.get("decisions") or []))
         if not approved:
-            print(f"[Gate 1] HIL PAUSE: Item {self.item_id} requires Gate 1 Human-In-The-Loop approval decision.")
+            self._render_hil_surface(it)
             self.stages["gate1"] = "HALTED"
             return False
 
         self.stages["gate1"] = "PASS"
         print("[Gate 1] PASS")
         return True
+
+    def _render_hil_surface(self, it: dict) -> None:
+        """Render Review Impact Table and Gate 1.5 findings for human decision."""
+        print("=" * 80)
+        print(f"HIL REVIEW SURFACE — GATE 1 DESIGN APPROVAL FOR {self.item_id}")
+        print("=" * 80)
+        try:
+            import spec_contract
+            impact = spec_contract.impact_table(it)
+            print("\n--- REVIEW IMPACT TABLE ---")
+            if impact:
+                header = f"{'Control':<12} {'AC':<6} {'FR':<6} {'Kind':<12} {'Symbol':<42} {'Positive Test':<30}"
+                print(header)
+                print("-" * len(header))
+                for row in impact:
+                    ctrl = str(row.get('control') or '')
+                    ac = str(row.get('ac') or '')
+                    fr = str(row.get('fr') or '')
+                    kind = str(row.get('kind') or '')
+                    sym = str(row.get('symbol') or '')[:40]
+                    pos = str(row.get('positive') or '')[:28]
+                    print(f"{ctrl:<12} {ac:<6} {fr:<6} {kind:<12} {sym:<42} {pos:<30}")
+            else:
+                print("No implementation controls defined.")
+        except Exception as e:
+            print(f"Could not render impact table: {e}")
+
+        try:
+            import architect_review as ar
+            view = ar.gate_view(self.item_id, "design") or {}
+            findings = ((view.get("review") or {}).get("findings")) or {}
+            print("\n--- GATE 1.5 ARCHITECT REVIEW FINDINGS ---")
+            for sev in ("BLOCKER", "MAJOR", "MINOR", "NIT"):
+                items = findings.get(sev) or []
+                print(f"[{sev}]: {len(items)}")
+                for item in items:
+                    print(f"  * {item}")
+        except Exception as e:
+            print(f"Could not render review findings: {e}")
+
+        print("\n" + "=" * 80)
+        print(f"[Gate 1] HIL PAUSE: Item {self.item_id} requires Gate 1 Human-In-The-Loop approval decision.")
+        print("To record approval, run:")
+        print(f'  python scripts/dev/gate_decisions.py record --item {self.item_id} --gate 1 --decision APPROVE --by hil:<user> --reason "..."')
+        print("=" * 80)
 
     def run_tests(self, test_cmd: list[str] | None = None) -> bool:
         """Execute scoped unit/integration tests."""
