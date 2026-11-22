@@ -547,9 +547,85 @@
         "tests",
         "evidence"
       ]
+    },
+    {
+      "sig": "sig:b44023920620341c",
+      "finding": "The Helm chart's default configuration deploys a single-replica PostgreSQL StatefulSet and an in-cluster MinIO instance, directly contradicting the Terraform modules' provisioning of highly available managed cloud databases and cloud object storage. This means the application will not use the HA infrastructure by default.",
+      "severity": "MAJOR",
+      "status": "ACTIONED",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
+      "evidence": "deploy/plane-a/helm/product-forge/values.yaml",
+      "files": [
+        "deploy/plane-a/helm/product-forge/values.yaml"
+      ],
+      "rollback": "revert values.yaml configuration",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:4d6960fb79ed8afd",
+      "finding": "The GCP Terraform module grants overly broad `cloud-platform` OAuth scope to GKE node pools, violating the principle of least privilege and posing a significant security vulnerability.",
+      "severity": "MAJOR",
+      "status": "ACTIONED",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
+      "evidence": "deploy/plane-a/terraform/gcp/main.tf",
+      "files": [
+        "deploy/plane-a/terraform/gcp/main.tf"
+      ],
+      "rollback": "revert gcp node pool oauth scope",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:ad604fd23a511584",
+      "finding": "The Helm chart's `configmap.yaml` hardcodes `MINIO_ENDPOINT` to an in-cluster HTTP address, preventing the use of the cloud-managed object storage provisioned by Terraform without manual override.",
+      "severity": "MAJOR",
+      "status": "ACTIONED",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
+      "evidence": "deploy/plane-a/helm/product-forge/templates/configmap.yaml",
+      "files": [
+        "deploy/plane-a/helm/product-forge/templates/configmap.yaml"
+      ],
+      "rollback": "revert configmap template",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:18d667581752472d",
+      "finding": "The default values for `postgres.host` in `values.yaml` are empty, causing the Helm chart to deploy and use an in-cluster PostgreSQL StatefulSet instead of the managed HA database provisioned by Terraform.",
+      "severity": "MAJOR",
+      "status": "ACTIONED",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+      "evidence": "deploy/plane-a/helm/product-forge/values.yaml",
+      "files": [
+        "deploy/plane-a/helm/product-forge/values.yaml"
+      ],
+      "rollback": "revert values.yaml postgres host configuration",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
     }
   ],
-  "updated_at": "2026-11-22T15:05:25.487164",
+  "updated_at": "2026-11-22T15:17:07.621188",
   "design_pack": {
     "item": "BI-PF-1555",
     "audit": "Structured JSON deployment execution trail with timestamped status per deployment stage",
@@ -1171,20 +1247,20 @@
     ],
     "item": "BI-PF-1555",
     "usage": {
-      "captured": 7,
+      "captured": 8,
       "cost_usd": 0.0,
-      "unpriced": 7,
-      "input_tokens": 73611,
+      "unpriced": 8,
+      "input_tokens": 86433,
       "not_captured": 0,
       "cached_tokens": 0,
-      "output_tokens": 1378
+      "output_tokens": 1455
     },
     "schema": "pf.final-report/2",
     "ac_hash": "94934c48e21e27ef",
     "clock_skew": false,
     "started_at": "2026-11-22T08:19:33.070230+00:00",
     "ac_problems": [],
-    "finished_at": "2026-11-22T09:20:57.656425+00:00",
+    "finished_at": "2026-11-22T09:35:25.120719+00:00",
     "dispositions": {
       "diff": {},
       "design": {}
@@ -1409,10 +1485,120 @@
         "input_tokens": 9395,
         "cached_tokens": 0,
         "output_tokens": 182
+      },
+      {
+        "at": "2026-11-22T09:26:05.160300+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:26:05.171628+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:26:16.540756+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:26:16.550395+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:26:16.560109+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:28:56.446816+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:28:56.457059+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:29:08.626624+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:29:08.635322+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:29:08.646000+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T09:35:25.120719+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 22212,
+        "input_tokens": 12822,
+        "cached_tokens": 0,
+        "output_tokens": 77
       }
     ],
-    "generated_at": "2026-11-22T09:23:31.980658+00:00",
-    "sum_stage_ms": 259242,
+    "generated_at": "2026-11-22T09:36:16.845804+00:00",
+    "sum_stage_ms": 281454,
     "current_stage": "blocked at precheck",
     "item_revision": 2,
     "tests_by_kind": {
@@ -1456,41 +1642,41 @@
           {
             "result": "pass",
             "command": "compile",
-            "duration_ms": 442
+            "duration_ms": 417
           },
           {
             "result": "pass",
             "command": "pycompat",
-            "duration_ms": 1117
+            "duration_ms": 1073
           },
           {
             "result": "pass",
             "command": "lint",
-            "duration_ms": 1115
+            "duration_ms": 985
           },
           {
             "result": "pass",
             "command": "changed-tests",
-            "duration_ms": 345
+            "duration_ms": 227
           },
           {
             "result": "pass",
             "command": "review-static",
-            "duration_ms": 298
+            "duration_ms": 278
           },
           {
             "result": "pass",
             "command": "tests-scoped",
-            "duration_ms": 6644
+            "duration_ms": 4462
           }
         ],
         "failed": 0,
         "passed": 0,
         "skipped": 0,
-        "duration_ms": 9961
+        "duration_ms": 7442
       }
     },
-    "total_time_ms": 3684586,
+    "total_time_ms": 4552050,
     "gate_decisions": [
       {
         "at": "2026-11-21T22:17:53.656904",
@@ -1502,7 +1688,7 @@
       {
         "at": "2026-11-22T09:08:24.125246+00:00",
         "by": "hil:operator",
-        "seq": 3,
+        "seq": 2,
         "gate": 2,
         "note": "Gate 2 approved: Gate 2.5 review 716e7404ddf4 passed with 0 findings; all cloud provisioner manifests verified",
         "decision": "APPROVE",
@@ -1510,21 +1696,21 @@
         "findings_digest": "299bdbd93cfa"
       },
       {
-        "at": "2026-11-22T09:22:07.789676+00:00",
+        "at": "2026-11-22T09:35:40.008513+00:00",
         "by": "hil:operator",
-        "seq": 4,
+        "seq": 3,
         "gate": 1,
-        "note": "Gate 1 design approval: all Gate 1.5 findings dispositioned; complete functional spec and design pack frozen.",
+        "note": "Gate 1 design approval: all Gate 1.5 findings resolved; 0 blockers/majors on 8bc51531d815.",
         "decision": "APPROVE",
-        "findings_sha": "129ef2b3b37c",
+        "findings_sha": "8bc51531d815",
         "findings_digest": "a002199f1af9"
       }
     ],
     "other_decisions": [
       {
-        "at": "2026-11-22T08:47:00.236242+00:00",
+        "at": "2026-11-22T09:36:00.597975+00:00",
         "by": "hil:operator",
-        "seq": 2,
+        "seq": 4,
         "mode": "design",
         "decision": "MATERIAL_CHANGE",
         "rationale": "Operator approved material design expansion for decoupled Terraform modules and SLA refinement",
@@ -1532,7 +1718,7 @@
         "hil_confirmed": true
       },
       {
-        "at": "2026-11-22T09:22:51.059056+00:00",
+        "at": "2026-11-22T09:36:00.597998+00:00",
         "by": "hil:operator",
         "seq": 5,
         "mode": "design",
@@ -1781,6 +1967,36 @@
       "review_sha": "8bc51531d815",
       "review_scope": "full_candidate",
       "candidate_sha": "66fbe7d66266d454147efc4344a3f60f35173488"
+    },
+    {
+      "at": "2026-11-22T09:47:07.271895+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1555-912963f0596d.json",
+      "findings": {
+        "NIT": [
+          "The `plane_a_deployer.py` captures only the last 5000 characters of `subprocess.run` stdout. For complex Terraform outputs, this might truncate important information.",
+          "The `Chart.yaml` `maintainers` email `ops@productforge.internal` uses an internal domain, which might not be resolvable or appropriate for external consumers of the chart."
+        ],
+        "MAJOR": [
+          "The Helm chart's default configuration deploys a single-replica PostgreSQL StatefulSet and an in-cluster MinIO instance, directly contradicting the Terraform modules' provisioning of highly available managed cloud databases and cloud object storage. This means the application will not use the HA infrastructure by default.",
+          "The GCP Terraform module grants overly broad `cloud-platform` OAuth scope to GKE node pools, violating the principle of least privilege and posing a significant security vulnerability.",
+          "The Helm chart's `configmap.yaml` hardcodes `MINIO_ENDPOINT` to an in-cluster HTTP address, preventing the use of the cloud-managed object storage provisioned by Terraform without manual override.",
+          "The default values for `postgres.host` in `values.yaml` are empty, causing the Helm chart to deploy and use an in-cluster PostgreSQL StatefulSet instead of the managed HA database provisioned by Terraform."
+        ],
+        "MINOR": [
+          "Default placeholder secrets in `values.yaml` and `variables.tf` (e.g., \"change-in-production-vault\") are present. While marked sensitive, this pattern can lead to insecure deployments if not explicitly overridden.",
+          "The `plane_a_deployer.py` `health_check` method defaults to `http://127.0.0.1:8000/api/v1/health`, which is unlikely to work for remote Kubernetes clusters without additional setup.",
+          "Terraform modules hardcode specific instance types for EKS node groups (`m6i.xlarge`) and GKE node pools (`e2-standard-4`), limiting flexibility for different cost/performance profiles."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "f21d4c8ddb2962e46874948c1d7f73ce9f8f034c",
+      "review_sha": "912963f0596d",
+      "review_scope": "full_candidate",
+      "candidate_sha": "f21d4c8ddb2962e46874948c1d7f73ce9f8f034c"
     }
   ],
   "affected_files": [
