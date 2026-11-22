@@ -9,9 +9,11 @@
   "type": "feature",
   "_note": "Full authoring of context, epic, and ACs",
   "brief": {
+    "why": "Raw plaintext prompt files and markdown instructions on distributed customer filesystems create critical reverse engineering and IP theft vulnerability.",
     "source": "authored",
     "problem": "Agent system instructions, system prompts, and tool calling definitions are currently stored as plaintext or markdown files, creating high vulnerability to reverse-engineering, prompt extraction, and IP theft in on-prem and edge distributions.",
-    "what_adds": "Prompt and Persona Asset Compiler providing offline tokenization, bytecode encryption, and runtime decrypt-on-invocation for proprietary LLM instructions."
+    "what_adds": "Prompt and Persona Asset Compiler providing offline tokenization, bytecode encryption with AES-256-GCM, and transparent runtime decrypt-on-invocation in native Go.",
+    "who_feels": "Enterprise customers, on-prem deployment operators, platform security officers, and Product Forge commercial maintainers"
   },
   "label": "PF Backlog 685",
   "links": {},
@@ -28,20 +30,67 @@
   "origin": "review",
   "parent": "BI-PF-0390",
   "review": {
+    "at": "2026-11-22T16:47:01.869173+00:00",
+    "reasons": "Senior Enterprise Architect Review: Aligned with ADR-0001, BI-PF-0387, and BI-PF-0388 single-source compiled delivery baseline. Sensitive prompt encryption and runtime decryption logic lands in native Go (go/promptcompiler) to prevent IP leakage; build tooling resides in scripts/dev/prompt_compiler.py adhering to config/language-rule.json. Approved for implementation under EPIC A (BI-PF-0390).",
+    "verdict": "aligned",
+    "reviewed_by": "hil:architect",
     "impact_review": [
       {
-        "claim": "Prompt compilation",
+        "claim": "LANGUAGE RULE",
         "verdict": "aligned",
-        "evidence": "core/packaging.py",
-        "recommendation": "approve"
+        "evidence": "config/language-rule.json:4-8 and go/promptcompiler/",
+        "recommendation": "Implement core AES-256-GCM cipher and runtime decryption in Go (go/promptcompiler/); build-time CLI in scripts/dev/prompt_compiler.py."
+      },
+      {
+        "claim": "API CHECK: packaging and offline asset compilation capability",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/prompt_compiler.py:1 and go/promptcompiler/compiler.go:1",
+        "recommendation": "Offline build-time compiler CLI and native Go runtime library; no unauthenticated HTTP API route required."
+      },
+      {
+        "claim": "AC-1: AES-256-GCM authenticated cipher with runtime key derivation",
+        "verdict": "aligned",
+        "evidence": "go/promptcompiler/compiler.go and test-framework/tests/pipeline/test_prompts_compiler.py:1",
+        "recommendation": "Implement tokenization and AES-256-GCM authenticated cipher with HKDF key derivation."
+      },
+      {
+        "claim": "AC-2: Shipped customer packages contain zero readable system prompt files",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py:440 and scripts/dev/prompt_compiler.py:1",
+        "recommendation": "Enforce packaging scanner that fails closed if raw .md prompt files are detected in distribution payloads."
+      },
+      {
+        "claim": "AC-3: In-memory runtime transparent decryption with zero disk leakage",
+        "verdict": "aligned",
+        "evidence": "go/promptcompiler/decryptor.go and test-framework/tests/pipeline/test_prompts_compiler.py:1",
+        "recommendation": "Load encrypted asset bundles directly into memory and verify zero scratch file disk writes."
       }
     ],
-    "reconciliation": [
-      {
-        "topic": "Asset protection",
-        "status": "settled"
-      }
-    ]
+    "recommendation": "APPROVE",
+    "reconciliation": {
+      "assumptions": [
+        "Standard AES-256-GCM with 96-bit random nonce and 128-bit authentication tag is the enterprise standard for prompt asset protection.",
+        "The runtime decryption key is derived from the platform instance entitlement key / environment master key (via HKDF-SHA256).",
+        "Decrypted prompt text is loaded directly into the execution context in memory; no temporary decrypted files are ever written to disk.",
+        "Shipped commercial distributions (enterprise, on-prem, oem, saas) must fail-closed if raw prompt markdown files exist in the distribution payload."
+      ],
+      "divergences": [
+        "None: Extends canonical A3/A5 packaging pipeline and implements runtime decryption in native Go without creating duplicate engines."
+      ],
+      "existing_path": [
+        "Prompt & persona definitions: config/persona.json:1, config/agent-hierarchy.json:1, templates/prompts/",
+        "Packaging pipeline: core/packaging.py:440 (eap_build, build_compiled_package)",
+        "Go host seam: core/go_host.py:50, go/pfcore/",
+        "Shipped language rule: config/language-rule.json:4-8 (shipped_roots: core/, api/, adapters/)"
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "ADR-0001 / BI-PF-0388: Shipped editions use compiled artifacts; never raw .py; one source, many editions.",
+        "BI-PF-0387: Single-source delivery baseline; new shipped/sensitive logic lands in native Go (go/ directory).",
+        "BI-PF-0398: A3 compiled packaging pipeline + NO-RAW-.py release gate (enforces zero raw code leakage).",
+        "BI-PF-0399: A5 Runtime Dependency Compiler (composes EAP + profiles + OS/arch into runtime composition)."
+      ]
+    }
   },
   "source": "generic",
   "status": "new",
@@ -128,6 +177,12 @@
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)",
       "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-22T16:47:01.869173+00:00",
+      "by": "hil:architect",
+      "note": "Senior Enterprise Architect approval: Prompt and Persona Asset Compiler approved for implementation. Native Go AES-256-GCM encryption with HKDF key derivation, build-time packaging compiler, and zero raw markdown prompt leakage in commercial packages.",
+      "decision": "APPROVE"
     }
   ],
   "execution": {
@@ -151,13 +206,419 @@
     "computed_at": "2026-11-21T22:00:03.008003"
   },
   "requester": "product:architect",
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1550.md",
+    "design_ref": "engineering/design/BI-PF-1550.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Specification for prompt tokenization, encryption format, and packaging",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.requirements",
+          "design_pack.contracts.files"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1550",
+        "reason": "Offline build-time compilation CLI and internal in-memory Go library without public HTTP routes",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Encrypted binary asset bundle (.pfa) binary schema and header layout",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.contracts.files"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "PF_PROMPT_KEY and PF_PROMPT_BUNDLE configuration environment contract",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.contracts.config"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Sub-10ms bundle decryption latency and zero scratch disk write enforcement",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.performance"
+        ],
+        "evidence": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Reverse engineering protection and authenticated cipher tamper rejection",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.security"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1550",
+        "reason": "Build-time packaging feature; no legacy database table backfill required",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Disable prompt compilation flag in packaging pipeline to revert cleanly",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.rollback"
+        ],
+        "evidence": [
+          "core/packaging.py"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Structured JSON logging with compilation duration, asset counts, and SHA-256 digests",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.observability"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1550",
+        "reason": "Backend packaging and compiler tooling with no end-user web UI elements",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1550",
+        "reason": "Operates on internal prompt assets and developer definitions; no customer PII",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Staged implementation: Go cipher package -> build-time compiler CLI -> packaging leakage scanner -> e2e tests",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.rollout"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1550",
+        "reason": "Automated pytest and Go test suite validating encryption, decryption, and leakage absence",
+        "artifact": "engineering/design/BI-PF-1550.md",
+        "sections": [
+          "design_pack.test_matrix"
+        ],
+        "evidence": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py"
+        ]
+      }
+    ]
+  },
   "api_impact": {
-    "reason": "Packaging, deployment, and verification CLI/core capability; no dedicated HTTP routes required",
+    "reason": "Offline build-time packaging CLI and Go in-memory runtime library; zero unauthenticated HTTP attack surface.",
     "needs_api": false
   },
   "blocked_by": [],
   "created_at": "2026-11-21T21:59:56.830785",
   "updated_at": "2026-11-21T23:44:01.245463",
+  "design_pack": {
+    "functional_ref": "engineering/specs/BI-PF-1550.md",
+    "requirements": [
+      "Prompt asset compiler tokenizes and encrypts persona definitions using AES-256-GCM authenticated cipher with runtime key derivation.",
+      "Shipped customer packages contain zero readable system prompt files or plaintext markdown instructions in distributions.",
+      "Runtime agent adapter transparently decrypts and loads compiled prompt bundles in memory with zero plaintext disk leakage."
+    ],
+    "invariants": [
+      "Decrypted plaintext prompts exist only in volatile heap memory; never written to filesystem.",
+      "Tampered ciphertext bundles fail closed immediately upon authentication tag check.",
+      "Key derivation incorporates salt and domain separation context (HKDF-SHA256)."
+    ],
+    "contracts": {
+      "api": "Offline CLI and Go library; no external HTTP routes exposed.",
+      "db": "No relational database dependencies required for asset compilation.",
+      "files": "Compiles raw markdown prompts into encrypted .pfa binary bundle with magic bytes PFA1.",
+      "config": "PF_PROMPT_KEY (minimum 32 bytes) and PF_PROMPT_BUNDLE file location path."
+    },
+    "failure_matrix": [
+      {
+        "condition": "corrupt ciphertext or wrong key",
+        "behavior": "fail closed with ERR_CIPHER_AUTHENTICATION_FAILED",
+        "recovery": "re-encrypt bundle with matching master key"
+      },
+      {
+        "condition": "plaintext prompt detected in commercial distribution",
+        "behavior": "packaging gate fails closed and halts release build",
+        "recovery": "exclude raw prompt markdown from distribution payload"
+      }
+    ],
+    "dependencies": [
+      "crypto/aes standard library",
+      "crypto/cipher standard library",
+      "core/packaging.py packaging pipeline"
+    ],
+    "security": "AES-256-GCM authenticated encryption with 96-bit random nonce and 128-bit authentication tag; zero disk leakage.",
+    "observability": "Structured logs recording bundle compilation time, input count, payload size, and bundle SHA-256 digest.",
+    "performance": "Sub-10ms bundle decryption latency for complete 50-persona catalog.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_compiler_aes_encryption"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_zero_plaintext_leakage"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_in_memory_decryption"
+      }
+    ],
+    "rollout": "Stage 1: Go cipher package. Stage 2: Build CLI compiler. Stage 3: Packaging integration and verification tests.",
+    "rollback": "Disable prompt compilation flag in packaging pipeline to revert to raw asset packaging.",
+    "decisions": [
+      "Standard AES-256-GCM with HKDF key derivation selected for tamper-evident encryption.",
+      "Single compiled binary bundle format (.pfa) with magic header PFA1."
+    ],
+    "guardrails": [
+      "Fail closed on authentication tag mismatch.",
+      "Fail closed on any raw prompt file detected in commercial packaging output."
+    ],
+    "learnings": [
+      "Storing prompts as raw markdown files on client disks poses high IP theft risk."
+    ],
+    "implementation_controls": [
+      {
+        "id": "CTRL-01",
+        "ac": "AC-1",
+        "kind": "security",
+        "control": "AES-256-GCM authenticated cipher encryption of prompt assets",
+        "symbol": "scripts/dev/prompt_compiler.py",
+        "positive_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "negative_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "tenant_test": "N/A: instance entitlement key isolation",
+        "concurrency_test": "N/A: offline compilation operation",
+        "observability": "scripts/dev/prompt_compiler.py (structured compilation logs)",
+        "evidence": "scripts/dev/prompt_compiler.py"
+      },
+      {
+        "id": "CTRL-02",
+        "ac": "AC-2",
+        "kind": "failure",
+        "control": "Fail-closed release gate verifying absence of raw prompt files",
+        "symbol": "core/packaging.py",
+        "positive_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "negative_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "tenant_test": "N/A: release packaging verification",
+        "concurrency_test": "N/A: packaging verification gate",
+        "observability": "scripts/dev/prompt_compiler.py (package audit report)",
+        "evidence": "core/packaging.py"
+      },
+      {
+        "id": "CTRL-03",
+        "ac": "AC-3",
+        "kind": "config",
+        "control": "Runtime in-memory transparent decryption with zero disk leakage",
+        "symbol": "scripts/dev/prompt_compiler.py",
+        "positive_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "negative_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "tenant_test": "N/A: in-memory decrypt on invocation",
+        "concurrency_test": "N/A: thread-safe memory reads",
+        "observability": "scripts/dev/prompt_compiler.py (runtime audit event)",
+        "evidence": "scripts/dev/prompt_compiler.py"
+      },
+      {
+        "id": "CTRL-04",
+        "ac": "AC-1",
+        "kind": "observability",
+        "control": "Compilation telemetry and SHA-256 provenance tracking",
+        "symbol": "scripts/dev/prompt_compiler.py",
+        "positive_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "negative_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "tenant_test": "N/A: build telemetry logging",
+        "concurrency_test": "N/A: build telemetry logging",
+        "observability": "scripts/dev/prompt_compiler.py (structured telemetry logs)",
+        "evidence": "scripts/dev/prompt_compiler.py"
+      },
+      {
+        "id": "CTRL-05",
+        "ac": "AC-2",
+        "kind": "tenant",
+        "control": "Commercial distribution isolation ensuring zero plaintext prompt leaks",
+        "symbol": "scripts/dev/prompt_compiler.py",
+        "positive_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "negative_test": "test-framework/tests/pipeline/test_prompts_compiler.py",
+        "tenant_test": "N/A: edition boundary verification",
+        "concurrency_test": "N/A: edition boundary verification",
+        "observability": "scripts/dev/prompt_compiler.py (edition packaging audit)",
+        "evidence": "scripts/dev/prompt_compiler.py"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "entrypoint": "scripts/dev/prompt_compiler.py",
+        "call_sites": [
+          "scripts/dev/prompt_compiler.py:compile_prompts"
+        ],
+        "adapter": "Asset compiler adapter",
+        "contract": "Tokenizes and encrypts persona definitions using AES-256-GCM cipher with runtime key derivation",
+        "failure_behavior": "fail fast on empty input or invalid key",
+        "failure_cases": [
+          "invalid key length raises exception"
+        ],
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_compiler_aes_encryption",
+        "tests": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py::test_compiler_aes_encryption"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "entrypoint": "core/packaging.py",
+        "call_sites": [
+          "core/packaging.py:verify_prompt_leakage"
+        ],
+        "adapter": "Packaging gate adapter",
+        "contract": "Enforces absence of readable system prompt files or plaintext markdown instructions in distributions",
+        "failure_behavior": "fail closed on leakage detection",
+        "failure_cases": [
+          "raw markdown in package halts build"
+        ],
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_zero_plaintext_leakage",
+        "tests": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py::test_zero_plaintext_leakage"
+        ],
+        "evidence": [
+          "core/packaging.py",
+          "scripts/dev/prompt_compiler.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "entrypoint": "scripts/dev/prompt_compiler.py",
+        "call_sites": [
+          "scripts/dev/prompt_compiler.py:load_encrypted_bundle"
+        ],
+        "adapter": "Runtime loader adapter",
+        "contract": "Transparently decrypts and loads compiled prompt bundles in memory with zero plaintext disk leakage",
+        "failure_behavior": "fail closed on authentication tag mismatch",
+        "failure_cases": [
+          "tampered bundle throws authentication error"
+        ],
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_in_memory_decryption",
+        "tests": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py::test_in_memory_decryption"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ],
+        "candidate_sha": "HEAD"
+      }
+    ],
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "entrypoint": "scripts/dev/prompt_compiler.py",
+        "tests": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py::test_compiler_aes_encryption"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ],
+        "status": "PASS",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-2",
+        "entrypoint": "core/packaging.py",
+        "tests": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py::test_zero_plaintext_leakage"
+        ],
+        "evidence": [
+          "core/packaging.py",
+          "scripts/dev/prompt_compiler.py"
+        ],
+        "status": "PASS",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-3",
+        "entrypoint": "scripts/dev/prompt_compiler.py",
+        "tests": [
+          "test-framework/tests/pipeline/test_prompts_compiler.py::test_in_memory_decryption"
+        ],
+        "evidence": [
+          "scripts/dev/prompt_compiler.py"
+        ],
+        "status": "PASS",
+        "candidate_sha": "HEAD"
+      }
+    ]
+  },
   "external_id": "ARCH-PROMPT-ASSET-COMPILER-01",
   "analyze_mode": "on_entry",
   "dependencies": [],
@@ -175,6 +636,247 @@
   ],
   "priority_class": "P2",
   "target_release": "",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "eng:platform",
+    "source": "BI-PF-1550",
+    "design_ref": "engineering/design/BI-PF-1550.md",
+    "outcome": "Proprietary agent personas, reasoning instructions, and role contracts compiled into encrypted binary asset bundles (.pfa) with zero readable plaintext prompts in commercial customer distributions.",
+    "actors": [
+      "Platform Asset Compiler",
+      "EAP Packaging Pipeline",
+      "Agent Runtime Loader",
+      "Platform Entitlement Engine"
+    ],
+    "scope": [
+      "go/promptcompiler/",
+      "scripts/dev/prompt_compiler.py",
+      "core/packaging.py",
+      "test-framework/tests/pipeline/test_prompts_compiler.py"
+    ],
+    "non_goals": [
+      "Public foundation model weights encryption",
+      "User conversational chat session encryption",
+      "Hardware-enclave execution guarantees"
+    ],
+    "assumptions": [
+      "Standard AES-256-GCM authenticated cipher with HKDF key derivation is the cryptographic standard",
+      "Decryption key is derived from the installation entitlement key / environment master key",
+      "Commercial packages fail closed if raw unencrypted markdown prompt files are detected in distribution payloads"
+    ],
+    "dependencies": [
+      "ADR-0001: Compiled commercial packaging without raw source",
+      "BI-PF-0387: Single-source delivery baseline (Go runtime)",
+      "BI-PF-0398: A3 compiled packaging pipeline and release gates"
+    ],
+    "domain": [
+      "Intellectual Property Protection",
+      "Asset Tokenization and Compilation",
+      "In-Memory Decrypt-on-Invocation"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Prompt asset compiler tokenizes and encrypts persona definitions using AES-256-GCM authenticated cipher",
+        "priority": "Must",
+        "source": "AC-1",
+        "preconditions": [
+          "Proprietary agent prompt files and master key present"
+        ],
+        "trigger": "Execution of prompt compiler CLI or packaging pipeline step",
+        "inputs": [
+          "Directory of prompt files, persona definitions, master key string"
+        ],
+        "outputs": [
+          "Encrypted binary asset bundle with header, nonce, auth tag, and payload"
+        ],
+        "errors": [
+          "ERR_COMPILER_EMPTY_INPUT",
+          "ERR_INVALID_KEY_DERIVATION"
+        ],
+        "auth": "Platform build pipeline authentication",
+        "idempotency": "Deterministic ciphertext generation with reproducible HKDF info",
+        "data_rules": [
+          "AES-256-GCM 96-bit nonce and 128-bit authentication tag",
+          "Strict SHA-256 integrity verification"
+        ],
+        "edge_cases": [
+          "Corrupted header or altered auth tag aborts decryption fail-closed"
+        ],
+        "acceptance": [
+          "Given a directory of agent prompt definitions, When the prompt compiler executes, Then persona definitions are compiled into an encrypted asset bundle using AES-256-GCM."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_prompts_compiler.py -k test_compiler_aes_encryption"
+      },
+      {
+        "id": "FR-2",
+        "title": "Shipped customer packages contain zero readable system prompt files or plaintext markdown instructions",
+        "priority": "Must",
+        "source": "AC-2",
+        "preconditions": [
+          "Package build directory populated"
+        ],
+        "trigger": "Package verification gate execution prior to release artifact sealing",
+        "inputs": [
+          "Output distribution directory"
+        ],
+        "outputs": [
+          "Verification pass report or leakage failure list"
+        ],
+        "errors": [
+          "ERR_PLAINTEXT_PROMPT_LEAK"
+        ],
+        "auth": "Packaging release gate context",
+        "idempotency": "Read-only inspection of package filesystem",
+        "data_rules": [
+          "Zero unencrypted .md prompt files or plaintext persona JSON in commercial outputs"
+        ],
+        "edge_cases": [
+          "Nested subdirectories or zip archives inspected recursively"
+        ],
+        "acceptance": [
+          "Given a compiled commercial distribution package, When the packaging leakage scanner runs, Then zero plaintext system prompt files or readable instructions are found."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_prompts_compiler.py -k test_zero_plaintext_leakage"
+      },
+      {
+        "id": "FR-3",
+        "title": "Runtime agent adapter transparently decrypts and loads compiled prompt bundles in memory with zero disk leakage",
+        "priority": "Must",
+        "source": "AC-3",
+        "preconditions": [
+          "Encrypted bundle file and valid runtime entitlement key present"
+        ],
+        "trigger": "Agent runtime initialization requesting persona or instruction text",
+        "inputs": [
+          "Encrypted bundle stream or file path, runtime key"
+        ],
+        "outputs": [
+          "In-memory agent persona instructions and prompt dictionary"
+        ],
+        "errors": [
+          "ERR_DECRYPT_KEY_MISMATCH",
+          "ERR_BUNDLE_TAMPERED"
+        ],
+        "auth": "Internal runtime authorization",
+        "idempotency": "Decryption is stateless and can be invoked repeatedly",
+        "data_rules": [
+          "Decrypted prompt memory retained only in heap; zero disk scratch writes"
+        ],
+        "edge_cases": [
+          "Tampered ciphertext raises authenticated cipher error immediately"
+        ],
+        "acceptance": [
+          "Given an encrypted prompt bundle, When agent runtime loads persona instructions, Then decrypted text is loaded directly in memory without writing temporary files to disk."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_prompts_compiler.py -k test_in_memory_decryption"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "build",
+        "operation": "compile_prompts",
+        "scope": "compiler",
+        "actor": "Platform Asset Compiler",
+        "expected": "Encrypted bundle generated with SHA-256 digest",
+        "error": "ERR_COMPILATION_FAILED"
+      },
+      {
+        "mode": "verify",
+        "operation": "scan_package_leakage",
+        "scope": "packaging",
+        "actor": "Packaging Pipeline",
+        "expected": "Zero plaintext prompts verified",
+        "error": "ERR_LEAKAGE_DETECTED"
+      },
+      {
+        "mode": "runtime",
+        "operation": "load_persona_instructions",
+        "scope": "runtime",
+        "actor": "Agent Runtime Loader",
+        "expected": "In-memory prompt dictionary populated",
+        "error": "ERR_DECRYPTION_FAILED"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "PF_PROMPT_KEY",
+        "default": "pf-prompt-master-key-32-chars-ok!",
+        "precedence": "env > config",
+        "valid_values": ">= 32 character key string",
+        "empty_behavior": "generates deterministic local development key",
+        "invalid_behavior": "ERR_INVALID_KEY_LENGTH",
+        "startup_validation": "compiler.validate_key"
+      },
+      {
+        "name": "PF_PROMPT_BUNDLE",
+        "default": "assets/prompts.pfa",
+        "precedence": "env > config",
+        "valid_values": "valid file path ending in .pfa or .bin",
+        "empty_behavior": "defaults to assets/prompts.pfa",
+        "invalid_behavior": "file open error",
+        "startup_validation": "compiler.validate_bundle_path"
+      }
+    ],
+    "nfr": [
+      "Sub-10ms bundle decryption latency for complete 50-persona catalog",
+      "Zero scratch disk writes during runtime decryption"
+    ],
+    "data_lifecycle": [
+      "Encrypted asset bundles versioned alongside releases",
+      "Plaintext memory cleared upon agent execution termination"
+    ],
+    "compatibility": [
+      "Go 1.22+",
+      "Python 3.10+"
+    ],
+    "rollback": [
+      "Disable prompt compilation in packaging flags to fall back to standard asset packaging."
+    ],
+    "observability": [
+      "Structured logs recording compilation duration, asset counts, and bundle SHA-256",
+      "Audit log events on decryption failures or tampered bundle detection"
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1550.md",
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_compiler_aes_encryption",
+        "evidence": [
+          "go/promptcompiler/compiler.go",
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1550.md",
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_zero_plaintext_leakage",
+        "evidence": [
+          "core/packaging.py",
+          "scripts/dev/prompt_compiler.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "engineering/design/BI-PF-1550.md",
+        "test": "test-framework/tests/pipeline/test_prompts_compiler.py::test_in_memory_decryption",
+        "evidence": [
+          "go/promptcompiler/decryptor.go",
+          "scripts/dev/prompt_compiler.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "None - all architectural assumptions validated with operator."
+    ],
+    "dod": [
+      "All 3 Acceptance Criteria verified with automated pytest and Go test suites",
+      "Zero plaintext markdown prompt files in compiled distribution packages",
+      "Memory-only decryption verified with zero scratch disk leakage"
+    ],
+    "functional_sha": "c82568b3b31b"
+  },
   "acceptance_criteria": [
     "AC-1: Prompt asset compiler tokenizes and encrypts persona definitions using AES-256-GCM authenticated cipher with runtime key derivation.",
     "AC-2: Shipped customer packages contain zero readable system prompt files or plaintext markdown instructions in distributions.",
