@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-11-22T15:33:52 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-22T15:33:59 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -183,8 +183,8 @@
 
 ## Dashboard (ProductForge-Dashboard) (`project:ProductForge-Dashboard`)
 
-- **Open:** 147  |  **Closed:** 3
-- `new`: 142
+- **Open:** 146  |  **Closed:** 3
+- `new`: 141
 - `parked`: 5
 
 ### parked (5)
@@ -196,7 +196,7 @@
 | BI-0014 | Could | feature | Deferred: ops / post-production console (stage 13 + incidents) | Deferred: ops / post-production console (stage 13 + incidents) |
 | BI-0022 | Could | enhancement | Deferred (designed): reply-by-email control actions (approve / answer / act) | Deferred (designed): reply-by-email control actions (approve / answer / act) |
 
-### new, by category (142)
+### new, by category (141)
 **API / reports / HIL / misc** (18)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -290,11 +290,10 @@
 | BI-0085 | Should | feature | Run view: concurrent/parallel agent execution + speedup indicator | Run view: concurrent/parallel agent execution + speedup indicator |
 | BI-0144 | Should | feature | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) |
 
-**Wiring / tech-debt / API** (81)
+**Wiring / tech-debt / API** (80)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0001 | Must | feature | Project creation workflow | a user can create a project that enters the pipeline with its idea captured |
-| BI-DASH-CI-1 | None | feature | PF-GP parity fixture |  |
 | BI-0002 | Must | feature | Multi-project portfolio view | Multi-project portfolio view |
 | BI-0004 | Must | feature | Model tier selection and customization | Model tier selection and customization |
 | BI-0005 | Must | feature | Pipeline monitoring and logging | Pipeline monitoring and logging |
@@ -379,4 +378,4 @@
 
 ## Totals
 - backend: 140 open / 641 closed
-- dashboard: 147 open / 3 closed
+- dashboard: 146 open / 3 closed
