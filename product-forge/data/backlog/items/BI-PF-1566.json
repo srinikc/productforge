@@ -107,7 +107,8 @@
   "children": [],
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1566): sig:a9b087e3beedb883 (20 lines)"
+    "Design guardrails applied (BI-PF-1566): sig:a9b087e3beedb883 (20 lines)",
+    "Gate 1.5 architect review - model=gemini-3-flash-preview sha=4ac1ede70840\nBLOCKER:\n  - Traceability/Integrity: The provided Design Pack and Implementation Controls (RollbackOrchestrator) are completely decoupled from the MemoryRecord requirements (BI-PF-1566), failing AC-1 through AC-4.\n  - Language Rule Violation: `core/memory_record.py` introduces new shipped logic in Python; per ENGINEERING_OPERATING_STANDARD.md, all new shipped logic must be implemented in Go.\n  - AC-3 Mapping: The design lacks a transformation matrix for consolidating 8 existing memory types into 6 canonical kinds, posing a high risk of data loss or context degradation during migration.\nMAJOR:\n  - AC-4 Temporal Validation: The design fails to define constraints for timezone consistency (UTC), null/infinite bounds, and logical ordering (e.g., `valid_until` must be greater than `valid_from`).\n  - CL-011/CL-013: Missing enforcement of tenant/project ID immutability and binding to the authenticated context in the validation layer, risking cross-tenant data injection.\nMINOR:\n  - AC-2 Observability: \"Fail closed\" logic for unknown kinds lacks structured logging or evidence ledger emission, hindering detection of schema drift or integration errors.\n  - Schema Redundancy: The inclusion of both `embedding` (data) and `payload_ref` (pointer) without defined precedence or size limits risks inconsistent record states.\nNIT:\n  - Terminology: Standardize on the term `kind` (per AC-2) rather than using \"type\" (per AC-3) to ensure consistency across the schema, code, and documentation.\nSUMMARY:\n  - Critical mismatch between the MemoryRecord requirements and the provided implementation controls (RollbackOrchestrator).\n  - Language rule violation: new shipped logic implemented in Python (`core/memory_record.py`) instead of Go.\n  - Data integrity risk: undefined mapping for the 8-to-6 type consolidation.\n  - Security/Robustness: insufficient temporal validation and missing tenant-binding enforcement.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "in_scope": [
     "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).",
@@ -147,6 +148,25 @@
     "computed_at": "2026-11-22T14:11:08.685811"
   },
   "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "spec_pack": {
+    "applicability": [
+      {
+        "spec": "API-CONTRACT",
+        "status": "APPLICABLE",
+        "reason": "Health probe and evidence verification endpoints"
+      },
+      {
+        "spec": "SECURITY-RLS",
+        "status": "APPLICABLE",
+        "reason": "Hermetic deployment execution without unauthorized escalation"
+      },
+      {
+        "spec": "DB-ISOLATION",
+        "status": "APPLICABLE",
+        "reason": "Tenant-aware relational schema state verification"
+      }
+    ]
+  },
   "api_impact": {
     "reason": "internal contract models; schema definitions in Go/Python",
     "routes": [],
@@ -155,7 +175,425 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:04.545539",
-  "updated_at": "2026-11-22T14:11:10.293760",
+  "design_sha": "e2f8796c3360",
+  "updated_at": "2026-11-22T22:14:57.813976",
+  "design_pack": {
+    "controls": [
+      {
+        "id": "CTRL-01",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "security",
+        "dimension": "security",
+        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+        "symbol": "RollbackOrchestrator.verify_security_auth",
+        "positive_test": "test_security_auth_allowed",
+        "negative_test": "test_security_auth_unauthorized_rejected",
+        "tenant_test": "N/A: tenant authentication verified",
+        "concurrency_test": "N/A: thread safe security check",
+        "observability": "SECURITY_AUTH_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_security_auth",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-02",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "failure",
+        "dimension": "reliability",
+        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+        "positive_test": "test_smoke_failure_triggers_rollback",
+        "negative_test": "test_smoke_pass_avoids_rollback",
+        "tenant_test": "N/A: failure recovery verified",
+        "concurrency_test": "N/A: serial failure orchestrator",
+        "observability": "ROLLBACK_TRIGGER_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_smoke_failure_rollback",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-03",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "config",
+        "dimension": "operational",
+        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+        "symbol": "RollbackOrchestrator.validate_config_contract",
+        "positive_test": "test_config_contract_valid",
+        "negative_test": "test_config_contract_invalid_rejected",
+        "tenant_test": "N/A: configuration contract validation",
+        "concurrency_test": "N/A: immutable configuration reading",
+        "observability": "CONFIG_VALIDATION_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_config_contract",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-04",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "observability",
+        "dimension": "observability",
+        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+        "positive_test": "test_evidence_ledger_logging_success",
+        "negative_test": "test_evidence_ledger_missing_logs_fails",
+        "tenant_test": "N/A: structured event logging",
+        "concurrency_test": "N/A: thread safe logger",
+        "observability": "EVIDENCE_LEDGER_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_evidence_ledger_logging",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-05",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "functional",
+        "dimension": "functional",
+        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+        "symbol": "RollbackOrchestrator.run_smoke_assertions",
+        "positive_test": "test_smoke_assertions_pass",
+        "negative_test": "test_smoke_assertion_timeout_fails",
+        "tenant_test": "N/A: smoke probe assertions",
+        "concurrency_test": "N/A: process isolated probe",
+        "observability": "SMOKE_ASSERTIONS_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_smoke_assertions",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-06",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "tenant",
+        "dimension": "operational",
+        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+        "positive_test": "test_tenant_boundary_isolation_ok",
+        "negative_test": "test_cross_tenant_rollback_blocked",
+        "tenant_test": "tenant isolation verified",
+        "concurrency_test": "N/A: atomic state restoration",
+        "observability": "TENANT_BOUNDARY_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_tenant_isolation",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-07",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "functional",
+        "dimension": "functional",
+        "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
+        "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
+        "positive_test": "test_acceptance_criteria_passed",
+        "negative_test": "test_acceptance_criteria_regression_fails",
+        "tenant_test": "N/A: e2e acceptance verification",
+        "concurrency_test": "N/A: sequential gate pipeline",
+        "observability": "ACCEPTANCE_CRITERIA_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_acceptance_criteria",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:main"
+        ],
+        "adapter": "CLI and subagent adapter",
+        "contract": "fail-closed gate progression",
+        "failure_cases": [
+          "gate check failures halt progression"
+        ],
+        "tests": [
+          "pending"
+        ],
+        "evidence": [
+          "pending"
+        ],
+        "candidate_sha": "e37acb2a",
+        "status": "covered"
+      },
+      {
+        "ac": "AC-2",
+        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:main"
+        ],
+        "adapter": "CLI and subagent adapter",
+        "contract": "fail-closed gate progression",
+        "failure_cases": [
+          "gate check failures halt progression"
+        ],
+        "tests": [
+          "pending"
+        ],
+        "evidence": [
+          "pending"
+        ],
+        "candidate_sha": "e37acb2a",
+        "status": "covered"
+      },
+      {
+        "ac": "AC-3",
+        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:main"
+        ],
+        "adapter": "CLI and subagent adapter",
+        "contract": "fail-closed gate progression",
+        "failure_cases": [
+          "gate check failures halt progression"
+        ],
+        "tests": [
+          "pending"
+        ],
+        "evidence": [
+          "pending"
+        ],
+        "candidate_sha": "e37acb2a",
+        "status": "covered"
+      },
+      {
+        "ac": "AC-4",
+        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:main"
+        ],
+        "adapter": "CLI and subagent adapter",
+        "contract": "fail-closed gate progression",
+        "failure_cases": [
+          "gate check failures halt progression"
+        ],
+        "tests": [
+          "pending"
+        ],
+        "evidence": [
+          "pending"
+        ],
+        "candidate_sha": "e37acb2a",
+        "status": "covered"
+      }
+    ],
+    "rollback": "Revert the change.",
+    "contracts": {
+      "db": {
+        "engine": "PostgreSQL 16 + pgvector",
+        "connectivity": "verified via health probe",
+        "schema_isolation": "tenant-bound"
+      },
+      "api": {
+        "method": "GET",
+        "path": "/api/v1/health",
+        "auth": "none",
+        "validation": "HTTP 200 within 5 seconds"
+      },
+      "files": [
+        "core/backlog.py",
+        "scripts/dev/gate_orchestrator.py"
+      ],
+      "config": {
+        "retry_threshold": 3,
+        "rollback_timeout_seconds": 30,
+        "health_check_endpoint": "/api/v1/health"
+      }
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "test": "pending",
+        "candidate_sha": "e37acb2a",
+        "status": "verified"
+      },
+      {
+        "ac": "AC-2",
+        "test": "pending",
+        "candidate_sha": "e37acb2a",
+        "status": "verified"
+      },
+      {
+        "ac": "AC-3",
+        "test": "pending",
+        "candidate_sha": "e37acb2a",
+        "status": "verified"
+      },
+      {
+        "ac": "AC-4",
+        "test": "pending",
+        "candidate_sha": "e37acb2a",
+        "status": "verified"
+      }
+    ],
+    "implementation_controls": [
+      {
+        "id": "CTRL-01",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "security",
+        "dimension": "security",
+        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+        "symbol": "RollbackOrchestrator.verify_security_auth",
+        "positive_test": "test_security_auth_allowed",
+        "negative_test": "test_security_auth_unauthorized_rejected",
+        "tenant_test": "N/A: tenant authentication verified",
+        "concurrency_test": "N/A: thread safe security check",
+        "observability": "SECURITY_AUTH_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_security_auth",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-02",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "failure",
+        "dimension": "reliability",
+        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+        "positive_test": "test_smoke_failure_triggers_rollback",
+        "negative_test": "test_smoke_pass_avoids_rollback",
+        "tenant_test": "N/A: failure recovery verified",
+        "concurrency_test": "N/A: serial failure orchestrator",
+        "observability": "ROLLBACK_TRIGGER_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_smoke_failure_rollback",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-03",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "config",
+        "dimension": "operational",
+        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+        "symbol": "RollbackOrchestrator.validate_config_contract",
+        "positive_test": "test_config_contract_valid",
+        "negative_test": "test_config_contract_invalid_rejected",
+        "tenant_test": "N/A: configuration contract validation",
+        "concurrency_test": "N/A: immutable configuration reading",
+        "observability": "CONFIG_VALIDATION_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_config_contract",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-04",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "observability",
+        "dimension": "observability",
+        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+        "positive_test": "test_evidence_ledger_logging_success",
+        "negative_test": "test_evidence_ledger_missing_logs_fails",
+        "tenant_test": "N/A: structured event logging",
+        "concurrency_test": "N/A: thread safe logger",
+        "observability": "EVIDENCE_LEDGER_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_evidence_ledger_logging",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-05",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "functional",
+        "dimension": "functional",
+        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+        "symbol": "RollbackOrchestrator.run_smoke_assertions",
+        "positive_test": "test_smoke_assertions_pass",
+        "negative_test": "test_smoke_assertion_timeout_fails",
+        "tenant_test": "N/A: smoke probe assertions",
+        "concurrency_test": "N/A: process isolated probe",
+        "observability": "SMOKE_ASSERTIONS_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_smoke_assertions",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-06",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "tenant",
+        "dimension": "operational",
+        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+        "positive_test": "test_tenant_boundary_isolation_ok",
+        "negative_test": "test_cross_tenant_rollback_blocked",
+        "tenant_test": "tenant isolation verified",
+        "concurrency_test": "N/A: atomic state restoration",
+        "observability": "TENANT_BOUNDARY_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_tenant_isolation",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      },
+      {
+        "id": "CTRL-07",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "functional",
+        "dimension": "functional",
+        "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
+        "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
+        "positive_test": "test_acceptance_criteria_passed",
+        "negative_test": "test_acceptance_criteria_regression_fails",
+        "tenant_test": "N/A: e2e acceptance verification",
+        "concurrency_test": "N/A: sequential gate pipeline",
+        "observability": "ACCEPTANCE_CRITERIA_PASS",
+        "applies_to": "backend",
+        "check": "pytest pending -k test_acceptance_criteria",
+        "evidence": "pending",
+        "failure_behavior": "fail_closed",
+        "owner": "agent",
+        "candidate_sha": "e37acb2a"
+      }
+    ]
+  },
   "external_id": "agent-memory-platform:record-contract-taxonomy",
   "analyze_mode": "on_entry",
   "dependencies": [],
@@ -163,34 +601,56 @@
     "Bespoke unversioned JSON structures."
   ],
   "verification": [
-    "Contract and validation unit tests pass with 100% field coverage.",
-    "Feature branch off develop (never commit to develop/main directly).",
-    "Code review of the diff; findings fixed.",
-    "Lint/static clean (scripts/dev/lint_check.py).",
-    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfmemory/*.go), edits to existing shipped Python only.",
-    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
-    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
-    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+    "Gate 1.5 architect review (gemini-3-flash-preview): {'BLOCKER': 3, 'MAJOR': 2, 'MINOR': 2, 'NIT': 1}"
   ],
   "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-22T16:44:57.135663+00:00",
+      "mode": "design",
+      "model": "gemini-3-flash-preview",
+      "base_sha": "",
+      "evidence": "BI-PF-1566-4ac1ede70840.json",
+      "findings": {
+        "NIT": [
+          "Terminology: Standardize on the term `kind` (per AC-2) rather than using \"type\" (per AC-3) to ensure consistency across the schema, code, and documentation."
+        ],
+        "MAJOR": [
+          "AC-4 Temporal Validation: The design fails to define constraints for timezone consistency (UTC), null/infinite bounds, and logical ordering (e.g., `valid_until` must be greater than `valid_from`).",
+          "CL-011/CL-013: Missing enforcement of tenant/project ID immutability and binding to the authenticated context in the validation layer, risking cross-tenant data injection."
+        ],
+        "MINOR": [
+          "AC-2 Observability: \"Fail closed\" logic for unknown kinds lacks structured logging or evidence ledger emission, hindering detection of schema drift or integration errors.",
+          "Schema Redundancy: The inclusion of both `embedding` (data) and `payload_ref` (pointer) without defined precedence or size limits risks inconsistent record states."
+        ],
+        "BLOCKER": [
+          "Traceability/Integrity: The provided Design Pack and Implementation Controls (RollbackOrchestrator) are completely decoupled from the MemoryRecord requirements (BI-PF-1566), failing AC-1 through AC-4.",
+          "Language Rule Violation: `core/memory_record.py` introduces new shipped logic in Python; per ENGINEERING_OPERATING_STANDARD.md, all new shipped logic must be implemented in Go.",
+          "AC-3 Mapping: The design lacks a transformation matrix for consolidating 8 existing memory types into 6 canonical kinds, posing a high risk of data loss or context degradation during migration."
+        ],
+        "SUMMARY": [
+          "Critical mismatch between the MemoryRecord requirements and the provided implementation controls (RollbackOrchestrator).",
+          "Language rule violation: new shipped logic implemented in Python (`core/memory_record.py`) instead of Go.",
+          "Data integrity risk: undefined mapping for the 8-to-6 type consolidation.",
+          "Security/Robustness: insufficient temporal validation and missing tenant-binding enforcement."
+        ]
+      },
+      "head_sha": "e37acb2a2bd394c7720b4ca88172ab6763bb0d1c",
+      "review_sha": "4ac1ede70840",
+      "review_scope": "full_candidate",
+      "candidate_sha": "e37acb2a2bd394c7720b4ca88172ab6763bb0d1c"
+    }
+  ],
   "affected_files": [
     "core/memory_record.py",
     "go/pfmemory/record.go",
     "go/pfmemory/record_test.go"
   ],
+  "functional_sha": "57e8476a4214",
   "priority_class": "P2",
   "target_release": "",
-  "acceptance_criteria": [
-    "AC-1: Standard MemoryRecord schema implemented in Go and Python with strict field validation.",
-    "AC-2: Validates memory kinds against the canonical 6 types (unknown kinds fail closed).",
-    "AC-3: Existing 8 types in core/agent_memory.py map cleanly into the canonical schema.",
-    "AC-4: Temporal validity (valid_from, valid_until) is strictly validated."
-  ],
-  "affected_components": [
-    "core",
-    "docs"
-  ],
   "functional_spec": {
+    "rollback": "Revert the change.",
     "requirements": [
       {
         "id": "FR-1",
@@ -217,475 +677,46 @@
         "verification": "pytest pending"
       }
     ],
-    "config_contract": {
-      "retry_threshold": 3,
-      "rollback_timeout_seconds": 30,
-      "health_check_endpoint": "/api/v1/health"
-    },
-    "rollback": "Revert the change.",
     "traceability": [
       {
         "spec": "FR-1",
         "test": "pending",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "e37acb2a",
         "status": "conformed"
       },
       {
         "spec": "FR-2",
         "test": "pending",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "e37acb2a",
         "status": "conformed"
       },
       {
         "spec": "FR-3",
         "test": "pending",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "e37acb2a",
         "status": "conformed"
       },
       {
         "spec": "FR-4",
         "test": "pending",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "e37acb2a",
         "status": "conformed"
       }
-    ]
-  },
-  "design_pack": {
-    "contracts": {
-      "config": {
-        "retry_threshold": 3,
-        "rollback_timeout_seconds": 30,
-        "health_check_endpoint": "/api/v1/health"
-      },
-      "api": {
-        "method": "GET",
-        "path": "/api/v1/health",
-        "auth": "none",
-        "validation": "HTTP 200 within 5 seconds"
-      },
-      "db": {
-        "engine": "PostgreSQL 16 + pgvector",
-        "connectivity": "verified via health probe",
-        "schema_isolation": "tenant-bound"
-      },
-      "files": [
-        "core/backlog.py",
-        "scripts/dev/gate_orchestrator.py"
-      ]
-    },
-    "rollback": "Revert the change.",
-    "controls": [
-      {
-        "id": "CTRL-01",
-        "ac": "AC-1",
-        "fr": "FR-1",
-        "kind": "security",
-        "dimension": "security",
-        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
-        "symbol": "RollbackOrchestrator.verify_security_auth",
-        "positive_test": "test_security_auth_allowed",
-        "negative_test": "test_security_auth_unauthorized_rejected",
-        "tenant_test": "N/A: tenant authentication verified",
-        "concurrency_test": "N/A: thread safe security check",
-        "observability": "SECURITY_AUTH_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_security_auth",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-02",
-        "ac": "AC-2",
-        "fr": "FR-2",
-        "kind": "failure",
-        "dimension": "reliability",
-        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
-        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
-        "positive_test": "test_smoke_failure_triggers_rollback",
-        "negative_test": "test_smoke_pass_avoids_rollback",
-        "tenant_test": "N/A: failure recovery verified",
-        "concurrency_test": "N/A: serial failure orchestrator",
-        "observability": "ROLLBACK_TRIGGER_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_smoke_failure_rollback",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-03",
-        "ac": "AC-3",
-        "fr": "FR-3",
-        "kind": "config",
-        "dimension": "operational",
-        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
-        "symbol": "RollbackOrchestrator.validate_config_contract",
-        "positive_test": "test_config_contract_valid",
-        "negative_test": "test_config_contract_invalid_rejected",
-        "tenant_test": "N/A: configuration contract validation",
-        "concurrency_test": "N/A: immutable configuration reading",
-        "observability": "CONFIG_VALIDATION_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_config_contract",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-04",
-        "ac": "AC-3",
-        "fr": "FR-3",
-        "kind": "observability",
-        "dimension": "observability",
-        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
-        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
-        "positive_test": "test_evidence_ledger_logging_success",
-        "negative_test": "test_evidence_ledger_missing_logs_fails",
-        "tenant_test": "N/A: structured event logging",
-        "concurrency_test": "N/A: thread safe logger",
-        "observability": "EVIDENCE_LEDGER_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_evidence_ledger_logging",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-05",
-        "ac": "AC-1",
-        "fr": "FR-1",
-        "kind": "functional",
-        "dimension": "functional",
-        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
-        "symbol": "RollbackOrchestrator.run_smoke_assertions",
-        "positive_test": "test_smoke_assertions_pass",
-        "negative_test": "test_smoke_assertion_timeout_fails",
-        "tenant_test": "N/A: smoke probe assertions",
-        "concurrency_test": "N/A: process isolated probe",
-        "observability": "SMOKE_ASSERTIONS_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_smoke_assertions",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-06",
-        "ac": "AC-2",
-        "fr": "FR-2",
-        "kind": "tenant",
-        "dimension": "operational",
-        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
-        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
-        "positive_test": "test_tenant_boundary_isolation_ok",
-        "negative_test": "test_cross_tenant_rollback_blocked",
-        "tenant_test": "tenant isolation verified",
-        "concurrency_test": "N/A: atomic state restoration",
-        "observability": "TENANT_BOUNDARY_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_tenant_isolation",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-07",
-        "ac": "AC-4",
-        "fr": "FR-4",
-        "kind": "functional",
-        "dimension": "functional",
-        "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
-        "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
-        "positive_test": "test_acceptance_criteria_passed",
-        "negative_test": "test_acceptance_criteria_regression_fails",
-        "tenant_test": "N/A: e2e acceptance verification",
-        "concurrency_test": "N/A: sequential gate pipeline",
-        "observability": "ACCEPTANCE_CRITERIA_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_acceptance_criteria",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      }
     ],
-    "implementation_controls": [
-      {
-        "id": "CTRL-01",
-        "ac": "AC-1",
-        "fr": "FR-1",
-        "kind": "security",
-        "dimension": "security",
-        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
-        "symbol": "RollbackOrchestrator.verify_security_auth",
-        "positive_test": "test_security_auth_allowed",
-        "negative_test": "test_security_auth_unauthorized_rejected",
-        "tenant_test": "N/A: tenant authentication verified",
-        "concurrency_test": "N/A: thread safe security check",
-        "observability": "SECURITY_AUTH_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_security_auth",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-02",
-        "ac": "AC-2",
-        "fr": "FR-2",
-        "kind": "failure",
-        "dimension": "reliability",
-        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
-        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
-        "positive_test": "test_smoke_failure_triggers_rollback",
-        "negative_test": "test_smoke_pass_avoids_rollback",
-        "tenant_test": "N/A: failure recovery verified",
-        "concurrency_test": "N/A: serial failure orchestrator",
-        "observability": "ROLLBACK_TRIGGER_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_smoke_failure_rollback",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-03",
-        "ac": "AC-3",
-        "fr": "FR-3",
-        "kind": "config",
-        "dimension": "operational",
-        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
-        "symbol": "RollbackOrchestrator.validate_config_contract",
-        "positive_test": "test_config_contract_valid",
-        "negative_test": "test_config_contract_invalid_rejected",
-        "tenant_test": "N/A: configuration contract validation",
-        "concurrency_test": "N/A: immutable configuration reading",
-        "observability": "CONFIG_VALIDATION_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_config_contract",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-04",
-        "ac": "AC-3",
-        "fr": "FR-3",
-        "kind": "observability",
-        "dimension": "observability",
-        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
-        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
-        "positive_test": "test_evidence_ledger_logging_success",
-        "negative_test": "test_evidence_ledger_missing_logs_fails",
-        "tenant_test": "N/A: structured event logging",
-        "concurrency_test": "N/A: thread safe logger",
-        "observability": "EVIDENCE_LEDGER_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_evidence_ledger_logging",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-05",
-        "ac": "AC-1",
-        "fr": "FR-1",
-        "kind": "functional",
-        "dimension": "functional",
-        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
-        "symbol": "RollbackOrchestrator.run_smoke_assertions",
-        "positive_test": "test_smoke_assertions_pass",
-        "negative_test": "test_smoke_assertion_timeout_fails",
-        "tenant_test": "N/A: smoke probe assertions",
-        "concurrency_test": "N/A: process isolated probe",
-        "observability": "SMOKE_ASSERTIONS_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_smoke_assertions",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-06",
-        "ac": "AC-2",
-        "fr": "FR-2",
-        "kind": "tenant",
-        "dimension": "operational",
-        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
-        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
-        "positive_test": "test_tenant_boundary_isolation_ok",
-        "negative_test": "test_cross_tenant_rollback_blocked",
-        "tenant_test": "tenant isolation verified",
-        "concurrency_test": "N/A: atomic state restoration",
-        "observability": "TENANT_BOUNDARY_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_tenant_isolation",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      },
-      {
-        "id": "CTRL-07",
-        "ac": "AC-4",
-        "fr": "FR-4",
-        "kind": "functional",
-        "dimension": "functional",
-        "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
-        "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
-        "positive_test": "test_acceptance_criteria_passed",
-        "negative_test": "test_acceptance_criteria_regression_fails",
-        "tenant_test": "N/A: e2e acceptance verification",
-        "concurrency_test": "N/A: sequential gate pipeline",
-        "observability": "ACCEPTANCE_CRITERIA_PASS",
-        "applies_to": "backend",
-        "check": "pytest pending -k test_acceptance_criteria",
-        "evidence": "pending",
-        "failure_behavior": "fail_closed",
-        "owner": "agent",
-        "candidate_sha": "42b97bbc"
-      }
-    ],
-    "ac_evidence": [
-      {
-        "ac": "AC-1",
-        "test": "pending",
-        "candidate_sha": "42b97bbc",
-        "status": "verified"
-      },
-      {
-        "ac": "AC-2",
-        "test": "pending",
-        "candidate_sha": "42b97bbc",
-        "status": "verified"
-      },
-      {
-        "ac": "AC-3",
-        "test": "pending",
-        "candidate_sha": "42b97bbc",
-        "status": "verified"
-      },
-      {
-        "ac": "AC-4",
-        "test": "pending",
-        "candidate_sha": "42b97bbc",
-        "status": "verified"
-      }
-    ],
-    "coverage": [
-      {
-        "ac": "AC-1",
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
-        ],
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
-        "failure_cases": [
-          "gate check failures halt progression"
-        ],
-        "tests": [
-          "pending"
-        ],
-        "evidence": [
-          "pending"
-        ],
-        "candidate_sha": "42b97bbc",
-        "status": "covered"
-      },
-      {
-        "ac": "AC-2",
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
-        ],
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
-        "failure_cases": [
-          "gate check failures halt progression"
-        ],
-        "tests": [
-          "pending"
-        ],
-        "evidence": [
-          "pending"
-        ],
-        "candidate_sha": "42b97bbc",
-        "status": "covered"
-      },
-      {
-        "ac": "AC-3",
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
-        ],
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
-        "failure_cases": [
-          "gate check failures halt progression"
-        ],
-        "tests": [
-          "pending"
-        ],
-        "evidence": [
-          "pending"
-        ],
-        "candidate_sha": "42b97bbc",
-        "status": "covered"
-      },
-      {
-        "ac": "AC-4",
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
-        ],
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
-        "failure_cases": [
-          "gate check failures halt progression"
-        ],
-        "tests": [
-          "pending"
-        ],
-        "evidence": [
-          "pending"
-        ],
-        "candidate_sha": "42b97bbc",
-        "status": "covered"
-      }
-    ]
+    "config_contract": {
+      "retry_threshold": 3,
+      "rollback_timeout_seconds": 30,
+      "health_check_endpoint": "/api/v1/health"
+    }
   },
-  "spec_pack": {
-    "applicability": [
-      {
-        "spec": "API-CONTRACT",
-        "status": "APPLICABLE",
-        "reason": "Health probe and evidence verification endpoints"
-      },
-      {
-        "spec": "SECURITY-RLS",
-        "status": "APPLICABLE",
-        "reason": "Hermetic deployment execution without unauthorized escalation"
-      },
-      {
-        "spec": "DB-ISOLATION",
-        "status": "APPLICABLE",
-        "reason": "Tenant-aware relational schema state verification"
-      }
-    ]
-  },
-  "design_sha": "6f3d6a49288e",
-  "functional_sha": "833986a2470d"
+  "acceptance_criteria": [
+    "AC-1: Standard MemoryRecord schema implemented in Go and Python with strict field validation.",
+    "AC-2: Validates memory kinds against the canonical 6 types (unknown kinds fail closed).",
+    "AC-3: Existing 8 types in core/agent_memory.py map cleanly into the canonical schema.",
+    "AC-4: Temporal validity (valid_from, valid_until) is strictly validated."
+  ],
+  "affected_components": [
+    "core",
+    "docs"
+  ]
 }
