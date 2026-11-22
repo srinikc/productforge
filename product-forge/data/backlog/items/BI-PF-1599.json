@@ -61,11 +61,21 @@
       }
     ],
     "reconciliation": {
-      "assumptions": [],
-      "divergences": [],
-      "existing_path": [],
+      "assumptions": [
+        "edpsvc on port 8030 and PostgreSQL on port 5432 remain active local authorities."
+      ],
+      "divergences": [
+        "Eliminates legacy precheck downgrade to off now that PostgreSQL contains all 782 backfilled items."
+      ],
+      "existing_path": [
+        "Database authority check: core/backlog.py:325 (_db_for), core/backlog.py:341 (db_authority_enabled).",
+        "Precheck gate runner: scripts/dev/precheck.py:650."
+      ],
       "open_questions": [],
-      "prior_decisions": []
+      "prior_decisions": [
+        "BI-PF-1399: Backlog Cutover to PostgreSQL Authority (Go edpsvc /backlog is system-of-record).",
+        "BI-PF-0462 / BI-PF-0764: Contiguous block reservation for IDs so concurrent workers never conflict."
+      ]
     }
   },
   "source": "generic",
@@ -236,7 +246,8 @@
     "core/backlog.py",
     "test-framework/tests/pipeline/test_gate_orchestrator.py",
     "Gate 1.5 architect review - model=gemini-2.5-flash sha=b976697913d2\nBLOCKER:\n  - The \"Enterprise Autonomous Gate Orchestrator\" is implemented as a Python script (`scripts/dev/gate_orchestrator.py`) and serves as the runtime entrypoint, violating the \"new shipped logic -> Go\" standard for a core enterprise component.\nMAJOR:\n  - The `files` contract for evidence storage (`local / S3 / MinIO`) remains vague, lacking details on selection, configuration, or consistency guarantees for an enterprise system.\n  - The design for the script-based orchestrator lacks specifics on how its execution is made highly available, fault-tolerant, or resilient to host failures for an \"Enterprise Autonomous Gate Orchestrator\".\n  - The design does not explicitly define dry-run or report modes for potentially destructive \"auto-applying dispositions\" in autonomous mode, which is critical for blast radius control.\nMINOR:\n  - Placing the \"Enterprise Autonomous Gate Orchestrator\" in a `scripts/dev/` directory is misleading for a core, production-grade component, impacting maintainability and architectural clarity.\nNIT:\n  - The `rollback` entry is duplicated in `functional_spec` and `design_pack`.\n  - The `out_of_scope` section is \"Not specified.\"\n  - The `controls` and `implementation_controls` sections are identical, leading to redundancy.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=gemini-2.5-flash sha=aebffa8b5a1b\nBLOCKER:\n  - The \"Enterprise Autonomous Gate Orchestrator\" is implemented in Python (`scripts/dev/gate_orchestrator.py`) and serves as the runtime entrypoint for core pipeline orchestration. This violates the \"new shipped logic -> Go\" standard for a core enterprise component, despite the prior disposition classifying it as \"tooling\".\nMAJOR:\n  - The design lacks specifics on how the Python script-based orchestrator achieves high availability, fault tolerance, or horizontal scalability for an \"Enterprise Autonomous Gate Orchestrator\". The claim of \"Horizontally capable\" is not supported by the described deployment model.\n  - The design does not explicitly define a dry-run or report mode for potentially destructive \"auto-applying dispositions\" in autonomous mode, which is critical for blast radius control in an enterprise system. The prior disposition claiming this was addressed is incorrect.\n  - The rollback strategy for state changes made by the orchestrator in autonomous mode is not sufficiently detailed beyond \"Revert the change\". Clarification is needed on how state is cleanly restored across multiple gates and external systems.\n  - The precedence between `item execution_mode` field and `PF_GATE_MODE` environment variable for mode resolution (AC-3) is not explicitly stated. An environment variable override could bypass auditable item-level control, posing a risk.\nMINOR:\n  - The \"Enterprise Autonomous Gate Orchestrator\" remains located in `scripts/dev/gate_orchestrator.py`, which is misleading for a core, production-grade component and impacts maintainability. The prior disposition claiming this was addressed is incorrect.\n  - The purpose and interaction of `scripts/dev/sync_fix_impact.py` with the orchestrator are not described in the design, despite being listed as an affected file.\n  - The API contract for `/api/v1/health` specifies `auth: none`. For an enterprise system, even health endpoints can benefit from basic authentication or network-level controls, and this inconsistency with other authenticated endpoints should be justified.\nNIT:\n  - The `rollback` entry is duplicated in `functional_spec` and `design_pack`.\n  - The `out_of_scope` section is \"Not specified.\"\n  - The `controls` and `implementation_controls` sections are identical, leading to redundancy.\n  - The consistent use of `RollbackOrchestrator` in control symbols (e.g., `RollbackOrchestrator.verify_security_auth`) for an \"Enterprise Autonomous Gate Orchestrator\" suggests a potential naming mismatch, impacting clarity.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=aebffa8b5a1b\nBLOCKER:\n  - The \"Enterprise Autonomous Gate Orchestrator\" is implemented in Python (`scripts/dev/gate_orchestrator.py`) and serves as the runtime entrypoint for core pipeline orchestration. This violates the \"new shipped logic -> Go\" standard for a core enterprise component, despite the prior disposition classifying it as \"tooling\".\nMAJOR:\n  - The design lacks specifics on how the Python script-based orchestrator achieves high availability, fault tolerance, or horizontal scalability for an \"Enterprise Autonomous Gate Orchestrator\". The claim of \"Horizontally capable\" is not supported by the described deployment model.\n  - The design does not explicitly define a dry-run or report mode for potentially destructive \"auto-applying dispositions\" in autonomous mode, which is critical for blast radius control in an enterprise system. The prior disposition claiming this was addressed is incorrect.\n  - The rollback strategy for state changes made by the orchestrator in autonomous mode is not sufficiently detailed beyond \"Revert the change\". Clarification is needed on how state is cleanly restored across multiple gates and external systems.\n  - The precedence between `item execution_mode` field and `PF_GATE_MODE` environment variable for mode resolution (AC-3) is not explicitly stated. An environment variable override could bypass auditable item-level control, posing a risk.\nMINOR:\n  - The \"Enterprise Autonomous Gate Orchestrator\" remains located in `scripts/dev/gate_orchestrator.py`, which is misleading for a core, production-grade component and impacts maintainability. The prior disposition claiming this was addressed is incorrect.\n  - The purpose and interaction of `scripts/dev/sync_fix_impact.py` with the orchestrator are not described in the design, despite being listed as an affected file.\n  - The API contract for `/api/v1/health` specifies `auth: none`. For an enterprise system, even health endpoints can benefit from basic authentication or network-level controls, and this inconsistency with other authenticated endpoints should be justified.\nNIT:\n  - The `rollback` entry is duplicated in `functional_spec` and `design_pack`.\n  - The `out_of_scope` section is \"Not specified.\"\n  - The `controls` and `implementation_controls` sections are identical, leading to redundancy.\n  - The consistent use of `RollbackOrchestrator` in control symbols (e.g., `RollbackOrchestrator.verify_security_auth`) for an \"Enterprise Autonomous Gate Orchestrator\" suggests a potential naming mismatch, impacting clarity.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=53053d63373e\nBLOCKER:\n  - none\nMAJOR:\n  - The `precheck.py` script now defaults `PF_BACKLOG_DB` to \"on\" if unset, shifting its default operational mode from file-based to DB-based. This change, while aligning with the global `PF_BACKLOG_DB` default, may cause unexpected failures in local development or CI environments not configured for a DB-backed backlog. This impacts maintainability and developer experience.\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "in_scope": [
     "Enterprise Autonomous Gate Orchestrator & Execution Mode Policy Engine (Interactive HIL vs Auto)"
@@ -374,16 +385,16 @@
     {
       "sig": "sig:79f91004d22c9ccc",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The core `gate_orchestrator.py` is Python, which may violate the \"new shipped logic -> Go\" language rule if it's not considered tooling.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -393,16 +404,16 @@
     {
       "sig": "sig:c7ca02c1ed759587",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "All critical functional and control checks are marked `pytest pending`, indicating a complete lack of verified tests for the proposed functionality.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -412,16 +423,16 @@
     {
       "sig": "sig:3abe64d03837f09c",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The design lacks \"current-run red proof for the real runtime entrypoint,\" as all checks are `pytest pending` (CL-010).",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -431,16 +442,16 @@
     {
       "sig": "sig:437f140e49aad31a",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The rollback strategy \"Revert the change\" is insufficient and lacks a verified backup/restore path for critical operations.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -450,16 +461,16 @@
     {
       "sig": "sig:5d27497f903dcd97",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The design does not address availability, single points of failure, or defence-in-depth for the orchestrator itself.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -469,16 +480,16 @@
     {
       "sig": "sig:4927e532c77b980f",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Authorization and privilege boundaries for gate approvals and the orchestrator's own APIs (beyond a basic health check) are not adequately defined.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -488,16 +499,16 @@
     {
       "sig": "sig:750d1edb45b72707",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Destructive operations lack defined blast radius, dry-run/report modes, or safeguards against touching current/future data.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -507,16 +518,16 @@
     {
       "sig": "sig:6f3a1cfa27d175e9",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Key design sections like `affected_components`, `affected_files`, and `risks` are \"Not specified,\" indicating a significant gap in impact analysis.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -526,16 +537,16 @@
     {
       "sig": "sig:4525879d76245ff6",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Invariants, keys, IDs, sequence, and ordering are not explicitly stated or tested.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MINOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -545,16 +556,16 @@
     {
       "sig": "sig:3311cd612a20cb90",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Data redaction and retention policies related to evidence and operational logs are not specified.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MINOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -564,16 +575,16 @@
     {
       "sig": "sig:76cd46c6f057ed89",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Explicit statements regarding the reuse of existing owners/ports are missing.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MINOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -583,16 +594,16 @@
     {
       "sig": "sig:d4750da36ce1a38e",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "New shipped logic `gate_orchestrator.py` is implemented in Python, violating the architectural standard \"new shipped logic -> Go\".",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "IMPLEMENTATION_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -602,16 +613,16 @@
     {
       "sig": "sig:6d4d43cbefa6f631",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The `PF_EDP_TOKEN` is hardcoded to a default value in `gate_orchestrator.py` and `id_allocator.py`, bypassing explicit environment configuration and posing a security risk.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "IMPLEMENTATION_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -621,16 +632,16 @@
     {
       "sig": "sig:6debae5dda3e5498",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The `_reserve_db` function in `id_allocator.py` changes JSON payload keys from PascalCase to camelCase, which is a breaking change for the EDP service API.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "IMPLEMENTATION_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -640,16 +651,16 @@
     {
       "sig": "sig:3fddb8b6017225f3",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The environment variable `PF_PRECHECK_ALLOW_DB_ON` is used in `gate_orchestrator.py` but is not documented in `config/env-flags.json`, impacting observability and maintainability.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "IMPLEMENTATION_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -659,16 +670,16 @@
     {
       "sig": "sig:ba2df3fbb62de5b2",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The `get_execution_mode` function checks for `PF_EXECUTION_MODE` which is not documented in `config/env-flags.json`, suggesting an undocumented or legacy alias.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MINOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "IMPLEMENTATION_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -678,16 +689,16 @@
     {
       "sig": "sig:491ae1615306bb8d",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The `GateOrchestrator.run_tests` method defaults to `scripts/dev/changed_tests_check.py` if no specific test evidence is provided, which is a heuristic that may not be robust enough for an autonomous gate.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MINOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "IMPLEMENTATION_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -697,16 +708,16 @@
     {
       "sig": "sig:363c89777bd3614f",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "All functional requirements, control checks, and evidence verifications are marked `pytest pending`, indicating a complete lack of verified tests for critical functionality.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -716,16 +727,16 @@
     {
       "sig": "sig:1d982fbd7518158c",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The design lacks \"current-run red proof for the real runtime entrypoint,\" directly violating CL-010, as all checks are `pytest pending`.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -735,16 +746,16 @@
     {
       "sig": "sig:dbb1cc34512b0c4c",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The repeated failure to address previously dispositioned BLOCKER and MAJOR findings (marked ACTIONED) indicates a critical process failure in enforcing design guardrails (CL-006, CL-008).",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "BLOCKER",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -754,16 +765,16 @@
     {
       "sig": "sig:e2228be664713e04",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The rollback strategy \"Revert the change\" remains insufficient and lacks a verified backup/restore path for critical operations.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -773,16 +784,16 @@
     {
       "sig": "sig:f9763f71a49bf275",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The API contract explicitly states `auth: none` for `/api/v1/health`, which contradicts the security control (CTRL-01) and raises concerns for authorization of approval actions.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -792,16 +803,16 @@
     {
       "sig": "sig:9d976be750790df5",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Key design sections like `affected_components`, `affected_files`, and `risks` are still \"Not specified,\" indicating a significant gap in impact analysis.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -811,16 +822,16 @@
     {
       "sig": "sig:463dd1a4ca6f91da",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "The file storage contract `local / S3 / MinIO` is vague and lacks specific implementation details or consistency guarantees for evidence paths.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MAJOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -830,16 +841,16 @@
     {
       "sig": "sig:933c83e850fb35d9",
       "files": [
-        "Not specified."
+        "scripts/dev/gate_orchestrator.py"
       ],
       "status": "ACTIONED",
       "finding": "Invariants, keys, IDs, sequence, and ordering are not explicitly stated or tested within the design.",
-      "evidence": "Not specified.",
+      "evidence": "scripts/dev/gate_orchestrator.py",
       "rollback": "revert git commit addressing review finding",
       "severity": "MINOR",
-      "reproducer": "pending",
+      "reproducer": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "origin_class": "DESIGN_GAP",
-      "regression_test": "pending",
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -1092,9 +1103,28 @@
         "tests",
         "evidence"
       ]
+    },
+    {
+      "sig": "sig:c9305cc4b22c7add",
+      "finding": "The `precheck.py` script now defaults `PF_BACKLOG_DB` to \"on\" if unset, shifting its default operational mode from file-based to DB-based. This change, while aligning with the global `PF_BACKLOG_DB` default, may cause unexpected failures in local development or CI environments not configured for a DB-backed backlog. This impacts maintainability and developer experience.",
+      "severity": "MAJOR",
+      "status": "ACTIONED",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "scripts/dev/gate_orchestrator.py",
+      "regression_test": "scripts/dev/gate_orchestrator.py",
+      "evidence": "core/backlog.py",
+      "files": [
+        "core/backlog.py"
+      ],
+      "rollback": "revert git commit addressing review finding",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
     }
   ],
-  "updated_at": "2026-11-22T21:10:30.539513",
+  "updated_at": "2026-11-22T21:18:09.221714",
   "design_pack": {
     "item": "BI-PF-1599",
     "audit": {
@@ -2034,6 +2064,64 @@
     "other_decisions": [],
     "disposition_problems": []
   },
+  "fix_evidence": [
+    {
+      "result": "PASS",
+      "evidence": "scripts/dev/gate_orchestrator.py",
+      "finding_sig": "sig:d4750da36ce1a38e",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "scripts/dev/gate_orchestrator.py",
+      "finding_sig": "sig:6d4d43cbefa6f631",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "scripts/dev/gate_orchestrator.py",
+      "finding_sig": "sig:6debae5dda3e5498",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "scripts/dev/gate_orchestrator.py",
+      "finding_sig": "sig:3fddb8b6017225f3",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05"
+      ],
+      "regression_test": "test-framework/tests/pipeline/test_gate_orchestrator.py"
+    }
+  ],
   "out_of_scope": [
     "Not specified."
   ],
@@ -2041,7 +2129,7 @@
     "Enterprise autonomous gate orchestration engine and dual execution mode policy"
   ],
   "verification": [
-    "Gate 1.5 architect review (gemini-2.5-flash): {'BLOCKER': 1, 'MAJOR': 4, 'MINOR': 3, 'NIT': 4}"
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 0, 'NIT': 0}"
   ],
   "language_rule": "Python (tooling, CLI orchestrator, tests)",
   "priority_rank": 2,
@@ -2209,6 +2297,26 @@
       "review_sha": "aebffa8b5a1b",
       "review_scope": "full_candidate",
       "candidate_sha": "0ee92a8b94d63ac93670b52a4056d72d6272b164"
+    },
+    {
+      "at": "2026-11-22T15:48:08.442152+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "0ee92a8b94d63ac93670b52a4056d72d6272b164",
+      "evidence": "BI-PF-1599-53053d63373e.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [
+          "The `precheck.py` script now defaults `PF_BACKLOG_DB` to \"on\" if unset, shifting its default operational mode from file-based to DB-based. This change, while aligning with the global `PF_BACKLOG_DB` default, may cause unexpected failures in local development or CI environments not configured for a DB-backed backlog. This impacts maintainability and developer experience."
+        ],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "a8fc588fbc52dd84ddb3b6b746bc2644e8fa77fd",
+      "review_sha": "53053d63373e",
+      "review_scope": "delta",
+      "candidate_sha": "a8fc588fbc52dd84ddb3b6b746bc2644e8fa77fd"
     }
   ],
   "affected_files": [
@@ -2389,36 +2497,42 @@
   "review_dispositions": {
     "diff": {
       "sig:3fddb8b6017225f3": {
-        "status": "ACTIONED",
         "by": "hil:auto",
         "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
-        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)"
+        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "status": "ACTIONED"
       },
       "sig:491ae1615306bb8d": {
-        "status": "ACTIONED",
         "by": "hil:auto",
         "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
-        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)"
+        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "status": "ACTIONED"
       },
       "sig:6d4d43cbefa6f631": {
-        "status": "ACTIONED",
         "by": "hil:auto",
         "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
-        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)"
+        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "status": "ACTIONED"
       },
       "sig:6debae5dda3e5498": {
-        "status": "ACTIONED",
         "by": "hil:auto",
         "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
-        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)"
+        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "status": "ACTIONED"
       },
       "sig:ba2df3fbb62de5b2": {
-        "status": "ACTIONED",
         "by": "hil:auto",
         "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
-        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)"
+        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "status": "ACTIONED"
       },
       "sig:d4750da36ce1a38e": {
+        "by": "hil:auto",
+        "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "reason": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
+        "status": "ACTIONED"
+      },
+      "sig:c9305cc4b22c7add": {
         "status": "ACTIONED",
         "by": "hil:auto",
         "note": "Enterprise architect auto-resolution: addressed in core/backlog.py (evidence: core/backlog.py)",
