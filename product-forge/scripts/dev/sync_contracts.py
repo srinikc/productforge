@@ -210,6 +210,23 @@ def sync_item(item_id: str, candidate_sha: str | None = None) -> dict:
             "failure_behavior": "fail_closed",
             "owner": owner,
             "candidate_sha": candidate_sha
+        },
+        {
+            "id": "CTRL-07",
+            "ac": "AC-4",
+            "fr": "FR-4",
+            "kind": "functional",
+            "dimension": "functional",
+            "control": "Verify end-to-end acceptance criteria and automated pipeline gate execution",
+            "symbol": "RollbackOrchestrator.verify_acceptance_criteria",
+            "positive_test": "test_acceptance_criteria_passed",
+            "negative_test": "test_acceptance_criteria_regression_fails",
+            "applies_to": "backend",
+            "check": f"pytest {default_test} -k test_acceptance_criteria",
+            "evidence": default_test,
+            "failure_behavior": "fail_closed",
+            "owner": owner,
+            "candidate_sha": candidate_sha
         }
     ]
 
