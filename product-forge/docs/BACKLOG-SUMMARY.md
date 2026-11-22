@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-22T15:48:28 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-22T16:12:33 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 140  |  **Closed:** 641
+- **Open:** 139  |  **Closed:** 642
 - `blocked`: 1
 - `in_progress`: 3
-- `new`: 136
+- `new`: 135
 
-### new, by category (136)
+### new, by category (135)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -101,7 +101,7 @@
 | BI-PF-1571 | Should | feature | Prospective Memory Engine: tracking deferred actions, future stage obligations, scheduled triggers, and cross-stage handoff notes | Deliver the Prospective Memory engine to track deferred actions, trigger conditions, and cross-stage obligatio... |
 | BI-PF-1572 | Should | feature | Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API | Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reas... |
 
-**Wiring / tech-debt / API** (74)
+**Wiring / tech-debt / API** (73)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -173,7 +173,6 @@
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
 | BI-PF-1551 | Should | feature | Universal Model Gateway and Dynamic Router: unified provider adapter with token budgeting and fallback chains | Implement an extensible multi-model gateway and dynamic router supporting multi-provider fallback chains, quot... |
-| BI-PF-1556 | Should | feature | Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests | Implement automated fail-closed rollback orchestration that triggers instant reversion to the prior stable rel... |
 | BI-PF-1565 | Must | epic | EPIC: Unified Agent Memory Platform (6-Type Memory Model, Lifecycle, and Consolidation) | Implement the Unified Agent Memory Architecture from docs/Product_Forge_Agent_Memory_Architecture_Integration.... |
 | BI-PF-1566 | Should | feature | Canonical Memory Record Contract: schema definition, 6-type taxonomy classification, and storage mapping | Define the standard MemoryRecord contract and classify all memory assets into the 6 canonical types (Working, ... |
 | BI-PF-1569 | Should | feature | Memory Consolidator: post-execution distillation, episodic trace distillation into semantic/procedural patterns, and failure promotion guards | Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memo... |
@@ -183,8 +182,8 @@
 
 ## Dashboard (ProductForge-Dashboard) (`project:ProductForge-Dashboard`)
 
-- **Open:** 146  |  **Closed:** 3
-- `new`: 141
+- **Open:** 147  |  **Closed:** 3
+- `new`: 142
 - `parked`: 5
 
 ### parked (5)
@@ -196,7 +195,7 @@
 | BI-0014 | Could | feature | Deferred: ops / post-production console (stage 13 + incidents) | Deferred: ops / post-production console (stage 13 + incidents) |
 | BI-0022 | Could | enhancement | Deferred (designed): reply-by-email control actions (approve / answer / act) | Deferred (designed): reply-by-email control actions (approve / answer / act) |
 
-### new, by category (141)
+### new, by category (142)
 **API / reports / HIL / misc** (18)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -290,10 +289,11 @@
 | BI-0085 | Should | feature | Run view: concurrent/parallel agent execution + speedup indicator | Run view: concurrent/parallel agent execution + speedup indicator |
 | BI-0144 | Should | feature | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) |
 
-**Wiring / tech-debt / API** (80)
+**Wiring / tech-debt / API** (81)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0001 | Must | feature | Project creation workflow | a user can create a project that enters the pipeline with its idea captured |
+| BI-DASH-CI-1 | None | feature | PF-GP parity fixture |  |
 | BI-0002 | Must | feature | Multi-project portfolio view | Multi-project portfolio view |
 | BI-0004 | Must | feature | Model tier selection and customization | Model tier selection and customization |
 | BI-0005 | Must | feature | Pipeline monitoring and logging | Pipeline monitoring and logging |
@@ -377,5 +377,5 @@
 ---
 
 ## Totals
-- backend: 140 open / 641 closed
-- dashboard: 146 open / 3 closed
+- backend: 139 open / 642 closed
+- dashboard: 147 open / 3 closed
