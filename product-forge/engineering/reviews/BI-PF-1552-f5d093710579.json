@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1552",
+  "sha": "f5d093710579",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T09:30:03.548316+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "537b2a0b45a5a4add06e3907c49b3c0994df0687",
+  "findings": {
+    "BLOCKER": [
+      "AC-2 states \"without requiring ... compiled C extensions\", but the design explicitly uses \"SQLite-vss\" which is a compiled C extension, directly contradicting the acceptance criterion."
+    ],
+    "MAJOR": [
+      "The design states RLS enforcement but does not explicitly prove the runtime role posture (NOSUPERUSER/NOBYPASSRLS) as required by CL-011.",
+      "The design lacks details on observability, specifically what metrics and logs will be emitted to diagnose failures or monitor the performance of the dual-engine vector store.",
+      "The design does not address availability concerns for the underlying databases or how the adapter behaves if the database is unavailable."
+    ],
+    "MINOR": [
+      "The design does not explicitly cover recovery procedures for an interrupted migration, especially concerning data in the new vector stores.",
+      "Beyond vector dimension validation, other critical data invariants (e.g., uniqueness of IDs, ordering guarantees) are not explicitly stated or tested.",
+      "Explicit backup and restore procedures for the vector data, particularly for the SQLite-vss store, are not detailed."
+    ],
+    "NIT": [],
+    "SUMMARY": []
+  }
+}
