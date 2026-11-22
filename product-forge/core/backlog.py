@@ -246,7 +246,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _db_for(str(project or scope or "product_forge")):
+    if _db_for(scope, project):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -322,14 +322,14 @@ def _raise_unlisted(key: str) -> NoReturn:
     raise BacklogScopeUnlisted(key)
 
 
-def _db_for(scope: str | None) -> bool:
+def _db_for(scope: str | None, project: str | None = None) -> bool:
     """DB authority is explicit; unlisted scopes fail closed in DB-enabled modes."""
     mode = _backlog_db_mode()
     if mode == "off":
         return False
-    key = _scope_key(scope)
-    if key.startswith(("_test_", "test_")):
+    if (project and str(project).startswith(("_test_", "test_"))) or (scope and str(scope).startswith(("_test_", "test_"))):
         return False
+    key = _scope_key(str(scope or project or "product_forge"))
     if key in _backlog_db_scopes():
         return mode == "on"
     _raise_unlisted(key)
@@ -345,9 +345,9 @@ def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     mode = _backlog_db_mode()
     if mode not in ("on", "dual", "shadow"):
         return False
-    key = _scope_key(str(project or scope or "product_forge"))
-    if key.startswith(("_test_", "test_")):
+    if (project and str(project).startswith(("_test_", "test_"))) or (scope and str(scope).startswith(("_test_", "test_"))):
         return False
+    key = _scope_key(str(scope or project or "product_forge"))
     if key in _backlog_db_scopes():
         return True
     _raise_unlisted(key)
@@ -439,7 +439,7 @@ def _shadow_compare(item: dict) -> bool:
 
 def store_item_to_db(item: dict) -> None:
     """Public DB-only item write; refuses scopes not enabled for DB authority."""
-    if not _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
+    if not _db_for(item.get("scope"), item.get("project")):
         raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
     _mirror_item_to_db(item)
 
@@ -449,7 +449,7 @@ def _save_item(d: str, item: dict) -> None:
     if not iid:
         return
     mode = _backlog_db_mode()
-    if _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
+    if _db_for(item.get("scope"), item.get("project")):
         # DB SoR: the Go writer is the only item writer. Never write authoritative file state.
         _mirror_item_to_db(item)
         return
@@ -1824,7 +1824,7 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
             return None
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
-        if _db_for(str(project or scope or "product_forge")):
+        if _db_for(scope, project):
             _delete_item_from_db(eid, _db_tenant(scope, project))
         else:
             for p in (os.path.join(_items_dir(d), f"{eid}.json"),
