@@ -1719,7 +1719,7 @@
           "scripts/dev/gate_orchestrator.py:run_interactive_gate"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "4a4c93f3",
         "failure_cases": [
           "operator rejects review halts pipeline"
         ],
@@ -1741,7 +1741,7 @@
           "scripts/dev/gate_orchestrator.py:run_auto_gate"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "4a4c93f3",
         "failure_cases": [
           "fatal finding stops auto mode and alerts operator"
         ],
@@ -1763,7 +1763,7 @@
           "scripts/dev/gate_orchestrator.py:resolve_execution_mode"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "4a4c93f3",
         "failure_cases": [
           "unrecognized mode defaults to interactive"
         ],
@@ -1787,7 +1787,7 @@
           "scripts/dev/gate_orchestrator.py:run_full_pipeline"
         ],
         "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "42b97bbc",
+        "candidate_sha": "4a4c93f3",
         "failure_cases": [
           "gate failure aborts delivery before push"
         ],
@@ -1799,9 +1799,7 @@
       "core/backlog.py",
       "test-framework/tests/pipeline/test_gate_orchestrator.py"
     ],
-    "rollback": [
-      "Revert PR merge commit if operational issues emerge"
-    ],
+    "rollback": "Revert the change.",
     "security": [
       "No secret or token exposure in logs or review artifacts.",
       "Authenticated bearer token used for edpsvc communication."
@@ -1822,9 +1820,11 @@
         "core/backlog.py",
         "scripts/dev/gate_orchestrator.py"
       ],
-      "config": [
-        "config/env-flags.json: PF_GATE_MODE, PF_BACKLOG_DB, and PF_ID_ALLOC switches."
-      ]
+      "config": {
+        "retry_threshold": 3,
+        "health_check_endpoint": "/api/v1/health",
+        "rollback_timeout_seconds": 30
+      }
     },
     "decisions": [
       "Interactive mode ('hil') as safe default to require operator sign-off at review gates.",
@@ -1872,25 +1872,25 @@
         "ac": "AC-1",
         "test": "scripts/dev/gate_orchestrator.py",
         "status": "verified",
-        "candidate_sha": "42b97bbc"
+        "candidate_sha": "0ee92a8b"
       },
       {
         "ac": "AC-2",
         "test": "scripts/dev/gate_orchestrator.py",
         "status": "verified",
-        "candidate_sha": "42b97bbc"
+        "candidate_sha": "0ee92a8b"
       },
       {
         "ac": "AC-3",
         "test": "scripts/dev/gate_orchestrator.py",
         "status": "verified",
-        "candidate_sha": "42b97bbc"
+        "candidate_sha": "0ee92a8b"
       },
       {
         "ac": "AC-4",
         "test": "scripts/dev/gate_orchestrator.py",
         "status": "verified",
-        "candidate_sha": "42b97bbc"
+        "candidate_sha": "0ee92a8b"
       }
     ],
     "performance": [
@@ -3250,7 +3250,7 @@
     "outcome": "Autonomous Gate Orchestrator and Execution Mode Policy Engine operational with fail-closed auto-dispositioning, strict PostgreSQL DB authority default, and stale ID sequence protection.",
     "version": 1,
     "rollback": [
-      "Revert PR merge commit if operational issues emerge"
+      "Revert execution mode to interactive to immediately re-enable manual human gate sign-off."
     ],
     "non_goals": [
       "bypassing quality gates",
@@ -3401,8 +3401,7 @@
         "design": "engineering/design/BI-PF-1599.md",
         "evidence": [
           "scripts/dev/gate_orchestrator.py"
-        ],
-        "candidate_sha": "42b97bbc"
+        ]
       },
       {
         "fr": "FR-2",
@@ -3410,8 +3409,7 @@
         "design": "engineering/design/BI-PF-1599.md",
         "evidence": [
           "scripts/dev/gate_orchestrator.py"
-        ],
-        "candidate_sha": "42b97bbc"
+        ]
       },
       {
         "fr": "FR-3",
@@ -3419,8 +3417,7 @@
         "design": "engineering/design/BI-PF-1599.md",
         "evidence": [
           "scripts/dev/gate_orchestrator.py"
-        ],
-        "candidate_sha": "42b97bbc"
+        ]
       },
       {
         "fr": "FR-4",
@@ -3430,8 +3427,7 @@
           "scripts/dev/gate_orchestrator.py",
           "core/backlog.py",
           "core/id_allocator.py"
-        ],
-        "candidate_sha": "42b97bbc"
+        ]
       }
     ],
     "compatibility": [
@@ -3451,7 +3447,24 @@
       "None - all architectural assumptions validated with operator."
     ],
     "config_contract": [
-      "config/env-flags.json: PF_GATE_MODE, PF_BACKLOG_DB, and PF_ID_ALLOC switches."
+      {
+        "name": "PF_EXECUTION_MODE",
+        "default": "interactive",
+        "precedence": "cli flag > item field > env > default",
+        "valid_values": "interactive,auto",
+        "empty_behavior": "defaults to interactive",
+        "invalid_behavior": "safe fallback to interactive",
+        "startup_validation": "gate_orchestrator.validate_mode"
+      },
+      {
+        "name": "PF_BACKLOG_DB",
+        "default": "on",
+        "precedence": "env > default",
+        "valid_values": "on,off",
+        "empty_behavior": "defaults to on",
+        "invalid_behavior": "defaults to on",
+        "startup_validation": "backlog.is_db_enabled"
+      }
     ],
     "operation_matrix": [
       {
