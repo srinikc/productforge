@@ -190,6 +190,16 @@
       "decision": "APPROVE",
       "findings_sha": "4b0c8b402b5c",
       "findings_digest": "7d80d99abedf"
+    },
+    {
+      "at": "2026-11-22T04:55:09.018419+00:00",
+      "by": "hil:operator",
+      "seq": 3,
+      "gate": 2,
+      "note": "Gate 2 delivery approval: all 5 ACs verified; Gate 2.5 review has 0 blockers and 0 majors.",
+      "decision": "APPROVE",
+      "findings_sha": "f13978c4e1a8",
+      "findings_digest": "930d606470b3"
     }
   ],
   "execution": {
@@ -228,7 +238,7 @@
     "BI-PF-0397"
   ],
   "created_at": "2026-10-06T18:32:24.144884",
-  "updated_at": "2026-11-22T10:15:21.220996",
+  "updated_at": "2026-11-22T10:25:09.181963",
   "external_id": "pf-a5-rdc",
   "analyze_mode": "on_entry",
   "dependencies": [
@@ -301,6 +311,27 @@
       "review_sha": "4b0c8b402b5c",
       "review_scope": "full_candidate",
       "candidate_sha": "44bc5c2d487e85448c29fcbc862b297c82b3f1c6"
+    },
+    {
+      "at": "2026-11-22T04:54:34.047310+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0399-f13978c4e1a8.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [
+          "The `core/packaging.py` module introduces redundant wrapper functions (`rdc_compose`, `rdc_validate_ip`) that simply call `core.rdc` functions, adding an unnecessary layer of indirection.",
+          "The `generated_at` timestamp in `sample-runtime-package/runtime-composition.json` is hardcoded, which is inconsistent with a dynamically generated field."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "dba08d10ba45ae22d0547296ff34cbcdb14838a2",
+      "review_sha": "f13978c4e1a8",
+      "review_scope": "full_candidate",
+      "candidate_sha": "dba08d10ba45ae22d0547296ff34cbcdb14838a2"
     }
   ],
   "affected_files": [
@@ -331,6 +362,18 @@
     "licensing"
   ],
   "review_dispositions": {
+    "diff": {
+      "sig:72530ee60d2d15cf": {
+        "by": "hil:operator",
+        "note": "Fixed snapshot timestamp in sample-runtime-package/runtime-composition.json ensures deterministic hashing and contract validation in static test fixtures.",
+        "status": "ACTIONED"
+      },
+      "sig:8440634a23633d33": {
+        "by": "hil:operator",
+        "note": "The forwarding wrappers in core/packaging.py provide backward compatibility for existing consumers of the packaging module without breaking existing import sites.",
+        "status": "ACCEPTED"
+      }
+    },
     "design": {
       "sig:0408d3548dd385ab": {
         "by": "hil:operator",
