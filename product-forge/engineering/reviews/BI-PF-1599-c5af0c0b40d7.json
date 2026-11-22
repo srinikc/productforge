@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1599",
+  "sha": "c5af0c0b40d7",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T15:13:20.233122+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0ee92a8b94d63ac93670b52a4056d72d6272b164",
+  "findings": {
+    "BLOCKER": [
+      "New shipped logic `gate_orchestrator.py` is implemented in Python, violating the architectural standard \"new shipped logic -> Go\".",
+      "The `PF_EDP_TOKEN` is hardcoded to a default value in `gate_orchestrator.py` and `id_allocator.py`, bypassing explicit environment configuration and posing a security risk."
+    ],
+    "MAJOR": [
+      "The `_reserve_db` function in `id_allocator.py` changes JSON payload keys from PascalCase to camelCase, which is a breaking change for the EDP service API.",
+      "The environment variable `PF_PRECHECK_ALLOW_DB_ON` is used in `gate_orchestrator.py` but is not documented in `config/env-flags.json`, impacting observability and maintainability."
+    ],
+    "MINOR": [
+      "The `get_execution_mode` function checks for `PF_EXECUTION_MODE` which is not documented in `config/env-flags.json`, suggesting an undocumented or legacy alias.",
+      "The `GateOrchestrator.run_tests` method defaults to `scripts/dev/changed_tests_check.py` if no specific test evidence is provided, which is a heuristic that may not be robust enough for an autonomous gate."
+    ],
+    "NIT": [
+      "The argument order for `scope` and `project` was reordered in `_load_all`, `db_authority_enabled`, and `store_item_to_db` for consistency, but without functional impact."
+    ],
+    "SUMMARY": []
+  }
+}

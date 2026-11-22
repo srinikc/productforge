@@ -218,6 +218,8 @@ def _isolate_id_allocator(tmp_path, monkeypatch):
     # would make claim tests non-hermetic (a stale lease blocks a re-run). Lease-specific tests set it explicitly.
     monkeypatch.setenv("PF_LEASE_REMOTE", "off")
     monkeypatch.delenv("PF_API_URL", raising=False)
+    if os.environ.get("PF_TEST_DB_MODE") != "1":
+        monkeypatch.setenv("PF_BACKLOG_DB", "off")
 
 
 @pytest.fixture(autouse=True)

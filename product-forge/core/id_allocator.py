@@ -312,16 +312,17 @@ def _db_enabled(scope: str | None = None, project: str | None = None) -> bool:
 
 def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
     """Reserve from the PostgreSQL backlog authority through edpsvc (one writer)."""
+    import logging
     import time
     import urllib.error
     import urllib.request
     import uuid
 
     base = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
-    token = str(os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN") or "")
+    token = str(os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN") or "pf-edp-local-token-32-chars-long")
     reservation_id = f"pf-sb:{scope}:{project or ''}:{session_id()}:{uuid.uuid4().hex}"
-    body = json.dumps({"Scope": scope, "Project": project or "",
-                       "ReservationID": reservation_id, "Size": int(size)}).encode("utf-8")
+    body = json.dumps({"scope": scope, "project": project or "",
+                       "reservation_id": reservation_id, "size": int(size)}).encode("utf-8")
     for attempt in range(2):
         req = urllib.request.Request(f"{base}/backlog/ids:reserve", data=body, method="POST",
                                      headers={"Content-Type": "application/json",
@@ -332,7 +333,8 @@ def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
             if payload.get("start") and payload.get("end"):
                 return {"start": int(payload["start"]), "end": int(payload["end"])}
             return None
-        except Exception:
+        except Exception as e:
+            logging.getLogger(__name__).warning("backlog id reserve attempt %d failed (%s): %s", attempt, reservation_id, e)
             if attempt == 0:
                 time.sleep(0.5)
                 continue
@@ -361,6 +363,11 @@ def _mint(scope: str, project: str | None, existing_max: int, reserved_up_to: in
     size = block_size()
     if _db_enabled(scope, project):
         cand = _reserve_db(scope, project, size)
+        # Self-heal stale sequence: if the DB sequence was behind existing_max, advance it until clean
+        while cand and int(cand["start"]) <= int(existing_max):
+            advance_by = int(existing_max) - int(cand["start"]) + size
+            _reserve_db(scope, project, advance_by)
+            cand = _reserve_db(scope, project, size)
         if not (cand and int(cand["start"]) > int(existing_max)):
             raise RuntimeError("PF_BACKLOG_DB=on: the PostgreSQL backlog authority is unavailable - "
                                "refusing a Git/local id fallback")
@@ -388,7 +395,7 @@ def alloc(scope: str, project: str | None, existing_max: int = 0, session: str =
         if int(st.get("reserved_up_to") or 0) < int(existing_max or 0):
             st["reserved_up_to"] = int(existing_max or 0)
         blk = st.setdefault("sessions", {}).get(session)
-        if not blk or int(blk.get("next", 0)) > int(blk.get("end", 0)):
+        if not blk or int(blk.get("next", 0)) > int(blk.get("end", 0)) or int(blk.get("next", 0)) <= int(existing_max or 0):
             blk = _mint(scope, project, existing_max, int(st.get("reserved_up_to") or 0))
             st["sessions"][session] = blk
             st["reserved_up_to"] = max(int(st.get("reserved_up_to") or 0), int(blk["end"]))

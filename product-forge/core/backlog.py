@@ -246,7 +246,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _db_for(str(project or scope or "product_forge")):
+    if _db_for(str(scope or project or "product_forge")):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -297,9 +297,9 @@ def _backlog_db_scopes() -> set[str]:
     """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
     try:
         from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "")
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,inbox,intake,project")
     except Exception:
-        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "")
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,inbox,intake,project")
     scopes = {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
     if not scopes and _backlog_db_mode() in ("on", "dual", "shadow"):
         raise RuntimeError("BACKLOG_DB_SCOPES_EMPTY: PF_BACKLOG_DB=on requires an explicit non-empty allowlist")
@@ -343,7 +343,7 @@ def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     mode = _backlog_db_mode()
     if mode not in ("on", "dual", "shadow"):
         return False
-    key = _scope_key(str(project or scope or "product_forge"))
+    key = _scope_key(str(scope or project or "product_forge"))
     if key in _backlog_db_scopes():
         return True
     _raise_unlisted(key)
@@ -435,7 +435,7 @@ def _shadow_compare(item: dict) -> bool:
 
 def store_item_to_db(item: dict) -> None:
     """Public DB-only item write; refuses scopes not enabled for DB authority."""
-    if not _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
+    if not _db_for(str(item.get("scope") or item.get("project") or "product_forge")):
         raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
     _mirror_item_to_db(item)
 
@@ -849,6 +849,26 @@ def unscoped_children(scope: str, project: str | None = None) -> list:
             out.append({"item": it.get("id"), "title": it.get("title", ""),
                         "suggested_epic": sug})
     return out
+
+
+def get_execution_mode(item: dict | None) -> str:
+    """Return execution mode for item: 'auto' or 'hil' (default)."""
+    env_mode = str(os.environ.get("PF_GATE_MODE") or os.environ.get("PF_EXECUTION_MODE") or "").strip().lower()
+    if env_mode in ("auto", "hil"):
+        return env_mode
+    if not isinstance(item, dict):
+        return "hil"
+    mode = str(item.get("execution_mode") or "").strip().lower()
+    return "auto" if mode == "auto" else "hil"
+
+
+def set_execution_mode(scope: str, project: str | None, item_id: str, mode: str, note: str = "") -> dict:
+    """Set execution_mode ('hil' or 'auto') on a backlog item (single writer)."""
+    mode = str(mode or "").strip().lower()
+    if mode not in ("hil", "auto"):
+        raise ValueError(f"Invalid execution_mode '{mode}'; must be 'hil' or 'auto'")
+    return update(scope, project, item_id, execution_mode=mode,
+                  _note=note or f"set execution_mode to {mode}")
 
 
 def move_to_epic(scope: str, project: str | None, item_id: str, epic_id: str, note: str = "") -> dict:

@@ -123,6 +123,9 @@ def approve_gate1(item_id: str, approver: str = "hil:architect", note: str = "")
     print(f"Status transitioned to: in_progress")
 
 
+approve = approve_gate1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Atomically approve Gate 1 and transition item to in_progress.")
     ap.add_argument("--item", required=True, help="Backlog item ID")

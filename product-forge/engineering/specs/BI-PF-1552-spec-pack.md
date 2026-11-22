@@ -3,7 +3,7 @@
 - **Version:** 1
 - **Status:** approved
 - **Functional spec:** engineering/specs/BI-PF-1552.md
-- **Design pack:** docs/DUAL-VECTOR-STORE-DESIGN.md
+- **Design pack:** engineering/design/BI-PF-1552.md
 
 Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N/A` with a concrete reason.
 
