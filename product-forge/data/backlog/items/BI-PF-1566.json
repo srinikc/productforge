@@ -1,0 +1,193 @@
+{
+  "id": "BI-PF-1566",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "agent-memory-platform:record-contract-taxonomy",
+  "label": "PF Backlog 701",
+  "title": "Canonical Memory Record Contract: schema definition, 6-type taxonomy classification, and storage mapping",
+  "body": "## Problem / why\nMemory records have inconsistent schemas across JSON files, database tables, and runtime caches with no standard taxonomy.\n\n## Goal & value\nDefine the standard MemoryRecord contract and classify all memory assets into the 6 canonical types (Working, Semantic, Episodic, Procedural, Prospective, External).\n\n## Reference Documents\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-4`\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-10`\n\n## In scope\n- MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).\n- Type-safe schema validators for all 6 memory kinds.\n- Backward-compatible mapping layer from existing core/agent_memory.py categories.\n\n## Out of scope\n- Bespoke unversioned JSON structures.\n\n## Definition of Done\n- Contract and validation unit tests pass with 100% field coverage.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:11:08.832258",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Memory records have inconsistent schemas across JSON files, database tables, and runtime caches with no standard taxonomy.",
+    "what_adds": "Define the standard MemoryRecord contract and classify all memory assets into the 6 canonical types (Working, Semantic, Episodic, Procedural, Prospective, External).",
+    "why": "Memory records have inconsistent schemas across JSON files, database tables, and runtime caches with no standard taxonomy.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Define the standard MemoryRecord contract and classify all memory assets into the 6 canonical types (Working, Semantic, Episodic, Procedural, Prospective, External).",
+  "acceptance_criteria": [
+    "AC-1: Standard MemoryRecord schema implemented in Go and Python with strict field validation.",
+    "AC-2: Validates memory kinds against the canonical 6 types (unknown kinds fail closed).",
+    "AC-3: Existing 8 types in core/agent_memory.py map cleanly into the canonical schema.",
+    "AC-4: Temporal validity (valid_from, valid_until) is strictly validated."
+  ],
+  "in_scope": [
+    "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).",
+    "Type-safe schema validators for all 6 memory kinds.",
+    "Backward-compatible mapping layer from existing core/agent_memory.py categories."
+  ],
+  "out_of_scope": [
+    "Bespoke unversioned JSON structures."
+  ],
+  "affected_components": [
+    "core",
+    "docs"
+  ],
+  "affected_files": [
+    "core/memory_record.py",
+    "go/pfmemory/record.go",
+    "go/pfmemory/record_test.go"
+  ],
+  "approach": "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).; Type-safe schema validators for all 6 memory kinds.; Backward-compatible mapping layer from existing core/agent_memory.py categories.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Contract and validation unit tests pass with 100% field coverage.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfmemory/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1566): sig:a9b087e3beedb883 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1565",
+  "parent": "BI-PF-1565",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-22T14:11:08.542016",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/contracts.py, core/dashboard_archetypes.py, core/execution_contract.py",
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/contracts.py",
+      "core/dashboard_archetypes.py",
+      "core/execution_contract.py",
+      "core/memory_api.py",
+      "core/schema_validator.py",
+      "core/skill_contracts.py",
+      "core/task_contract.py"
+    ],
+    "existing_apis": [
+      "/api/v1/events/types",
+      "/api/v1/validation/artifact-contracts",
+      "/api/v1/validation/artifact-contracts/budget",
+      "/api/v1/validation/artifact-contracts/kind",
+      "/api/v1/validation/artifact-contracts/reconcile",
+      "/api/v1/validation/artifact-contracts/refresh-check",
+      "/api/v1/validation/artifact-contracts/resolve",
+      "/api/v1/validation/artifact-contracts/validate"
+    ],
+    "existing_modules": [
+      "config/design-contract.json",
+      "config/spec-contract.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.33",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:11:08.685811"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:11:04.545539",
+  "updated_at": "2026-11-22T14:11:10.293760",
+  "score": 1.33,
+  "_note": "planned affected files + DoD (design)",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal contract models; schema definitions in Go/Python"
+  }
+}

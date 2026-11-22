@@ -1,0 +1,190 @@
+{
+  "id": "BI-PF-1570",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "agent-memory-platform:governance-supersession-lifecycle",
+  "label": "PF Backlog 705",
+  "title": "Memory Governance & Lifecycle: explicit supersession tracking, temporal expiration, validity windows, and audit logging",
+  "body": "## Problem / why\nOld decisions and stale rules linger indefinitely in memory, conflicting with newer architecture and misleading agents.\n\n## Goal & value\nImplement full lifecycle governance for memory records with explicit supersession, temporal expiration, and complete mutation audit trails.\n\n## Reference Documents\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-11`\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-12`\n\n## In scope\n- Supersession mechanism (superseded_by pointer, status=superseded).\n- Temporal validity engine filtering out expired records (valid_until < now).\n- Cryptographic provenance linking each memory to commit SHA, run ID, or operator decision.\n- Append-only audit log of memory creation, updates, and supersession.\n\n## Out of scope\n- Hard-deleting historical memories without audit preservation.\n\n## Definition of Done\n- Lifecycle tests prove superseded records are never injected as active authority.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1566"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:12:02.044554",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Old decisions and stale rules linger indefinitely in memory, conflicting with newer architecture and misleading agents.",
+    "what_adds": "Implement full lifecycle governance for memory records with explicit supersession, temporal expiration, and complete mutation audit trails.",
+    "why": "Old decisions and stale rules linger indefinitely in memory, conflicting with newer architecture and misleading agents.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Implement full lifecycle governance for memory records with explicit supersession, temporal expiration, and complete mutation audit trails.",
+  "acceptance_criteria": [
+    "AC-1: Updating a memory supersedes the prior version without deleting historical audit trail.",
+    "AC-2: Active queries automatically filter out superseded and expired memory records.",
+    "AC-3: Every memory record maintains full provenance back to source artifact or gate decision."
+  ],
+  "in_scope": [
+    "Supersession mechanism (superseded_by pointer, status=superseded).",
+    "Temporal validity engine filtering out expired records (valid_until < now).",
+    "Cryptographic provenance linking each memory to commit SHA, run ID, or operator decision.",
+    "Append-only audit log of memory creation, updates, and supersession."
+  ],
+  "out_of_scope": [
+    "Hard-deleting historical memories without audit preservation."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/memory_governance.py",
+    "go/pfmemory/governance.go",
+    "go/pfmemory/governance_test.go"
+  ],
+  "approach": "Supersession mechanism (superseded_by pointer, status=superseded).; Temporal validity engine filtering out expired records (valid_until < now).; Cryptographic provenance linking each memory to commit SHA, run ID, or operator decision.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Lifecycle tests prove superseded records are never injected as active authority.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfmemory/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1570): sig:8c3b1e9c936641d6 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1565",
+  "parent": "BI-PF-1565",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:12:01.732621",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/audit.py, core/audit_trail.py, core/e2e_lifecycle.py",
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/audit.py",
+      "core/audit_trail.py",
+      "core/e2e_lifecycle.py",
+      "core/logging_manager.py",
+      "core/memory_api.py"
+    ],
+    "existing_apis": [
+      "/api/v1/audit/acceptance",
+      "/api/v1/audit/e2e",
+      "/api/v1/audit/readiness"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.33",
+      "components=6",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1566",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:12:01.878965"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:11:57.701557",
+  "updated_at": "2026-11-22T14:12:32.844319",
+  "score": 1.33,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal lifecycle and validation ops"
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "id": "BI-PF-1572",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "agent-memory-platform:memory-graph-observability",
+  "label": "PF Backlog 707",
+  "title": "Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API",
+  "body": "## Problem / why\nOperators cannot inspect what memories an agent accessed, why a memory was chosen, or how memories relate to each other.\n\n## Goal & value\nBuild the Memory Graph and observability API providing full inspection of memory relationships, retrieval reasoning, and audit traces.\n\n## Reference Documents\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-28`\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-31`\n\n## In scope\n- Relationship graph (derived_from, supersedes, contradicts, reinforces).\n- Trace inspection API returning full memory context for any run ID.\n- Observability metrics for retrieval latency, cache hits, and memory volume.\n\n## Out of scope\n- Heavy external graph database clusters.\n\n## Definition of Done\n- Trace inspection API tests pass with full lineage reconstruction of sample runs.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1568",
+    "BI-PF-1570"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:12:29.381719",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Operators cannot inspect what memories an agent accessed, why a memory was chosen, or how memories relate to each other.",
+    "what_adds": "Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reasoning, and audit traces.",
+    "why": "Operators cannot inspect what memories an agent accessed, why a memory was chosen, or how memories relate to each other.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reasoning, and audit traces.",
+  "acceptance_criteria": [
+    "AC-1: Models directed relationships between memory records, code artifacts, and decisions.",
+    "AC-2: Inspection API returns complete memory provenance for any given run execution trace.",
+    "AC-3: Real-time telemetry exports memory retrieval counts, latencies, and token expenditures."
+  ],
+  "in_scope": [
+    "Relationship graph (derived_from, supersedes, contradicts, reinforces).",
+    "Trace inspection API returning full memory context for any run ID.",
+    "Observability metrics for retrieval latency, cache hits, and memory volume."
+  ],
+  "out_of_scope": [
+    "Heavy external graph database clusters."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/memory_graph.py",
+    "go/pfmemory/graph.go",
+    "go/pfmemory/observability.go"
+  ],
+  "approach": "Relationship graph (derived_from, supersedes, contradicts, reinforces).; Trace inspection API returning full memory context for any run ID.; Observability metrics for retrieval latency, cache hits, and memory volume.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Trace inspection API tests pass with full lineage reconstruction of sample runs.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfmemory/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1572): sig:11182a657a231360 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1565",
+  "parent": "BI-PF-1565",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:12:29.044242",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/audit.py, core/audit_trail.py, core/execution_trail.py",
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/audit.py",
+      "core/audit_trail.py",
+      "core/execution_trail.py",
+      "core/memory_api.py"
+    ],
+    "existing_apis": [
+      "/api/v1/audit/acceptance",
+      "/api/v1/audit/e2e",
+      "/api/v1/audit/readiness"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=5",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1568",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1570",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:12:29.184546"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:12:24.854562",
+  "updated_at": "2026-11-22T14:12:33.702062",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "inspection endpoint GET /memory/trace/{run_id}"
+  }
+}

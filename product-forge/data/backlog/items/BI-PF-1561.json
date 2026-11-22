@@ -1,0 +1,193 @@
+{
+  "id": "BI-PF-1561",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:cag-context-cache",
+  "label": "PF Backlog 696",
+  "title": "CAG Context Cache: pre-computed static context caching, prefix KV-cache reuse, and deterministic invalidation hooks",
+  "body": "## Problem / why\nStatic and slow-moving context (system prompts, tool specs, core platform rules) is redundantly serialized and parsed on every LLM call.\n\n## Goal & value\nDeliver Cache-Augmented Generation (CAG) with pre-computed prefix caching and deterministic invalidation hooks.\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-10`\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-11`\n\n## In scope\n- Prefix context cache generating deterministic keys from content hashes.\n- Invalidation hooks bound to git commit SHAs, file updates, and config changes.\n- Freshness validation preventing stale cache injection.\n\n## Out of scope\n- Caching dynamic per-run agent scratchpad state.\n\n## Definition of Done\n- Cache invalidation and freshness integration tests pass with zero stale hits.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1559"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:09:54.235357",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Static and slow-moving context (system prompts, tool specs, core platform rules) is redundantly serialized and parsed on every LLM call.",
+    "what_adds": "Deliver Cache-Augmented Generation (CAG) with pre-computed prefix caching and deterministic invalidation hooks.",
+    "why": "Static and slow-moving context (system prompts, tool specs, core platform rules) is redundantly serialized and parsed on every LLM call.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Deliver Cache-Augmented Generation (CAG) with pre-computed prefix caching and deterministic invalidation hooks.",
+  "acceptance_criteria": [
+    "AC-1: Caches static system prompts and rule sets with deterministic SHA-256 keys.",
+    "AC-2: Modifying an underlying source document or rule invalidates the cache immediately.",
+    "AC-3: Reduces prompt token consumption by >=40% on repeated invocations."
+  ],
+  "in_scope": [
+    "Prefix context cache generating deterministic keys from content hashes.",
+    "Invalidation hooks bound to git commit SHAs, file updates, and config changes.",
+    "Freshness validation preventing stale cache injection."
+  ],
+  "out_of_scope": [
+    "Caching dynamic per-run agent scratchpad state."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/cag_cache.py",
+    "go/pfrag/cache.go",
+    "go/pfrag/cache_test.go"
+  ],
+  "approach": "Prefix context cache generating deterministic keys from content hashes.; Invalidation hooks bound to git commit SHAs, file updates, and config changes.; Freshness validation preventing stale cache injection.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Cache invalidation and freshness integration tests pass with zero stale hits.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1561): sig:4a1b0af76979d9f5 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:09:53.940256",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_discipline.py, core/context_engine.py, core/context_manager.py, core/context_policy.py",
+    "existing_components": [
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py",
+      "core/context_review.py",
+      "core/media_context.py",
+      "core/orchestration_context.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/context"
+    ],
+    "existing_modules": [
+      "config/context-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1559",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:09:54.080289"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:09:49.657347",
+  "updated_at": "2026-11-22T14:10:36.243631",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal prefix cache provider; no external network API"
+  }
+}

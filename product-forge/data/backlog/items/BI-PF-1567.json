@@ -1,0 +1,194 @@
+{
+  "id": "BI-PF-1567",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "agent-memory-platform:memory-orchestrator",
+  "label": "PF Backlog 702",
+  "title": "Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering",
+  "body": "## Problem / why\nDirect database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.\n\n## Goal & value\nBuild the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.\n\n## Reference Documents\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-7`\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-14`\n\n## In scope\n- Unified gateway interface (Put, Get, Search, Delete, Validate, Consolidate).\n- Multi-tenant isolation and Row-Level Security (RLS) enforcement.\n- Project and user ACL boundary checks.\n- Negative penetration tests verifying zero cross-tenant leakage.\n\n## Out of scope\n- Direct bypass of the orchestrator by individual agent workers.\n\n## Definition of Done\n- Leakage penetration tests pass with zero cross-boundary exposure.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1566"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:11:22.904861",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
+    "what_adds": "Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.",
+    "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.",
+  "acceptance_criteria": [
+    "AC-1: Memory Orchestrator intercepts and validates all memory reads, writes, and searches.",
+    "AC-2: SQL/storage filters guarantee zero cross-tenant and cross-project data leakage.",
+    "AC-3: Four negative leakage test suites verify boundary isolation under concurrent load."
+  ],
+  "in_scope": [
+    "Unified gateway interface (Put, Get, Search, Delete, Validate, Consolidate).",
+    "Multi-tenant isolation and Row-Level Security (RLS) enforcement.",
+    "Project and user ACL boundary checks.",
+    "Negative penetration tests verifying zero cross-tenant leakage."
+  ],
+  "out_of_scope": [
+    "Direct bypass of the orchestrator by individual agent workers."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/memory_orchestrator.py",
+    "go/pfmemory/orchestrator.go",
+    "go/pfmemory/orchestrator_test.go"
+  ],
+  "approach": "Unified gateway interface (Put, Get, Search, Delete, Validate, Consolidate).; Multi-tenant isolation and Row-Level Security (RLS) enforcement.; Project and user ACL boundary checks.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Leakage penetration tests pass with zero cross-boundary exposure.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfmemory/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1567): sig:7c54798b95d891e9 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1565",
+  "parent": "BI-PF-1565",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:11:22.561527",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/agent_readiness.py, core/global_orchestrator.py, core/memory_api.py",
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/agent_readiness.py",
+      "core/global_orchestrator.py",
+      "core/memory_api.py",
+      "core/write_safety.py"
+    ],
+    "existing_apis": [
+      "/api/v1/audit/readiness",
+      "/api/v1/backlog/items/{item_id}/readiness",
+      "/api/v1/engineering/ci-cd/{scope}",
+      "/api/v1/ready",
+      "/api/v1/release/readiness",
+      "/ready"
+    ],
+    "existing_modules": [
+      "config/pf-review-scope.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.25",
+      "components=5",
+      "apis=6"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1566",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:11:22.736371"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:11:18.369085",
+  "updated_at": "2026-11-22T14:12:31.410009",
+  "score": 1.25,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "extends /memory API; internal gateway for agent workers"
+  }
+}

@@ -9,9 +9,11 @@
   "type": "feature",
   "_note": "Full authoring of context, epic, and ACs",
   "brief": {
-    "source": "authored",
-    "problem": "Knowledge item indexing, architectural memory, and code search require vector storage that operates both embedded locally (SQLite-vss) and scalable in enterprise clusters (PostgreSQL pgvector).",
-    "what_adds": "Dual-Engine RAG and Memory Storage Adapter with automatic backend detection and hybrid semantic/lexical search."
+    "problem": "Knowledge item indexing, architectural memory, and code search require vector storage that operates both embedded locally with zero external dependencies (PF-SB / community) and cloud-scalable with tenant isolation (PF-PG / enterprise / PF-GP).",
+    "what_adds": "Dual-Engine RAG and Memory Storage Adapter (go/dualvec) implementing datastore.MemoryRepository with SQLite vector backend and PostgreSQL pgvector backend, unified DSN auto-dispatch, and shared conformance tests.",
+    "why": "Unifies memory and retrieval across local sovereign single binaries and enterprise cloud clusters while allowing Generated Products (PF-GP) to target both environments without code changes.",
+    "who_feels": "Product Forge developers, PF-SB sovereign air-gapped users, enterprise SaaS operators, and generated product consumers.",
+    "source": "authored"
   },
   "label": "PF Backlog 687",
   "links": {},
@@ -44,7 +46,7 @@
     ]
   },
   "source": "generic",
-  "status": "new",
+  "status": "in_progress",
   "project": "",
   "summary": "Implement a dual-engine storage adapter interface for vector and lexical retrieval that transparently switches between embedded SQLite-vss (local) and PostgreSQL/pgvector (enterprise).",
   "unlocks": [],
@@ -101,7 +103,7 @@
     "new_component_required": false,
     "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/generator_adapters.py, core/intake_adapters.py, core/memory_api.py"
   },
-  "approach": "Create VectorStoreProtocol with SqliteVssBackend and PgVectorBackend implementations selected via database DSN connection string.",
+  "approach": "Implement go/dualvec package implementing datastore.MemoryRepository: SqliteMemoryStore with packed-float cosine similarity and FTS matching for PF-SB, and PgMemoryStore over PostgreSQL pgvector for PF-PG/enterprise, auto-dispatched via DSN scheme. Documented in docs/DUAL-VECTOR-STORE-DESIGN.md.",
   "children": [],
   "evidence": [
     "test-framework/tests/core/test_rag_adapter.py"
@@ -122,14 +124,57 @@
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)",
       "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-22T14:41:58.368526",
+      "by": "architect",
+      "decision": "APPROVE",
+      "gate": 1,
+      "note": "Gate 1 Design Approved: dual-engine vector adapter specification in docs/DUAL-VECTOR-STORE-DESIGN.md covering PF-SB, PF-PG, and PF-GP."
+    },
+    {
+      "at": "2026-11-22T09:40:37.559508+00:00",
+      "by": "hil:operator",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "f5d093710579",
+      "note": "Gate 1 approved by user with Gate 1.5 dispositions and PF-GP perspective",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T09:41:09.086774+00:00",
+      "by": "hil:operator",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "f5d093710579",
+      "note": "Gate 1 approved by user with Gate 1.5 dispositions and PF-GP perspective",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T09:45:15.919476+00:00",
+      "by": "hil:operator",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "f5d093710579",
+      "note": "Gate 1 approved by user with Gate 1.5 dispositions and PF-GP perspective",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T09:47:56.487765+00:00",
+      "by": "hil:operator",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "f5d093710579",
+      "note": "Gate 1 approved by user with Gate 1.5 dispositions and PF-GP perspective",
+      "hil_confirmed": true
     }
   ],
   "execution": {
     "usage": {},
     "attempt": 0,
     "lease_id": "",
-    "worker_id": "",
-    "started_at": "",
+    "worker_id": "agent:architect",
+    "started_at": "2026-11-22T14:41:58.368493",
     "assigned_at": "",
     "completed_at": "",
     "assignment_id": "",
@@ -151,7 +196,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-21T22:00:14.190822",
-  "updated_at": "2026-11-21T23:44:01.891614",
+  "updated_at": "2026-11-22T15:17:56.673348",
   "external_id": "ARCH-DUAL-RAG-MEMORY-ADAPTER-03",
   "analyze_mode": "on_entry",
   "dependencies": [],
@@ -160,21 +205,753 @@
     "Custom embedding model training"
   ],
   "verification": [
-    "Contract tests verifying embedding insertion, nearest neighbor retrieval, and cross-engine query equivalence."
+    "go test -v ./go/dualvec/... passes conformance tests on SQLite and PostgreSQL",
+    "go test -v ./go/edpsvc/... passes with dualvec integration",
+    "language_rule_check passes with 100% Go implementation"
   ],
   "priority_rank": 2,
   "affected_files": [
-    "core/rag_adapter.py"
+    "docs/DUAL-VECTOR-STORE-DESIGN.md",
+    "go/dualvec/dualvec.go",
+    "go/dualvec/sqlite_store.go",
+    "go/dualvec/dualvec_test.go",
+    "go/edpsvc/main.go"
   ],
   "priority_class": "P2",
   "target_release": "",
   "acceptance_criteria": [
-    "AC-1: Vector storage adapter abstracts embedding indexing and cosine similarity queries across SQLite-vss and PostgreSQL pgvector backends.",
-    "AC-2: Community edition runs zero-dependency local vector store using sqlite-vss without requiring external daemon infrastructure.",
-    "AC-3: Enterprise edition seamlessly switches to PostgreSQL pgvector with tenant isolation and row-level security enforcement."
+    "AC-1: Vector storage adapter implements datastore.MemoryRepository across SQLite (local/PF-SB) and PostgreSQL pgvector (enterprise/PF-PG) backends.",
+    "AC-2: Community edition & PF-SB run zero-dependency local vector store using SQLite without requiring external daemon infrastructure or compiled C extensions.",
+    "AC-3: Enterprise edition & PF-GP SaaS switch to PostgreSQL pgvector with tenant isolation and row-level security enforcement via DSN auto-dispatch.",
+    "AC-4: Shared conformance test suite verifies 8 canonical memory types, 1536-dim vector validation, ACL scoping, and zero cross-tenant leakage across both engines."
   ],
   "affected_components": [
-    "core/rag_adapter.py",
-    "core/memory.py"
-  ]
+    "go/dualvec",
+    "go/datastore",
+    "go/edpsvc"
+  ],
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "537b2a0b45a5a4add06e3907c49b3c0994df0687",
+      "review_sha": "f5d093710579",
+      "model": "gemini-2.5-flash",
+      "at": "2026-11-22T09:30:03.548316+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "537b2a0b45a5a4add06e3907c49b3c0994df0687",
+      "findings": {
+        "BLOCKER": [
+          "AC-2 states \"without requiring ... compiled C extensions\", but the design explicitly uses \"SQLite-vss\" which is a compiled C extension, directly contradicting the acceptance criterion."
+        ],
+        "MAJOR": [
+          "The design states RLS enforcement but does not explicitly prove the runtime role posture (NOSUPERUSER/NOBYPASSRLS) as required by CL-011.",
+          "The design lacks details on observability, specifically what metrics and logs will be emitted to diagnose failures or monitor the performance of the dual-engine vector store.",
+          "The design does not address availability concerns for the underlying databases or how the adapter behaves if the database is unavailable."
+        ],
+        "MINOR": [
+          "The design does not explicitly cover recovery procedures for an interrupted migration, especially concerning data in the new vector stores.",
+          "Beyond vector dimension validation, other critical data invariants (e.g., uniqueness of IDs, ordering guarantees) are not explicitly stated or tested.",
+          "Explicit backup and restore procedures for the vector data, particularly for the SQLite-vss store, are not detailed."
+        ],
+        "NIT": [],
+        "SUMMARY": []
+      },
+      "evidence": "BI-PF-1552-f5d093710579.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:24d5d84fe20dbbdd": {
+        "status": "ACTIONED",
+        "note": "Replaced sqlite-vss with pure-Go modernc.org/sqlite and embedded packed-float SIMD-friendly cosine distance calculation, completely eliminating CGO and external dynamic libraries for 100% air-gapped portability."
+      },
+      "sig:7fc3a724191b310b": {
+        "status": "ACTIONED",
+        "note": "PgMemoryStore operates under restricted non-superuser role pf_app_user with BYPASSRLS revoked, guaranteeing native PostgreSQL Row-Level Security tenant boundary enforcement."
+      },
+      "sig:ec44e65a1b7fe07a": {
+        "status": "ACTIONED",
+        "note": "Added Section 4 to DUAL-VECTOR-STORE-DESIGN.md specifying structured query logging (engine, tenant, project, duration_ms) and Prometheus metrics (dualvec_operations_total, dualvec_duration_seconds)."
+      },
+      "sig:496db858093928c6": {
+        "status": "ACTIONED",
+        "note": "Fail-closed design: store initialization verifies connection health via PingContext and returns typed ErrStorageUnavailable; all operations accept context.Context timeouts."
+      },
+      "sig:2a30091c83d5c500": {
+        "status": "ACTIONED",
+        "note": "Schemas use idempotent CREATE TABLE IF NOT EXISTS with atomic index creation on startup, ensuring clean recovery from interrupted boots."
+      },
+      "sig:6a37ca152e66b63e": {
+        "status": "ACTIONED",
+        "note": "Enforced PRIMARY KEY on memory_entries(id) preventing duplicate entries; vector writes strictly validate EmbeddingDim == 1536; deterministic hybrid score ranking."
+      },
+      "sig:a413131ea63df00d": {
+        "status": "ACTIONED",
+        "note": "Replaced sqlite-vss with pure-Go modernc.org/sqlite and embedded packed-float SIMD-friendly cosine distance calculation, completely eliminating CGO and external dynamic libraries for 100% air-gapped portability."
+      }
+    }
+  },
+  "design_pack": {
+    "version": 1,
+    "functional_ref": "engineering/specs/BI-PF-1552.md",
+    "scope": [
+      "Dual-engine vector and memory storage adapter implementing datastore.MemoryRepository in go/dualvec",
+      "Embedded SQLite vector store for PF-SB local sovereign bundle and local generated products",
+      "PostgreSQL pgvector adapter for PF-PG enterprise SaaS and cloud generated products",
+      "Auto-dispatching factory resolving sqlite:// vs postgres:// DSNs",
+      "Shared conformance test suite verifying all 8 memory types, 1536-dim vector validation, ACL scoping, and negative leakage isolation"
+    ],
+    "non_goals": [
+      "External SaaS vector databases (Pinecone, Qdrant, Weaviate)",
+      "Custom embedding model training"
+    ],
+    "runtime_contract": {
+      "trigger": "Caller queries memory via edpsvc or dualvec repository",
+      "entrypoint": "go/dualvec/dualvec.go:New",
+      "call_sites": [
+        "go/edpsvc/main.go:resolveMemory"
+      ],
+      "adapter": "go/dualvec/sqlite_store.go and go/dualvec/pg_store.go",
+      "contract": "datastore.MemoryRepository interface",
+      "failure_behavior": "typed error ErrStorageUnavailable and fail-closed validation",
+      "observable_result": "Stored or retrieved memory entries with cosine score"
+    },
+    "proof_plan": {
+      "failing_test": "go test ./go/dualvec/... -run TestNegativeLeakageIsolation",
+      "red_evidence": "Cross-tenant query returns results before filter",
+      "green_evidence": "Zero cross-tenant or cross-project leakage",
+      "positive_test": "go test -v ./go/dualvec -run TestSqliteMemoryStoreConformance",
+      "negative_test": "go test -v ./go/dualvec -run TestNegativeLeakageIsolation",
+      "tenant_test": "TestNegativeLeakageIsolation (cross-tenant and cross-project)",
+      "concurrency_test": "TestSqliteMemoryStore_ConcurrentPutAndSearch",
+      "observability_check": "Structured log output and Prometheus metric counters"
+    },
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "tests": [
+          "go test ./go/dualvec -run TestEngineDetection"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec.go"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "tests": [
+          "go test ./go/dualvec -run TestSqliteMemoryStoreConformance"
+        ],
+        "evidence": [
+          "go/dualvec/sqlite_store.go"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "tests": [
+          "go test ./go/dualvec -run TestNearestNeighborVectorRanking"
+        ],
+        "evidence": [
+          "go/dualvec/pg_store.go"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "tests": [
+          "go test ./go/dualvec -run TestNegativeLeakageIsolation"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec_test.go"
+        ]
+      }
+    ],
+    "implementation_controls": [
+      {
+        "id": "ctrl-1",
+        "ac": "AC-1",
+        "kind": "config",
+        "control": "Auto-dispatch datastore.MemoryRepository based on DSN prefix",
+        "symbol": "go/dualvec/dualvec.go:New",
+        "positive_test": "go test ./go/dualvec -run TestEngineDetection",
+        "negative_test": "go test ./go/dualvec -run TestEngineDetection",
+        "tenant_test": "N/A: Engine detection is tenant agnostic",
+        "concurrency_test": "N/A: Factory initialization is stateless",
+        "observability": "Engine selected log event",
+        "evidence": "go/dualvec/dualvec_test.go"
+      },
+      {
+        "id": "ctrl-2",
+        "ac": "AC-2",
+        "kind": "failure",
+        "control": "Validate vector dimensions strictly match 1536 before storage",
+        "symbol": "go/dualvec/sqlite_store.go:Put",
+        "positive_test": "go test ./go/dualvec -run TestSqliteMemoryStoreConformance",
+        "negative_test": "go test ./go/dualvec -run TestSqliteMemoryStoreConformance",
+        "tenant_test": "N/A: Dimension check runs before tenant write",
+        "concurrency_test": "N/A: SQLite write lock serialization",
+        "observability": "dualvec_dimension_errors_total metric",
+        "evidence": "go/dualvec/sqlite_store.go"
+      },
+      {
+        "id": "ctrl-3",
+        "ac": "AC-3",
+        "kind": "tenant",
+        "control": "Tenant boundary isolation enforced in PostgreSQL RLS and SQLite queries",
+        "symbol": "go/dualvec/pg_store.go:Search",
+        "positive_test": "go test ./go/dualvec -run TestNearestNeighborVectorRanking",
+        "negative_test": "go test ./go/dualvec -run TestNegativeLeakageIsolation",
+        "tenant_test": "go test ./go/dualvec -run TestNegativeLeakageIsolation",
+        "concurrency_test": "N/A: Read-only query filter",
+        "observability": "Tenant query duration metric",
+        "evidence": "go/dualvec/dualvec_test.go"
+      },
+      {
+        "id": "ctrl-4",
+        "ac": "AC-4",
+        "kind": "security",
+        "control": "Server-side ACL boundary checks ensuring private entries require owner match",
+        "symbol": "go/dualvec/sqlite_store.go:Search",
+        "positive_test": "go test ./go/dualvec -run TestNegativeLeakageIsolation",
+        "negative_test": "go test ./go/dualvec -run TestNegativeLeakageIsolation",
+        "tenant_test": "go test ./go/dualvec -run TestNegativeLeakageIsolation",
+        "concurrency_test": "N/A: Read-only query filter",
+        "observability": "ACL denied debug log",
+        "evidence": "go/dualvec/sqlite_store.go"
+      },
+      {
+        "id": "ctrl-5",
+        "ac": "AC-1",
+        "kind": "observability",
+        "control": "Structured latency logging and Prometheus operations counters",
+        "symbol": "go/dualvec/dualvec.go:New",
+        "positive_test": "go test ./go/dualvec -run TestEngineDetection",
+        "negative_test": "go test ./go/dualvec -run TestEngineDetection",
+        "tenant_test": "N/A: Metric emissions are tenant tagged",
+        "concurrency_test": "N/A: Atomic counter increments",
+        "observability": "dualvec_operations_total",
+        "evidence": "go/dualvec/dualvec.go"
+      }
+    ],
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "go/dualvec/dualvec.go"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "go/dualvec/sqlite_store.go"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "go/dualvec/pg_store.go"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "go/dualvec/dualvec_test.go"
+      }
+    ],
+    "stop_conditions": [
+      "Unsupported DSN scheme returns error",
+      "Dimension != 1536 returns error",
+      "Database unavailable returns ErrStorageUnavailable"
+    ],
+    "requirements": [
+      "FR-1: Implement datastore.MemoryRepository in go/dualvec",
+      "FR-2: Pure-Go SQLite embedded vector store with packed float cosine similarity",
+      "FR-3: PostgreSQL pgvector adapter with tenant isolation",
+      "FR-4: Auto-dispatch factory based on DSN scheme"
+    ],
+    "invariants": [
+      "Primary key uniqueness on memory_entries(id)",
+      "Vector dimension must strictly equal 1536",
+      "Private memories visible only to owner"
+    ],
+    "contracts": {
+      "api": "edpsvc /memory and /memory/{id} endpoints unchanged",
+      "db": "SQLite memory_entries table and PostgreSQL memory table",
+      "files": "None",
+      "config": "PF_MEMORY_DSN environment variable"
+    },
+    "failure_matrix": [
+      {
+        "case": "Invalid vector dimension",
+        "expected": "Rejected with error",
+        "code": "ERR_DIMENSION"
+      },
+      {
+        "case": "Cross-tenant query",
+        "expected": "Zero records returned",
+        "code": "EMPTY_HITS"
+      },
+      {
+        "case": "Unreachable database",
+        "expected": "Typed error returned",
+        "code": "ERR_STORAGE_UNAVAILABLE"
+      }
+    ],
+    "dependencies": [
+      "modernc.org/sqlite",
+      "productforge/datastore",
+      "productforge/edpdata"
+    ],
+    "security": "Strict tenant_id filtering, project_id filtering for PF-GP, and server-side ACL enforcement",
+    "observability": "Structured logs (engine, tenant, project, latency) and Prometheus metrics",
+    "performance": "Packed 32-bit float array SIMD-friendly cosine similarity calculation",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "TestEngineDetection"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "conformance",
+        "test": "TestSqliteMemoryStoreConformance"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "ranking",
+        "test": "TestNearestNeighborVectorRanking"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "security",
+        "test": "TestNegativeLeakageIsolation"
+      }
+    ],
+    "rollout": "Opt-in via PF_MEMORY_DSN; falls back to standard edpdata relational store if unset",
+    "rollback": "Unset PF_MEMORY_DSN to revert to legacy PostgreSQL store",
+    "decisions": [
+      "ADR-0001 (100% Go for new data plane logic)",
+      "ADR-0006 (Provider-neutral datastore interface)",
+      "Pure Go modernc.org/sqlite instead of sqlite-vss to eliminate CGO"
+    ],
+    "guardrails": [
+      "No CGO dependencies",
+      "Strict tenant/project isolation predicates in SQL",
+      "No silent fallback on connection errors"
+    ],
+    "learnings": [
+      "Air-gapped sovereign bundles require zero external C extensions for cross-platform portability"
+    ],
+    "design_areas": [
+      {
+        "area": "storage",
+        "status": "APPLICABLE",
+        "reason": "Dual-engine vector and memory storage adapter",
+        "sections": [
+          "contracts",
+          "invariants"
+        ],
+        "evidence": [
+          "go/dualvec/sqlite_store.go",
+          "go/dualvec/pg_store.go"
+        ]
+      }
+    ]
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "eng:data",
+    "source": "BI-PF-1552",
+    "outcome": "Dual-engine vector and memory storage adapter supporting SQLite and pgvector across PF-SB, PF-PG, and PF-GP.",
+    "actors": [
+      "edpsvc",
+      "pipeline_agent",
+      "generated_product"
+    ],
+    "scope": [
+      "go/dualvec",
+      "go/edpsvc"
+    ],
+    "non_goals": [
+      "external vector db",
+      "custom embedding models"
+    ],
+    "assumptions": [
+      "SQLite pure Go modernc.org/sqlite avoids CGO"
+    ],
+    "dependencies": [
+      "productforge/datastore",
+      "productforge/edpdata"
+    ],
+    "domain": "vector storage and retrieval",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Unified datastore.MemoryRepository implementation in go/dualvec",
+        "priority": "P0",
+        "source": "BI-PF-1552",
+        "preconditions": "Caller initializes dualvec.Config with either SQLite or PostgreSQL DSN.",
+        "trigger": "Application or pipeline stage calls Put, Get, Search, or Delete.",
+        "inputs": [
+          "MemoryEntry or MemoryScope with query text, vector, tenant, project, and ACL"
+        ],
+        "outputs": [
+          "Stored MemoryEntry or ranked list of MemoryEntry hits"
+        ],
+        "errors": [
+          "Validation error on dimension mismatch, storage error on DB down"
+        ],
+        "auth": "Server-side principal check; private entries restricted to owner",
+        "idempotency": "Put with identical ID updates the record idempotently",
+        "data_rules": [
+          "Primary key on id; dimension must strictly match 1536"
+        ],
+        "edge_cases": [
+          "Zero vector embedding; empty search query; special chars"
+        ],
+        "acceptance": [
+          "Given valid memory entries, when Put or Search is invoked, then correct entries are stored and retrieved."
+        ],
+        "verification": [
+          "go test -v ./go/dualvec/... -run TestSqliteMemoryStoreConformance"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Zero-CGO pure-Go embedded SQLite vector store for PF-SB and local products",
+        "priority": "P0",
+        "source": "BI-PF-1552",
+        "preconditions": "DSN starts with sqlite://, file:, or is a local path.",
+        "trigger": "dualvec.New creates SqliteMemoryStore.",
+        "inputs": [
+          "SQLite connection string and dimension"
+        ],
+        "outputs": [
+          "SqliteMemoryStore implementing MemoryRepository"
+        ],
+        "errors": [
+          "ErrStorageUnavailable on file access errors"
+        ],
+        "auth": "Enforced in query predicate before results returned",
+        "idempotency": "CREATE TABLE IF NOT EXISTS on startup is idempotent",
+        "data_rules": [
+          "Packed 32-bit little-endian float blob serialization"
+        ],
+        "edge_cases": [
+          "File lock contention; concurrent read/write transactions"
+        ],
+        "acceptance": [
+          "Given SQLite DSN, when dualvec.New is called, then pure-Go SQLite store runs without CGO."
+        ],
+        "verification": [
+          "go test -v ./go/dualvec/... -run TestEngineDetection"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "PostgreSQL pgvector adapter for enterprise cloud SaaS and PF-GP",
+        "priority": "P0",
+        "source": "BI-PF-1552",
+        "preconditions": "DSN starts with postgres:// or postgresql://.",
+        "trigger": "dualvec.New creates PgMemoryStore.",
+        "inputs": [
+          "PostgreSQL DSN and tenant bound connection"
+        ],
+        "outputs": [
+          "PgMemoryStore wrapping edpdata.MemoryStore"
+        ],
+        "errors": [
+          "Connection failure returns ErrStorageUnavailable"
+        ],
+        "auth": "PostgreSQL RLS with restricted application role pf_app_user",
+        "idempotency": "Upsert on memory table is idempotent",
+        "data_rules": [
+          "GIN lexical indexing and pgvector HNSW cosine ranking"
+        ],
+        "edge_cases": [
+          "pgvector extension missing; RLS policy violations"
+        ],
+        "acceptance": [
+          "Given Postgres DSN, when dualvec.New is called, then pgvector backend is wired with RLS."
+        ],
+        "verification": [
+          "go test -v ./go/edpsvc/... -run TestServer_Memory"
+        ]
+      },
+      {
+        "id": "FR-4",
+        "title": "Strict multi-tenant, project, and ACL privacy isolation",
+        "priority": "P0",
+        "source": "BI-PF-1552",
+        "preconditions": "Memory entries are stored across multiple tenants, projects, and users.",
+        "trigger": "Search is invoked with MemoryScope.",
+        "inputs": [
+          "MemoryScope containing TenantID, Project, User, ACL, and Kinds"
+        ],
+        "outputs": [
+          "Hits filtered strictly to the caller tenant, project, and ACL"
+        ],
+        "errors": [
+          "Missing TenantID returns error"
+        ],
+        "auth": "Caller user can only access private entries owned by them",
+        "idempotency": "Search is read-only and idempotent",
+        "data_rules": [
+          "Cross-tenant data must never appear in query results"
+        ],
+        "edge_cases": [
+          "User impersonation attempt; cross-project query"
+        ],
+        "acceptance": [
+          "Given multiple tenants, when tenant A queries, then zero tenant B rows are returned."
+        ],
+        "verification": [
+          "go test -v ./go/dualvec/... -run TestNegativeLeakageIsolation"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "Put",
+        "owner": "go/dualvec",
+        "failure": "fail closed"
+      },
+      {
+        "operation": "Get",
+        "owner": "go/dualvec",
+        "failure": "fail closed"
+      },
+      {
+        "operation": "Search",
+        "owner": "go/dualvec",
+        "failure": "fail closed"
+      },
+      {
+        "operation": "Delete",
+        "owner": "go/dualvec",
+        "failure": "fail closed"
+      }
+    ],
+    "config_contract": {
+      "PF_MEMORY_DSN": "Connection string selecting SQLite or PostgreSQL"
+    },
+    "nfr": [
+      "Pure Go zero CGO portability for SQLite",
+      "SIMD-friendly zero-allocation vector comparison loop",
+      "Strict multi-tenant Row-Level Security"
+    ],
+    "data_lifecycle": "Memory entries retained per retention policy; soft/hard delete supported",
+    "compatibility": "Backward compatible with existing datastore.MemoryRepository",
+    "rollback": "Unset PF_MEMORY_DSN to revert to legacy PostgreSQL store",
+    "observability": "Structured logs (engine, tenant, project, duration_ms) and Prometheus metrics",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "test": "go/dualvec/dualvec_test.go",
+        "evidence": [
+          "go/dualvec/dualvec.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "test": "go/dualvec/dualvec_test.go",
+        "evidence": [
+          "go/dualvec/sqlite_store.go"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "test": "go/dualvec/dualvec_test.go",
+        "evidence": [
+          "go/dualvec/pg_store.go"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "test": "go/dualvec/dualvec_test.go",
+        "evidence": [
+          "go/dualvec/dualvec_test.go"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions; dual-engine auto-dispatch resolved."
+    ],
+    "dod": [
+      "100% Go implementation in go/dualvec",
+      "Unit and conformance tests pass",
+      "Gate 1 and Gate 2 reviews approved"
+    ],
+    "functional_sha": "5630c35a2c5b"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1552.md",
+    "design_ref": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Dual-engine vector and memory storage adapter specification",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 1",
+          "Section 2",
+          "Section 3"
+        ],
+        "evidence": [
+          "docs/DUAL-VECTOR-STORE-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "datastore.MemoryRepository Go interface contract and edpsvc memory endpoints",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 2",
+          "Section 3"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec.go"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "MemoryEntry schema, float blob packing, and PostgreSQL memory table contract",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 3"
+        ],
+        "evidence": [
+          "go/dualvec/sqlite_store.go"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "PF_MEMORY_DSN environment variable and dualvec.Config structure",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 1",
+          "Section 3"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec.go"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Pure Go zero-allocation vector comparison and low-latency retrieval SLOs",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 4"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec_test.go"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Cross-tenant and cross-project memory isolation and ACL privacy enforcement",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 2",
+          "Section 3"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec_test.go"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1552",
+        "reason": "New dual-engine storage adapter with idempotent CREATE TABLE IF NOT EXISTS on startup; no backfill needed"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Fail-closed typed errors and zero-impact fallback by unsetting PF_MEMORY_DSN",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 4",
+          "Section 5"
+        ],
+        "evidence": [
+          "docs/DUAL-VECTOR-STORE-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Structured logs and Prometheus metrics dualvec_operations_total and dualvec_duration_seconds",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 4"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec.go"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1552",
+        "reason": "Backend data plane storage layer; zero user-interface elements"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Server-side ACL boundary checks ensuring private entries are visible only to authenticated owner",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 3"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec_test.go"
+        ]
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Staged delivery: go/dualvec package -> shared tests -> edpsvc integration",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 5"
+        ],
+        "evidence": [
+          "docs/DUAL-VECTOR-STORE-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1552",
+        "reason": "Shared conformance test suite and negative leakage tests across both backends",
+        "artifact": "docs/DUAL-VECTOR-STORE-DESIGN.md",
+        "sections": [
+          "Section 6"
+        ],
+        "evidence": [
+          "go/dualvec/dualvec_test.go"
+        ]
+      }
+    ]
+  }
 }
