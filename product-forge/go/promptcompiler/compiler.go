@@ -24,17 +24,17 @@ var (
 	// BundleVersion represents the bundle schema version (v1).
 	BundleVersion uint16 = 1
 
-	ErrInvalidHeader   = errors.New("promptcompiler: invalid bundle magic header")
-	ErrUnsupportedVer  = errors.New("promptcompiler: unsupported bundle version")
-	ErrBundleTooShort  = errors.New("promptcompiler: bundle data shorter than minimum header size")
-	ErrCiphertextAuth  = errors.New("promptcompiler: authentication failed or corrupted ciphertext")
-	ErrEmptyMasterKey  = errors.New("promptcompiler: master key cannot be empty")
+	ErrInvalidHeader  = errors.New("promptcompiler: invalid bundle magic header")
+	ErrUnsupportedVer = errors.New("promptcompiler: unsupported bundle version")
+	ErrBundleTooShort = errors.New("promptcompiler: bundle data shorter than minimum header size")
+	ErrCiphertextAuth = errors.New("promptcompiler: authentication failed or corrupted ciphertext")
+	ErrEmptyMasterKey = errors.New("promptcompiler: master key cannot be empty")
 )
 
 const (
-	SaltLength  = 16
-	NonceLength = 12
-	KeyLength   = 32 // 256 bits for AES-256
+	SaltLength   = 16
+	NonceLength  = 12
+	KeyLength    = 32                               // 256 bits for AES-256
 	HeaderLength = 4 + 2 + SaltLength + NonceLength // 34 bytes
 )
 
