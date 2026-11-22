@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1555",
+  "sha": "e768b3205a3b",
+  "model": "gemini-3.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T08:52:33.600301+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "1811acbc70342408ed4d130f62014be80a8c710d",
+  "findings": {
+    "BLOCKER": [
+      "`deploy/plane-a/terraform/aws/main.tf` creates `aws_eks_cluster` but omits `aws_eks_node_group` compute resources, causing all Helm stack pods on AWS to remain stuck in `Pending` state.",
+      "`deploy/plane-a/helm/product-forge/templates/configmap.yaml` hardcodes `POSTGRES_HOST` to the local StatefulSet service, leaving no configuration mechanism to connect `core-api` to the managed RDS/Cloud SQL databases provisioned by Terraform."
+    ],
+    "MAJOR": [
+      "`scripts/dev/plane_a_deployer.py` health probe defaults to `http://127.0.0.1:8000/api/v1/health` without setting up port-forwarding or resolving cloud load balancers, causing health checks to fail and trigger rollback on remote deployments.",
+      "Sensitive credentials (`change-in-production-vault`, static auth tokens) are hardcoded across Helm `values.yaml`, `secret.yaml`, and Terraform variable defaults without enforcing secret generation or external secret providers."
+    ],
+    "MINOR": [
+      "Subprocess output handling in `plane_a_deployer.py` (`proc.stdout[-1000:]`) truncates CLI logs, which can obscure critical terraform and helm failure diagnostic details."
+    ],
+    "NIT": [
+      "Terraform variable declarations for database credentials lack input validation rules (e.g. minimum length or complexity constraints)."
+    ],
+    "SUMMARY": [
+      "Turnkey cloud deployment fails end-to-end on AWS/GCP due to missing EKS compute nodes, disconnected cloud database endpoints in Helm templates, and unrouted local health checks.",
+      "Add `aws_eks_node_group` to AWS Terraform, make Helm database endpoint configurable for managed DBs, and implement port-forwarding in the deployer script before approval."
+    ]
+  }
+}
