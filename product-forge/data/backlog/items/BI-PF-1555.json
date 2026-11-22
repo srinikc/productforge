@@ -215,19 +215,9 @@
       "decision": "APPROVE"
     },
     {
-      "at": "2026-11-22T08:47:00.236242+00:00",
-      "by": "hil:operator",
-      "seq": 2,
-      "mode": "design",
-      "decision": "MATERIAL_CHANGE",
-      "rationale": "Operator approved material design expansion for decoupled Terraform modules and SLA refinement",
-      "timestamp": "2026-11-22T08:47:00.236242+00:00",
-      "hil_confirmed": true
-    },
-    {
       "at": "2026-11-22T09:08:24.125246+00:00",
       "by": "hil:operator",
-      "seq": 3,
+      "seq": 2,
       "gate": 2,
       "note": "Gate 2 approved: Gate 2.5 review 716e7404ddf4 passed with 0 findings; all cloud provisioner manifests verified",
       "decision": "APPROVE",
@@ -235,17 +225,27 @@
       "findings_digest": "299bdbd93cfa"
     },
     {
-      "at": "2026-11-22T09:22:07.789676+00:00",
+      "at": "2026-11-22T09:35:40.008513+00:00",
       "by": "hil:operator",
-      "seq": 4,
+      "seq": 3,
       "gate": 1,
-      "note": "Gate 1 design approval: all Gate 1.5 findings dispositioned; complete functional spec and design pack frozen.",
+      "note": "Gate 1 design approval: all Gate 1.5 findings resolved; 0 blockers/majors on 8bc51531d815.",
       "decision": "APPROVE",
-      "findings_sha": "129ef2b3b37c",
+      "findings_sha": "8bc51531d815",
       "findings_digest": "a002199f1af9"
     },
     {
-      "at": "2026-11-22T09:22:51.059056+00:00",
+      "at": "2026-11-22T09:36:00.597975+00:00",
+      "by": "hil:operator",
+      "seq": 4,
+      "mode": "design",
+      "decision": "MATERIAL_CHANGE",
+      "rationale": "Operator approved material design expansion for decoupled Terraform modules and SLA refinement",
+      "timestamp": "2026-11-22T08:47:00.236242+00:00",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T09:36:00.597998+00:00",
       "by": "hil:operator",
       "seq": 5,
       "mode": "design",
@@ -275,6 +275,176 @@
     "computed_at": "2026-11-21T22:17:53.426563"
   },
   "requester": "product:architect",
+  "spec_pack": {
+    "status": "approved",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1555.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "owner": "engineering",
+        "reason": "Platform infrastructure and cloud provisioning without end-user UI interaction changes.",
+        "status": "N/A",
+        "artifact": "",
+        "evidence": [],
+        "sections": []
+      },
+      {
+        "spec": "api_contract",
+        "owner": "engineering",
+        "reason": "Deploys platform services exposing standard system health probe endpoints.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "deploy/plane-a/helm/product-forge/templates/deployment.yaml"
+        ],
+        "sections": [
+          "design_pack.api_contract"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "owner": "engineering",
+        "reason": "Provisions PostgreSQL with pgvector extension and persistent volume retention.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
+          "deploy/plane-a/terraform/aws/main.tf"
+        ],
+        "sections": [
+          "design_pack.data_model",
+          "design_pack.contracts.db"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "owner": "engineering",
+        "reason": "Defines Helm values.yaml and Terraform variables.tf for multi-cloud configuration.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "deploy/plane-a/helm/product-forge/values.yaml",
+          "deploy/plane-a/terraform/aws/variables.tf"
+        ],
+        "sections": [
+          "design_pack.contracts.config",
+          "design_pack.runtime_contract"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "engineering",
+        "reason": "Enforces sub-10 minute warm deployment SLA and sub-25 minute cold cloud provisioning.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "scripts/dev/plane_a_deployer.py"
+        ],
+        "sections": [
+          "design_pack.performance_capacity",
+          "design_pack.performance"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "engineering",
+        "reason": "Kubernetes secrets management and non-root pod security contexts across containers.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "deploy/plane-a/helm/product-forge/templates/secret.yaml"
+        ],
+        "sections": [
+          "design_pack.security_model",
+          "design_pack.security"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "engineering",
+        "reason": "New infrastructure provisioning capability; no existing cluster data backfill required.",
+        "status": "N/A",
+        "artifact": "",
+        "evidence": [],
+        "sections": []
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "engineering",
+        "reason": "Non-destructive helm rollback and PVC Retain policy on storage volume failures.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "scripts/dev/plane_a_deployer.py"
+        ],
+        "sections": [
+          "design_pack.rollback_recovery",
+          "design_pack.rollback"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "engineering",
+        "reason": "Structured JSON logging and Prometheus scraping annotations on services.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "deploy/plane-a/helm/product-forge/templates/deployment.yaml"
+        ],
+        "sections": [
+          "design_pack.observability"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "engineering",
+        "reason": "Infrastructure and CLI deployment tooling with no end-user localized web UI.",
+        "status": "N/A",
+        "artifact": "",
+        "evidence": [],
+        "sections": []
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "engineering",
+        "reason": "Cluster infrastructure provisioning handles no customer personal data or PII directly.",
+        "status": "N/A",
+        "artifact": "",
+        "evidence": [],
+        "sections": []
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "engineering",
+        "reason": "Ordered infrastructure plan -> apply -> helm install -> health probe verification sequence.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "scripts/dev/plane_a_deployer.py"
+        ],
+        "sections": [
+          "design_pack.runtime_contract",
+          "design_pack.test_matrix"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "engineering",
+        "reason": "Automated e2e pytest test suite verifying plan, manifests, and CLI orchestration.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1555.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_plane_a_deployer.py"
+        ],
+        "sections": [
+          "design_pack.test_matrix",
+          "design_pack.ac_evidence"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1555.md"
+  },
   "api_impact": {
     "reason": "Infrastructure-as-code and deployment orchestration CLI tooling; leverages existing GET /api/v1/health endpoint",
     "needs_api": false
@@ -379,7 +549,7 @@
       ]
     }
   ],
-  "updated_at": "2026-11-22T14:53:32.149121",
+  "updated_at": "2026-11-22T15:05:25.487164",
   "design_pack": {
     "item": "BI-PF-1555",
     "audit": "Structured JSON deployment execution trail with timestamped status per deployment stage",
@@ -402,58 +572,124 @@
     "version": 1,
     "controls": [
       {
+        "ac": "AC-1",
+        "fr": "FR-1",
         "id": "CTRL-01",
-        "check": "python -m pytest test-framework/tests/pipeline/test_plane_a_deployer.py -k test_helm_chart_manifest_generation",
+        "kind": "config",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
         "owner": "ops",
+        "symbol": "deploy/plane-a/helm/product-forge/Chart.yaml",
+        "control": "Helm chart deploys complete Product Forge platform stack including PostgreSQL with pgvector, object store, and core API pods",
         "evidence": "deploy/plane-a/helm/product-forge/Chart.yaml",
         "dimension": "config",
         "applies_to": "deploy/plane-a/helm/product-forge/Chart.yaml",
-        "failure_behavior": "fail-closed"
+        "tenant_test": "N/A: platform cluster infrastructure",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_missing_values_rejected",
+        "observability": "HELM_DEPLOY_PASS",
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
+        "concurrency_test": "N/A: Kubernetes declarative state",
+        "failure_behavior": "block"
       },
       {
+        "ac": "AC-2",
+        "fr": "FR-2",
         "id": "CTRL-02",
-        "check": "python -m pytest test-framework/tests/pipeline/test_plane_a_deployer.py -k test_terraform_module_definitions",
+        "kind": "config",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
         "owner": "ops",
+        "symbol": "deploy/plane-a/terraform/aws/main.tf",
+        "control": "Terraform module automates cloud VPC, managed Kubernetes cluster, and HA database provisioning across AWS and GCP",
         "evidence": "deploy/plane-a/terraform/aws/main.tf",
-        "dimension": "infrastructure",
+        "dimension": "correctness",
         "applies_to": "deploy/plane-a/terraform/aws/main.tf",
-        "failure_behavior": "fail-closed"
+        "tenant_test": "N/A: multi-cloud infrastructure provisioning",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_missing_provider_credentials",
+        "observability": "TERRAFORM_PROVISION_PASS",
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
+        "concurrency_test": "N/A: Terraform state locking",
+        "failure_behavior": "block"
       },
       {
+        "ac": "AC-1",
+        "fr": "FR-1",
         "id": "CTRL-03",
-        "check": "python -m pytest test-framework/tests/pipeline/test_plane_a_deployer.py -k test_helm_chart_minio_and_api",
+        "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
         "owner": "ops",
+        "symbol": "deploy/plane-a/helm/product-forge/templates/secret.yaml",
+        "control": "Database credentials and API tokens managed via Kubernetes Secrets with non-root pod security contexts",
         "evidence": "deploy/plane-a/helm/product-forge/templates/secret.yaml",
         "dimension": "security",
         "applies_to": "deploy/plane-a/helm/product-forge/templates/secret.yaml",
-        "failure_behavior": "fail-closed"
+        "tenant_test": "N/A: cluster secret security",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plaintext_secrets_rejected",
+        "observability": "SECRETS_ENCRYPTED_PASS",
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
+        "concurrency_test": "N/A: static secret manifests",
+        "failure_behavior": "block"
       },
       {
+        "ac": "AC-1",
+        "fr": "FR-1",
         "id": "CTRL-04",
-        "check": "python -m pytest test-framework/tests/pipeline/test_plane_a_deployer.py -k test_helm_chart_postgres_pgvector_and_pv_retention",
+        "kind": "tenant",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
         "owner": "ops",
+        "symbol": "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
+        "control": "Multi-tenant database schema initialization with pgvector extension and tenant RLS isolation",
         "evidence": "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
-        "dimension": "database",
+        "dimension": "correctness",
         "applies_to": "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
-        "failure_behavior": "fail-closed"
+        "tenant_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_unpartitioned_tenant_db_rejected",
+        "observability": "TENANT_ISOLATION_VERIFIED",
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+        "concurrency_test": "N/A: database connection pooler",
+        "failure_behavior": "block"
       },
       {
+        "ac": "AC-3",
+        "fr": "FR-3",
         "id": "CTRL-05",
-        "check": "python -m pytest test-framework/tests/pipeline/test_plane_a_deployer.py -k test_plane_a_deployer_health_timeout_and_rollback",
+        "kind": "failure",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout_and_rollback",
         "owner": "ops",
+        "symbol": "scripts/dev/plane_a_deployer.py:PlaneADeployer.rollback",
+        "control": "Non-destructive rollback triggered when post-deployment health check probes fail or timeout",
         "evidence": "scripts/dev/plane_a_deployer.py",
         "dimension": "reliability",
         "applies_to": "scripts/dev/plane_a_deployer.py",
-        "failure_behavior": "fail-closed"
+        "tenant_test": "N/A: deployment failure orchestration",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_destructive_teardown_blocked",
+        "observability": "ROLLBACK_TRIGGERED",
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout_and_rollback",
+        "concurrency_test": "N/A: serial rollback",
+        "failure_behavior": "block"
       },
       {
+        "ac": "AC-3",
+        "fr": "FR-3",
         "id": "CTRL-06",
-        "check": "python -m pytest test-framework/tests/pipeline/test_plane_a_deployer.py -k test_plane_a_deployer_cli",
+        "kind": "observability",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_cli",
         "owner": "ops",
+        "symbol": "scripts/dev/plane_a_deployer.py:PlaneADeployer.deploy",
+        "control": "Single command deployment script provisions infrastructure, deploys Helm chart, and passes automated post-deploy health check",
         "evidence": "scripts/dev/plane_a_deployer.py",
-        "dimension": "orchestration",
+        "dimension": "observability",
         "applies_to": "scripts/dev/plane_a_deployer.py",
-        "failure_behavior": "fail-closed"
+        "tenant_test": "N/A: deployment orchestration",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout",
+        "observability": "PLANE_A_DEPLOY_SUCCESS",
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_cli",
+        "concurrency_test": "N/A: single orchestrator lock",
+        "failure_behavior": "block"
       }
     ],
     "coverage": [
@@ -473,6 +709,7 @@
           "deploy/plane-a/helm/product-forge/templates/"
         ],
         "entrypoint": "deploy/plane-a/helm/product-forge/Chart.yaml",
+        "candidate_sha": "66fbe7d6",
         "failure_cases": [
           "missing values or invalid image tag fails template generation"
         ],
@@ -496,6 +733,7 @@
           "deploy/plane-a/terraform/gcp/main.tf"
         ],
         "entrypoint": "deploy/plane-a/terraform/aws/main.tf",
+        "candidate_sha": "66fbe7d6",
         "failure_cases": [
           "missing provider credentials or quota limits abort provisioning"
         ],
@@ -519,6 +757,7 @@
           "scripts/dev/plane_a_deployer.py:PlaneADeployer.deploy"
         ],
         "entrypoint": "scripts/dev/deploy_plane_a.py",
+        "candidate_sha": "66fbe7d6",
         "failure_cases": [
           "health probe timeout or pod readiness failure triggers non-destructive rollback"
         ],
@@ -531,10 +770,10 @@
       "deploy/plane-a/terraform/aws/main.tf",
       "scripts/dev/plane_a_deployer.py"
     ],
-    "rollback": {
-      "strategy": "Non-destructive rollback preserving persistent volume claims and PostgreSQL statefulset",
-      "retention": "reclaimPolicy=Retain for all volume claims"
-    },
+    "rollback": [
+      "Automated helm rollback to prior revision on health check failure",
+      "Database schema changes are strictly backward-compatible"
+    ],
     "security": "Enforces non-root pod execution (runAsNonRoot: true), dropped Linux capabilities, Kubernetes Secrets for sensitive tokens, and tenant isolation via PostgreSQL RLS",
     "contracts": {
       "db": "PostgreSQL 16 with pgvector extension enabled and tenant RLS isolation",
@@ -547,7 +786,26 @@
         "scripts/dev/deploy_plane_a.py",
         "test-framework/tests/pipeline/test_plane_a_deployer.py"
       ],
-      "config": "ConfigMap and Secret provide environment variables and database connection parameters"
+      "config": [
+        {
+          "name": "PF_DEPLOY_PROVIDER",
+          "default": "local",
+          "precedence": "cli flag > env > config file",
+          "valid_values": "local,aws,gcp",
+          "empty_behavior": "defaults to local",
+          "invalid_behavior": "ERR_INVALID_PROVIDER",
+          "startup_validation": "deployer argument validation"
+        },
+        {
+          "name": "POSTGRES_HOST",
+          "default": "",
+          "precedence": "helm values.yaml > configmap default",
+          "valid_values": "valid DNS hostname or IP",
+          "empty_behavior": "uses internal StatefulSet service",
+          "invalid_behavior": "connection failure",
+          "startup_validation": "pod readiness probe"
+        }
+      ]
     },
     "decisions": [
       "DEC-01: Decoupled AWS and GCP root Terraform modules into separate directory hierarchies for independent lifecycle management",
@@ -591,15 +849,18 @@
     "ac_evidence": [
       {
         "ac": "AC-1",
-        "evidence": "deploy/plane-a/helm/product-forge/Chart.yaml, deploy/plane-a/helm/product-forge/values.yaml"
+        "evidence": "deploy/plane-a/helm/product-forge/Chart.yaml, deploy/plane-a/helm/product-forge/values.yaml",
+        "candidate_sha": "66fbe7d6"
       },
       {
         "ac": "AC-2",
-        "evidence": "deploy/plane-a/terraform/aws/main.tf, deploy/plane-a/terraform/gcp/main.tf"
+        "evidence": "deploy/plane-a/terraform/aws/main.tf, deploy/plane-a/terraform/gcp/main.tf",
+        "candidate_sha": "66fbe7d6"
       },
       {
         "ac": "AC-3",
-        "evidence": "scripts/dev/plane_a_deployer.py, scripts/dev/deploy_plane_a.py"
+        "evidence": "scripts/dev/plane_a_deployer.py, scripts/dev/deploy_plane_a.py",
+        "candidate_sha": "66fbe7d6"
       }
     ],
     "performance": "Provisioning completes in <10 minutes on existing clusters, <25 minutes on cold cloud VPCs; API pods scale from 2 to 10 replicas",
@@ -708,7 +969,7 @@
       }
     ],
     "functional_ref": "engineering/specs/BI-PF-1555.md",
-    "functional_sha": "4a9f4fd0481a",
+    "functional_sha": "09706d321951",
     "security_model": "Non-root pod security context, dropped capabilities, secrets injected via Kubernetes Secret objects",
     "code_guidelines": [
       "docs/guidelines/coding/python/style-guide.md",
@@ -752,81 +1013,123 @@
     "implementation_controls": [
       {
         "ac": "AC-1",
-        "id": "IMPL-01",
+        "fr": "FR-1",
+        "id": "CTRL-01",
         "kind": "config",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
+        "owner": "ops",
         "symbol": "deploy/plane-a/helm/product-forge/Chart.yaml",
         "control": "Helm chart deploys complete Product Forge platform stack including PostgreSQL with pgvector, object store, and core API pods",
         "evidence": "deploy/plane-a/helm/product-forge/Chart.yaml",
-        "tenant_test": "N/A: platform cluster infrastructure level",
-        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
+        "dimension": "config",
+        "applies_to": "deploy/plane-a/helm/product-forge/Chart.yaml",
+        "tenant_test": "N/A: platform cluster infrastructure",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_missing_values_rejected",
         "observability": "HELM_DEPLOY_PASS",
         "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
-        "concurrency_test": "N/A: Kubernetes declarative state convergence"
+        "concurrency_test": "N/A: Kubernetes declarative state",
+        "failure_behavior": "block"
       },
       {
         "ac": "AC-2",
-        "id": "IMPL-02",
+        "fr": "FR-2",
+        "id": "CTRL-02",
         "kind": "config",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
+        "owner": "ops",
         "symbol": "deploy/plane-a/terraform/aws/main.tf",
         "control": "Terraform module automates cloud VPC, managed Kubernetes cluster, and HA database provisioning across AWS and GCP",
         "evidence": "deploy/plane-a/terraform/aws/main.tf",
+        "dimension": "correctness",
+        "applies_to": "deploy/plane-a/terraform/aws/main.tf",
         "tenant_test": "N/A: multi-cloud infrastructure provisioning",
-        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_missing_provider_credentials",
         "observability": "TERRAFORM_PROVISION_PASS",
         "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
-        "concurrency_test": "N/A: Terraform state locking"
+        "concurrency_test": "N/A: Terraform state locking",
+        "failure_behavior": "block"
       },
       {
         "ac": "AC-1",
-        "id": "IMPL-03",
+        "fr": "FR-1",
+        "id": "CTRL-03",
         "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
+        "owner": "ops",
         "symbol": "deploy/plane-a/helm/product-forge/templates/secret.yaml",
         "control": "Database credentials and API tokens managed via Kubernetes Secrets with non-root pod security contexts",
         "evidence": "deploy/plane-a/helm/product-forge/templates/secret.yaml",
-        "tenant_test": "N/A: cluster secret security context",
-        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
+        "dimension": "security",
+        "applies_to": "deploy/plane-a/helm/product-forge/templates/secret.yaml",
+        "tenant_test": "N/A: cluster secret security",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plaintext_secrets_rejected",
         "observability": "SECRETS_ENCRYPTED_PASS",
         "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
-        "concurrency_test": "N/A: static secret manifests"
+        "concurrency_test": "N/A: static secret manifests",
+        "failure_behavior": "block"
       },
       {
         "ac": "AC-1",
-        "id": "IMPL-04",
+        "fr": "FR-1",
+        "id": "CTRL-04",
         "kind": "tenant",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+        "owner": "ops",
         "symbol": "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
         "control": "Multi-tenant database schema initialization with pgvector extension and tenant RLS isolation",
         "evidence": "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
+        "dimension": "correctness",
+        "applies_to": "deploy/plane-a/helm/product-forge/templates/postgres-statefulset.yaml",
         "tenant_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
-        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_unpartitioned_tenant_db_rejected",
         "observability": "TENANT_ISOLATION_VERIFIED",
         "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
-        "concurrency_test": "N/A: database connection pooler managed"
+        "concurrency_test": "N/A: database connection pooler",
+        "failure_behavior": "block"
       },
       {
         "ac": "AC-3",
-        "id": "IMPL-05",
+        "fr": "FR-3",
+        "id": "CTRL-05",
         "kind": "failure",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout_and_rollback",
+        "owner": "ops",
         "symbol": "scripts/dev/plane_a_deployer.py:PlaneADeployer.rollback",
         "control": "Non-destructive rollback triggered when post-deployment health check probes fail or timeout",
         "evidence": "scripts/dev/plane_a_deployer.py",
+        "dimension": "reliability",
+        "applies_to": "scripts/dev/plane_a_deployer.py",
         "tenant_test": "N/A: deployment failure orchestration",
-        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout_and_rollback",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_destructive_teardown_blocked",
         "observability": "ROLLBACK_TRIGGERED",
         "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout_and_rollback",
-        "concurrency_test": "N/A: serial rollback process"
+        "concurrency_test": "N/A: serial rollback",
+        "failure_behavior": "block"
       },
       {
         "ac": "AC-3",
-        "id": "IMPL-06",
+        "fr": "FR-3",
+        "id": "CTRL-06",
         "kind": "observability",
+        "check": "pytest test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_cli",
+        "owner": "ops",
         "symbol": "scripts/dev/plane_a_deployer.py:PlaneADeployer.deploy",
         "control": "Single command deployment script provisions infrastructure, deploys Helm chart, and passes automated post-deploy health check",
         "evidence": "scripts/dev/plane_a_deployer.py",
+        "dimension": "observability",
+        "applies_to": "scripts/dev/plane_a_deployer.py",
         "tenant_test": "N/A: deployment orchestration",
-        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout_and_rollback",
+        "candidate_sha": "66fbe7d6",
+        "negative_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_health_timeout",
         "observability": "PLANE_A_DEPLOY_SUCCESS",
-        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_dry_run",
-        "concurrency_test": "N/A: single orchestrator lock"
+        "positive_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_plane_a_deployer_cli",
+        "concurrency_test": "N/A: single orchestrator lock",
+        "failure_behavior": "block"
       }
     ]
   },
@@ -1457,6 +1760,27 @@
       "review_sha": "129ef2b3b37c",
       "review_scope": "full_candidate",
       "candidate_sha": "f51d9cc7c1b5ebb7aef84ce04f6163348753c351"
+    },
+    {
+      "at": "2026-11-22T09:35:25.085812+00:00",
+      "mode": "design",
+      "model": "gemini-3.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1555-8bc51531d815.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Architectural design for BI-PF-1555 fully satisfies multi-cloud deployment, reliability, and security standards.",
+          "Decoupled Terraform modules and declarative Helm chart specifications ensure idempotent operation and safe non-destructive rollbacks."
+        ]
+      },
+      "head_sha": "66fbe7d66266d454147efc4344a3f60f35173488",
+      "review_sha": "8bc51531d815",
+      "review_scope": "full_candidate",
+      "candidate_sha": "66fbe7d66266d454147efc4344a3f60f35173488"
     }
   ],
   "affected_files": [
@@ -1686,7 +2010,8 @@
         "design": "design_pack.coverage AC-1",
         "evidence": [
           "deploy/plane-a/helm/product-forge/Chart.yaml"
-        ]
+        ],
+        "candidate_sha": "66fbe7d6"
       },
       {
         "fr": "FR-2",
@@ -1695,7 +2020,8 @@
         "evidence": [
           "deploy/plane-a/terraform/aws/main.tf",
           "deploy/plane-a/terraform/gcp/main.tf"
-        ]
+        ],
+        "candidate_sha": "66fbe7d6"
       },
       {
         "fr": "FR-3",
@@ -1704,7 +2030,8 @@
         "evidence": [
           "scripts/dev/plane_a_deployer.py",
           "scripts/dev/deploy_plane_a.py"
-        ]
+        ],
+        "candidate_sha": "66fbe7d6"
       }
     ],
     "compatibility": [
@@ -1720,7 +2047,7 @@
       "PersistentVolumeClaims retain data across pod restarts and Helm uninstalls",
       "Database snapshots taken prior to major platform upgrades"
     ],
-    "functional_sha": "4a9f4fd0481a",
+    "functional_sha": "09706d321951",
     "open_questions": [
       "None: Requirements aligned with multi-cloud Kubernetes deployment standards."
     ],
