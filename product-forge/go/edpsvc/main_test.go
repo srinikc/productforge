@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"productforge/datastore"
 	"productforge/edpdata"
 	"productforge/edpsvc/internal/auth"
 	"productforge/edpsvc/internal/cache"
@@ -789,5 +791,68 @@ func TestBuildObjectStore_GDrive(t *testing.T) {
 	st, err = buildObjectStore()
 	if err != nil || st == nil {
 		t.Fatalf("expected store on googledrive alias with custom URLs, got st=%v err=%v", st, err)
+	}
+}
+
+func TestServer_Memory_DualVec_Sqlite(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test_mem.db")
+	origDSN := os.Getenv("PF_MEMORY_DSN")
+	defer os.Setenv("PF_MEMORY_DSN", origDSN)
+	os.Setenv("PF_MEMORY_DSN", dbPath)
+
+	s := &server{
+		admin: "admin",
+		cfg:   limits.Config{DBTimeout: 5 * time.Second},
+	}
+	defer func() {
+		if c, ok := s.memRepo.(io.Closer); ok && c != nil {
+			_ = c.Close()
+		}
+	}()
+
+	// POST /memory
+	body := `{"id":"mem-dual-1","tenant":"test-tenant","kind":"semantic","content":"dualvec test content"}`
+	req := httptest.NewRequest(http.MethodPost, "/memory", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.memoryHandle(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST /memory failed: code=%d body=%s", w.Code, w.Body.String())
+	}
+
+	// GET /memory?tenant=test-tenant&q=dualvec
+	reqGet := httptest.NewRequest(http.MethodGet, "/memory?tenant=test-tenant&q=dualvec", nil)
+	wGet := httptest.NewRecorder()
+	s.memoryHandle(wGet, reqGet)
+
+	if wGet.Code != http.StatusOK {
+		t.Fatalf("GET /memory failed: code=%d body=%s", wGet.Code, wGet.Body.String())
+	}
+
+	var res struct {
+		Hits []datastore.MemoryEntry `json:"hits"`
+	}
+	if err := json.NewDecoder(wGet.Body).Decode(&res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(res.Hits) != 1 || res.Hits[0].ID != "mem-dual-1" {
+		t.Fatalf("unexpected hits: %+v", res.Hits)
+	}
+
+	// GET /memory/mem-dual-1?tenant=test-tenant
+	reqByID := httptest.NewRequest(http.MethodGet, "/memory/mem-dual-1?tenant=test-tenant", nil)
+	wByID := httptest.NewRecorder()
+	s.memoryByID(wByID, reqByID)
+	if wByID.Code != http.StatusOK {
+		t.Fatalf("GET /memory/mem-dual-1 failed: code=%d body=%s", wByID.Code, wByID.Body.String())
+	}
+
+	// DELETE /memory/mem-dual-1?tenant=test-tenant
+	reqDel := httptest.NewRequest(http.MethodDelete, "/memory/mem-dual-1?tenant=test-tenant", nil)
+	wDel := httptest.NewRecorder()
+	s.memoryByID(wDel, reqDel)
+	if wDel.Code != http.StatusOK {
+		t.Fatalf("DELETE /memory/mem-dual-1 failed: code=%d body=%s", wDel.Code, wDel.Body.String())
 	}
 }

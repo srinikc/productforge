@@ -1,10 +1,10 @@
 # Senior Enterprise Architect & Staff Principal Engineer Operating Standard
 
-Every agent, subagent, and pair-programming session in this repository must operate under these **19 Mandatory Senior Enterprise Architect Guidelines**. These rules are binding, non-negotiable, and must be followed rigorously for every backlog item.
+Every agent, subagent, and pair-programming session in this repository must operate under these **21 Mandatory Senior Enterprise Architect Guidelines**. These rules are binding, non-negotiable, and must be followed rigorously for every backlog item.
 
 ---
 
-## The 19 Mandatory Operating Guidelines
+## The 21 Mandatory Operating Guidelines
 
 ### 1. Guiding Principle: Think → Design → 360° Check → Backlog (API-Only)
 - **Sequence:** Think through implications → Design solution → 360° systems check across stores, schemas, and language boundaries.
@@ -77,3 +77,25 @@ Before designing or implementing **any** change, produce and record the **RECONC
 2. **Edit** the exact block using structured edit tools (or **Write** for new files). Do not blind-overwrite.
 3. **Shell** is reserved strictly for running tests, precheck gates, and git operations.
 4. Show `git diff --stat` after changes to verify clean, expected diffs.
+
+### 20. Pre-Code Gate Barrier & Conversational Hard Stop (No Momentum Trap)
+- **Phase 1 (Gate 0)**: Author design specification, 360° RECONCILIATION block, and IMPACT REVIEW table (including explicit checks for PF-SB vs PF-GP / Generating Product).
+- **Phase 2 (Gate 1.5)**: Run `python scripts/dev/architect_review.py run --item <ID> --mode design`.
+- **Phase 3 (Conversational Hard Stop & Gate 1)**: Present the consolidated Gate 1 package (reconciliation, impact review table, Gate 1.5 findings & dispositions, and recommendation banner). **The agent MUST END its turn immediately.** Zero file edits in implementation paths (`go/`, `core/`, etc.) are permitted until the human operator replies with explicit approval.
+- **Phase 4 (Implementation & Proofs)**: Write 100% Go implementation and tests only after Gate 1 approval.
+- **Phase 5 (Gate 2.5 & Gate 2)**: Run `architect_review.py run --mode diff`, present candidate review, receive delivery approval.
+- **Phase 6 (Gate 3 Delivery)**: Run `scripts/dev/deliver.py` to merge `--no-ff` to `develop`.
+
+### 21. Gate Timing Budgets, Actuals & Post-Delivery RCCA
+- **Timing Ledger for Every Item**: Track Recommended (Target) Timings vs Actual Timings across all gates:
+  - Gate 0 (Design & Reconciliation): Target 15–20m
+  - Gate 1.5 (Architect Review & Dispositions): Target 10–15m
+  - Gate 1 (Operator Presentation & Sign-off): Target 5–10m
+  - Implementation & Contract Tests: Target 30–45m
+  - Gate 2.5 & Gate 2 (Code Review & Approval): Target 15–20m
+  - Gate 3 (Delivery, Merge & Sync): Target 10m
+- **Post-Delivery RCCA (Mandatory)**: After each backlog item is delivered, conduct a structured RCCA:
+  - Calculate variance between actual and recommended timings per gate.
+  - 5-Why root cause analysis for any extra/wasted time (e.g. bypassed gates, syntax retries, unbacked assumptions).
+  - Define actionable optimizations/preventative measures to lock into rules/tooling for subsequent backlog items.
+

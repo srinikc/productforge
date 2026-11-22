@@ -1,0 +1,201 @@
+{
+  "id": "BI-PF-1560",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:hybrid-retrieval-engine",
+  "label": "PF Backlog 695",
+  "title": "Pluggable Hybrid Retrieval Engine: Reciprocal Rank Fusion (RRF), BM25 keyword scoring, and semantic reranking over MemoryRepository",
+  "body": "## Problem / why\nPure vector search suffers from semantic drift and poor keyword matching; pure lexical search fails on semantic paraphrasing.\n\n## Goal & value\nImplement hybrid retrieval combining dense vector embeddings (via datastore.MemoryRepository) with BM25 full-text search and Reciprocal Rank Fusion (RRF).\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-8`\n- `docs/RAG-PROCESS-MEMORY.md#section-8`\n\n## In scope\n- HybridSearchProvider interface querying both vector store and lexical indexes.\n- Reciprocal Rank Fusion (RRF) algorithm merging candidate ranked lists.\n- Semantic reranking stage filtering near-duplicate spans and noise.\n\n## Out of scope\n- Hardware-accelerated cross-encoders in local CLI mode.\n\n## Definition of Done\n- Hybrid retrieval benchmarks demonstrate superior recall over vector-only and BM25-only baselines.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1558",
+    "BI-PF-1559"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:09:41.868708",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Pure vector search suffers from semantic drift and poor keyword matching; pure lexical search fails on semantic paraphrasing.",
+    "what_adds": "Implement hybrid retrieval combining dense vector embeddings (via datastore.MemoryRepository) with BM25 full-text search and Reciprocal Rank Fusion (RRF).",
+    "why": "Pure vector search suffers from semantic drift and poor keyword matching; pure lexical search fails on semantic paraphrasing.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Implement hybrid retrieval combining dense vector embeddings (via datastore.MemoryRepository) with BM25 full-text search and Reciprocal Rank Fusion (RRF).",
+  "acceptance_criteria": [
+    "AC-1: Executes vector and BM25 queries in parallel and fuses results via RRF.",
+    "AC-2: Query equivalence and ranking stability verified across SQLite-vss and pgvector backends.",
+    "AC-3: Filters out chunks below relevance threshold and deduplicates overlapping document spans."
+  ],
+  "in_scope": [
+    "HybridSearchProvider interface querying both vector store and lexical indexes.",
+    "Reciprocal Rank Fusion (RRF) algorithm merging candidate ranked lists.",
+    "Semantic reranking stage filtering near-duplicate spans and noise."
+  ],
+  "out_of_scope": [
+    "Hardware-accelerated cross-encoders in local CLI mode."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/hybrid_search.py",
+    "go/pfrag/hybrid.go",
+    "go/pfrag/hybrid_test.go"
+  ],
+  "approach": "HybridSearchProvider interface querying both vector store and lexical indexes.; Reciprocal Rank Fusion (RRF) algorithm merging candidate ranked lists.; Semantic reranking stage filtering near-duplicate spans and noise.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Hybrid retrieval benchmarks demonstrate superior recall over vector-only and BM25-only baselines.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1560): sig:dddec6fe7002a551 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:09:41.541281",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_engine.py, core/discovery_engine.py, core/engineering_flow.py, core/validation_engine.py",
+    "existing_components": [
+      "core/context_engine.py",
+      "core/discovery_engine.py",
+      "core/engineering_flow.py",
+      "core/validation_engine.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/engineering/assignments/{item_id}/heartbeat"
+    ],
+    "existing_modules": [
+      "config/engineering-flow.json",
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1558",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1559",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:09:41.693452"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:09:37.681288",
+  "updated_at": "2026-11-22T14:10:35.709640",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "extends datastore.MemoryRepository / SearchProvider port"
+  }
+}
