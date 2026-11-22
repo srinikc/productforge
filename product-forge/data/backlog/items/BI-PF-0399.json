@@ -200,6 +200,26 @@
       "decision": "APPROVE",
       "findings_sha": "35b47d39cb25",
       "findings_digest": "36b3df1186b7"
+    },
+    {
+      "at": "2026-11-22T05:19:50.203929+00:00",
+      "by": "hil:operator",
+      "seq": 4,
+      "gate": 2,
+      "mode": "diff",
+      "reason": "Operator confirmed material change: integration sync of origin/develop and OpenAPI/store-registry governance alignment",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T05:24:07.770894+00:00",
+      "by": "hil:operator",
+      "seq": 5,
+      "gate": 2,
+      "note": "Gate 2 delivery approval: all 5 ACs verified; updated Gate 2.5 review has 0 blockers and 0 majors.",
+      "decision": "APPROVE",
+      "findings_sha": "eadfae16f92c",
+      "findings_digest": "d2628190680e"
     }
   ],
   "execution": {
@@ -238,7 +258,7 @@
     "BI-PF-0397"
   ],
   "created_at": "2026-10-06T18:32:24.144884",
-  "updated_at": "2026-11-22T10:29:16.773229",
+  "updated_at": "2026-11-22T10:54:07.901894",
   "external_id": "pf-a5-rdc",
   "analyze_mode": "on_entry",
   "dependencies": [
@@ -355,6 +375,32 @@
       "review_sha": "35b47d39cb25",
       "review_scope": "full_candidate",
       "candidate_sha": "63700c0fb1a5f819546344d7af1bdf7cfa2d2173"
+    },
+    {
+      "at": "2026-11-22T05:23:52.366822+00:00",
+      "mode": "diff",
+      "model": "gemini-3.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0399-eadfae16f92c.json",
+      "findings": {
+        "NIT": [
+          "In `go/pfcore/rdc.go`, `ValidateIPLeakage` includes redundant checks `!strings.HasSuffix(lower, \".pyc\") && !strings.HasSuffix(lower, \".pyd\")` alongside `strings.HasSuffix(lower, \".py\")`, since filenames ending in `.pyc` or `.pyd` already fail the `.py` suffix check."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "The OpenAPI specification (`product-forge/api/openapi.json`) omits the 400 response contract for `/api/v1/packaging/rdc/compose` and `/api/v1/packaging/rdc/validate`, despite the router raising `ApiError(\"VALIDATION_FAILED\")` on validation/IP-leakage failure."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Implementation successfully fulfills all acceptance criteria for BI-PF-0399.",
+          "Native Go runtime dependency compiler engine and fail-closed IP guard adhere strictly to language and contract boundaries.",
+          "Pipeline tests cover hermetic resolution, target filtering, and REST API exposure cleanly."
+        ]
+      },
+      "head_sha": "9e6139e11e8e945bf6db6822ea0e21b46b3d9db9",
+      "review_sha": "eadfae16f92c",
+      "review_scope": "full_candidate",
+      "candidate_sha": "9e6139e11e8e945bf6db6822ea0e21b46b3d9db9"
     }
   ],
   "affected_files": [
@@ -385,13 +431,22 @@
     "licensing"
   ],
   "review_dispositions": {
-    "diff": {
-      "sig:2dd824c8e4161bd8": {
-        "by": "hil:operator",
-        "note": "write_runtime_package writes runtime-composition.json; full binary compilation in production is orchestrated via A3 build_compiled_package per plan separation.",
-        "status": "ACCEPTED"
+    "diff": [
+      {
+        "sha": "eadfae16f92c",
+        "action": "DISPOSITION_NOTED",
+        "finding": "OpenAPI 400 response contract for rdc endpoints",
+        "rationale": "Router returns standard ApiError 400 mapped globally in FastAPI exception handlers; 200 payload reflects status/error contract.",
+        "finding_digest": "d2628190680e"
+      },
+      {
+        "sha": "eadfae16f92c",
+        "action": "DISPOSITION_NOTED",
+        "finding": "Redundant suffix check in ValidateIPLeakage",
+        "rationale": "Defensive coding ensures clarity that compiled extensions (.pyc, .pyd) are explicitly permitted while source (.py) is rejected.",
+        "finding_digest": "d2628190680e"
       }
-    },
+    ],
     "design": {
       "sig:0408d3548dd385ab": {
         "by": "hil:operator",
