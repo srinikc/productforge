@@ -38,6 +38,7 @@ import (
 	"productforge/artifacts"
 	"productforge/azurestore"
 	"productforge/datastore"
+	"productforge/dualvec"
 	"productforge/edpdata"
 	"productforge/edpsvc/internal/auth"
 	"productforge/edpsvc/internal/cache"
@@ -82,6 +83,7 @@ type server struct {
 	guard          *storeguard.Guard
 	cacheStore     *cache.Store
 	authorityMu    sync.Mutex
+	memRepo        datastore.MemoryRepository
 }
 
 func (s *server) newBacklog(db datastore.RelationalStore) backlogStore {
@@ -1140,17 +1142,37 @@ func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error) {
+	if dsn := os.Getenv("PF_MEMORY_DSN"); dsn != "" {
+		s.authorityMu.Lock()
+		defer s.authorityMu.Unlock()
+		if s.memRepo != nil {
+			return s.memRepo, nil
+		}
+		repo, err := dualvec.New(dualvec.Config{DSN: dsn, Dimension: 1536})
+		if err != nil {
+			return nil, err
+		}
+		s.memRepo = repo
+		return s.memRepo, nil
+	}
+	st, err := s.tenantStore(tenant)
+	if err != nil {
+		return nil, err
+	}
+	return dualvec.New(dualvec.Config{RelationalStore: store.BindTenant(st, tenant)})
+}
+
 func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	q := r.URL.Query()
 	tenant := s.resolveTenant(r, q.Get("tenant"))
-	st, err := s.tenantStore(tenant)
+	mem, err := s.resolveMemory(tenant)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
 	// The ACL principal is server-side. Client-supplied `owner`/`user` are never trusted.
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
@@ -1229,12 +1251,11 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/memory/")
 	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
-	st, err := s.tenantStore(tenant)
+	mem, err := s.resolveMemory(tenant)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
 		principal = p.ID
@@ -1481,7 +1502,11 @@ func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) dbCtx(r *http.Request) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(r.Context(), s.cfg.DBTimeout)
+	timeout := s.cfg.DBTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	return context.WithTimeout(r.Context(), timeout)
 }
 
 // migrationCtx bounds DDL with the (longer) migration timeout, not the per-query DB timeout.
