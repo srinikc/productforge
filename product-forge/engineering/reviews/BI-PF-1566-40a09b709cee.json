@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "40a09b709cee",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:00:27.252512+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0580e9515cc6e7e25a183b82dba9d381f4a762a1",
+  "findings": {
+    "BLOCKER": [
+      "AC-1 mandates dual implementation of validation logic in Go and Python. This violates the \"no duplication\" principle and the \"new logic in Go\" rule, creating a high risk of logic divergence and data corruption across the polyglot boundary."
+    ],
+    "MAJOR": [
+      "The validation layer (CTRL-01/CTRL-02) does not enforce that the `SupersededBy` UUID belongs to the same `tenant_id` as the record, permitting cross-tenant pointer injection and violating the isolation invariants of FR-5.",
+      "Restricting `Metadata` to `map[string]string` (FR-1) forces type-erasure for numeric and boolean attributes, complicating server-side filtering and increasing the risk of runtime errors during string-to-type conversion."
+    ],
+    "MINOR": [
+      "The design lacks validation for the `PayloadRef` URI scheme (e.g., `s3://`, `https://`), allowing the persistence of unsupported protocols that will cause runtime failures in downstream consumers."
+    ],
+    "NIT": [
+      "The `max_embedding_dimensions` is hardcoded to 1536 in the contract, which limits the system's adaptability to modern high-dimension embedding models without a schema migration."
+    ],
+    "SUMMARY": [
+      "Verdict: Passable with major corrections.",
+      "Top risks include logic divergence between Go and Python runtimes, potential cross-tenant data leakage via record lineage, and reduced query efficiency due to metadata type-erasure."
+    ]
+  }
+}

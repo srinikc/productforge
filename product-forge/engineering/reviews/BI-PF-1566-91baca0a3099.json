@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "91baca0a3099",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:01:37.644593+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0580e9515cc6e7e25a183b82dba9d381f4a762a1",
+  "findings": {
+    "BLOCKER": [
+      "Inconsistency between AC-1 (mandating dual Go/Python validation) and FR-3 (mandating Go as the sole authoritative implementation). This ambiguity risks logic duplication and divergence, violating the \"new logic in Go\" rule and the \"no duplication\" principle."
+    ],
+    "MAJOR": [
+      "The `Metadata` field (FR-1) lacks a concrete enforcement mechanism for the \"scalar-only\" constraint. Using `map[string]any` without a custom unmarshaler/validator allows arbitrary nested JSON injection, bypassing the intended integrity and security controls.",
+      "The `Embedding` byte limit (6144) is tightly coupled to 1536 dimensions at 4-byte precision (FR-1). This hard limit prevents adaptability to higher-precision vectors or different model outputs without breaking the operational contract."
+    ],
+    "MINOR": [
+      "Sourcing the authoritative mapping from `config/memory_legacy_mapping.json` (FR-3) creates a runtime file dependency. To ensure integrity and hermeticity, the mapping should be embedded in the Go binary via `go:embed` to prevent failures in containerized environments."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "The design successfully addresses prior concerns regarding tenant isolation and metadata type-erasure but remains conflicted on the polyglot implementation strategy. The primary risk is the lack of a technical enforcement mechanism for the scalar-only metadata constraint and the rigid embedding size limits."
+    ]
+  }
+}
