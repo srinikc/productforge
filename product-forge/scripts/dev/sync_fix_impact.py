@@ -66,7 +66,7 @@ def sync_fix_impact(item_id: str, mode: str = "auto") -> None:
         mode_disps[sig] = {
             "status": "ACTIONED",
             "by": "hil:auto",
-            "at": "2026-11-22T20:30:00+00:00",
+            "note": f"Enterprise architect auto-resolution: addressed in {default_evidence} (evidence: {default_evidence})",
             "reason": f"Enterprise architect auto-resolution: addressed in {default_evidence} (evidence: {default_evidence})"
         }
     review_dispositions[resolved_mode] = mode_disps

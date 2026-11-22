@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1599",
+  "sha": "aebffa8b5a1b",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T15:40:29.824735+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0ee92a8b94d63ac93670b52a4056d72d6272b164",
+  "findings": {
+    "BLOCKER": [
+      "The \"Enterprise Autonomous Gate Orchestrator\" is implemented in Python (`scripts/dev/gate_orchestrator.py`) and serves as the runtime entrypoint for core pipeline orchestration. This violates the \"new shipped logic -> Go\" standard for a core enterprise component, despite the prior disposition classifying it as \"tooling\"."
+    ],
+    "MAJOR": [
+      "The design lacks specifics on how the Python script-based orchestrator achieves high availability, fault tolerance, or horizontal scalability for an \"Enterprise Autonomous Gate Orchestrator\". The claim of \"Horizontally capable\" is not supported by the described deployment model.",
+      "The design does not explicitly define a dry-run or report mode for potentially destructive \"auto-applying dispositions\" in autonomous mode, which is critical for blast radius control in an enterprise system. The prior disposition claiming this was addressed is incorrect.",
+      "The rollback strategy for state changes made by the orchestrator in autonomous mode is not sufficiently detailed beyond \"Revert the change\". Clarification is needed on how state is cleanly restored across multiple gates and external systems.",
+      "The precedence between `item execution_mode` field and `PF_GATE_MODE` environment variable for mode resolution (AC-3) is not explicitly stated. An environment variable override could bypass auditable item-level control, posing a risk."
+    ],
+    "MINOR": [
+      "The \"Enterprise Autonomous Gate Orchestrator\" remains located in `scripts/dev/gate_orchestrator.py`, which is misleading for a core, production-grade component and impacts maintainability. The prior disposition claiming this was addressed is incorrect.",
+      "The purpose and interaction of `scripts/dev/sync_fix_impact.py` with the orchestrator are not described in the design, despite being listed as an affected file.",
+      "The API contract for `/api/v1/health` specifies `auth: none`. For an enterprise system, even health endpoints can benefit from basic authentication or network-level controls, and this inconsistency with other authenticated endpoints should be justified."
+    ],
+    "NIT": [
+      "The `rollback` entry is duplicated in `functional_spec` and `design_pack`.",
+      "The `out_of_scope` section is \"Not specified.\"",
+      "The `controls` and `implementation_controls` sections are identical, leading to redundancy.",
+      "The consistent use of `RollbackOrchestrator` in control symbols (e.g., `RollbackOrchestrator.verify_security_auth`) for an \"Enterprise Autonomous Gate Orchestrator\" suggests a potential naming mismatch, impacting clarity."
+    ],
+    "SUMMARY": []
+  }
+}

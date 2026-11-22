@@ -395,7 +395,7 @@ def alloc(scope: str, project: str | None, existing_max: int = 0, session: str =
         if int(st.get("reserved_up_to") or 0) < int(existing_max or 0):
             st["reserved_up_to"] = int(existing_max or 0)
         blk = st.setdefault("sessions", {}).get(session)
-        if not blk or int(blk.get("next", 0)) > int(blk.get("end", 0)):
+        if not blk or int(blk.get("next", 0)) > int(blk.get("end", 0)) or int(blk.get("next", 0)) <= int(existing_max or 0):
             blk = _mint(scope, project, existing_max, int(st.get("reserved_up_to") or 0))
             st["sessions"][session] = blk
             st["reserved_up_to"] = max(int(st.get("reserved_up_to") or 0), int(blk["end"]))
