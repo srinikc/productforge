@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "c49da320750b",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T18:21:35.838794+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "8b6a441c50fcb0bef5baec8a005fe44135664b73",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "The `payload_ref` validation allows `http` and `file` schemes, which introduces potential SSRF and local file disclosure risks if these references are dereferenced by the agent without secondary validation.",
+      "The `superseded_by` field lacks a format validation check (e.g., UUID v4) in the `Validate()` method, potentially allowing malformed or non-existent record pointers to enter the system."
+    ],
+    "NIT": [
+      "`valid_from` and `valid_until` use `time.Time` but the spec requires UTC ISO8601; the validator should explicitly check `t.Location() == time.UTC` to prevent local timezone drift in serialized logs.",
+      "The `config/memory_legacy_mapping.json` is embedded via `go:embed`, but the design does not specify a reload mechanism, requiring a full binary recompilation to update taxonomy mappings."
+    ],
+    "SUMMARY": [
+      "The design provides a robust, type-safe Go contract for memory records with strict multi-tenant isolation and payload boundaries.",
+      "Top risks include potential SSRF via unvalidated `payload_ref` schemes and static taxonomy mapping that requires recompilation for updates."
+    ]
+  }
+}
