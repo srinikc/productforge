@@ -200,7 +200,9 @@ class GateOrchestrator:
     def run_gate2_5(self) -> bool:
         """Gate 2.5: Second-model Architect Delivery Review."""
         print(f"[Gate 2.5] Executing Architect delivery review (mode={self.mode})...")
-        _run(["python", "scripts/dev/architect_review.py", "run", "--item", self.item_id, "--mode", "delivery", "--apply"], check=False)
+        res = _run(["python", "scripts/dev/architect_review.py", "run", "--item", self.item_id, "--mode", "diff", "--model", "gemini-3-flash-preview", "--apply"], check=False)
+        if res.returncode != 0:
+            print(f"[Gate 2.5] Review execution output:\n{res.stdout}\n{res.stderr}")
         
         if self.mode == "auto":
             print(f"[Gate 2.5] Auto-evaluating and dispositioning delivery findings for {self.item_id}...")
