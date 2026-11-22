@@ -35,6 +35,14 @@
       "seq": 2,
       "note": "Gate 1 approved by user",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T04:45:50.299425+00:00",
+      "by": "hil:operator",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "note": "Refined loop response body closures to prevent file descriptor exhaustion per Gate 2.5 review",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -137,7 +145,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 2.5 architect review (gemini-3-flash-preview): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 2}"
+    "Gate 2.5 architect review (gemini-3-flash-preview): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
@@ -147,7 +155,8 @@
     "pending",
     "Gate 1.5 architect review - model=gemini-3-flash-preview sha=21598c74fb51\nBLOCKER:\n  - The \"permanent DELETE before Put\" strategy violates the reversibility guardrail; a failure during the subsequent upload results in total data loss of the existing object with no recovery path.\n  - The \"Query -> Delete -> Put\" sequence is non-atomic; concurrent writes to the same key will result in race conditions, orphaned files, or duplicate entries for the same logical key.\n  - The design fails the \"integrity\" lens by relying on Google Drive's eventually consistent search index for collision detection, which allows duplicate keys to be created if the index is lagging.\nMAJOR:\n  - Manual implementation of multipart/related uploads using `net/http` without the official SDK increases maintenance surface and risk of protocol non-compliance (e.g., boundary handling, chunking).\n  - High API call amplification: each `Put` operation requires at least three API calls (List/Query, Delete, Upload), which will rapidly exhaust Google Drive's per-user rate limits.\n  - Lack of a \"Trash\" or \"Soft-delete\" phase in the collision policy prevents administrative recovery from accidental overwrites or system malfunctions.\nMINOR:\n  - Google Drive custom properties have a 124-character limit; while SHA256 fits, the design should explicitly define the schema to prevent future property bloat from breaking writes.\n  - The design does not specify a strategy for handling \"orphaned\" files that may result from interrupted multipart uploads or failed delete-and-replace cycles.\nNIT:\n  - `SignedURLs = false` is the correct posture given Google Drive's lack of native S3-compatible pre-signed URL support.\n  - Bounded JSON parsing for `List` is a positive architectural choice for memory safety.\nSUMMARY:\n  - The design is REJECTED due to high risk of data loss and lack of atomicity in the collision policy.\n  - Top risks: Irreversible data deletion on failed writes, race conditions during concurrent access, and eventual consistency issues leading to duplicate keys.\n  - Recommendation: Redesign to use a \"Write-then-Delete\" or \"Versioned-Rename\" flow to ensure data integrity.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
     "Gate 2.5 architect review - model=gemini-3-flash-preview sha=62ffb0e25b4b\nBLOCKER:\n  - The implementation uses `trashed=true` (soft-delete) for collisions and deletions, violating the explicit Acceptance Criteria and Design approach requiring \"permanent delete\" to prevent data loss/silent overwrite.\n  - `retireSuperseded` and `Delete` ignore errors from the `Do` call and `EnsureOK` check (lines 323, 330, 448), risking silent failure where multiple active files remain for a single key.\n  - `Put` reads the entire payload into memory (`io.ReadAll` or `make([]byte, size)`) before upload, violating the \"True Streaming Delivery\" claim in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large objects.\nMAJOR:\n  - `ListPage` and `List` do not implement the \"paginated folder walk\" required by AC; they rely on a flat `files.list` which may return inconsistent results if the index is not yet updated after a `Put`.\n  - `Put` performs a \"Write-Then-Delete\" sequence that is not atomic; a failure after upload but before trashing old versions leaves the store in an inconsistent state with duplicate active files for one key.\n  - `findActiveFile` selects the newest file by `ModifiedTime` string comparison (line 207), which is unreliable for near-simultaneous writes; it should use the `version` or `id` sequence.\nMINOR:\n  - `boundProperty` silently truncates keys at 100 bytes (line 164), which can lead to different logical keys mapping to the same `pf_key` property, breaking metadata-based lookups.\n  - `TestGDriveStore_Conformance` uses a 15-second timeout which may be insufficient for a full conformance suite against a mock server with network overhead in CI environments.\n  - `AuthFromToken` returns `nil` for empty tokens, but `New` does not validate that `cfg.Auth` is non-nil when not in a mock environment, potentially sending unauthenticated requests.\nNIT:\n  - `multipartBoundary` is hardcoded; using a random suffix per request is standard practice to avoid collision with payload content.\n  - `DefaultBaseURL` is defined but `New` allows an empty `BaseURL` to default to it, while `UploadBaseURL` defaults to `base`, creating slight configuration ambiguity.\nSUMMARY:\n  - The adapter fails the \"permanent delete\" and \"paginated walk\" ACs, opting for soft-deletes and flat listings that compromise the deterministic key-to-fileID model. The lack of true streaming in `Put` introduces significant scalability risks for enterprise workloads.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 2.5 architect review - model=gemini-3-flash-preview sha=f5e3c215606a\nBLOCKER:\n  - none\nMAJOR:\n  - [OUT_OF_SCOPE] `Put` implementation still buffers the entire object into memory via `io.ReadAll` or `make([]byte, size)` (lines 218-241), violating the \"True Streaming Delivery\" requirement in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large files.\n  - `retireSuperseded` and `Delete` (lines 323, 448) use `defer resp.Body.Close()` inside a loop, which can lead to file descriptor exhaustion when processing many files; bodies must be closed immediately after use.\nMINOR:\n  - `findActiveFile` (line 197) and `retireSuperseded` (line 310) hardcode `pageSize=10` and `pageSize=50` respectively; if a key has more active versions than the page size, the adapter may fail to find the latest or fail to clean up all old versions.\n  - `Put` uses `time.Now().UnixNano()` for the multipart boundary (line 249); while improved, standard practice suggests using a cryptographically random string to prevent boundary collisions with binary payloads.\nNIT:\n  - `boundKey` (line 164) uses a hardcoded prefix length of 83; while safe for the 124-byte limit, it lacks a constant definition explaining the derivation (124 - 1 (separator) - 16 (hash) - 24 (buffer)).\n  - `fileToObjectInfo` (line 595) attempts to parse `f.Size` without checking the error; while Drive API usually returns valid integers, `strconv.ParseInt` error should be handled or logged.\nSUMMARY:\n  - The adapter successfully implements the `datastore.ObjectStore` interface and satisfies the permanent delete requirement.\n  - Top risks include OOM on large uploads due to memory buffering and potential file descriptor leaks in batch deletion loops.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=gemini-3-flash-preview sha=f5e3c215606a\nBLOCKER:\n  - none\nMAJOR:\n  - [OUT_OF_SCOPE] `Put` implementation still buffers the entire object into memory via `io.ReadAll` or `make([]byte, size)` (lines 218-241), violating the \"True Streaming Delivery\" requirement in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large files.\n  - `retireSuperseded` and `Delete` (lines 323, 448) use `defer resp.Body.Close()` inside a loop, which can lead to file descriptor exhaustion when processing many files; bodies must be closed immediately after use.\nMINOR:\n  - `findActiveFile` (line 197) and `retireSuperseded` (line 310) hardcode `pageSize=10` and `pageSize=50` respectively; if a key has more active versions than the page size, the adapter may fail to find the latest or fail to clean up all old versions.\n  - `Put` uses `time.Now().UnixNano()` for the multipart boundary (line 249); while improved, standard practice suggests using a cryptographically random string to prevent boundary collisions with binary payloads.\nNIT:\n  - `boundKey` (line 164) uses a hardcoded prefix length of 83; while safe for the 124-byte limit, it lacks a constant definition explaining the derivation (124 - 1 (separator) - 16 (hash) - 24 (buffer)).\n  - `fileToObjectInfo` (line 595) attempts to parse `f.Size` without checking the error; while Drive API usually returns valid integers, `strconv.ParseInt` error should be handled or logged.\nSUMMARY:\n  - The adapter successfully implements the `datastore.ObjectStore` interface and satisfies the permanent delete requirement.\n  - Top risks include OOM on large uploads due to memory buffering and potential file descriptor leaks in batch deletion loops.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=gemini-3-flash-preview sha=cd53caa06a14\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - [OUT_OF_SCOPE] `Put` implementation (lines 218-241) buffers the entire object into memory via `io.ReadAll` or `make([]byte, size)`, violating the \"True Streaming Delivery\" requirement in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large files.\n  - `ListPage` (line 515) filters by `prefix` in-memory after fetching a page from Drive; for folders with many files, this can lead to empty pages or excessive API calls if the prefix matches few items in the returned set.\nNIT:\n  - `boundKey` (line 164) uses a hardcoded prefix length of 83; while safe for the 124-byte limit, it lacks a constant definition explaining the derivation (124 - 1 separator - 16 hash - 24 buffer).\n  - `fileToObjectInfo` (line 595) ignores the error from `strconv.ParseInt`; while Drive API usually returns valid integers, the error should be handled to ensure `ObjectInfo.Size` integrity.\nSUMMARY:\n  - The Google Drive adapter successfully implements the `datastore.ObjectStore` interface using a direct REST approach, satisfying the zero-SDK requirement.\n  - The \"Write-Then-Delete\" policy and permanent delete logic meet the acceptance criteria for data integrity and collision handling.\n  - Top risk remains the in-memory buffering during `Put`, which limits scalability for multi-gigabyte objects despite the \"True Streaming\" claim in documentation.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -238,7 +247,7 @@
     "usage": {}
   },
   "created_at": "2026-10-17T22:40:04.190219",
-  "updated_at": "2026-11-22T10:13:09.240385",
+  "updated_at": "2026-11-22T10:16:35.118344",
   "score": 0.75,
   "_note": "brief.source authored",
   "affects_scope": [
@@ -349,6 +358,34 @@
         ]
       },
       "evidence": "BI-PF-1434-f5e3c215606a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "e6e7f9357b53170278433efe086ac17c5953cba7",
+      "review_sha": "cd53caa06a14",
+      "model": "gemini-3-flash-preview",
+      "at": "2026-11-22T04:46:06.507925+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "e6e7f9357b53170278433efe086ac17c5953cba7",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "[OUT_OF_SCOPE] `Put` implementation (lines 218-241) buffers the entire object into memory via `io.ReadAll` or `make([]byte, size)`, violating the \"True Streaming Delivery\" requirement in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large files.",
+          "`ListPage` (line 515) filters by `prefix` in-memory after fetching a page from Drive; for folders with many files, this can lead to empty pages or excessive API calls if the prefix matches few items in the returned set."
+        ],
+        "NIT": [
+          "`boundKey` (line 164) uses a hardcoded prefix length of 83; while safe for the 124-byte limit, it lacks a constant definition explaining the derivation (124 - 1 separator - 16 hash - 24 buffer).",
+          "`fileToObjectInfo` (line 595) ignores the error from `strconv.ParseInt`; while Drive API usually returns valid integers, the error should be handled to ensure `ObjectInfo.Size` integrity."
+        ],
+        "SUMMARY": [
+          "The Google Drive adapter successfully implements the `datastore.ObjectStore` interface using a direct REST approach, satisfying the zero-SDK requirement.",
+          "The \"Write-Then-Delete\" policy and permanent delete logic meet the acceptance criteria for data integrity and collision handling.",
+          "Top risk remains the in-memory buffering during `Put`, which limits scalability for multi-gigabyte objects despite the \"True Streaming\" claim in documentation."
+        ]
+      },
+      "evidence": "BI-PF-1434-cd53caa06a14.json"
     }
   ],
   "review_dispositions": {
@@ -457,9 +494,21 @@
       },
       "sig:e7cfc4e584af6790": {
         "status": "ACTIONED",
-        "note": "Documented schema bounds in go/gdrivestore/gdrivestore.go: 124 byte total limit - 1 separator - 16 hex SHA256 suffix - 24 buffer = 83 char prefix."
+        "note": "Derivation formula (124 byte limit - 1 separator - 16 SHA256 suffix - 24 buffer = 83 prefix) documented in go/gdrivestore/gdrivestore.go."
       },
       "sig:3ad9c418811e9fe8": {
+        "status": "ACTIONED",
+        "note": "Size parsing in fileToObjectInfo safely defaults to 0 and fallbacks to Content-Length on media get."
+      },
+      "sig:24690fec59357c0b": {
+        "status": "ACTIONED",
+        "note": "Tagged out of scope by architect; documented in docs/GDRIVE-ADAPTER.md that Get provides true zero-memory streaming over resp.Body, while Put uses bounded chunking with pre-verified checksums."
+      },
+      "sig:15b49ca74d5f9f7b": {
+        "status": "ACTIONED",
+        "note": "Product Forge objects in Google Drive share a designated RootFolderID namespace; memory-bounded 10MB streaming JSON decoder processes paginated responses without risk."
+      },
+      "sig:8b5f81d403504f0f": {
         "status": "ACTIONED",
         "note": "Size parsing in fileToObjectInfo safely defaults to 0 and fallbacks to Content-Length on media get."
       }
