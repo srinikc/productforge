@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-22T10:48:02 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-22T14:44:28 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 127  |  **Closed:** 638
+- **Open:** 125  |  **Closed:** 640
 - `blocked`: 1
 - `in_progress`: 3
-- `new`: 123
+- `new`: 121
 
-### new, by category (123)
+### new, by category (121)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1553 | Should | task | Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary | Define and automate the web console compilation pipeline to produce an embedded static SPA distribution served... |
 | BI-PF-1554 | Should | feature | Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation | Specify and package the Sovereign Edition distribution capable of operating with 100% network isolation and lo... |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (71)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -151,7 +151,6 @@
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
 | BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
-| BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
 | BI-PF-1437 | Should | feature | Framework-agnostic skills home + resolver | PF owns the skill bodies; .opencode is a legacy fallback only. |
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
@@ -163,7 +162,6 @@
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
 | BI-PF-1551 | Should | feature | Universal Model Gateway and Dynamic Router: unified provider adapter with token budgeting and fallback chains | Implement an extensible multi-model gateway and dynamic router supporting multi-provider fallback chains, quot... |
 | BI-PF-1552 | Should | feature | Dual-Engine RAG and Memory Storage Adapter: embedded SQLite-vss for local editions and PostgreSQL pgvector for enterprise | Build a pluggable dual-engine vector adapter supporting embedded SQLite-vss for community/local editions and p... |
-| BI-PF-1555 | Should | feature | Plane A One-Click Cloud Provisioner: Helm chart and Terraform modules for automated Product Forge cluster deployment | Build automated Helm chart and Terraform infrastructure modules for one-click turnkey deployment of Plane A Pr... |
 | BI-PF-1556 | Should | feature | Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests | Implement automated fail-closed rollback orchestration that triggers instant reversion to the prior stable rel... |
 
 ---
@@ -364,5 +362,5 @@
 ---
 
 ## Totals
-- backend: 127 open / 638 closed
+- backend: 125 open / 640 closed
 - dashboard: 146 open / 3 closed
