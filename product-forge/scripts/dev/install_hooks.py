@@ -55,6 +55,7 @@ if git diff --cached --name-only --diff-filter=ACM | grep -q '^product-forge/dat
 git add "$PF/docs/BACKLOG-SUMMARY.md" "$PF/docs/documentation-index.html" 2>/dev/null || true
 fi
 python "$PF/scripts/dev/branch_guard.py" || { echo "pre-commit: direct commit on develop/main is forbidden - create a feature branch (git checkout -b feature/<name>)"; exit 1; }
+python "$PF/scripts/dev/pre_code_gate.py" || exit 1
 python "$PF/scripts/dev/store_check.py" || { echo "pre-commit: store-contract failed (register the data file in config/store-registry.json)"; exit 1; }
 python "$PF/scripts/dev/dependency_catalog_check.py" || { echo "pre-commit: a new dependency has no tool-catalog entry (config/tool-catalog.json)"; exit 1; }
 CHANGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.py$' || true)
