@@ -1,0 +1,175 @@
+{
+  "id": "BI-PF-1556",
+  "due": "",
+  "tag": "PF",
+  "body": "While ReleaseManager provides backup snapshot and restore mechanics, failed post-deployment smoke tests currently block the release gate without automatically executing rollback, leaving target environments in an inconsistent or degraded state. This item implements automatic rollback orchestration on failed smoke tests.",
+  "deps": [],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Post-deployment smoke test failures currently require manual rollback commands, creating prolonged downtime if an unhealthy platform revision is released.",
+    "what_adds": "Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests."
+  },
+  "label": "PF Backlog 691",
+  "links": {},
+  "owner": "eng:devops",
+  "risks": [
+    "Flapping rollbacks from intermittent network blips mitigated via retry threshold before rollback trigger."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Rollback orchestration",
+        "verdict": "aligned",
+        "evidence": "core/release_manager.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Automated rollback",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Wire an automated rollback trigger into the deployment execution pipeline that immediately restores the previous stable release snapshot and records immutable rollback evidence upon smoke test failure.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=2",
+      "apis=7"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:18:01.942669",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/evidence/events",
+      "/api/v1/evidence/index",
+      "/api/v1/evidence/manifest/{run_id}",
+      "/api/v1/github/evidence",
+      "/api/v1/release/evidence",
+      "/api/v1/tests/cycles",
+      "/api/v1/tests/matrix"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/app_smoke.py",
+      "core/orchestration_context.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/app_smoke.py, core/orchestration_context.py, /api/v1/evidence/events, /api/v1/evidence/index"
+  },
+  "approach": "Extend core/release_manager.py with post-deploy verification harness that invokes provider.rollback() upon smoke test failure.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/deployment/test_rollback_orchestrator.py"
+  ],
+  "in_scope": [
+    "core/rollback_orchestrator.py",
+    "Automated smoke tests",
+    "Deployment evidence logging"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Manual operator override to force deployment retention.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:18:02.333266",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Implement automated fail-closed rollback orchestration that triggers instant reversion to the prior stable release upon failed post-deploy smoke tests.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:18:02.129609"
+  },
+  "requester": "product:architect",
+  "api_impact": {
+    "reason": "Packaging, deployment, and verification CLI/core capability; no dedicated HTTP routes required",
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:17:56.357555",
+  "updated_at": "2026-11-21T23:44:03.418486",
+  "external_id": "ARCH-DEPLOY-ROLLBACK-ORCHESTRATION-02",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Database schema backward-incompatible truncation rollback",
+    "DNS failover management"
+  ],
+  "verification": [
+    "Simulated failure tests asserting automated rollback invocation, prior state restoration, and evidence emission."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/rollback_orchestrator.py",
+    "core/release_manager.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Post-deployment smoke test runner executes automated health, database connectivity, and core API verification immediately after deployment.",
+    "AC-2: Any failing smoke test assertion automatically triggers instant rollback to prior healthy revision within 30 seconds.",
+    "AC-3: Rollback orchestration records comprehensive failure evidence, diagnostic logs, and incident report in deployment evidence ledger."
+  ],
+  "affected_components": [
+    "core/release_manager.py",
+    "core/rollback_orchestrator.py",
+    "core/deploy_providers.py"
+  ]
+}

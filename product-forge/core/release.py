@@ -77,6 +77,27 @@ def _deployment(project_dir: str) -> dict[str, Any]:
         return {"status": "unknown", "detail": f"{deploy_providers.DEPLOYMENT_EVIDENCE}: {type(e).__name__}"}
 
 
+def no_raw_py_gate(dist_dir: str, edition: str = "enterprise") -> dict[str, Any]:
+    """Fail-closed gate: customer editions (enterprise, on-prem, saas, oem) cannot contain readable .py source files."""
+    ed = str(edition or "").strip().lower()
+    from core.packaging import CUSTOMER_EDITIONS
+    violating: list[str] = []
+    if ed in CUSTOMER_EDITIONS and os.path.isdir(dist_dir):
+        for root, _, files in os.walk(dist_dir):
+            for f in files:
+                if f.endswith(".py"):
+                    rel = os.path.relpath(os.path.join(root, f), dist_dir).replace("\\", "/")
+                    violating.append(rel)
+    unmet = [f"UNMET: RAW_PY_IN_SHIPPED_PACKAGE: {v}" for v in violating]
+    return {
+        "valid": not violating,
+        "edition": ed,
+        "violating_files": violating,
+        "unmet": unmet,
+        "evaluated_at": datetime.now().isoformat()
+    }
+
+
 def gate(scope: str = "product_forge", project: str = "", target: str = "",
          run_id: str = "", release_validation: dict | None = None) -> dict[str, Any]:
     """Build the release checklist (fail-closed) and a decision. Does not write stores."""
@@ -108,6 +129,11 @@ def gate(scope: str = "product_forge", project: str = "", target: str = "",
     items["packaging_bom"] = {"status": "pass" if fp.get("bom_present") else "fail",
                               "detail": {"deps": fp.get("bom_deps"), "licenses": fp.get("bom_licenses")}}
     items["deployment"] = _deployment(d)
+    pkg_dir = os.path.join(d, "dist")
+    if os.path.isdir(pkg_dir):
+        nrp = no_raw_py_gate(pkg_dir, edition=target or "enterprise")
+        items["no_raw_py"] = {"status": "pass" if nrp["valid"] else "fail",
+                              "detail": {"violating_files": nrp["violating_files"]}}
 
     # integration must be green for a release (merge gate)
     try:

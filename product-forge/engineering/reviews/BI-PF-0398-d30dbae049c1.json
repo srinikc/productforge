@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-0398",
+  "sha": "d30dbae049c1",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T17:08:17.706106+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "508362349789c13e970d70d80c66464fe04f8ce6",
+  "findings": {
+    "BLOCKER": [
+      "AC-1 Not Met: The `build_compiled_package` function only creates mock binaries, directly violating the acceptance criterion for building native binary artifacts using Nuitka and Go.",
+      "Security: Shipping mock binaries instead of genuinely compiled code undermines the security and IP protection goals of compiled packaging, creating a false sense of security."
+    ],
+    "MAJOR": [
+      "AC-3 Not Fully Compliant: The SBOM schema `CycloneDX/SPDX-productforge@1` is a custom schema, not a standard CycloneDX or SPDX compliant one as required by the acceptance criteria.",
+      "Language Rule Violation: New core orchestration logic for packaging, SBOM/LBOM, and subsystem exclusion is implemented in Python (`core/packaging.py`), which contradicts the \"new shipped logic -> Go\" standard."
+    ],
+    "MINOR": [
+      "Hardcoded Customer Editions: The `customer_editions` list is duplicated in `packaging.py` and `release.py`, which should be consolidated into a shared constant for maintainability.",
+      "Missing `dry_run` usage: The `dry_run` parameter in `build_compiled_package` is passed but not utilized to control the mock binary creation, reducing its intended utility.",
+      "Broad Exception Handling: `attach_sbom_and_signatures` uses a broad `except Exception as e`, which can mask specific issues and hinder debugging."
+    ],
+    "NIT": [
+      "Magic String for Mock Binary: The mock binary content `b\"\\x7fELF\\x02\\x01\\x01_COMPILED_PF_BINARY_A3\"` is a magic string; defining it as a constant would improve readability.",
+      "Redundant `list()` calls: In `eap_build`, `list(exclude_subsystems or [])` and `list(asset_bundles or [])` are redundant if the input types are already lists or None."
+    ],
+    "SUMMARY": []
+  }
+}

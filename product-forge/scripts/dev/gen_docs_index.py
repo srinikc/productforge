@@ -40,6 +40,7 @@ NR = None  # "not referenced" - only for empty placeholders
 
 # doc -> (status, about, pct)     pct: int = implemented/adopted vs code; None = n/a
 TOP = {
+    "PRODUCT-FORGE-ARCHITECTURE-AND-OPERATIONAL-REFERENCE.md": ("Reference", "Product Forge architecture and operational reference", 100),
     "productforge_full_architecture.md": ("SSOT", "Architecture & design SSOT - start here", 100),
     "STRUCTURE-CONTRACT.md": ("Implemented", "Binding repo structure contract (folders + owners)", 100),
     "CONSTITUTION.md": ("Implemented", "Constitution: governance + non-negotiables", 100),
@@ -223,6 +224,7 @@ TOP = {
     "EDP-TENANT-AUTH-TRUST-BOUNDARY.md": ("Implemented", "EDP per-tenant authentication, gateway claims, and trust boundary architecture (BI-PF-1478)", 100),
     "GCS-ADAPTER-QUALIFICATION.md": ("Implemented", "GCS ObjectStore adapter streaming resumable upload and qualification runbook (BI-PF-1435)", 100),
     "AZURE-BLOB-ADAPTER.md": ("Implemented", "Azure Blob Storage ObjectStore adapter specification and runbook (BI-PF-1433)", 100),
+    "GDRIVE-ADAPTER.md": ("Implemented", "Google Drive ObjectStore adapter specification and runbook (BI-PF-1434)", 100),
     "pipeline-diagrams-reference.md": ("Generated", "Regenerable diagram reference", 100),
     "pipeline-quick-reference.md": ("Adopted (reference)", "Quick reference", 100),
     "PIPELINE-RESUME-ProductForge-Dashboard.md": ("Adopted (reference)", "Old resume notes for a project", 50),

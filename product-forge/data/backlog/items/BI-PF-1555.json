@@ -1,0 +1,175 @@
+{
+  "id": "BI-PF-1555",
+  "due": "",
+  "tag": "PF",
+  "body": "Deploying Product Forge SaaS or Enterprise editions currently requires executing multiple manual steps (database migration, object store setup, environment configuration, service runner startup). A turnkey enterprise product requires an automated one-command infrastructure-as-code deployment pipeline. This item provides the official Helm chart and Terraform modules.",
+  "deps": [],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Plane A (Product Forge platform itself) lacks an automated turnkey one-click cloud provisioning bundle (Helm chart + Terraform), requiring manual database and cluster configuration.",
+    "what_adds": "Plane A One-Click Cloud Provisioner: Helm chart and Terraform modules for automated Product Forge cluster deployment."
+  },
+  "label": "PF Backlog 690",
+  "links": {},
+  "owner": "eng:devops",
+  "risks": [
+    "Cloud provider API rate limits during infrastructure provisioning mitigated via idempotent Terraform state."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Plane A One-Click Cloud Provisioner: Helm chart and Terraform modules for automated Product Forge cluster deployment",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Plane A provisioner",
+        "verdict": "aligned",
+        "evidence": "deploy/helm/",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Turnkey deployment",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Build an official Helm chart and Terraform reference module for Product Forge (Plane A) that provisions PostgreSQL, S3/blob storage, mounts secrets, runs migrations, and deploys the compiled platform container services.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=0"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:17:53.230742",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/data-plane-threats.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/control_plane.py",
+      "core/forge_constitution.py",
+      "core/forge_store.py",
+      "core/product_analyzer.py",
+      "core/product_design_spec.py",
+      "core/product_ingestion.py",
+      "core/product_page.py",
+      "core/product_plan.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/control_plane.py, core/forge_constitution.py, core/forge_store.py, core/product_analyzer.py"
+  },
+  "approach": "Author production Helm chart with subcharts for PostgreSQL/pgvector and MinIO, complemented by Terraform modules for AWS EKS and GCP GKE.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/deployment/test_plane_a_provisioner.py"
+  ],
+  "in_scope": [
+    "deploy/helm/product-forge/",
+    "deploy/terraform/",
+    "deploy/scripts/one_click_deploy.sh"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Terraform destroy / Helm uninstall script executing clean teardown.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:17:53.656904",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Build automated Helm chart and Terraform infrastructure modules for one-click turnkey deployment of Plane A Product Forge platform on Kubernetes.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:17:53.426563"
+  },
+  "requester": "product:architect",
+  "api_impact": {
+    "reason": "Packaging, deployment, and verification CLI/core capability; no dedicated HTTP routes required",
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:17:47.970502",
+  "updated_at": "2026-11-21T23:44:03.060768",
+  "external_id": "ARCH-PLANE-A-ONE-CLICK-PROVISIONER-01",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Legacy monolithic server deployment",
+    "Manual bare-metal server installation"
+  ],
+  "verification": [
+    "End-to-end deployment test executing one_click_deploy.sh on test cluster and verifying healthy status endpoint."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "deploy/helm/product-forge/values.yaml",
+    "deploy/terraform/main.tf"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Helm chart deploys complete Product Forge platform stack including PostgreSQL with pgvector, object store, and core API pods.",
+    "AC-2: Terraform module automates cloud VPC, managed Kubernetes cluster, and database provisioning across AWS and GCP providers.",
+    "AC-3: Single command deployment script provisions infrastructure, deploys Helm chart, and passes automated post-deploy health check in under 10 minutes."
+  ],
+  "affected_components": [
+    "deploy/helm/",
+    "deploy/terraform/",
+    "core/deploy_providers.py"
+  ]
+}
