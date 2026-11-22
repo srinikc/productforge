@@ -246,7 +246,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _db_for(str(scope or project or "product_forge")):
+    if _db_for(str(project or scope or "product_forge")):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -328,6 +328,8 @@ def _db_for(scope: str | None) -> bool:
     if mode == "off":
         return False
     key = _scope_key(scope)
+    if key.startswith(("_test_", "test_")):
+        return False
     if key in _backlog_db_scopes():
         return mode == "on"
     _raise_unlisted(key)
@@ -343,7 +345,9 @@ def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     mode = _backlog_db_mode()
     if mode not in ("on", "dual", "shadow"):
         return False
-    key = _scope_key(str(scope or project or "product_forge"))
+    key = _scope_key(str(project or scope or "product_forge"))
+    if key.startswith(("_test_", "test_")):
+        return False
     if key in _backlog_db_scopes():
         return True
     _raise_unlisted(key)
@@ -435,7 +439,7 @@ def _shadow_compare(item: dict) -> bool:
 
 def store_item_to_db(item: dict) -> None:
     """Public DB-only item write; refuses scopes not enabled for DB authority."""
-    if not _db_for(str(item.get("scope") or item.get("project") or "product_forge")):
+    if not _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
         raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
     _mirror_item_to_db(item)
 
