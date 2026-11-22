@@ -49,4 +49,3 @@ func (p *PgMemoryStore) Delete(ctx context.Context, id string) error {
 	currentObserver.Observe(EnginePostgres, "Delete", "", "", time.Since(start), err)
 	return err
 }
-

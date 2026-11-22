@@ -98,4 +98,3 @@ func New(cfg Config) (datastore.MemoryRepository, error) {
 		return nil, fmt.Errorf("dualvec: unsupported engine type %q", engine)
 	}
 }
-
