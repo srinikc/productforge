@@ -97,3 +97,30 @@ def write_eap(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depe
                                                                         "editions": list(packaging.EDITIONS)})
     return from_request(request, packaging.eap_write(s, p or "", edition=ed), resource="packaging",
                         resource_id=p or s)
+
+
+@router.post("/rdc/compose", dependencies=[Depends(require_operator)])
+def rdc_compose_endpoint(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
+    from core import rdc
+    eap = body.get("eap") or {}
+    target_os = str(body.get("target_os") or "linux")
+    target_arch = str(body.get("target_arch") or "amd64")
+    edition = str(body.get("edition") or "community")
+    license_tier = str(body.get("license_tier") or "")
+    dry_run = bool(body.get("dry_run", False))
+    res = rdc.compose(eap=eap, target_os=target_os, target_arch=target_arch,
+                      edition=edition, license_tier=license_tier, dry_run=dry_run)
+    if not res.get("ok"):
+        raise ApiError("VALIDATION_FAILED", res.get("error", "rdc compose failed"), details=res)
+    return from_request(request, res, resource="packaging")
+
+
+@router.post("/rdc/validate", dependencies=[Depends(require_operator)])
+def rdc_validate_endpoint(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
+    from core import rdc
+    edition = str(body.get("edition") or "community")
+    files = list(body.get("files") or [])
+    res = rdc.validate_ip(edition=edition, files=files)
+    if not res.get("valid"):
+        raise ApiError("VALIDATION_FAILED", res.get("error", "IP leakage detected"), details=res)
+    return from_request(request, res, resource="packaging")

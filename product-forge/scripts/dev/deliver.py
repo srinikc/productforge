@@ -44,10 +44,11 @@ def _run_cmd(cmd: list[str], cwd: Path | str = _ROOT, check: bool = True) -> sub
 
 
 def deliver_plane_a(item_id: str, scope: str = "product_forge", project: str | None = None,
-                    push: bool = True, delete_branch: bool = True) -> dict:
+                    push: bool = True, delete_branch: bool = True, create_pr: bool = False) -> dict:
     """Execute complete, hook-compliant delivery for a completed Plane A work item."""
-    from core import backlog
     import finalize_item
+
+    from core import backlog
 
     # 1. Determine active branch
     cur_branch = _run_cmd(["git", "branch", "--show-current"]).stdout.strip()
@@ -119,20 +120,71 @@ def deliver_plane_a(item_id: str, scope: str = "product_forge", project: str | N
     if audit_res.returncode != 0:
         raise RuntimeError(f"wired_audit failed: {audit_res.stderr or audit_res.stdout}")
 
-    # 8. Controlled merge into develop
     target_branch = "develop"
+    title = str(it.get("title") or item_id)
+
+    # 8. If PR delivery requested, push branch and create GitHub Pull Request
+    if create_pr:
+        print(f"[Deliver] Pushing feature branch {cur_branch} to origin/{cur_branch}...")
+        _run_cmd(["git", "push", "-u", "origin", cur_branch])
+        print(f"[Deliver] Creating GitHub Pull Request targeting {target_branch}...")
+        body = (
+            f"## Delivery: {item_id}\n\n"
+            f"**{title}**\n\n"
+            f"- **Problem/Brief**: {((it.get('brief') or {}).get('problem') or 'N/A')}\n"
+            f"- **Precheck**: PASS (diff-scoped fast tier)\n"
+            f"- **Gate 2.5 Delivery Review**: APPROVE\n"
+            f"- **Verification**: All acceptance criteria verified against dedicated test suite\n"
+        )
+        pr_cmd = ["gh", "pr", "create", "--base", target_branch, "--head", cur_branch,
+                  "--title", f"feat({item_id}): {title}", "--body", body]
+        pr_res = _run_cmd(pr_cmd, check=False)
+        pr_url = ""
+        pr_number = ""
+        if pr_res.returncode == 0:
+            pr_url = (pr_res.stdout or "").strip().splitlines()[-1]
+            pr_number = pr_url.rstrip("/").split("/")[-1]
+            print(f"[Deliver] Pull Request created: {pr_url} (#{pr_number})")
+        else:
+            view_res = _run_cmd(["gh", "pr", "view", cur_branch, "--json", "number,url"], check=False)
+            if view_res.returncode == 0 and view_res.stdout.strip():
+                try:
+                    pr_data = json.loads(view_res.stdout)
+                    pr_url = pr_data.get("url") or ""
+                    pr_number = str(pr_data.get("number") or "")
+                    print(f"[Deliver] Existing Pull Request found: {pr_url} (#{pr_number})")
+                except Exception:
+                    pass
+
+        # Record PR delivery provenance on item
+        backlog.set_delivery(scope, project, item_id, branch=cur_branch, pr=pr_number, pr_url=pr_url)
+        it_delivered = backlog.get_epic(scope, project, item_id)
+        if it_delivered and item_json_path.parent.exists():
+            with open(item_json_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(it_delivered, indent=2, ensure_ascii=False) + "\n")
+
+        print(f"[Deliver] SUCCESS: {item_id} PR created targeting {target_branch}: {pr_url}")
+        return {
+            "ok": True,
+            "item": item_id,
+            "branch": cur_branch,
+            "target": target_branch,
+            "pr": pr_number,
+            "pr_url": pr_url
+        }
+
+    # 9. Controlled merge into develop (direct Plane A lane)
     print(f"[Deliver] Switching to {target_branch} and merging {cur_branch} (--no-ff)...")
     _run_cmd(["git", "checkout", target_branch])
-    title = str(it.get("title") or item_id)
     merge_msg = f"feat: merge {item_id} {title}"
     _run_cmd(["git", "merge", "--no-ff", cur_branch, "-m", merge_msg])
 
-    # 9. Push to remote
+    # 10. Push to remote
     if push:
         print(f"[Deliver] Pushing {target_branch} to origin/{target_branch}...")
         _run_cmd(["git", "push", "origin", target_branch])
 
-    # 10. Record delivery provenance
+    # 11. Record delivery provenance
     merge_sha = _run_cmd(["git", "rev-parse", "HEAD"]).stdout.strip()[:8]
     print(f"[Deliver] Recording delivery provenance on {item_id} (merge_sha={merge_sha}, branch={cur_branch})...")
     backlog.set_delivery(scope, project, item_id, branch=cur_branch, merge_sha=merge_sha)
@@ -143,7 +195,7 @@ def deliver_plane_a(item_id: str, scope: str = "product_forge", project: str | N
         with open(item_json_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(it_delivered, indent=2, ensure_ascii=False) + "\n")
 
-    # 11. Clean up local feature branch
+    # 12. Clean up local feature branch
     if delete_branch:
         print(f"[Deliver] Cleaning up local feature branch {cur_branch}...")
         _run_cmd(["git", "branch", "-d", cur_branch], check=False)
@@ -164,6 +216,7 @@ def main(argv=None) -> int:
     ap.add_argument("--scope", default="product_forge")
     ap.add_argument("--project", default="")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--pr", action="store_true", help="Plane A: push branch and create GitHub Pull Request")
     ap.add_argument("--no-push", action="store_true", help="Plane A: skip pushing to origin")
     ap.add_argument("--no-delete-branch", action="store_true", help="Plane A: keep local feature branch")
     a = ap.parse_args(argv)
@@ -172,7 +225,8 @@ def main(argv=None) -> int:
         try:
             res = deliver_plane_a(
                 a.item, scope=a.scope, project=a.project or None,
-                push=not a.no_push, delete_branch=not a.no_delete_branch
+                push=not a.no_push, delete_branch=not a.no_delete_branch,
+                create_pr=a.pr
             )
             print(json.dumps(res, indent=2))
             return 0

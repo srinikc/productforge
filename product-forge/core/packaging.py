@@ -651,3 +651,18 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
         "subsystems_excluded": list(exclude_subsystems or []),
         "sbom": sb
     }
+
+
+def rdc_compose(eap: dict[str, Any] | None = None, target_os: str = "linux",
+                target_arch: str = "amd64", edition: str = "community",
+                license_tier: str = "", dry_run: bool = False) -> dict[str, Any]:
+    """Invoke the Runtime Dependency Compiler (A5) via native Go seam."""
+    from core import rdc
+    return rdc.compose(eap=eap, target_os=target_os, target_arch=target_arch,
+                       edition=edition, license_tier=license_tier, dry_run=dry_run)
+
+
+def rdc_validate_ip(edition: str = "community", files: list[str] | None = None) -> dict[str, Any]:
+    """Validate zero raw .py sources for customer editions via the authoritative Go IP guard."""
+    from core import rdc
+    return rdc.validate_ip(edition=edition, files=files)
