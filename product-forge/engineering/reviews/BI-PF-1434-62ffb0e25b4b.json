@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1434",
+  "sha": "62ffb0e25b4b",
+  "model": "gemini-3-flash-preview",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T04:21:54.966089+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "963ce192500bef31efc7a04cb20ca0dd01b9737c",
+  "findings": {
+    "BLOCKER": [
+      "The implementation uses `trashed=true` (soft-delete) for collisions and deletions, violating the explicit Acceptance Criteria and Design approach requiring \"permanent delete\" to prevent data loss/silent overwrite.",
+      "`retireSuperseded` and `Delete` ignore errors from the `Do` call and `EnsureOK` check (lines 323, 330, 448), risking silent failure where multiple active files remain for a single key.",
+      "`Put` reads the entire payload into memory (`io.ReadAll` or `make([]byte, size)`) before upload, violating the \"True Streaming Delivery\" claim in `docs/GDRIVE-ADAPTER.md` and creating OOM risk for large objects."
+    ],
+    "MAJOR": [
+      "`ListPage` and `List` do not implement the \"paginated folder walk\" required by AC; they rely on a flat `files.list` which may return inconsistent results if the index is not yet updated after a `Put`.",
+      "`Put` performs a \"Write-Then-Delete\" sequence that is not atomic; a failure after upload but before trashing old versions leaves the store in an inconsistent state with duplicate active files for one key.",
+      "`findActiveFile` selects the newest file by `ModifiedTime` string comparison (line 207), which is unreliable for near-simultaneous writes; it should use the `version` or `id` sequence."
+    ],
+    "MINOR": [
+      "`boundProperty` silently truncates keys at 100 bytes (line 164), which can lead to different logical keys mapping to the same `pf_key` property, breaking metadata-based lookups.",
+      "`TestGDriveStore_Conformance` uses a 15-second timeout which may be insufficient for a full conformance suite against a mock server with network overhead in CI environments.",
+      "`AuthFromToken` returns `nil` for empty tokens, but `New` does not validate that `cfg.Auth` is non-nil when not in a mock environment, potentially sending unauthenticated requests."
+    ],
+    "NIT": [
+      "`multipartBoundary` is hardcoded; using a random suffix per request is standard practice to avoid collision with payload content.",
+      "`DefaultBaseURL` is defined but `New` allows an empty `BaseURL` to default to it, while `UploadBaseURL` defaults to `base`, creating slight configuration ambiguity."
+    ],
+    "SUMMARY": [
+      "The adapter fails the \"permanent delete\" and \"paginated walk\" ACs, opting for soft-deletes and flat listings that compromise the deterministic key-to-fileID model. The lack of true streaming in `Put` introduces significant scalability risks for enterprise workloads."
+    ]
+  }
+}
