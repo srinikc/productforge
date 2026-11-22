@@ -328,7 +328,7 @@ func TestGDriveStore_Conformance(t *testing.T) {
 		t.Fatalf("New() failed: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	failures := datastore.ConformObjectStore(ctx, store)

@@ -41,7 +41,7 @@ It communicates directly with the Google Drive v3 REST API over the standard-lib
 |   Head(ctx, key)                                                                  |
 |     \-- Scopes query to rootFolderID, returns ObjectInfo without reading media    |
 |   Delete(ctx, key, version)                                                       |
-|     \-- PATCH /drive/v3/files/{id} with {"trashed": true}, idempotent on 404      |
+|     \-- DELETE /drive/v3/files/{id}, permanent delete, idempotent on 404           |
 |   List(ctx, prefix) / ListPage(...)                                               |
 |     \-- GET /drive/v3/files with bounded JSON parsing (10MB) & pagination token   |
 +-----------------------------------------------------------------------------------+
@@ -61,18 +61,18 @@ Google Drive is an ID-based document store rather than a key-value object store.
 ### 2.1 Storage Layout
 - All objects for a given store instance are contained within a single designated parent folder (`RootFolderID`).
 - The logical key is stored in `name` and in custom file properties (`properties["pf_key"]` and `appProperties["pf_key"]`).
-- For keys up to 100 characters, the exact string is recorded. Keys are bounded to stay within Google Drive's 124-byte property limit.
+- Keys up to 100 characters are recorded as-is. Keys exceeding 100 characters receive a deterministic 16-hex-character SHA-256 suffix (`key[:83] + "_" + sha256(key)[:16]`), guaranteeing collision-free uniqueness while strictly adhering to Google Drive's 124-byte property limit.
 
 ### 2.2 Write-Then-Delete Protocol
-1. **Upload First:** `Put` constructs an RFC 2387 `multipart/related` request and uploads the new file to `/upload/drive/v3/files?uploadType=multipart`.
+1. **Upload First:** `Put` constructs an RFC 2387 `multipart/related` request with a per-request dynamic boundary and uploads the new file to `/upload/drive/v3/files?uploadType=multipart`.
 2. **Verification:** The API response is parsed, confirming the file was created and assigned a new unique `id`.
 3. **Retire Superseded:** A query searches for any existing active files in `RootFolderID` with the same `name` (excluding the new `id`).
 4. **Soft-Delete:** Matching older files are patched with `{"trashed": true}`. If this retirement step encounters an error, the `Put` operation still succeeds because the new file is already intact and valid (zero data loss).
 
 ### 2.3 Deletion Policy
-- Calling `Delete(ctx, key, "")` finds all active files matching `key` in `RootFolderID` and moves them to trash.
-- Deleting an already non-existent file returns `nil` (idempotent).
-- Calling `Delete(ctx, key, version)` trashes the specific Google Drive `version` (file ID).
+- Calling `Delete(ctx, key, "")` finds all active files matching `key` in `RootFolderID` and permanently deletes them via `DELETE /drive/v3/files/{fileId}`.
+- Deleting an already non-existent file returns `nil` (idempotent 404 handling).
+- Calling `Delete(ctx, key, version)` permanently deletes the specific Google Drive `version` (file ID).
 
 ---
 

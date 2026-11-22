@@ -136,12 +136,14 @@ func escapeSearchString(v string) string {
 	return strings.ReplaceAll(v, "'", "\\'")
 }
 
-// boundProperty ensures custom property values remain strictly within Google Drive's 124-byte limit.
-func boundProperty(val string, maxLen int) string {
-	if len(val) <= maxLen {
-		return val
+// boundKey ensures custom property values remain strictly within Google Drive's 124-byte limit
+// while guaranteeing uniqueness for keys exceeding 100 bytes via a deterministic SHA256 suffix.
+func boundKey(key string) string {
+	if len(key) <= 100 {
+		return key
 	}
-	return val[:maxLen]
+	sum := objstorerest.SHA256Hex([]byte(key))
+	return key[:83] + "_" + sum[:16]
 }
 
 // driveFile represents the Google Drive v3 file resource wire model.
@@ -192,10 +194,11 @@ func (s *Store) findActiveFile(ctx context.Context, key string) (*driveFile, err
 		return nil, objstorerest.ErrNotFound
 	}
 
-	// If multiple active files exist, select the newest by modifiedTime / createdTime
+	// If multiple active files exist, select the newest by modifiedTime / createdTime, with ID as tie-breaker
 	selected := &fl.Files[0]
 	for i := 1; i < len(fl.Files); i++ {
-		if fl.Files[i].ModifiedTime > selected.ModifiedTime {
+		if fl.Files[i].ModifiedTime > selected.ModifiedTime ||
+			(fl.Files[i].ModifiedTime == selected.ModifiedTime && fl.Files[i].ID > selected.ID) {
 			selected = &fl.Files[i]
 		}
 	}
@@ -252,16 +255,18 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 		return datastore.ObjectInfo{}, fmt.Errorf("gdrivestore: checksum mismatch: declared %s, computed %s", opts.Checksum, sum)
 	}
 
+	boundary := fmt.Sprintf("ProductForgeGDriveBoundary%d", time.Now().UnixNano())
+
 	// Build RFC 2387 multipart/related body
 	metadata := driveFile{
 		Name:     key,
 		MimeType: ct,
 		Properties: map[string]string{
-			keyProp:      boundProperty(key, 100),
+			keyProp:      boundKey(key),
 			checksumProp: sum,
 		},
 		AppProperties: map[string]string{
-			keyProp:      boundProperty(key, 100),
+			keyProp:      boundKey(key),
 			checksumProp: sum,
 		},
 	}
@@ -283,18 +288,18 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 	}
 
 	var bodyBuf bytes.Buffer
-	bodyBuf.WriteString("--" + multipartBoundary + "\r\n")
+	bodyBuf.WriteString("--" + boundary + "\r\n")
 	bodyBuf.WriteString("Content-Type: application/json; charset=UTF-8\r\n\r\n")
 	bodyBuf.Write(metaJSON)
-	bodyBuf.WriteString("\r\n--" + multipartBoundary + "\r\n")
+	bodyBuf.WriteString("\r\n--" + boundary + "\r\n")
 	bodyBuf.WriteString("Content-Type: " + ct + "\r\n\r\n")
 	bodyBuf.Write(payload)
-	bodyBuf.WriteString("\r\n--" + multipartBoundary + "--\r\n")
+	bodyBuf.WriteString("\r\n--" + boundary + "--\r\n")
 
 	uploadBytes := bodyBuf.Bytes()
 	uploadURL := fmt.Sprintf("%s/upload/drive/v3/files?uploadType=multipart", s.uploadBaseURL)
 	headers := map[string]string{
-		"Content-Type":   "multipart/related; boundary=" + multipartBoundary,
+		"Content-Type":   "multipart/related; boundary=" + boundary,
 		"Content-Length": strconv.Itoa(len(uploadBytes)),
 	}
 
@@ -328,7 +333,7 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 }
 
 // retireSuperseded finds and trashes any older active files matching key in rootFolderID except exceptID.
-func (s *Store) retireSuperseded(ctx context.Context, key, exceptID string) {
+func (s *Store) retireSuperseded(ctx context.Context, key, exceptID string) error {
 	q := fmt.Sprintf("'%s' in parents and name = '%s' and trashed = false",
 		escapeSearchString(s.rootFolderID), escapeSearchString(key))
 
@@ -337,17 +342,17 @@ func (s *Store) retireSuperseded(ctx context.Context, key, exceptID string) {
 
 	resp, err := s.client.Do(ctx, http.MethodGet, u, nil, nil, nil)
 	if err != nil {
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return
+		return s.client.EnsureOK(resp)
 	}
 
 	var fl driveFileList
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxListBytes)).Decode(&fl); err != nil {
-		return
+		return err
 	}
 
 	for _, f := range fl.Files {
@@ -359,11 +364,18 @@ func (s *Store) retireSuperseded(ctx context.Context, key, exceptID string) {
 				"Content-Length": strconv.Itoa(len(patchBody)),
 			}
 			pResp, pErr := s.client.Do(ctx, http.MethodPatch, patchURL, bytes.NewReader(patchBody), nil, patchHeaders)
-			if pErr == nil {
-				_ = pResp.Body.Close()
+			if pErr != nil {
+				return pErr
+			}
+			defer pResp.Body.Close()
+			if pResp.StatusCode != http.StatusNotFound {
+				if err := s.client.EnsureOK(pResp); err != nil {
+					return err
+				}
 			}
 		}
 	}
+	return nil
 }
 
 // Get streams an object over HTTP directly without in-memory buffering.
@@ -440,7 +452,7 @@ func (s *Store) Head(ctx context.Context, key string) (datastore.ObjectInfo, err
 	return s.fileToObjectInfo(f, key), nil
 }
 
-// Delete marks matching file(s) as trashed (native Google Drive soft-delete with 30-day recovery window).
+// Delete permanently removes matching file(s) (satisfying AC-1 permanent delete).
 // Deleting a non-existent object is idempotent (returns nil).
 func (s *Store) Delete(ctx context.Context, key, version string) error {
 	if strings.TrimSpace(key) == "" {
@@ -448,13 +460,8 @@ func (s *Store) Delete(ctx context.Context, key, version string) error {
 	}
 
 	if version != "" {
-		patchBody := []byte(`{"trashed":true}`)
 		u := fmt.Sprintf("%s/drive/v3/files/%s", s.baseURL, url.PathEscape(version))
-		headers := map[string]string{
-			"Content-Type":   "application/json",
-			"Content-Length": strconv.Itoa(len(patchBody)),
-		}
-		resp, err := s.client.Do(ctx, http.MethodPatch, u, bytes.NewReader(patchBody), nil, headers)
+		resp, err := s.client.Do(ctx, http.MethodDelete, u, nil, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -491,19 +498,14 @@ func (s *Store) Delete(ctx context.Context, key, version string) error {
 
 	for _, f := range fl.Files {
 		if f.ID != "" {
-			patchBody := []byte(`{"trashed":true}`)
-			patchURL := fmt.Sprintf("%s/drive/v3/files/%s", s.baseURL, url.PathEscape(f.ID))
-			headers := map[string]string{
-				"Content-Type":   "application/json",
-				"Content-Length": strconv.Itoa(len(patchBody)),
+			delURL := fmt.Sprintf("%s/drive/v3/files/%s", s.baseURL, url.PathEscape(f.ID))
+			dResp, dErr := s.client.Do(ctx, http.MethodDelete, delURL, nil, nil, nil)
+			if dErr != nil {
+				return dErr
 			}
-			pResp, pErr := s.client.Do(ctx, http.MethodPatch, patchURL, bytes.NewReader(patchBody), nil, headers)
-			if pErr != nil {
-				return pErr
-			}
-			defer pResp.Body.Close()
-			if pResp.StatusCode != http.StatusNotFound {
-				if err := s.client.EnsureOK(pResp); err != nil {
+			defer dResp.Body.Close()
+			if dResp.StatusCode != http.StatusNotFound {
+				if err := s.client.EnsureOK(dResp); err != nil {
 					return err
 				}
 			}
