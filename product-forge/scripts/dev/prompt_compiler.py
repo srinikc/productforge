@@ -153,10 +153,21 @@ def verify_no_plaintext_prompts(
     return leaks
 
 
-def resolve_compiler_config(config_path: Optional[Path | str] = None) -> dict:
+# Binary Bundle Layout Schema v1 (PFA1):
+# [Magic: 4 bytes "PFA1"][Version: 2 bytes uint16][Salt: 16 bytes][Nonce: 12 bytes][Ciphertext + 16-byte GCM Tag]
+# Compatible with Go package productforge/promptcompiler (go/promptcompiler/compiler.go).
+
+
+def resolve_compiler_config(config_path: Optional[Path | str] = None, allow_default_key: bool = True) -> dict:
     """Resolve compiler configuration, prompt directories, and master encryption key."""
     env_key = os.environ.get("PF_PROMPT_KEY")
-    master_key = env_key.encode("utf-8") if env_key else b"pf-default-asset-compiler-key-32"
+    if not env_key:
+        if not allow_default_key:
+            raise ValueError("FAIL-CLOSED: PF_PROMPT_KEY environment variable is required for production asset compilation.")
+        master_key = b"pf-default-asset-compiler-key-32"
+    else:
+        master_key = env_key.encode("utf-8")
+
     return {
         "master_key": master_key,
         "input_dir": Path("templates/prompts"),
