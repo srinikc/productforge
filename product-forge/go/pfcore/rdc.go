@@ -111,14 +111,14 @@ func ValidateIPLeakage(req WireRequest) WireResponse {
 	}
 
 	return response(req, valid, status, map[string]any{
-		"valid":            valid,
-		"edition":          edition,
-		"is_customer":      isCustomer,
-		"checked_files":    len(files),
-		"unmet":            unmet,
-		"leaking_files":    leakingFiles,
-		"ip_zone":          "A",
-		"evaluated_at":     time.Now().UTC().Format(time.RFC3339),
+		"valid":         valid,
+		"edition":       edition,
+		"is_customer":   isCustomer,
+		"checked_files": len(files),
+		"unmet":         unmet,
+		"leaking_files": leakingFiles,
+		"ip_zone":       "A",
+		"evaluated_at":  time.Now().UTC().Format(time.RFC3339),
 	}, errMsg)
 }
 
@@ -268,20 +268,20 @@ func Compose(req WireRequest) WireResponse {
 	}
 
 	composition := map[string]any{
-		"schema":             RDCCompositionSchema,
-		"edition":            edition,
-		"tier":               licenseTier,
-		"target_os":          targetOS,
-		"target_arch":        targetArch,
-		"target_platform":    targetOS + "/" + targetArch,
-		"dry_run":            dryRun,
-		"components":         components,
-		"native_binaries":    []string{binName},
-		"shared_libraries":   []string{coreRuntimeLib, apiRuntimeLib},
-		"checksums":          checksums,
-		"ip_zone":            "A",
-		"ip_guard_verified":  true,
-		"generated_at":       time.Now().UTC().Format(time.RFC3339),
+		"schema":            RDCCompositionSchema,
+		"edition":           edition,
+		"tier":              licenseTier,
+		"target_os":         targetOS,
+		"target_arch":       targetArch,
+		"target_platform":   targetOS + "/" + targetArch,
+		"dry_run":           dryRun,
+		"components":        components,
+		"native_binaries":   []string{binName},
+		"shared_libraries":  []string{coreRuntimeLib, apiRuntimeLib},
+		"checksums":         checksums,
+		"ip_zone":           "A",
+		"ip_guard_verified": true,
+		"generated_at":      time.Now().UTC().Format(time.RFC3339),
 	}
 
 	return response(req, true, "ok", composition, "")
