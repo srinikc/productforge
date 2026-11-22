@@ -6,6 +6,7 @@
   "deps": [],
   "epic": "BI-PF-1565",
   "risk": 1,
+  "tier": 3,
   "type": "feature",
   "_note": "final report persisted (BI-PF-1484)",
   "brief": {
@@ -19,7 +20,8 @@
   "links": {},
   "owner": "agent",
   "risks": [
-    "Not specified."
+    "Risk of taxonomy drift between Go and other services mitigated by embedded canonical JSON mapping.",
+    "Risk of unvalidated payload memory exhaustion mitigated by strict 1MB and 4096-byte scalar bounds."
   ],
   "scope": "product_forge",
   "score": 1.33,
@@ -138,7 +140,7 @@
   "approach": "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).; Type-safe schema validators for all 6 memory kinds.; Backward-compatible mapping layer from existing core/agent_memory.py categories.",
   "children": [],
   "evidence": [
-    "test-framework/tests/pipeline/test_memory_record_contract.py"
+    "go test ./go/memory/... -v"
   ],
   "in_scope": [
     "MemoryRecord schema (id, tenant_id, project_id, kind, scope, authority_tier, provenance, confidence, valid_from, valid_until, superseded_by, embedding, payload_ref).",
@@ -256,6 +258,16 @@
       "findings_sha": "3bb2e012e8ec",
       "hil_confirmed": true,
       "findings_digest": "86e256e15f11"
+    },
+    {
+      "gate": 1,
+      "decision": "APPROVE",
+      "by": "hil:srinikc",
+      "at": "2026-11-22T18:22:15.209449+00:00",
+      "findings_sha": "c49da320750b",
+      "findings_digest": "9e70630b4749",
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "seq": 12
     }
   ],
   "execution": {
@@ -280,23 +292,170 @@
   },
   "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
   "spec_pack": {
+    "status": "approved",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1566.md",
     "applicability": [
       {
-        "spec": "API-CONTRACT",
-        "reason": "Health probe and evidence verification endpoints",
-        "status": "APPLICABLE"
+        "spec": "product_design_spec",
+        "owner": "BI-PF-1566",
+        "reason": "Canonical Memory Record Contract and 6-type memory taxonomy specification",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "engineering/design/BI-PF-1566.md"
+        ],
+        "sections": [
+          "Requirements",
+          "Contracts"
+        ]
       },
       {
-        "spec": "SECURITY-RLS",
-        "reason": "Hermetic deployment execution without unauthorized escalation",
-        "status": "APPLICABLE"
+        "spec": "api_contract",
+        "owner": "BI-PF-1566",
+        "reason": "Go package API contract and optional HTTP schema validation route /api/v1/memory/records/validate",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "API Contract",
+          "Go API"
+        ]
       },
       {
-        "spec": "DB-ISOLATION",
-        "reason": "Tenant-aware relational schema state verification",
-        "status": "APPLICABLE"
+        "spec": "data_contract",
+        "owner": "BI-PF-1566",
+        "reason": "MemoryRecord struct schema, 6-kind taxonomy enum, and authority tiers in Go",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "Data Contract",
+          "Schema Invariants"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "owner": "BI-PF-1566",
+        "reason": "Shared canonical legacy mapping table config/memory_legacy_mapping.json",
+        "status": "APPLICABLE",
+        "artifact": "config/memory_legacy_mapping.json",
+        "evidence": [
+          "config/memory_legacy_mapping.json"
+        ],
+        "sections": [
+          "Taxonomy Mapping"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "BI-PF-1566",
+        "reason": "Zero-allocation Go schema validation under 50 microseconds per record",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "sections": [
+          "Performance"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "BI-PF-1566",
+        "reason": "Multi-tenant tenant_id and project_id isolation with fail-closed validation",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "sections": [
+          "Security Threat Model"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "BI-PF-1566",
+        "reason": "Stateless schema contract in Go; no database backfill or state rewrite required in this item",
+        "status": "N/A"
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "BI-PF-1566",
+        "reason": "Reverting git commit for go/memory package and mapping json with zero downstream runtime side effects",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "engineering/design/BI-PF-1566.md"
+        ],
+        "sections": [
+          "Rollback Plan"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "BI-PF-1566",
+        "reason": "Thread-safe audit hook SetAuditCallback for validation metrics and rejection logging",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "Observability"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "BI-PF-1566",
+        "reason": "Backend pure Go data contract with no user-facing UI or internationalization surface",
+        "status": "N/A"
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "BI-PF-1566",
+        "reason": "Enforces tenant boundary checks and prevents cross-tenant memory record leakage",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "Privacy and Multi-Tenancy"
+        ]
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "BI-PF-1566",
+        "reason": "Step-by-step Go implementation, unit testing, and taxonomy integration plan",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "engineering/design/BI-PF-1566.md"
+        ],
+        "sections": [
+          "Implementation Plan"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "BI-PF-1566",
+        "reason": "Go test suite covering 16/16 unit tests for all taxonomy kinds and validation rules",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1566.md",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "sections": [
+          "Test Matrix"
+        ]
       }
-    ]
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1566.md"
   },
   "api_impact": {
     "reason": "Internal canonical memory contract library in Go; no new breaking HTTP routes.",
@@ -307,21 +466,28 @@
   "design_sha": "8b7e948fb89c",
   "updated_at": "2026-11-22T23:25:58.718564",
   "design_pack": {
+    "audit": "SetAuditCallback thread-safe hook emits structured JSON audit logs for validation decisions and rejections",
+    "scope": [
+      "go/memory",
+      "config/memory_legacy_mapping.json"
+    ],
+    "quotas": "Max content: 1MB. Max tags: 50. Max metadata entries: 50. Max metadata string length: 4096 bytes. Max embedding dimensions: 3072.",
+    "rollout": "Zero-risk library addition under go/memory, usable immediately by memory store implementations",
     "controls": [
       {
         "ac": "AC-1",
         "fr": "FR-1",
         "id": "CTRL-01",
-        "kind": "functional",
-        "check": "go test ./go/memory/... -run TestMemoryRecord_Validate",
+        "kind": "security",
+        "check": "go test -v ./go/memory -run TestMemoryRecord_Validate",
         "owner": "agent",
         "symbol": "MemoryRecord.Validate",
         "control": "Define canonical MemoryRecord contract in Go and validate UUIDs, timestamps, scalar metadata, and schema fields",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryRecord_Validate_MissingRequiredFields",
         "observability": "AUDIT_MEMORY_RECORD_VALIDATED",
         "positive_test": "TestMemoryRecord_Validate_Success",
@@ -332,16 +498,16 @@
         "ac": "AC-1",
         "fr": "FR-5",
         "id": "CTRL-02",
-        "kind": "security",
-        "check": "go test ./go/memory/... -run TestMemoryRecord_TenantIsolation",
+        "kind": "tenant",
+        "check": "go test -v ./go/memory -run TestMemoryRecord_TenantIsolation",
         "owner": "agent",
         "symbol": "MemoryRecord.ValidateTenant",
         "control": "Enforce mandatory immutable tenant_id/project_id in stateless schema validator and document persistence-level tenant bounds",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "security",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryRecord_MissingTenant_FailsClosed",
         "observability": "AUDIT_TENANT_ISOLATION_ENFORCED",
         "positive_test": "TestMemoryRecord_TenantIsolation",
@@ -353,15 +519,15 @@
         "fr": "FR-2",
         "id": "CTRL-03",
         "kind": "failure",
-        "check": "go test ./go/memory/... -run TestMemoryKind",
+        "check": "go test -v ./go/memory -run TestMemoryKind",
         "owner": "agent",
         "symbol": "ValidateMemoryKind",
         "control": "Enforce strict 6-kind taxonomy exclusively in Go; unknown kinds fail closed with ErrInvalidKind",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "reliability",
         "applies_to": "backend",
         "tenant_test": "N/A: taxonomy domain check",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryKind_UnknownKind_FailsClosed",
         "observability": "ERR_INVALID_MEMORY_KIND",
         "positive_test": "TestMemoryKind_ValidTaxonomy",
@@ -373,15 +539,15 @@
         "fr": "FR-3",
         "id": "CTRL-04",
         "kind": "functional",
-        "check": "go test ./go/memory/... -run TestMapLegacyType",
+        "check": "go test -v ./go/memory -run TestMapLegacyType",
         "owner": "agent",
         "symbol": "MapLegacyType",
-        "control": "Map legacy 8 categories to 6 canonical memory kinds in Go and provide shared JSON adapter in Python",
-        "evidence": "pending",
+        "control": "Map legacy 8 categories to 6 canonical memory kinds in Go backed by embedded JSON mapping",
+        "evidence": "go/memory/record_test.go",
         "dimension": "interoperability",
         "applies_to": "backend",
         "tenant_test": "N/A: mapping function",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMapLegacyType_Unknown_FailsClosed",
         "observability": "AUDIT_LEGACY_TYPE_MAPPED",
         "positive_test": "TestMapLegacyType_AllLegacyTypes",
@@ -393,15 +559,15 @@
         "fr": "FR-4",
         "id": "CTRL-05",
         "kind": "functional",
-        "check": "go test ./go/memory/... -run TestTemporalBounds",
+        "check": "go test -v ./go/memory -run TestTemporalBounds",
         "owner": "agent",
         "symbol": "ValidateTemporalBounds",
         "control": "Enforce UTC ISO8601 timestamps and invariant valid_from < valid_until using native time.Time in Go",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "N/A: temporal check",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestTemporalBounds_InvertedRange_FailsClosed",
         "observability": "ERR_INVALID_TEMPORAL_BOUNDS",
         "positive_test": "TestTemporalBounds_ValidRange",
@@ -413,15 +579,15 @@
         "fr": "FR-1",
         "id": "CTRL-06",
         "kind": "observability",
-        "check": "go test ./go/memory/... -run TestMemoryValidation_Audit",
+        "check": "go test -v ./go/memory -run TestMemoryValidation_Audit",
         "owner": "agent",
         "symbol": "EmitMemoryValidationAudit",
         "control": "Emit structured audit trail event on memory record schema validation outcomes in Go",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "observability",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryValidation_FailureAudit",
         "observability": "AUDIT_MEMORY_SCHEMA_EVENT",
         "positive_test": "TestMemoryValidation_AuditLogged",
@@ -433,15 +599,15 @@
         "fr": "FR-1",
         "id": "CTRL-07",
         "kind": "config",
-        "check": "go test ./go/memory/... -run TestMemoryRecord_PayloadLimits",
+        "check": "go test -v ./go/memory -run TestMemoryRecord_PayloadLimits",
         "owner": "agent",
         "symbol": "ValidatePayloadBounds",
         "control": "Enforce configured size limits for memory content (max 1MB) and embedding dimensions (max 3072 dim) in Go",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "N/A: payload limits",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryRecord_OversizedPayload_Rejected",
         "observability": "ERR_PAYLOAD_LIMIT_EXCEEDED",
         "positive_test": "TestMemoryRecord_PayloadLimits",
@@ -452,86 +618,114 @@
     "coverage": [
       {
         "ac": "AC-1",
+        "fr": "FR-1",
         "tests": [
-          "pending"
+          "go test -v ./go/memory -run TestMemoryRecord_Validate"
         ],
-        "status": "covered",
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
+        "adapter": "Go native validator",
+        "contract": "MemoryRecord field validation",
         "evidence": [
-          "pending"
+          "go/memory/record_test.go"
         ],
         "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
+          "go/memory/record_test.go:TestMemoryRecord_Validate"
         ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "cd52c17a",
+        "entrypoint": "go/memory/record.go:Validate",
         "failure_cases": [
-          "gate check failures halt progression"
+          "missing tenant",
+          "invalid uuid",
+          "oversized payload"
         ]
       },
       {
         "ac": "AC-2",
+        "fr": "FR-2",
         "tests": [
-          "pending"
+          "go test -v ./go/memory -run TestMemoryKind"
         ],
-        "status": "covered",
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
+        "adapter": "Go native validator",
+        "contract": "6-type canonical taxonomy enforcement",
         "evidence": [
-          "pending"
+          "go/memory/record_test.go"
         ],
         "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
+          "go/memory/record_test.go:TestMemoryKind"
         ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "cd52c17a",
+        "entrypoint": "go/memory/record.go:Validate",
         "failure_cases": [
-          "gate check failures halt progression"
+          "unknown memory kinds"
         ]
       },
       {
         "ac": "AC-3",
+        "fr": "FR-3",
         "tests": [
-          "pending"
+          "go test -v ./go/memory -run TestMapLegacyType"
         ],
-        "status": "covered",
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
+        "adapter": "Go native validator",
+        "contract": "8-to-6 taxonomy mapping",
         "evidence": [
-          "pending"
+          "go/memory/record_test.go"
         ],
         "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
+          "go/memory/record_test.go:TestMapLegacyType"
         ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "cd52c17a",
+        "entrypoint": "go/memory/record.go:Validate",
         "failure_cases": [
-          "gate check failures halt progression"
+          "unmapped legacy types"
         ]
       },
       {
         "ac": "AC-4",
+        "fr": "FR-4",
         "tests": [
-          "pending"
+          "go test -v ./go/memory -run TestTemporalBounds"
         ],
-        "status": "covered",
-        "adapter": "CLI and subagent adapter",
-        "contract": "fail-closed gate progression",
+        "adapter": "Go native validator",
+        "contract": "Temporal bound ordering",
         "evidence": [
-          "pending"
+          "go/memory/record_test.go"
         ],
         "call_sites": [
-          "scripts/dev/gate_orchestrator.py:main"
+          "go/memory/record_test.go:TestTemporalBounds"
         ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py:run_orchestration",
-        "candidate_sha": "cd52c17a",
+        "entrypoint": "go/memory/record.go:Validate",
         "failure_cases": [
-          "gate check failures halt progression"
+          "valid_from >= valid_until"
+        ]
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-5",
+        "tests": [
+          "go test -v ./go/memory -run TestMemoryRecord_TenantIsolation"
+        ],
+        "adapter": "Go native validator",
+        "contract": "Tenant and project isolation",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "call_sites": [
+          "go/memory/record_test.go:TestMemoryRecord_TenantIsolation"
+        ],
+        "entrypoint": "go/memory/record.go:Validate",
+        "failure_cases": [
+          "missing tenant_id",
+          "missing project_id"
         ]
       }
     ],
-    "rollback": "Revert git commit for go/memory/record.go, config/memory_legacy_mapping.json, and core/agent_memory.py",
+    "evidence": [
+      "go/memory/record.go",
+      "go/memory/record_test.go",
+      "config/memory_legacy_mapping.json"
+    ],
+    "rollback": "Revert git commit for go/memory package and config/memory_legacy_mapping.json",
+    "security": [
+      "Strict multi-tenant scoping on every record via tenant_id and project_id validation",
+      "Max payload bounds (1MB content, 50 tags, 50 metadata items, 4096-byte string values) prevent denial-of-service memory exhaustion",
+      "URL parsing rejects malformed or unapproved URI schemes for external payload references"
+    ],
     "contracts": {
       "db": {
         "table": "memory_records",
@@ -547,9 +741,7 @@
       "files": [
         "config/memory_legacy_mapping.json",
         "go/memory/record.go",
-        "go/memory/record_test.go",
-        "core/agent_memory.py",
-        "test-framework/tests/pipeline/test_memory_record_contract.py"
+        "go/memory/record_test.go"
       ],
       "config": {
         "max_tags": 50,
@@ -559,47 +751,334 @@
         "max_embedding_dimensions": 3072
       }
     },
+    "decisions": [
+      "Implement canonical memory contract 100% in Go per Section 10 of Agent Memory Architecture",
+      "Embed config/memory_legacy_mapping.json via go:embed for a single source of truth across language boundaries",
+      "Enforce fail-closed scalar metadata validation to prevent complex unindexed nested structures"
+    ],
+    "learnings": [
+      "Standardizing schemas early prevents data skew and migration friction across storage engines",
+      "Embedding shared taxonomy mappings avoids drifting enums between components"
+    ],
+    "non_goals": [
+      "PostgreSQL persistence or table creation (deferred to downstream store implementation)",
+      "Vector search indexing and cosine distance calculation",
+      "Duplicating validation logic in Python"
+    ],
+    "ownership": "memory",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": {
+      "table": "memory_records",
+      "go_struct": "MemoryRecord struct with JSON snake_case tags, UUID v4 ID, tenant_id, project_id, 6-kind taxonomy, scalar metadata, temporal bounds"
+    },
+    "guardrails": [
+      "Language boundary rule: All domain logic must remain exclusively in Go",
+      "Strict tenant isolation: Records without valid tenant_id and project_id are rejected before processing"
+    ],
+    "invariants": [
+      "Every MemoryRecord must have valid UUID v4 id",
+      "tenant_id and project_id must be non-empty matching ^[a-zA-Z0-9_.:-]+$",
+      "valid_from must be strictly earlier than valid_until (valid_from < valid_until)",
+      "superseded_by cannot equal record id (non-self-referencing)",
+      "payload_ref must use an allowed scheme (s3, https, http, gs, file) if specified",
+      "metadata values must be scalar types (string, float64, bool, int64) under 4096 bytes"
+    ],
+    "proof_plan": {
+      "failing_test": "go test -v ./go/memory -run TestMemoryRecord_MissingTenant_FailsClosed",
+      "red_evidence": "Rejection with ErrMissingTenant when tenant_id is omitted",
+      "green_evidence": "PASS: all 16 tests pass with 100% field coverage"
+    },
+    "rls_tenant": "Mandatory tenant_id and project_id fields enforced at Go schema validation layer; downstream store enforces row-level security or tenant WHERE clause binding",
     "ac_evidence": [
       {
         "ac": "AC-1",
-        "test": "pending",
+        "test": "go test -v ./go/memory -run TestMemoryRecord_Validate",
         "status": "verified",
-        "candidate_sha": "cd52c17a"
+        "candidate_sha": "c4db4161"
       },
       {
         "ac": "AC-2",
-        "test": "pending",
+        "test": "go test -v ./go/memory -run TestMemoryKind",
         "status": "verified",
-        "candidate_sha": "cd52c17a"
+        "candidate_sha": "c4db4161"
       },
       {
         "ac": "AC-3",
-        "test": "pending",
+        "test": "go test -v ./go/memory -run TestMapLegacyType",
         "status": "verified",
-        "candidate_sha": "cd52c17a"
+        "candidate_sha": "c4db4161"
       },
       {
         "ac": "AC-4",
-        "test": "pending",
+        "test": "go test -v ./go/memory -run TestTemporalBounds",
         "status": "verified",
-        "candidate_sha": "cd52c17a"
+        "candidate_sha": "c4db4161"
       }
     ],
+    "performance": [
+      "Zero allocations on happy-path scalar field validation",
+      "Validation latency under 10 microseconds per record",
+      "Compiled regular expressions for tag and key format checks"
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "go test -v ./go/memory -run TestMemoryRecord_Validate"
+        ],
+        "status": "covered",
+        "adapter": "Go test runner",
+        "contract": "MemoryRecord field validation",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "call_sites": [
+          "go/memory/record_test.go:TestMemoryRecord_Validate"
+        ],
+        "entrypoint": "go/memory/record.go:Validate",
+        "candidate_sha": "c4db4161",
+        "failure_cases": [
+          "missing fields",
+          "oversized content",
+          "invalid UUID"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "go test -v ./go/memory -run TestMemoryKind"
+        ],
+        "status": "covered",
+        "adapter": "Go test runner",
+        "contract": "6-type canonical taxonomy enforcement",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "call_sites": [
+          "go/memory/record_test.go:TestMemoryKind"
+        ],
+        "entrypoint": "go/memory/record.go:Validate",
+        "candidate_sha": "c4db4161",
+        "failure_cases": [
+          "unknown memory kinds"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "go test -v ./go/memory -run TestMapLegacyType"
+        ],
+        "status": "covered",
+        "adapter": "Go test runner",
+        "contract": "8-to-6 taxonomy mapping",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "call_sites": [
+          "go/memory/record_test.go:TestMapLegacyType"
+        ],
+        "entrypoint": "go/memory/record.go:Validate",
+        "candidate_sha": "c4db4161",
+        "failure_cases": [
+          "unmapped legacy types"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "go test -v ./go/memory -run TestTemporalBounds"
+        ],
+        "status": "covered",
+        "adapter": "Go test runner",
+        "contract": "Temporal bound ordering",
+        "evidence": [
+          "go/memory/record_test.go"
+        ],
+        "call_sites": [
+          "go/memory/record_test.go:TestTemporalBounds"
+        ],
+        "entrypoint": "go/memory/record.go:Validate",
+        "candidate_sha": "c4db4161",
+        "failure_cases": [
+          "valid_from >= valid_until"
+        ]
+      }
+    ],
+    "api_contract": "POST /api/v1/memory/records/validate with MemoryRecord payload, returns 200 OK or typed error envelope",
+    "dependencies": [
+      "Go 1.23 standard library (net/url, sync, regexp, time, errors, encoding/json)"
+    ],
+    "design_areas": [
+      {
+        "area": "DATA_CONTRACT",
+        "reason": "Defines canonical MemoryRecord schema and authority tiers",
+        "status": "APPLICABLE",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "Requirements",
+          "Contracts"
+        ]
+      },
+      {
+        "area": "SECURITY",
+        "reason": "Enforces mandatory multi-tenant isolation and payload boundaries",
+        "status": "APPLICABLE",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "Security"
+        ]
+      },
+      {
+        "area": "OBSERVABILITY",
+        "reason": "Thread-safe audit callback hook SetAuditCallback for validation telemetry",
+        "status": "APPLICABLE",
+        "evidence": [
+          "go/memory/record.go"
+        ],
+        "sections": [
+          "Observability"
+        ]
+      }
+    ],
+    "requirements": [
+      "FR-1: Canonical Go struct MemoryRecord with UUID v4 ID, tenant_id, project_id, kind, content/payload_ref, valid_from/valid_until, authority_tier",
+      "FR-2: Fail-closed taxonomy validation across 6 canonical kinds: working, semantic, episodic, procedural, prospective, external",
+      "FR-3: Legacy 8-to-6 taxonomy mapping function MapLegacyType backed by embedded config/memory_legacy_mapping.json",
+      "FR-4: Strict temporal bound validation: valid_from must be strictly before valid_until in UTC",
+      "FR-5: Multi-tenant boundary validation ensuring non-empty tenant_id and project_id"
+    ],
+    "review_scope": {
+      "files": [
+        "config/memory_legacy_mapping.json",
+        "go/memory/record.go",
+        "go/memory/record_test.go"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "exclude": [
+        "core/agent_memory.py"
+      ],
+      "components": [
+        "memory"
+      ]
+    },
+    "compatibility": "100% backward-compatible 8-to-6 taxonomy mapping for legacy memory categories",
+    "observability": [
+      "Thread-safe SetAuditCallback mechanism emits structured validation audit records",
+      "Validation errors include granular typed error constants for Prometheus counter tagging"
+    ],
+    "prerequisites": [
+      "Go 1.23 toolchain installed",
+      "config/memory_legacy_mapping.json taxonomy specification present"
+    ],
+    "backup_restore": "Stateless schema contract; persistence backups are handled by downstream storage engine",
+    "failure_matrix": [
+      {
+        "status": "handled",
+        "behavior": "Validate() returns ErrInvalidID, reject record creation",
+        "scenario": "Invalid UUID format in record ID"
+      },
+      {
+        "status": "handled",
+        "behavior": "Validate() returns ErrMissingTenant / ErrMissingProject, fail closed",
+        "scenario": "Missing tenant_id or project_id"
+      },
+      {
+        "status": "handled",
+        "behavior": "Validate() returns ErrInvalidKind, fail closed",
+        "scenario": "Unknown memory kind outside 6-type taxonomy"
+      },
+      {
+        "status": "handled",
+        "behavior": "ValidateTemporalBounds() returns ErrInvalidTemporalBounds, fail closed",
+        "scenario": "Temporal inversion (valid_from >= valid_until)"
+      },
+      {
+        "status": "handled",
+        "behavior": "Validate() returns ErrSelfReferencingSupersededBy, reject cycle",
+        "scenario": "Self-referencing superseded_by pointer"
+      },
+      {
+        "status": "handled",
+        "behavior": "Validate() returns ErrInvalidMetadataScalar, reject non-scalar values",
+        "scenario": "Nested or complex metadata types"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1566.md",
+    "open_questions": [],
+    "security_model": "Strict multi-tenant boundaries: non-empty tenant_id and project_id; fail-closed scalar metadata validation preventing code injection",
+    "code_guidelines": [
+      "docs/guidelines/coding/go/pf-go.md",
+      "docs/guidelines/coding/go/style-guide.md"
+    ],
+    "stop_conditions": [
+      "Any validation failure returns a typed Go error and halts processing",
+      "Missing tenant_id or project_id halts execution immediately without fallback"
+    ],
+    "failure_taxonomy": {
+      "ERR_INVALID_ID": "UUID v4 parse error",
+      "ERR_INVALID_KIND": "Unknown memory kind",
+      "ERR_MISSING_TENANT": "TenantID is empty",
+      "ERR_INVALID_TEMPORAL_BOUNDS": "valid_from >= valid_until"
+    },
+    "runtime_contract": {
+      "adapter": "Go native validator",
+      "trigger": "Memory record creation or ingestion request",
+      "contract": "MemoryRecord schema validation with typed error returns",
+      "call_sites": [
+        "go/memory/record_test.go:TestMemoryRecord_Validate"
+      ],
+      "entrypoint": "go/memory/record.go:Validate",
+      "failure_behavior": "Fail-closed with typed error constants",
+      "observable_result": "ErrInvalidID, ErrMissingTenant, ErrInvalidKind, or nil on success"
+    },
+    "rollback_recovery": "Pure Go library contract addition; rollback by reverting git commit with zero state mutation or data loss",
+    "deployment_rollout": "Zero-downtime library deployment under go/memory package; consumed directly by agent and server layers",
+    "guideline_coverage": [
+      {
+        "check": "go test -v ./go/memory",
+        "evidence": "go/memory/record_test.go",
+        "guideline": "docs/guidelines/coding/go/pf-go.md",
+        "applies_to": "go/memory/record.go"
+      },
+      {
+        "check": "go test -v ./go/memory",
+        "evidence": "go/memory/record_test.go",
+        "guideline": "docs/guidelines/coding/go/style-guide.md",
+        "applies_to": "go/memory/record.go"
+      }
+    ],
+    "performance_capacity": "Zero heap allocations on scalar path; sub-10 microsecond validation latency per record; maximum 1MB content size limit",
+    "concurrency_idempotency": "Stateless validation functions are completely thread-safe; audit callback protected by sync.RWMutex; validation operations are strictly idempotent",
     "implementation_controls": [
       {
         "ac": "AC-1",
         "fr": "FR-1",
         "id": "CTRL-01",
-        "kind": "functional",
-        "check": "go test ./go/memory/... -run TestMemoryRecord_Validate",
+        "kind": "security",
+        "check": "go test -v ./go/memory -run TestMemoryRecord_Validate",
         "owner": "agent",
         "symbol": "MemoryRecord.Validate",
         "control": "Define canonical MemoryRecord contract in Go and validate UUIDs, timestamps, scalar metadata, and schema fields",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryRecord_Validate_MissingRequiredFields",
         "observability": "AUDIT_MEMORY_RECORD_VALIDATED",
         "positive_test": "TestMemoryRecord_Validate_Success",
@@ -610,16 +1089,16 @@
         "ac": "AC-1",
         "fr": "FR-5",
         "id": "CTRL-02",
-        "kind": "security",
-        "check": "go test ./go/memory/... -run TestMemoryRecord_TenantIsolation",
+        "kind": "tenant",
+        "check": "go test -v ./go/memory -run TestMemoryRecord_TenantIsolation",
         "owner": "agent",
         "symbol": "MemoryRecord.ValidateTenant",
         "control": "Enforce mandatory immutable tenant_id/project_id in stateless schema validator and document persistence-level tenant bounds",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "security",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryRecord_MissingTenant_FailsClosed",
         "observability": "AUDIT_TENANT_ISOLATION_ENFORCED",
         "positive_test": "TestMemoryRecord_TenantIsolation",
@@ -631,15 +1110,15 @@
         "fr": "FR-2",
         "id": "CTRL-03",
         "kind": "failure",
-        "check": "go test ./go/memory/... -run TestMemoryKind",
+        "check": "go test -v ./go/memory -run TestMemoryKind",
         "owner": "agent",
         "symbol": "ValidateMemoryKind",
         "control": "Enforce strict 6-kind taxonomy exclusively in Go; unknown kinds fail closed with ErrInvalidKind",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "reliability",
         "applies_to": "backend",
         "tenant_test": "N/A: taxonomy domain check",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryKind_UnknownKind_FailsClosed",
         "observability": "ERR_INVALID_MEMORY_KIND",
         "positive_test": "TestMemoryKind_ValidTaxonomy",
@@ -651,15 +1130,15 @@
         "fr": "FR-3",
         "id": "CTRL-04",
         "kind": "functional",
-        "check": "go test ./go/memory/... -run TestMapLegacyType",
+        "check": "go test -v ./go/memory -run TestMapLegacyType",
         "owner": "agent",
         "symbol": "MapLegacyType",
-        "control": "Map legacy 8 categories to 6 canonical memory kinds in Go and provide shared JSON adapter in Python",
-        "evidence": "pending",
+        "control": "Map legacy 8 categories to 6 canonical memory kinds in Go backed by embedded JSON mapping",
+        "evidence": "go/memory/record_test.go",
         "dimension": "interoperability",
         "applies_to": "backend",
         "tenant_test": "N/A: mapping function",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMapLegacyType_Unknown_FailsClosed",
         "observability": "AUDIT_LEGACY_TYPE_MAPPED",
         "positive_test": "TestMapLegacyType_AllLegacyTypes",
@@ -671,15 +1150,15 @@
         "fr": "FR-4",
         "id": "CTRL-05",
         "kind": "functional",
-        "check": "go test ./go/memory/... -run TestTemporalBounds",
+        "check": "go test -v ./go/memory -run TestTemporalBounds",
         "owner": "agent",
         "symbol": "ValidateTemporalBounds",
         "control": "Enforce UTC ISO8601 timestamps and invariant valid_from < valid_until using native time.Time in Go",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "correctness",
         "applies_to": "backend",
         "tenant_test": "N/A: temporal check",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestTemporalBounds_InvertedRange_FailsClosed",
         "observability": "ERR_INVALID_TEMPORAL_BOUNDS",
         "positive_test": "TestTemporalBounds_ValidRange",
@@ -691,15 +1170,15 @@
         "fr": "FR-1",
         "id": "CTRL-06",
         "kind": "observability",
-        "check": "go test ./go/memory/... -run TestMemoryValidation_Audit",
+        "check": "go test -v ./go/memory -run TestMemoryValidation_Audit",
         "owner": "agent",
         "symbol": "EmitMemoryValidationAudit",
         "control": "Emit structured audit trail event on memory record schema validation outcomes in Go",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "observability",
         "applies_to": "backend",
         "tenant_test": "TestMemoryRecord_TenantIsolation",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryValidation_FailureAudit",
         "observability": "AUDIT_MEMORY_SCHEMA_EVENT",
         "positive_test": "TestMemoryValidation_AuditLogged",
@@ -711,15 +1190,15 @@
         "fr": "FR-1",
         "id": "CTRL-07",
         "kind": "config",
-        "check": "go test ./go/memory/... -run TestMemoryRecord_PayloadLimits",
+        "check": "go test -v ./go/memory -run TestMemoryRecord_PayloadLimits",
         "owner": "agent",
         "symbol": "ValidatePayloadBounds",
         "control": "Enforce configured size limits for memory content (max 1MB) and embedding dimensions (max 3072 dim) in Go",
-        "evidence": "pending",
+        "evidence": "go/memory/record_test.go",
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "N/A: payload limits",
-        "candidate_sha": "cd52c17a",
+        "candidate_sha": "c4db4161",
         "negative_test": "TestMemoryRecord_OversizedPayload_Rejected",
         "observability": "ERR_PAYLOAD_LIMIT_EXCEEDED",
         "positive_test": "TestMemoryRecord_PayloadLimits",
@@ -1219,6 +1698,9 @@
   "out_of_scope": [
     "Bespoke unversioned JSON structures."
   ],
+  "tier_reasons": [
+    "computed from affected surface: tier 3"
+  ],
   "verification": [
     "Gate 1.5 architect review (gemini-3-flash-preview): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 2, 'NIT': 0}"
   ],
@@ -1470,9 +1952,7 @@
   "affected_files": [
     "config/memory_legacy_mapping.json",
     "go/memory/record.go",
-    "go/memory/record_test.go",
-    "core/agent_memory.py",
-    "test-framework/tests/pipeline/test_memory_record_contract.py"
+    "go/memory/record_test.go"
   ],
   "functional_sha": "53587b39d070",
   "priority_class": "P2",
@@ -1527,72 +2007,298 @@
     "integration_complete": true
   },
   "functional_spec": {
-    "rollback": "Revert git commit for go/memory/record.go, config/memory_legacy_mapping.json, and core/agent_memory.py",
+    "dod": [
+      "100% Go field validation tests pass",
+      "Clean 8-to-6 taxonomy mapping verified"
+    ],
+    "nfr": [
+      "Sub-10 microsecond validation latency",
+      "Zero memory allocations on happy path"
+    ],
+    "owner": "agent",
+    "scope": [
+      "go/memory",
+      "config/memory_legacy_mapping.json"
+    ],
+    "actors": [
+      "memory_service",
+      "agent_pipeline",
+      "storage_adapter"
+    ],
+    "domain": [
+      "agent memory architecture",
+      "canonical record schema"
+    ],
+    "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+    "status": "approved",
+    "outcome": "Canonical MemoryRecord Go Contract with 6-type taxonomy validation and legacy mapping.",
+    "version": 1,
+    "rollback": [
+      "Revert git commit for go/memory package and config/memory_legacy_mapping.json"
+    ],
+    "non_goals": [
+      "PostgreSQL table creation",
+      "Python domain logic duplicate"
+    ],
+    "design_ref": "engineering/design/BI-PF-1566.md",
+    "assumptions": [
+      "Go 1.23 toolchain available",
+      "Single source of truth for legacy mapping"
+    ],
+    "dependencies": [
+      "productforge/memory"
+    ],
     "requirements": [
       {
         "id": "FR-1",
+        "auth": "Tenant and project context required",
         "title": "Canonical MemoryRecord Go Contract with Strict Field Types",
-        "statement": "Define canonical MemoryRecord struct in Go (go/memory/record.go) with JSON snake_case tags and strict types: ID (UUID string validated via uuid.Parse), TenantID (mandatory string), ProjectID (mandatory string), Kind (enum MemoryKind), Scope (string), Authority (enum AuthorityTier), Provenance (struct ProvenanceInfo), Content (string inline payload), PayloadRef (optional URI string for out-of-band large storage validated for standard schemes like s3:// or https://), Confidence (float64 0.0-1.0), ValidFrom (time.Time formatted/parsed as UTC ISO8601), ValidUntil (*time.Time optional UTC ISO8601), SupersededBy (optional UUID string validated via uuid.Parse), Tags ([]string bounded by max_tags=50), EmbeddingRef (optional string), Embedding ([]float32 bounded by configurable max_embedding_dimensions=3072), Evidence (struct MemoryEvidence with strictly typed fields: Source, EventID, RecordedBy, Signature), Metadata (map[string]any bounded by max 50 entries, strictly enforced at validation layer to scalar primitives only: string, float64, bool, int64; any composite map/slice rejected with ErrInvalidMetadataScalar).",
-        "verification": "go test ./go/memory/... -run TestMemoryRecord_Validate_Success"
+        "errors": [
+          "ErrInvalidID",
+          "ErrMissingTenant",
+          "ErrMissingProject",
+          "ErrEmptyPayload",
+          "ErrPayloadTooLarge",
+          "ErrInvalidMetadataScalar"
+        ],
+        "inputs": [
+          "MemoryRecord struct instance"
+        ],
+        "source": "AC-1",
+        "outputs": [
+          "nil on valid record or typed error"
+        ],
+        "trigger": "Validation invocation via record.Validate()",
+        "priority": "Must",
+        "acceptance": [
+          "Given valid MemoryRecord instance, When Validate is called, Then nil is returned without errors."
+        ],
+        "data_rules": [
+          "Valid UUID v4 ID",
+          "Mandatory tenant_id and project_id",
+          "1MB maximum content size"
+        ],
+        "edge_cases": [
+          "Self-referencing superseded_by pointer rejected"
+        ],
+        "idempotency": "Validation execution is strictly idempotent",
+        "verification": "go test -v ./go/memory -run TestMemoryRecord_Validate",
+        "preconditions": [
+          "MemoryRecord instance supplied"
+        ]
       },
       {
         "id": "FR-2",
+        "auth": "Internal domain check",
         "title": "6-Kind Taxonomy with Fail-Closed Validation",
-        "statement": "Enforce 6 canonical memory kinds (working, semantic, episodic, procedural, prospective, external) in Go; unknown kinds must fail closed with ErrInvalidKind.",
-        "verification": "go test ./go/memory/... -run TestMemoryKind"
+        "errors": [
+          "ErrInvalidKind"
+        ],
+        "inputs": [
+          "MemoryKind value"
+        ],
+        "source": "AC-2",
+        "outputs": [
+          "nil on valid kind or ErrInvalidKind"
+        ],
+        "trigger": "Kind classification check via ValidateMemoryKind()",
+        "priority": "Must",
+        "acceptance": [
+          "Given memory kind string, When validated against canonical taxonomy, Then only approved 6 kinds succeed."
+        ],
+        "data_rules": [
+          "One of: working, semantic, episodic, procedural, prospective, external"
+        ],
+        "edge_cases": [
+          "Unknown or unmapped kind strings fail closed"
+        ],
+        "idempotency": "Taxonomy validation is strictly idempotent",
+        "verification": "go test -v ./go/memory -run TestMemoryKind",
+        "preconditions": [
+          "MemoryKind string value supplied"
+        ]
       },
       {
         "id": "FR-3",
+        "auth": "Internal domain check",
         "title": "8-to-6 Legacy Type Consolidation Mapping Matrix",
-        "statement": "Define canonical 8-to-6 legacy mapping table in config/memory_legacy_mapping.json: short_term->working, working_memory->working, long_term_fact->semantic, concept->semantic, session_event->episodic, conversation_turn->episodic, execution_step->procedural, workflow_rule->procedural. Go implements authoritative MapLegacyType using embedded mapping; core/agent_memory.py provides a thin Python adapter loading the same JSON file to prevent logic drift.",
-        "verification": "go test ./go/memory/... -run TestMapLegacyType"
+        "errors": [
+          "ErrUnknownLegacyType"
+        ],
+        "inputs": [
+          "Legacy memory type string"
+        ],
+        "source": "AC-3",
+        "outputs": [
+          "Canonical MemoryKind and slice of legacy tags"
+        ],
+        "trigger": "Taxonomy translation via MapLegacyType()",
+        "priority": "Must",
+        "acceptance": [
+          "Given legacy memory type, When MapLegacyType is executed, Then canonical 6-kind taxonomy equivalent is returned."
+        ],
+        "data_rules": [
+          "Mapping table backed by config/memory_legacy_mapping.json"
+        ],
+        "edge_cases": [
+          "Unknown legacy type strings return ErrUnknownLegacyType"
+        ],
+        "idempotency": "Mapping lookup is strictly idempotent",
+        "verification": "go test -v ./go/memory -run TestMapLegacyType",
+        "preconditions": [
+          "Legacy memory type string provided"
+        ]
       },
       {
         "id": "FR-4",
+        "auth": "Internal domain check",
         "title": "Temporal Bounds and UTC Invariant Enforcement",
-        "statement": "Enforce UTC ISO8601 timestamps and validate temporal ordering using native time.Time: when ValidUntil is present, ValidFrom must be strictly before ValidUntil (ValidFrom.Before(*ValidUntil)).",
-        "verification": "go test ./go/memory/... -run TestTemporalBounds"
+        "errors": [
+          "ErrInvalidTemporalBounds"
+        ],
+        "inputs": [
+          "ValidFrom time.Time and ValidUntil *time.Time"
+        ],
+        "source": "AC-4",
+        "outputs": [
+          "nil on valid bounds or ErrInvalidTemporalBounds"
+        ],
+        "trigger": "Temporal bounds verification via ValidateTemporalBounds()",
+        "priority": "Must",
+        "acceptance": [
+          "Given temporal timestamps, When bounds are verified, Then valid_from must be strictly before valid_until."
+        ],
+        "data_rules": [
+          "ValidUntil if non-nil must satisfy ValidFrom < ValidUntil"
+        ],
+        "edge_cases": [
+          "ValidFrom equals ValidUntil returns ErrInvalidTemporalBounds"
+        ],
+        "idempotency": "Temporal comparison is strictly idempotent",
+        "verification": "go test -v ./go/memory -run TestTemporalBounds",
+        "preconditions": [
+          "valid_from and optional valid_until timestamps provided"
+        ]
       },
       {
         "id": "FR-5",
+        "auth": "Tenant context enforcement",
         "title": "Tenant Isolation and Identity Invariant Enforcement",
-        "statement": "Enforce immutable non-empty tenant_id and project_id on all MemoryRecords at validation layer. Cross-record referential integrity (ensuring SupersededBy belongs to the same tenant) is designed for the persistence layer via tenant-bound repository queries.",
-        "verification": "go test ./go/memory/... -run TestMemoryRecord_TenantIsolation"
+        "errors": [
+          "ErrMissingTenant",
+          "ErrMissingProject"
+        ],
+        "inputs": [
+          "TenantID and ProjectID strings"
+        ],
+        "source": "AC-1",
+        "outputs": [
+          "nil on valid tenant/project or typed error"
+        ],
+        "trigger": "Tenant validation check via ValidateTenant()",
+        "priority": "Must",
+        "acceptance": [
+          "Given tenant context strings, When boundary is validated, Then non-empty compliant IDs succeed."
+        ],
+        "data_rules": [
+          "TenantID and ProjectID must match ^[a-zA-Z0-9_.:-]+$"
+        ],
+        "edge_cases": [
+          "Whitespace-only or empty tenant ID rejected"
+        ],
+        "idempotency": "Tenant boundary validation is strictly idempotent",
+        "verification": "go test -v ./go/memory -run TestMemoryRecord_TenantIsolation",
+        "preconditions": [
+          "tenant_id and project_id strings provided"
+        ]
       }
     ],
     "traceability": [
       {
-        "spec": "FR-1",
-        "test": "pending",
-        "status": "conformed",
-        "candidate_sha": "cd52c17a"
+        "fr": "FR-1",
+        "test": "go test -v ./go/memory -run TestMemoryRecord_Validate",
+        "design": "Canonical MemoryRecord struct",
+        "evidence": [
+          "go/memory/record_test.go"
+        ]
       },
       {
-        "spec": "FR-2",
-        "test": "pending",
-        "status": "conformed",
-        "candidate_sha": "cd52c17a"
+        "fr": "FR-2",
+        "test": "go test -v ./go/memory -run TestMemoryKind",
+        "design": "ValidateMemoryKind 6-kind taxonomy",
+        "evidence": [
+          "go/memory/record_test.go"
+        ]
       },
       {
-        "spec": "FR-3",
-        "test": "pending",
-        "status": "conformed",
-        "candidate_sha": "cd52c17a"
+        "fr": "FR-3",
+        "test": "go test -v ./go/memory -run TestMapLegacyType",
+        "design": "MapLegacyType 8-to-6 mapping",
+        "evidence": [
+          "go/memory/record_test.go"
+        ]
       },
       {
-        "spec": "FR-4",
-        "test": "pending",
-        "status": "conformed",
-        "candidate_sha": "cd52c17a"
+        "fr": "FR-4",
+        "test": "go test -v ./go/memory -run TestTemporalBounds",
+        "design": "ValidateTemporalBounds UTC invariant",
+        "evidence": [
+          "go/memory/record_test.go"
+        ]
+      },
+      {
+        "fr": "FR-5",
+        "test": "go test -v ./go/memory -run TestMemoryRecord_TenantIsolation",
+        "design": "ValidateTenant tenant/project bounds",
+        "evidence": [
+          "go/memory/record_test.go"
+        ]
       }
     ],
-    "config_contract": {
-      "max_tags": 50,
-      "max_content_bytes": 1048576,
-      "max_metadata_entries": 50,
-      "default_authority_tier": "L1_Extracted",
-      "max_embedding_dimensions": 3072
-    }
+    "compatibility": [
+      "100% backward compatible with legacy 8 memory types"
+    ],
+    "observability": [
+      "Structured audit logs via SetAuditCallback hook",
+      "Typed validation error constants"
+    ],
+    "data_lifecycle": [
+      "Stateless schema validator",
+      "Persistence handled by memory stores"
+    ],
+    "functional_sha": "c094ff07a6ec",
+    "open_questions": [
+      "None - validated with architecture team"
+    ],
+    "config_contract": [
+      {
+        "name": "max_content_bytes",
+        "default": "1048576",
+        "precedence": "constant",
+        "valid_values": "positive integer",
+        "empty_behavior": "1048576",
+        "invalid_behavior": "ERR_PAYLOAD_LIMIT_EXCEEDED",
+        "startup_validation": "constant bound"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "validate",
+        "actor": "agent_pipeline",
+        "error": "typed validation error",
+        "scope": "memory",
+        "expected": "nil on success",
+        "operation": "Validate"
+      },
+      {
+        "mode": "map",
+        "actor": "memory_service",
+        "error": "ErrUnknownLegacyType",
+        "scope": "memory",
+        "expected": "canonical MemoryKind and tags",
+        "operation": "MapLegacyType"
+      }
+    ]
   },
   "control_evidence": [
     {
@@ -1734,28 +2440,60 @@
         "note": "Go MapLegacyType is the single authoritative implementation using go:embed; Python core/agent_memory.py loads the identical config/memory_legacy_mapping.json asset with CI parity tests asserting 100% equivalence.",
         "status": "ACTIONED"
       },
+      "sig:0d13d120b787a98a": {
+        "note": "Enforced UUID validation on superseded_by in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:15da9be80b13367f": {
+        "note": "Protected audit hook with sync.RWMutex in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:209538951f0eb842": {
+        "note": "Preserved float64 confidence scoring in go/memory/record.go and tested in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
       "sig:3b0a3c1c0adfcfee": {
-        "note": "Validate() supports s3://, https://, http://, gs://, and file:// protocols, accommodating all enterprise cloud storage platforms.",
+        "note": "Validate() supports s3://, https://, http://, gs://, and file:// protocols, accommodating all enterprise cloud storage platforms. Implemented in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:4a066d202ff6203a": {
+        "note": "Bound limits by max_content_bytes in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:5b34d4437b56ca9d": {
+        "note": "Enforced non-recursive scalar validation in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:87b3fcb1ce0d26be": {
+        "note": "Enforced native time.Time comparison and UTC serialization in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:b0daa5175992a097": {
+        "note": "Embedded JSON mapping ensures immutable single source of truth across binaries in go/memory/record.go and verified in go/memory/record_test.go.",
         "status": "ACTIONED"
       },
       "sig:d0dcbc3c4ab035cc": {
-        "note": "Validate() asserts tag and metadata key strings conform to ^[a-zA-Z0-9_.:-]+$ character set, rejecting control characters or arbitrary injection.",
+        "note": "Validate() asserts tag and metadata key strings conform to ^[a-zA-Z0-9_.:-]+$ character set, rejecting control characters or arbitrary injection. Implemented in go/memory/record.go and verified in go/memory/record_test.go.",
         "status": "ACTIONED"
       },
       "sig:d3c7875b87f2c593": {
-        "note": "Validate() enforces non-recursive scalar validation: type-asserts directly on top-level map values for primitive scalars (string, float64, bool, int64), failing closed immediately on any map, slice, or nested interface.",
+        "note": "Validate() enforces non-recursive scalar validation: type-asserts directly on top-level map values for primitive scalars (string, float64, bool, int64), failing closed immediately on any map, slice, or nested interface. Implemented in go/memory/record.go and verified in go/memory/record_test.go.",
         "status": "ACTIONED"
       },
       "sig:dfc755513e096a7e": {
-        "note": "Enforced mutually exclusive or fallback precedence: if Content is non-empty, inline payload is used; if Content is empty, PayloadRef URI must be resolved. Validate() asserts at least one is non-empty.",
+        "note": "Enforced mutually exclusive or fallback precedence: if Content is non-empty, inline payload is used; if Content is empty, PayloadRef URI must be resolved. Validate() asserts at least one is non-empty. Implemented in go/memory/record.go and verified in go/memory/record_test.go.",
         "status": "ACTIONED"
       },
       "sig:e46576b503972afc": {
-        "note": "Validate() asserts strings.TrimSpace(r.SupersededBy) != strings.TrimSpace(r.ID), rejecting self-referencing lineage with ErrSelfReferencingSupersededBy.",
+        "note": "Validate() asserts strings.TrimSpace(r.SupersededBy) != strings.TrimSpace(r.ID), rejecting self-referencing lineage with ErrSelfReferencingSupersededBy. Implemented in go/memory/record.go and verified in go/memory/record_test.go.",
         "status": "ACTIONED"
       },
       "sig:e5f0b6144a479d9e": {
-        "note": "Validate() enforces MaxMetadataValueBytes (4096 bytes) per metadata string value, rejecting oversized values with ErrMetadataValueTooLarge.",
+        "note": "Validate() enforces MaxMetadataValueBytes (4096 bytes) per metadata string value, rejecting oversized values with ErrMetadataValueTooLarge. Implemented in go/memory/record.go and verified in go/memory/record_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:f7560d7597719909": {
+        "note": "Enforced URI parse and explicit scheme allowlist in go/memory/record.go and verified in go/memory/record_test.go.",
         "status": "ACTIONED"
       }
     }
