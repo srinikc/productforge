@@ -83,6 +83,9 @@ def test_terraform_module_definitions():
     assert "aws_vpc" in aws_content
     assert "aws_eks_cluster" in aws_content
     assert "aws_eks_node_group" in aws_content
+    assert "AmazonEKSWorkerNodePolicy" in aws_content
+    assert "AmazonEKS_CNI_Policy" in aws_content
+    assert "AmazonEC2ContainerRegistryReadOnly" in aws_content
     assert "aws_db_instance" in aws_content
     assert "multi_az               = true" in aws_content
     assert "vector" in aws_content
