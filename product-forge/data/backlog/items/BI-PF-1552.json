@@ -488,7 +488,7 @@
         "dimension": "security",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_security_auth_unauthorized_rejected",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_security_auth_allowed",
@@ -508,7 +508,7 @@
         "dimension": "reliability",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_smoke_pass_avoids_rollback",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_smoke_failure_triggers_rollback",
@@ -528,7 +528,7 @@
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_config_contract_invalid_rejected",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_config_contract_valid",
@@ -548,7 +548,7 @@
         "dimension": "observability",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_evidence_ledger_missing_logs_fails",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_evidence_ledger_logging_success",
@@ -568,7 +568,7 @@
         "dimension": "functional",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_smoke_assertion_timeout_fails",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_smoke_assertions_pass",
@@ -588,12 +588,27 @@
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_cross_tenant_rollback_blocked",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_tenant_boundary_isolation_ok",
         "concurrency_test": "go/dualvec/dualvec_test.go",
         "failure_behavior": "fail_closed"
+      },
+      {
+        "id": "CTRL-07",
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "observability",
+        "dimension": "observability",
+        "control": "Shared conformance test suite validating 8 memory types and zero cross-tenant leakage",
+        "symbol": "go/dualvec/conformance_test.go:TestDualvecConformance",
+        "positive_test": "test-framework/tests/pipeline/test_dualvec_conformance.py",
+        "negative_test": "test-framework/tests/pipeline/test_dualvec_conformance.py",
+        "evidence": "go/dualvec/dualvec_test.go",
+        "candidate_sha": "d7cb3085",
+        "failure_behavior": "fail-closed",
+        "owner": "store"
       }
     ],
     "coverage": [
@@ -614,7 +629,7 @@
           "go/edpsvc/main.go"
         ],
         "entrypoint": "go/dualvec/dualvec.go",
-        "candidate_sha": "36205a13",
+        "candidate_sha": "d7cb3085",
         "failure_cases": [
           "invalid DSN returns ERR_INVALID_DSN"
         ],
@@ -637,7 +652,7 @@
           "go/dualvec/dualvec.go"
         ],
         "entrypoint": "go/dualvec/sqlite_store.go",
-        "candidate_sha": "36205a13",
+        "candidate_sha": "d7cb3085",
         "failure_cases": [
           "read-only disk returns error"
         ],
@@ -660,7 +675,7 @@
           "go/dualvec/dualvec.go"
         ],
         "entrypoint": "go/dualvec/pg_store.go",
-        "candidate_sha": "36205a13",
+        "candidate_sha": "d7cb3085",
         "failure_cases": [
           "unauthorized tenant query blocked"
         ],
@@ -683,7 +698,7 @@
           "go/dualvec/dualvec_test.go"
         ],
         "entrypoint": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "36205a13",
+        "candidate_sha": "d7cb3085",
         "failure_cases": [
           "divergent cosine scoring fails test"
         ],
@@ -697,7 +712,9 @@
       "go/dualvec/dualvec_test.go",
       "docs/DUAL-VECTOR-STORE-DESIGN.md"
     ],
-    "rollback": "Unset PF_MEMORY_DSN to revert to default PostgreSQL store; SQLite database files can be restored from point-in-time snapshot.",
+    "rollback": [
+      "Revert PR merge commit if operational issues are identified."
+    ],
     "security": "Enforces strict trust boundary: tenant isolation in query predicate and PostgreSQL RLS, private entry owner scoping, zero leakage across tenants.",
     "contracts": {
       "db": {
@@ -715,11 +732,9 @@
         "path": "data/evidence/rollbacks/",
         "storage": "local / S3 / MinIO"
       },
-      "config": {
-        "retry_threshold": 3,
-        "health_check_endpoint": "/api/v1/health",
-        "rollback_timeout_seconds": 30
-      }
+      "config": [
+        "config/env-flags.json: PF_BACKLOG_DB and DB authority configuration."
+      ]
     },
     "decisions": [
       "D-1552-1: Use pure-Go modernc.org/sqlite avoiding CGO for 100% portable sovereign bundle.",
@@ -774,7 +789,7 @@
           "go/dualvec/dualvec.go"
         ],
         "entrypoint": "go/dualvec/dualvec.go",
-        "candidate_sha": "36205a13"
+        "candidate_sha": "d7cb3085"
       },
       {
         "ac": "AC-2",
@@ -787,7 +802,7 @@
           "go/dualvec/sqlite_store.go"
         ],
         "entrypoint": "go/dualvec/sqlite_store.go",
-        "candidate_sha": "36205a13"
+        "candidate_sha": "d7cb3085"
       },
       {
         "ac": "AC-3",
@@ -800,7 +815,7 @@
           "go/dualvec/pg_store.go"
         ],
         "entrypoint": "go/dualvec/pg_store.go",
-        "candidate_sha": "36205a13"
+        "candidate_sha": "d7cb3085"
       },
       {
         "ac": "AC-4",
@@ -813,7 +828,7 @@
           "go/dualvec/dualvec_test.go"
         ],
         "entrypoint": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "36205a13"
+        "candidate_sha": "d7cb3085"
       }
     ],
     "performance": "Pure-Go zero-allocation vector distance calculation and packed binary float serialization for sub-millisecond retrieval.",
@@ -1021,7 +1036,7 @@
         "dimension": "security",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_security_auth_unauthorized_rejected",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_security_auth_allowed",
@@ -1041,7 +1056,7 @@
         "dimension": "reliability",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_smoke_pass_avoids_rollback",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_smoke_failure_triggers_rollback",
@@ -1061,7 +1076,7 @@
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_config_contract_invalid_rejected",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_config_contract_valid",
@@ -1081,7 +1096,7 @@
         "dimension": "observability",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_evidence_ledger_missing_logs_fails",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_evidence_ledger_logging_success",
@@ -1101,7 +1116,7 @@
         "dimension": "functional",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_smoke_assertion_timeout_fails",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_smoke_assertions_pass",
@@ -1121,7 +1136,7 @@
         "dimension": "operational",
         "applies_to": "backend",
         "tenant_test": "go/dualvec/dualvec_test.go",
-        "candidate_sha": "46cc0fe2",
+        "candidate_sha": "d7cb3085",
         "negative_test": "test_cross_tenant_rollback_blocked",
         "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
         "positive_test": "test_tenant_boundary_isolation_ok",
@@ -1129,17 +1144,19 @@
         "failure_behavior": "fail_closed"
       },
       {
-        "ac": "AC-4",
         "id": "CTRL-07",
-        "kind": "tenant",
-        "symbol": "go/dualvec/dualvec_test.go",
-        "control": "Shared conformance test suite verifying parity between backends",
-        "evidence": "docs/DUAL-VECTOR-STORE-DESIGN.md",
-        "tenant_test": "go/dualvec/dualvec_test.go",
-        "negative_test": "go/dualvec/dualvec_test.go",
-        "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
-        "positive_test": "go/dualvec/dualvec_test.go",
-        "concurrency_test": "go/dualvec/dualvec_test.go"
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "kind": "observability",
+        "dimension": "observability",
+        "control": "Shared conformance test suite validating 8 memory types and zero cross-tenant leakage",
+        "symbol": "go/dualvec/conformance_test.go:TestDualvecConformance",
+        "positive_test": "test-framework/tests/pipeline/test_dualvec_conformance.py",
+        "negative_test": "test-framework/tests/pipeline/test_dualvec_conformance.py",
+        "evidence": "go/dualvec/dualvec_test.go",
+        "candidate_sha": "d7cb3085",
+        "failure_behavior": "fail-closed",
+        "owner": "store"
       }
     ]
   },
@@ -1711,7 +1728,7 @@
     "outcome": "Dual-engine vector and memory storage adapter supporting SQLite and pgvector across PF-SB, PF-PG, and PF-GP.",
     "version": 1,
     "rollback": [
-      "Unset PF_MEMORY_DSN to revert to default store; point-in-time recovery for DB."
+      "Revert PR merge commit if operational issues are identified."
     ],
     "non_goals": [
       "external vector db",
@@ -1866,7 +1883,8 @@
         "evidence": [
           "docs/DUAL-VECTOR-STORE-DESIGN.md",
           "go/dualvec/dualvec.go"
-        ]
+        ],
+        "candidate_sha": "d7cb3085"
       },
       {
         "fr": "FR-2",
@@ -1875,7 +1893,8 @@
         "evidence": [
           "docs/DUAL-VECTOR-STORE-DESIGN.md",
           "go/dualvec/sqlite_store.go"
-        ]
+        ],
+        "candidate_sha": "d7cb3085"
       },
       {
         "fr": "FR-3",
@@ -1884,7 +1903,8 @@
         "evidence": [
           "docs/DUAL-VECTOR-STORE-DESIGN.md",
           "go/dualvec/pg_store.go"
-        ]
+        ],
+        "candidate_sha": "d7cb3085"
       },
       {
         "fr": "FR-4",
@@ -1893,7 +1913,8 @@
         "evidence": [
           "docs/DUAL-VECTOR-STORE-DESIGN.md",
           "go/dualvec/dualvec_test.go"
-        ]
+        ],
+        "candidate_sha": "d7cb3085"
       }
     ],
     "compatibility": [
@@ -1913,15 +1934,7 @@
       "None - all architectural assumptions validated with operator."
     ],
     "config_contract": [
-      {
-        "name": "PF_MEMORY_DSN",
-        "default": "sqlite://data/memory.db",
-        "precedence": "env > config file",
-        "valid_values": "sqlite://... or postgres://...",
-        "empty_behavior": "defaults to embedded sqlite",
-        "invalid_behavior": "ERR_INVALID_DSN",
-        "startup_validation": "dualvec.ParseDSN validation"
-      }
+      "config/env-flags.json: PF_BACKLOG_DB and DB authority configuration."
     ],
     "operation_matrix": [
       {
@@ -2049,5 +2062,142 @@
         "status": "ACTIONED"
       }
     }
-  }
+  },
+  "controls": [
+    {
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "CTRL-01",
+      "kind": "security",
+      "check": "pytest test-framework/tests/core/test_rag_adapter.py -k test_security_auth",
+      "owner": "eng:data",
+      "symbol": "RollbackOrchestrator.verify_security_auth",
+      "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+      "evidence": "test-framework/tests/core/test_rag_adapter.py",
+      "dimension": "security",
+      "applies_to": "backend",
+      "tenant_test": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "negative_test": "test_security_auth_unauthorized_rejected",
+      "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
+      "positive_test": "test_security_auth_allowed",
+      "concurrency_test": "go/dualvec/dualvec_test.go",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "CTRL-02",
+      "kind": "failure",
+      "check": "pytest test-framework/tests/core/test_rag_adapter.py -k test_smoke_failure_rollback",
+      "owner": "eng:data",
+      "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+      "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+      "evidence": "test-framework/tests/core/test_rag_adapter.py",
+      "dimension": "reliability",
+      "applies_to": "backend",
+      "tenant_test": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "negative_test": "test_smoke_pass_avoids_rollback",
+      "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
+      "positive_test": "test_smoke_failure_triggers_rollback",
+      "concurrency_test": "go/dualvec/dualvec_test.go",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "CTRL-03",
+      "kind": "config",
+      "check": "pytest test-framework/tests/core/test_rag_adapter.py -k test_config_contract",
+      "owner": "eng:data",
+      "symbol": "RollbackOrchestrator.validate_config_contract",
+      "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+      "evidence": "test-framework/tests/core/test_rag_adapter.py",
+      "dimension": "operational",
+      "applies_to": "backend",
+      "tenant_test": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "negative_test": "test_config_contract_invalid_rejected",
+      "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
+      "positive_test": "test_config_contract_valid",
+      "concurrency_test": "go/dualvec/dualvec_test.go",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "CTRL-04",
+      "kind": "observability",
+      "check": "pytest test-framework/tests/core/test_rag_adapter.py -k test_evidence_ledger_logging",
+      "owner": "eng:data",
+      "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+      "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+      "evidence": "test-framework/tests/core/test_rag_adapter.py",
+      "dimension": "observability",
+      "applies_to": "backend",
+      "tenant_test": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "negative_test": "test_evidence_ledger_missing_logs_fails",
+      "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
+      "positive_test": "test_evidence_ledger_logging_success",
+      "concurrency_test": "go/dualvec/dualvec_test.go",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "CTRL-05",
+      "kind": "functional",
+      "check": "pytest test-framework/tests/core/test_rag_adapter.py -k test_smoke_assertions",
+      "owner": "eng:data",
+      "symbol": "RollbackOrchestrator.run_smoke_assertions",
+      "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+      "evidence": "test-framework/tests/core/test_rag_adapter.py",
+      "dimension": "functional",
+      "applies_to": "backend",
+      "tenant_test": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "negative_test": "test_smoke_assertion_timeout_fails",
+      "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
+      "positive_test": "test_smoke_assertions_pass",
+      "concurrency_test": "go/dualvec/dualvec_test.go",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "CTRL-06",
+      "kind": "tenant",
+      "check": "pytest test-framework/tests/core/test_rag_adapter.py -k test_tenant_isolation",
+      "owner": "eng:data",
+      "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+      "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+      "evidence": "test-framework/tests/core/test_rag_adapter.py",
+      "dimension": "operational",
+      "applies_to": "backend",
+      "tenant_test": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "negative_test": "test_cross_tenant_rollback_blocked",
+      "observability": "go/dualvec/dualvec.go (structured logging and prometheus metrics)",
+      "positive_test": "test_tenant_boundary_isolation_ok",
+      "concurrency_test": "go/dualvec/dualvec_test.go",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "id": "CTRL-07",
+      "ac": "AC-4",
+      "fr": "FR-4",
+      "kind": "observability",
+      "dimension": "observability",
+      "control": "Shared conformance test suite validating 8 memory types and zero cross-tenant leakage",
+      "symbol": "go/dualvec/conformance_test.go:TestDualvecConformance",
+      "positive_test": "test-framework/tests/pipeline/test_dualvec_conformance.py",
+      "negative_test": "test-framework/tests/pipeline/test_dualvec_conformance.py",
+      "evidence": "go/dualvec/dualvec_test.go",
+      "candidate_sha": "d7cb3085",
+      "failure_behavior": "fail-closed",
+      "owner": "store"
+    }
+  ]
 }
