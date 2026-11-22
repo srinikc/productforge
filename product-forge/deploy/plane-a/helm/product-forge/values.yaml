@@ -1,0 +1,115 @@
+# Plane A Helm values configuration for Product Forge cluster deployment
+
+global:
+  environment: production
+  clusterName: product-forge-cluster
+
+api:
+  replicaCount: 2
+  image:
+    repository: product-forge/core-api
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  port: 8000
+  env:
+    PF_ENV: production
+    LOG_LEVEL: info
+    BACKLOG_STORE_BACKEND: postgresql
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  probes:
+    liveness:
+      path: /api/v1/health
+      initialDelaySeconds: 15
+      periodSeconds: 10
+    readiness:
+      path: /api/v1/health
+      initialDelaySeconds: 5
+      periodSeconds: 5
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    fsGroup: 10001
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+postgres:
+  enabled: true
+  image:
+    repository: pgvector/pgvector
+    tag: pg16
+    pullPolicy: IfNotPresent
+  service:
+    port: 5432
+  auth:
+    database: productforge
+    username: pf_admin
+    password: "change-in-production-vault"
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: ""
+    reclaimPolicy: Retain
+  resources:
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: RELEASE.2024-05-10T01-41-38Z
+    pullPolicy: IfNotPresent
+  service:
+    port: 9000
+    consolePort: 9001
+  auth:
+    rootUser: pf-minio-admin
+    rootPassword: "change-in-production-vault"
+  defaultBucket: product-forge-artifacts
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: ""
+    reclaimPolicy: Retain
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+secrets:
+  edpToken: "pf-edp-local-token-32-chars-long"
+  adminToken: "pf-edp-local-token-32-chars-long"
+  hmacSecret: "pf-platform-cluster-hmac-secret-key-32b"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: productforge.local
+      paths:
+        - path: /
+          pathType: Prefix
