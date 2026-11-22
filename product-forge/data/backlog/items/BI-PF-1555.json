@@ -8,7 +8,7 @@
   "risk": 2,
   "tier": 2,
   "type": "feature",
-  "_note": "final report persisted (BI-PF-1484)",
+  "_note": "marked completed after PR merge",
   "brief": {
     "why": "Manual platform deployment is error-prone, violates reproducible delivery standards, and impedes turnkey commercial customer rollouts.",
     "source": "authored",
@@ -17,7 +17,19 @@
     "who_feels": "Platform DevOps engineers, enterprise cloud administrators, and deployment operators"
   },
   "label": "PF Backlog 690",
-  "links": {},
+  "links": {
+    "delivery": {
+      "at": "2026-11-22T15:24:44.324832",
+      "pr": "378",
+      "note": "Delivered via GitHub PR #378",
+      "usage": {},
+      "branch": "feat/BI-PF-1555-plane-a-provisioner",
+      "pr_url": "https://github.com/srinikc/productforge/pull/378",
+      "commits": [],
+      "merge_sha": "e822a1edafb9e4bf9c788828f67f3a40940ab33a",
+      "duration_seconds": 0
+    }
+  },
   "owner": "eng:devops",
   "risks": [
     "Cloud provider API rate limits during infrastructure provisioning mitigated via idempotent Terraform state."
@@ -85,7 +97,7 @@
     }
   },
   "source": "generic",
-  "status": "in_progress",
+  "status": "completed",
   "project": "",
   "summary": "Build an official Helm chart and Terraform reference module for Product Forge (Plane A) that provisions PostgreSQL, S3/blob storage, mounts secrets, runs migrations, and deploys the compiled platform container services.",
   "unlocks": [],
@@ -94,7 +106,7 @@
     "depth": "deep",
     "drift": "NONE",
     "risks": [],
-    "status": "COMPLETE",
+    "status": "STALE",
     "evidence": [
       "similar=4",
       "score=0.75",
@@ -203,7 +215,7 @@
     "deploy/scripts/one_click_deploy.sh"
   ],
   "priority": "P2",
-  "revision": 2,
+  "revision": 3,
   "rollback": "Terraform destroy / Helm uninstall script executing clean teardown.",
   "approvals": [],
   "decisions": [
@@ -550,17 +562,17 @@
     },
     {
       "sig": "sig:b44023920620341c",
-      "finding": "The Helm chart's default configuration deploys a single-replica PostgreSQL StatefulSet and an in-cluster MinIO instance, directly contradicting the Terraform modules' provisioning of highly available managed cloud databases and cloud object storage. This means the application will not use the HA infrastructure by default.",
-      "severity": "MAJOR",
-      "status": "ACTIONED",
-      "origin_class": "DESIGN_GAP",
-      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
-      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
-      "evidence": "deploy/plane-a/helm/product-forge/values.yaml",
       "files": [
         "deploy/plane-a/helm/product-forge/values.yaml"
       ],
+      "status": "ACTIONED",
+      "finding": "The Helm chart's default configuration deploys a single-replica PostgreSQL StatefulSet and an in-cluster MinIO instance, directly contradicting the Terraform modules' provisioning of highly available managed cloud databases and cloud object storage. This means the application will not use the HA infrastructure by default.",
+      "evidence": "deploy/plane-a/helm/product-forge/values.yaml",
       "rollback": "revert values.yaml configuration",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_manifest_generation",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -569,17 +581,17 @@
     },
     {
       "sig": "sig:4d6960fb79ed8afd",
-      "finding": "The GCP Terraform module grants overly broad `cloud-platform` OAuth scope to GKE node pools, violating the principle of least privilege and posing a significant security vulnerability.",
-      "severity": "MAJOR",
-      "status": "ACTIONED",
-      "origin_class": "DESIGN_GAP",
-      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
-      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
-      "evidence": "deploy/plane-a/terraform/gcp/main.tf",
       "files": [
         "deploy/plane-a/terraform/gcp/main.tf"
       ],
+      "status": "ACTIONED",
+      "finding": "The GCP Terraform module grants overly broad `cloud-platform` OAuth scope to GKE node pools, violating the principle of least privilege and posing a significant security vulnerability.",
+      "evidence": "deploy/plane-a/terraform/gcp/main.tf",
       "rollback": "revert gcp node pool oauth scope",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_terraform_module_definitions",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -588,17 +600,17 @@
     },
     {
       "sig": "sig:ad604fd23a511584",
-      "finding": "The Helm chart's `configmap.yaml` hardcodes `MINIO_ENDPOINT` to an in-cluster HTTP address, preventing the use of the cloud-managed object storage provisioned by Terraform without manual override.",
-      "severity": "MAJOR",
-      "status": "ACTIONED",
-      "origin_class": "DESIGN_GAP",
-      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
-      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
-      "evidence": "deploy/plane-a/helm/product-forge/templates/configmap.yaml",
       "files": [
         "deploy/plane-a/helm/product-forge/templates/configmap.yaml"
       ],
+      "status": "ACTIONED",
+      "finding": "The Helm chart's `configmap.yaml` hardcodes `MINIO_ENDPOINT` to an in-cluster HTTP address, preventing the use of the cloud-managed object storage provisioned by Terraform without manual override.",
+      "evidence": "deploy/plane-a/helm/product-forge/templates/configmap.yaml",
       "rollback": "revert configmap template",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_minio_and_api",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -607,17 +619,17 @@
     },
     {
       "sig": "sig:18d667581752472d",
-      "finding": "The default values for `postgres.host` in `values.yaml` are empty, causing the Helm chart to deploy and use an in-cluster PostgreSQL StatefulSet instead of the managed HA database provisioned by Terraform.",
-      "severity": "MAJOR",
-      "status": "ACTIONED",
-      "origin_class": "DESIGN_GAP",
-      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
-      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
-      "evidence": "deploy/plane-a/helm/product-forge/values.yaml",
       "files": [
         "deploy/plane-a/helm/product-forge/values.yaml"
       ],
+      "status": "ACTIONED",
+      "finding": "The default values for `postgres.host` in `values.yaml` are empty, causing the Helm chart to deploy and use an in-cluster PostgreSQL StatefulSet instead of the managed HA database provisioned by Terraform.",
+      "evidence": "deploy/plane-a/helm/product-forge/values.yaml",
       "rollback": "revert values.yaml postgres host configuration",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_plane_a_deployer.py::test_helm_chart_postgres_pgvector_and_pv_retention",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -625,7 +637,7 @@
       ]
     }
   ],
-  "updated_at": "2026-11-22T15:17:07.621188",
+  "updated_at": "2026-11-22T15:24:44.733649",
   "design_pack": {
     "item": "BI-PF-1555",
     "audit": "Structured JSON deployment execution trail with timestamped status per deployment stage",
