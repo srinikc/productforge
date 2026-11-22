@@ -335,15 +335,16 @@ func init() {
 	})
 
 	var parsed legacyMappingPayload
-	if err := json.Unmarshal(embeddedLegacyMappingJSON, &parsed); err == nil {
-		for k, v := range parsed.Mappings {
-			cachedLegacyMappings[k] = struct {
-				Kind MemoryKind
-				Tags []string
-			}{
-				Kind: MemoryKind(v.Kind),
-				Tags: v.Tags,
-			}
+	if err := json.Unmarshal(embeddedLegacyMappingJSON, &parsed); err != nil {
+		panic(fmt.Sprintf("failed to unmarshal embedded legacy memory mapping: %v", err))
+	}
+	for k, v := range parsed.Mappings {
+		cachedLegacyMappings[k] = struct {
+			Kind MemoryKind
+			Tags []string
+		}{
+			Kind: MemoryKind(v.Kind),
+			Tags: v.Tags,
 		}
 	}
 }
