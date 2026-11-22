@@ -261,7 +261,8 @@ func Capabilities() []string {
 		"artifact_contracts.validate", "artifact_contracts.coverage",
 		"artifact_contracts.kind", "artifact_contracts.budget",
 		"artifact_contracts.reconcile", "artifact_contracts.outline", "artifact_contracts.dry_check",
-		"agents.registry", "agents.resolve", "agents.coverage", "agents.register"}
+		"agents.registry", "agents.resolve", "agents.coverage", "agents.register",
+		"rdc.compose", "rdc.validate_ip", "rdc.plan"}
 }
 
 // HostID is the distinct pfcore host tag (the wire contract's `host` enum is {python, go}).
@@ -290,7 +291,8 @@ func SupportedOps() []string {
 		"artifact_contracts.validate", "artifact_contracts.coverage",
 		"artifact_contracts.kind", "artifact_contracts.budget",
 		"artifact_contracts.reconcile", "artifact_contracts.outline", "artifact_contracts.dry_check",
-		"agents.registry", "agents.resolve", "agents.coverage", "agents.register"}
+		"agents.registry", "agents.resolve", "agents.coverage", "agents.register",
+		"rdc.compose", "rdc.validate_ip", "rdc.plan"}
 }
 
 func response(req WireRequest, ok bool, status string, result map[string]any, errMsg string) WireResponse {
@@ -378,6 +380,12 @@ func Handle(req WireRequest) WireResponse {
 		return acOp(req, ARAgentCoverageOp)
 	case "agents.register":
 		return acOp(req, ARAgentRegisterOp)
+	case "rdc.compose":
+		return Compose(req)
+	case "rdc.validate_ip":
+		return ValidateIPLeakage(req)
+	case "rdc.plan":
+		return Plan(req)
 	default:
 		return response(req, false, "error", nil, "unsupported op: "+req.Op)
 	}
