@@ -178,6 +178,25 @@ def _index_row(it: dict) -> dict:
     return row
 
 
+def _edp_token() -> str:
+    """Return EDP bearer token from env, .env file, or local dev fallback (BI-PF-1556 RCCA)."""
+    tok = os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")
+    if tok:
+        return tok
+    try:
+        from core.credentials import _load_env_files
+        _load_env_files()
+        tok = os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")
+        if tok:
+            return tok
+    except Exception:
+        pass
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030"))
+    if "127.0.0.1:8030" in api or "localhost:8030" in api:
+        return "pf-edp-local-token-32-chars-long"
+    return ""
+
+
 def _load_all_from_db(scope: str, project: str | None):
     """BI-PF-1399 Phase 3 (read-switch): read items from the DB SoR (via the Go edpsvc /backlog)."""
     import json as _json
@@ -188,7 +207,7 @@ def _load_all_from_db(scope: str, project: str | None):
     tenant = _db_tenant(scope, project)
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
     try:
         with _ureq.urlopen(req, timeout=30) as r:
             payload = _json.loads(r.read().decode("utf-8"))
@@ -355,7 +374,7 @@ def _mirror_item_to_db(item: dict) -> None:
                         "Project": str(item.get("project") or ""), "Data": item}).encode("utf-8")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}", data=body, method="POST")
     req.add_header("Content-Type", "application/json")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
     if mode == "on":
         # DB SoR: propagate every failure; never acknowledge a lost authoritative write.
         with _ureq.urlopen(req, timeout=5):
@@ -374,7 +393,7 @@ def _delete_item_from_db(iid: str, tenant: str) -> None:
 
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="DELETE")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
     with _ureq.urlopen(req, timeout=5):
         pass
 
@@ -386,7 +405,7 @@ def _fetch_item_from_db(iid: str, tenant: str) -> dict:
 
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="GET")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
     with _ureq.urlopen(req, timeout=5) as r:
         return _json.loads(r.read().decode("utf-8"))
 
