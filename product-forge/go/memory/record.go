@@ -31,6 +31,8 @@ var (
 	ErrTooManyMetadataEntries  = errors.New("too many metadata entries: maximum 50 allowed")
 	ErrInvalidMetadataKey      = errors.New("invalid metadata key format: must match ^[a-zA-Z0-9_.:-]+$")
 	ErrInvalidMetadataScalar   = errors.New("invalid metadata value: only scalar types (string, float64, bool, int64) allowed")
+	ErrMetadataValueTooLarge   = errors.New("metadata string value exceeds maximum length (4096 bytes)")
+	ErrSelfReferencingSupersededBy = errors.New("record cannot supersede itself: superseded_by cannot equal id")
 	ErrInvalidPayloadRefScheme = errors.New("invalid payload_ref: must use a supported URI scheme (s3://, https://, http://, gs://, file://)")
 	ErrUnknownLegacyType       = errors.New("unknown legacy memory type")
 )
@@ -42,6 +44,7 @@ var (
 
 const (
 	MaxContentBytes        = 1048576 // 1MB
+	MaxMetadataValueBytes  = 4096    // 4KB per metadata value
 	MaxEmbeddingDimensions = 3072
 	MaxTags                = 50
 	MaxMetadataEntries     = 50
@@ -243,6 +246,10 @@ func (r *MemoryRecord) Validate() error {
 
 	// 8. SupersededBy UUID format if set
 	if strings.TrimSpace(r.SupersededBy) != "" {
+		if strings.TrimSpace(r.SupersededBy) == strings.TrimSpace(r.ID) {
+			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", ErrSelfReferencingSupersededBy)
+			return ErrSelfReferencingSupersededBy
+		}
 		if _, err := uuid.Parse(r.SupersededBy); err != nil {
 			errOut := fmt.Errorf("%w: %v", ErrInvalidSupersededBy, err)
 			EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", errOut)
@@ -277,8 +284,14 @@ func (r *MemoryRecord) Validate() error {
 		if v == nil {
 			continue
 		}
-		switch v.(type) {
-		case string, float64, float32, bool, int, int64, int32:
+		switch val := v.(type) {
+		case string:
+			if len(val) > MaxMetadataValueBytes {
+				errOut := fmt.Errorf("%w: key %q exceeds %d bytes", ErrMetadataValueTooLarge, k, MaxMetadataValueBytes)
+				EmitMemoryValidationAudit(r.ID, r.TenantID, "FAIL", errOut)
+				return errOut
+			}
+		case float64, float32, bool, int, int64, int32:
 			// Allowed primitive scalars
 		default:
 			errOut := fmt.Errorf("%w: key %q has non-scalar type %T", ErrInvalidMetadataScalar, k, v)

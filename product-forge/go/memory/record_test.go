@@ -81,6 +81,13 @@ func TestMemoryRecord_Validate_MissingRequiredFields(t *testing.T) {
 	if err := rec.Validate(); !errors.Is(err, ErrInvalidSupersededBy) {
 		t.Errorf("expected ErrInvalidSupersededBy, got: %v", err)
 	}
+
+	// Self-referencing SupersededBy
+	rec = validRecord()
+	rec.SupersededBy = rec.ID
+	if err := rec.Validate(); !errors.Is(err, ErrSelfReferencingSupersededBy) {
+		t.Errorf("expected ErrSelfReferencingSupersededBy, got: %v", err)
+	}
 }
 
 func TestMemoryRecord_TenantIsolation(t *testing.T) {
