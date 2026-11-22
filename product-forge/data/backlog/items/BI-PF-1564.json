@@ -1,0 +1,198 @@
+{
+  "id": "BI-PF-1564",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:retrieval-evaluation-harness",
+  "label": "PF Backlog 699",
+  "title": "Retrieval & Context Evaluation: Precision@k, Recall@k, faithfulness scoring, ground-truth benchmark suite, and latency observability",
+  "body": "## Problem / why\nNo quantitative evaluation exists to measure if retrieved context is accurate, relevant, or hallucination-inducing.\n\n## Goal & value\nBuild an automated evaluation harness measuring retrieval precision, recall, faithfulness, and latency across backends.\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-24`\n\n## In scope\n- Evaluation harness computing Precision@k, Recall@k, MRR, and NDCG.\n- Golden query-document benchmark dataset for Product Forge.\n- Latency and context efficiency metrics exported to test reports.\n\n## Out of scope\n- Manual ad-hoc human-only grading.\n\n## Definition of Done\n- Evaluation harness integrated into CI with automated pass/fail assertions.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1560",
+    "BI-PF-1562"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:10:33.681092",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No quantitative evaluation exists to measure if retrieved context is accurate, relevant, or hallucination-inducing.",
+    "what_adds": "Build an automated evaluation harness measuring retrieval precision, recall, faithfulness, and latency across backends.",
+    "why": "No quantitative evaluation exists to measure if retrieved context is accurate, relevant, or hallucination-inducing.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Build an automated evaluation harness measuring retrieval precision, recall, faithfulness, and latency across backends.",
+  "acceptance_criteria": [
+    "AC-1: Evaluator runs automated queries against golden benchmark dataset.",
+    "AC-2: Verifies Recall@5 >= 90% and Precision@5 >= 80% on standard test suite.",
+    "AC-3: Detects performance regressions and context bloat in CI runs."
+  ],
+  "in_scope": [
+    "Evaluation harness computing Precision@k, Recall@k, MRR, and NDCG.",
+    "Golden query-document benchmark dataset for Product Forge.",
+    "Latency and context efficiency metrics exported to test reports."
+  ],
+  "out_of_scope": [
+    "Manual ad-hoc human-only grading."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "engineering/benchmarks/rag/eval_harness.py",
+    "engineering/benchmarks/rag/golden_queries.json"
+  ],
+  "approach": "Evaluation harness computing Precision@k, Recall@k, MRR, and NDCG.; Golden query-document benchmark dataset for Product Forge.; Latency and context efficiency metrics exported to test reports.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Evaluation harness integrated into CI with automated pass/fail assertions.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1564): sig:235898cc4fced5da (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:10:33.349865",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_discipline.py, core/context_engine.py, core/context_manager.py, core/context_policy.py",
+    "existing_components": [
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py",
+      "core/context_review.py",
+      "core/media_context.py",
+      "core/orchestration_context.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/context"
+    ],
+    "existing_modules": [
+      "config/context-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1560",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1562",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:10:33.508726"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:10:28.999264",
+  "updated_at": "2026-11-22T14:10:37.525338",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CI/benchmark CLI harness; no runtime HTTP API"
+  }
+}

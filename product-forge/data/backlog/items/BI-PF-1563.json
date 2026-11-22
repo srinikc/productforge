@@ -1,0 +1,189 @@
+{
+  "id": "BI-PF-1563",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:authority-conflict-resolution",
+  "label": "PF Backlog 698",
+  "title": "Knowledge Authority & Conflict Resolution: hierarchy enforcement, contradiction detection, and fail-closed HIL escalation",
+  "body": "## Problem / why\nConflicting rules or stale memory entries injected into prompts confuse the model, leading to silent drift and hallucination.\n\n## Goal & value\nEnforce strict authority ordering (SSOT > ADR > Decision > Learned) and fail-closed contradiction detection before context enters prompts.\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-15`\n- `docs/RAG-PROCESS-MEMORY.md#section-6`\n\n## In scope\n- Authority hierarchy evaluator.\n- Contradiction detection between candidate chunks and active SSOT rules.\n- Fail-closed escalation halting injection on unresolvable same-tier contradictions.\n\n## Out of scope\n- Silent automated resolution of contradictory high-level business requirements.\n\n## Definition of Done\n- Contradiction tests verify fail-closed escalation and proper authority override.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1559"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:10:19.119229",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Conflicting rules or stale memory entries injected into prompts confuse the model, leading to silent drift and hallucination.",
+    "what_adds": "Enforce strict authority ordering (SSOT > ADR > Decision > Learned) and fail-closed contradiction detection before context enters prompts.",
+    "why": "Conflicting rules or stale memory entries injected into prompts confuse the model, leading to silent drift and hallucination.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Enforce strict authority ordering (SSOT > ADR > Decision > Learned) and fail-closed contradiction detection before context enters prompts.",
+  "acceptance_criteria": [
+    "AC-1: Higher authority tier deterministically overrides lower authority claims.",
+    "AC-2: Contradiction detection flags conflicting polarities between active knowledge entries.",
+    "AC-3: Same-tier conflict halts and triggers human-in-the-loop (HIL) escalation."
+  ],
+  "in_scope": [
+    "Authority hierarchy evaluator.",
+    "Contradiction detection between candidate chunks and active SSOT rules.",
+    "Fail-closed escalation halting injection on unresolvable same-tier contradictions."
+  ],
+  "out_of_scope": [
+    "Silent automated resolution of contradictory high-level business requirements."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/authority_engine.py",
+    "go/pfrag/authority.go",
+    "go/pfrag/authority_test.go"
+  ],
+  "approach": "Authority hierarchy evaluator.; Contradiction detection between candidate chunks and active SSOT rules.; Fail-closed escalation halting injection on unresolvable same-tier contradictions.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Contradiction tests verify fail-closed escalation and proper authority override.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1563): sig:5e50acd4341bfb4d (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:10:18.817238",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_hierarchy.py, core/escalation.py, core/knowledge_compiler.py, core/knowledge_compliance_checker.py",
+    "existing_components": [
+      "core/agent_hierarchy.py",
+      "core/escalation.py",
+      "core/knowledge_compiler.py",
+      "core/knowledge_compliance_checker.py",
+      "core/knowledge_refresh.py",
+      "core/knowledge_registry.py",
+      "core/knowledge_router.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/agent-hierarchy.json",
+      "config/knowledge-registry.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=7",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1559",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:10:18.961623"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:10:14.843335",
+  "updated_at": "2026-11-22T14:10:37.086840",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal governance validator; gate evaluation check"
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "id": "BI-PF-1559",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:knowledge-registry",
+  "label": "PF Backlog 694",
+  "title": "Governed Knowledge Fabric & Registry: asset registration, schema validation, authority tiers, and SHA-256 provenance tracking",
+  "body": "## Problem / why\nKnowledge assets (ADRs, SSOT docs, code standards, glossaries) lack a formal registry, versioning, and tamper-evident provenance.\n\n## Goal & value\nImplement the Knowledge Fabric registry inside Product Forge to register, validate, version, and trace all authoritative knowledge assets.\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-7`\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-16`\n\n## In scope\n- Knowledge registry schema (asset_id, category, authority_tier, version, sha256, owner, valid_until).\n- Validation gate rejecting unclassified, unversioned, or invalid knowledge chunks.\n- Cryptographic provenance: every chunk links back to source file, heading anchor, and git commit SHA.\n\n## Out of scope\n- Third-party standalone OKF servers; keep logic natively integrated inside Product Forge.\n\n## Definition of Done\n- Registry conformance tests pass with 100% metadata coverage across active docs.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:09:27.966818",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Knowledge assets (ADRs, SSOT docs, code standards, glossaries) lack a formal registry, versioning, and tamper-evident provenance.",
+    "what_adds": "Implement the Knowledge Fabric registry inside Product Forge to register, validate, version, and trace all authoritative knowledge assets.",
+    "why": "Knowledge assets (ADRs, SSOT docs, code standards, glossaries) lack a formal registry, versioning, and tamper-evident provenance.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Implement the Knowledge Fabric registry inside Product Forge to register, validate, version, and trace all authoritative knowledge assets.",
+  "acceptance_criteria": [
+    "AC-1: Registry tracks all core docs, ADRs, patterns, and guidelines with SHA-256 checksums.",
+    "AC-2: Rejects registration of malformed or unversioned knowledge assets.",
+    "AC-3: Injected context chunks include clickable provenance references and authority tier metadata."
+  ],
+  "in_scope": [
+    "Knowledge registry schema (asset_id, category, authority_tier, version, sha256, owner, valid_until).",
+    "Validation gate rejecting unclassified, unversioned, or invalid knowledge chunks.",
+    "Cryptographic provenance: every chunk links back to source file, heading anchor, and git commit SHA."
+  ],
+  "out_of_scope": [
+    "Third-party standalone OKF servers; keep logic natively integrated inside Product Forge."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/knowledge_registry.py",
+    "go/pfrag/registry.go",
+    "config/knowledge-registry.json"
+  ],
+  "approach": "Knowledge registry schema (asset_id, category, authority_tier, version, sha256, owner, valid_until).; Validation gate rejecting unclassified, unversioned, or invalid knowledge chunks.; Cryptographic provenance: every chunk links back to source file, heading anchor, and git commit SHA.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Registry conformance tests pass with 100% metadata coverage across active docs.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1559): sig:414315695d34943a (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-22T14:09:27.651336",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/asset_store.py, core/change_registry.py, core/knowledge_compiler.py",
+    "existing_components": [
+      "core/artifact_registry.py",
+      "core/asset_store.py",
+      "core/change_registry.py",
+      "core/knowledge_compiler.py",
+      "core/knowledge_compliance_checker.py",
+      "core/knowledge_refresh.py",
+      "core/knowledge_registry.py",
+      "core/knowledge_router.py"
+    ],
+    "existing_apis": [
+      "/api/v1/enterprise/tiers",
+      "/api/v1/packaging/eap/registry",
+      "/api/v1/validation",
+      "/api/v1/validation/agents",
+      "/api/v1/validation/agents/coverage",
+      "/api/v1/validation/agents/register",
+      "/api/v1/validation/agents/{agent_id}",
+      "/api/v1/validation/artifact-contracts"
+    ],
+    "existing_modules": [
+      "config/biis-tiers.json",
+      "config/eap-registry.json",
+      "config/hardware-tiers.json",
+      "config/knowledge-registry.json",
+      "config/licensing-tiers.json",
+      "config/plugins-registry.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.33",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:09:27.805435"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:09:23.607721",
+  "updated_at": "2026-11-22T14:09:29.544114",
+  "score": 1.33,
+  "_note": "planned affected files + DoD (design)",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal schema and asset validation; registry query API"
+  }
+}
