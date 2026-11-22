@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1599",
+  "sha": "6af8cae76e02",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T16:04:35.102419+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "4a4c93f37d7be5c4a03a2aeb956017534e7442b1",
+  "findings": {
+    "BLOCKER": [
+      "The \"Enterprise Autonomous Gate Orchestrator\" (`scripts/dev/gate_orchestrator.py`) is implemented in Python as the runtime entrypoint for new core pipeline orchestration, violating the \"new shipped logic -> Go\" standard. The prior disposition claiming this was addressed is incorrect.",
+      "The design lacks an explicit dry-run or report mode for autonomous operations, which is critical for blast radius control and integrity in an enterprise system. The prior disposition claiming this was addressed is incorrect."
+    ],
+    "MAJOR": [
+      "The design does not sufficiently detail how the Python script-based orchestrator achieves high availability, fault tolerance, or horizontal scalability for an \"Enterprise Autonomous Gate Orchestrator.\" The claim of \"Horizontally capable\" is not supported by the described deployment model.",
+      "The rollback strategy for state changes made by the orchestrator in autonomous mode is insufficiently detailed beyond code reversion. It does not cover clean state restoration across multiple gates and external systems.",
+      "The `PF_BACKLOG_DB` configuration contract specifies `invalid_behavior: defaults to on`. This can silently enable the database even with invalid configuration, masking errors and potentially leading to runtime failures if the DB is unavailable.",
+      "The design implies `core/id_allocator.py` (Python) interacts with the Go `edpsvc` using an \"authenticated bearer token.\" The secure handling and usage of this token by the Python component, especially concerning `CL-005` (\"No PF token for internal callers\"), is not explicitly detailed."
+    ],
+    "MINOR": [
+      "The \"Enterprise Autonomous Gate Orchestrator\" remains located in `scripts/dev/gate_orchestrator.py`, which is misleading for a core, production-grade component and impacts maintainability. The prior disposition claiming this was addressed is incorrect.",
+      "The purpose and interaction of `scripts/dev/sync_fix_impact.py` with the orchestrator are not described in the design, despite being listed as an affected file.",
+      "The API contract for `/api/v1/health` specifies `auth: none`. For an enterprise system, this inconsistency with other authenticated endpoints should be justified or secured. The prior disposition claiming this was addressed is incorrect.",
+      "The design lacks specific observability details for the `core/id_allocator.py` component, which is critical for diagnosing potential data corruption or concurrency issues.",
+      "The security control `CTRL-01` (tenant isolation and authentication on post-deploy smoke probe execution) is linked to `AC-1` (Interactive HIL mode), which is an unclear and potentially misaligned association.",
+      "The tenant isolation control `CTRL-06` (rollback operation restores state cleanly without crossing tenant boundaries) is linked to `AC-2` (Autonomous mode auto-evaluation), which is not immediately obvious and could be more clearly articulated.",
+      "`scripts/dev/precheck.py` is a dependency for the core pipeline orchestration, but its enterprise readiness (stability, performance, standards adherence) is not elaborated."
+    ],
+    "NIT": [
+      "The `rollback` entry is duplicated in `functional_spec` and `design_pack`.",
+      "The `out_of_scope` section is \"Not specified.\"",
+      "The `controls` and `implementation_controls` sections are identical, leading to redundancy.",
+      "The consistent use of `RollbackOrchestrator` in control symbols (e.g., `RollbackOrchestrator.verify_security_auth`) for an \"Enterprise Autonomous Gate Orchestrator\" suggests a potential naming mismatch, impacting clarity."
+    ],
+    "SUMMARY": []
+  }
+}
