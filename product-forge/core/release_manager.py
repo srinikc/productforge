@@ -375,6 +375,19 @@ class ReleaseManager:
                     return {"success": False, "error": "Backup path not found"}
         return {"success": False, "error": "Backup not found"}
 
+    def verify_and_rollback(self, backup_id: str, smoke_checker: Any) -> Dict[str, Any]:
+        """Verify post-deployment smoke checker and trigger rollback on failure (BI-PF-1556)."""
+        ok = False
+        try:
+            ok = bool(smoke_checker())
+        except Exception:
+            ok = False
+        if ok:
+            return {"status": "verified", "rollback": None}
+        rb_res = self.rollback(backup_id)
+        return {"status": "rolled_back", "rollback": rb_res}
+
+
     def _generate_rollback_plan(self, version: str, environment: str) -> Dict[str, Any]:
         """Generate rollback plan for a deployment"""
         # Find previous version

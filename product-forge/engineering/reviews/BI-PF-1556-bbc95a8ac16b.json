@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1556",
+  "sha": "bbc95a8ac16b",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T10:09:24.325274+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+  "findings": {
+    "BLOCKER": [
+      "The `language rule` states \"new shipped logic -> Go\". The objective is to \"Implement automated fail-closed rollback orchestration\", and `core/rollback_orchestrator.py` is listed as an `affected_file` and `in_scope`. If `core/rollback_orchestrator.py` is a new file, this new shipped logic is being implemented in Python, violating the standard."
+    ],
+    "MAJOR": [
+      "The design implies a full environment rollback to a \"prior stable release snapshot\". The blast radius of this rollback is not clearly defined, specifically whether it affects only the failing service or all services in the environment, which could lead to unnecessary service disruption."
+    ],
+    "MINOR": [
+      "The design does not explicitly define observability (e.g., metrics, structured logs) for the success or failure of the post-deployment smoke tests themselves, independent of whether a rollback is triggered.",
+      "The `PF_ADMIN_TOKEN` for manual override is mentioned, but the design lacks details on its lifecycle management, rotation, and secure storage, which are critical for security and operational integrity.",
+      "The `orchestrator_watchdog_timeout_seconds` is defined, but the design does not specify the actions taken by the watchdog upon timeout, limiting its effectiveness as a control mechanism."
+    ],
+    "NIT": [],
+    "SUMMARY": []
+  },
+  "rereview_reason": "Addressed blocker with expand-contract migration policy (ADR-0008), 2-tier smoke probe auth (liveness + tenant-scoped), orchestrator watchdog timeout, and audited admin override",
+  "rereview_reason_sha256": "2e5c5110c5158e28b2bdc1275d31890d4cad32b0a0e2220be9bf033b9425c9bd"
+}
