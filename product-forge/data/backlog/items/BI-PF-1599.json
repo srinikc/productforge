@@ -335,24 +335,24 @@
       "findings_digest": "4a392fbef709"
     },
     {
-      "gate": 1,
-      "decision": "MATERIAL_CHANGE",
-      "by": "hil:architect",
       "at": "2026-11-22T16:05:13.272311+00:00",
+      "by": "hil:architect",
+      "seq": 8,
+      "gate": 1,
       "mode": "design",
-      "hil_confirmed": true,
       "note": "Operator-confirmed material change for contract and BIIS consolidation.",
-      "seq": 8
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
     },
     {
-      "gate": 1,
-      "decision": "APPROVE",
-      "by": "hil:architect",
       "at": "2026-11-22T16:05:13.272311+00:00",
-      "findings_sha": "6af8cae76e02",
-      "findings_digest": "51fd67c60d97",
+      "by": "hil:architect",
+      "seq": 9,
+      "gate": 1,
       "note": "Approved autonomous orchestrator design with dual execution modes",
-      "seq": 9
+      "decision": "APPROVE",
+      "findings_sha": "6af8cae76e02",
+      "findings_digest": "51fd67c60d97"
     }
   ],
   "execution": {
@@ -1706,92 +1706,92 @@
       {
         "ac": "AC-1",
         "fr": "FR-1",
+        "entrypoint": "scripts/dev/gate_orchestrator.py",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:run_interactive_gate"
+        ],
+        "adapter": "Interactive CLI gate adapter",
+        "contract": "Halts execution at review gates in interactive mode prompting operator for explicit decision",
+        "failure_behavior": "fail closed on abort or negative response",
+        "failure_cases": [
+          "operator rejects review halts pipeline"
+        ],
         "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
         "tests": [
           "test-framework/tests/pipeline/test_gate_orchestrator.py"
         ],
-        "adapter": "Interactive CLI gate adapter",
-        "contract": "Halts execution at review gates in interactive mode prompting operator for explicit decision",
         "evidence": [
           "scripts/dev/gate_orchestrator.py"
         ],
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:run_interactive_gate"
-        ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "4a4c93f3",
-        "failure_cases": [
-          "operator rejects review halts pipeline"
-        ],
-        "failure_behavior": "fail closed on abort or negative response"
+        "candidate_sha": "4a4c93f3"
       },
       {
         "ac": "AC-2",
         "fr": "FR-2",
+        "entrypoint": "scripts/dev/gate_orchestrator.py",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:run_auto_gate"
+        ],
+        "adapter": "Autonomous policy gate adapter",
+        "contract": "Auto-evaluates dispositions and automatically advances gates in autonomous execution mode",
+        "failure_behavior": "fail closed on fatal blocking findings",
+        "failure_cases": [
+          "fatal finding stops auto mode and alerts operator"
+        ],
         "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
         "tests": [
           "test-framework/tests/pipeline/test_gate_orchestrator.py"
         ],
-        "adapter": "Autonomous policy gate adapter",
-        "contract": "Auto-evaluates dispositions and automatically advances gates in autonomous execution mode",
         "evidence": [
           "scripts/dev/gate_orchestrator.py"
         ],
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:run_auto_gate"
-        ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "4a4c93f3",
-        "failure_cases": [
-          "fatal finding stops auto mode and alerts operator"
-        ],
-        "failure_behavior": "fail closed on fatal blocking findings"
+        "candidate_sha": "4a4c93f3"
       },
       {
         "ac": "AC-3",
         "fr": "FR-3",
+        "entrypoint": "scripts/dev/gate_orchestrator.py",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:resolve_execution_mode"
+        ],
+        "adapter": "Policy resolver adapter",
+        "contract": "Resolves execution mode hierarchy: CLI flag > item execution_mode > env var > interactive default",
+        "failure_behavior": "fail safe to interactive mode",
+        "failure_cases": [
+          "unrecognized mode defaults to interactive"
+        ],
         "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
         "tests": [
           "test-framework/tests/pipeline/test_gate_orchestrator.py"
         ],
-        "adapter": "Policy resolver adapter",
-        "contract": "Resolves execution mode hierarchy: CLI flag > item execution_mode > env var > interactive default",
         "evidence": [
           "scripts/dev/gate_orchestrator.py"
         ],
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:resolve_execution_mode"
-        ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "4a4c93f3",
-        "failure_cases": [
-          "unrecognized mode defaults to interactive"
-        ],
-        "failure_behavior": "fail safe to interactive mode"
+        "candidate_sha": "4a4c93f3"
       },
       {
         "ac": "AC-4",
         "fr": "FR-4",
+        "entrypoint": "scripts/dev/gate_orchestrator.py",
+        "call_sites": [
+          "scripts/dev/gate_orchestrator.py:run_full_pipeline"
+        ],
+        "adapter": "E2E pipeline adapter",
+        "contract": "End-to-end pipeline gate orchestration and PostgreSQL DB authority hardening without forced downgrades",
+        "failure_behavior": "fail closed on gate failure or database error",
+        "failure_cases": [
+          "gate failure aborts delivery before push"
+        ],
         "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
         "tests": [
           "test-framework/tests/pipeline/test_gate_orchestrator.py"
         ],
-        "adapter": "E2E pipeline adapter",
-        "contract": "End-to-end pipeline gate orchestration and PostgreSQL DB authority hardening without forced downgrades",
         "evidence": [
           "scripts/dev/gate_orchestrator.py",
           "core/backlog.py",
           "core/id_allocator.py"
         ],
-        "call_sites": [
-          "scripts/dev/gate_orchestrator.py:run_full_pipeline"
-        ],
-        "entrypoint": "scripts/dev/gate_orchestrator.py",
-        "candidate_sha": "4a4c93f3",
-        "failure_cases": [
-          "gate failure aborts delivery before push"
-        ],
-        "failure_behavior": "fail closed on gate failure or database error"
+        "candidate_sha": "4a4c93f3"
       }
     ],
     "evidence": [
@@ -3087,40 +3087,23 @@
     "integration_complete": true
   },
   "functional_spec": {
-    "dod": [
-      "All 4 Acceptance Criteria verified with automated pytest tests",
-      "Gate 2.5 second-model Architect delivery review verified with 0 blockers",
-      "Execution trail and delivery provenance recorded"
-    ],
-    "nfr": [
-      "Sub-50ms disposition evaluation and sub-200ms policy engine execution",
-      "Zero data corruption on concurrent ID sequence allocation"
-    ],
+    "version": 1,
+    "status": "approved",
     "owner": "eng:core",
-    "scope": [
-      "scripts/dev/gate_orchestrator.py",
-      "core/backlog.py",
-      "core/id_allocator.py",
-      "scripts/dev/precheck.py",
-      "test-framework/tests/pipeline/test_gate_orchestrator.py"
-    ],
+    "source": "BI-PF-1599",
+    "outcome": "Autonomous Gate Orchestrator and Execution Mode Policy Engine operational with fail-closed auto-dispositioning, strict PostgreSQL DB authority default, and stale ID sequence protection.",
     "actors": [
       "developer",
       "ci_runner",
       "gate_orchestrator",
       "architect_reviewer"
     ],
-    "domain": [
-      "gate orchestration",
-      "execution policy engine",
-      "backlog persistence"
-    ],
-    "source": "BI-PF-1599",
-    "status": "approved",
-    "outcome": "Autonomous Gate Orchestrator and Execution Mode Policy Engine operational with fail-closed auto-dispositioning, strict PostgreSQL DB authority default, and stale ID sequence protection.",
-    "version": 1,
-    "rollback": [
-      "Revert execution mode to interactive to immediately re-enable manual human gate sign-off."
+    "scope": [
+      "scripts/dev/gate_orchestrator.py",
+      "core/backlog.py",
+      "core/id_allocator.py",
+      "scripts/dev/precheck.py",
+      "test-framework/tests/pipeline/test_gate_orchestrator.py"
     ],
     "non_goals": [
       "bypassing quality gates",
@@ -3136,185 +3119,156 @@
       "BI-PF-1243: Enterprise Gate Architecture",
       "BI-PF-1428: Second-Model Architect Delivery Review (Gate 2.5)"
     ],
+    "domain": [
+      "gate orchestration",
+      "execution policy engine",
+      "backlog persistence"
+    ],
     "requirements": [
       {
         "id": "FR-1",
-        "auth": "Local developer / operator session",
         "title": "Interactive HIL mode halts at review gates awaiting operator decision",
+        "priority": "Must",
+        "source": "AC-1",
+        "preconditions": [
+          "Item in progress with gate review pending"
+        ],
+        "trigger": "Execution of gate orchestrator in interactive mode",
+        "inputs": [
+          "Item ID, gate name, review findings"
+        ],
+        "outputs": [
+          "Interactive terminal prompt and operator decision"
+        ],
         "errors": [
           "ERR_INVALID_DECISION",
           "ERR_GATE_TIMEOUT"
         ],
-        "inputs": [
-          "Item ID, gate name, review findings"
-        ],
-        "source": "AC-1",
-        "outputs": [
-          "Interactive terminal prompt and operator decision"
-        ],
-        "trigger": "Execution of gate orchestrator in interactive mode",
-        "priority": "Must",
-        "acceptance": [
-          "Given interactive mode, When a review gate is encountered, Then execution halts and prompts operator for explicit sign-off."
-        ],
+        "auth": "Local developer / operator session",
+        "idempotency": "Re-prompting without state mutation is idempotent",
         "data_rules": [
           "Strict interactive prompt when mode is interactive"
         ],
         "edge_cases": [
           "Non-TTY terminal halts with clear prompt error"
         ],
-        "idempotency": "Re-prompting without state mutation is idempotent",
-        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_interactive_mode",
-        "preconditions": [
-          "Item in progress with gate review pending"
-        ]
+        "acceptance": [
+          "Given interactive mode, When a review gate is encountered, Then execution halts and prompts operator for explicit sign-off."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_interactive_mode"
       },
       {
         "id": "FR-2",
-        "auth": "Authorized automated worker token",
         "title": "Autonomous mode auto-evaluates dispositions and advances gates",
-        "errors": [
-          "ERR_BLOCKING_FINDING_ABORT"
+        "priority": "Must",
+        "source": "AC-2",
+        "preconditions": [
+          "Item in progress with advisory findings only"
         ],
+        "trigger": "Execution of gate orchestrator with --mode auto or PF_EXECUTION_MODE=auto",
         "inputs": [
           "Item ID, review findings JSON"
         ],
-        "source": "AC-2",
         "outputs": [
           "Recorded dispositions and advanced gate state"
         ],
-        "trigger": "Execution of gate orchestrator with --mode auto or PF_EXECUTION_MODE=auto",
-        "priority": "Must",
-        "acceptance": [
-          "Given auto mode with advisory findings, When gates execute, Then dispositions are auto-recorded and gates advance automatically."
+        "errors": [
+          "ERR_BLOCKING_FINDING_ABORT"
         ],
+        "auth": "Authorized automated worker token",
+        "idempotency": "Auto-disposition generation is deterministic",
         "data_rules": [
           "Blocking findings fail closed and halt auto mode"
         ],
         "edge_cases": [
           "Fatal blocking finding stops auto mode and alerts operator"
         ],
-        "idempotency": "Auto-disposition generation is deterministic",
-        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_auto_mode",
-        "preconditions": [
-          "Item in progress with advisory findings only"
-        ]
+        "acceptance": [
+          "Given auto mode with advisory findings, When gates execute, Then dispositions are auto-recorded and gates advance automatically."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_auto_mode"
       },
       {
         "id": "FR-3",
-        "auth": "Boundary authorization",
         "title": "Execution mode resolver determines policy from item and environment",
-        "errors": [
-          "ERR_INVALID_EXECUTION_MODE"
+        "priority": "Must",
+        "source": "AC-3",
+        "preconditions": [
+          "Backlog item or environment configuration present"
         ],
+        "trigger": "Invocation of resolve_execution_mode()",
         "inputs": [
           "Item execution_mode field, PF_EXECUTION_MODE env var, CLI flag"
         ],
-        "source": "AC-3",
         "outputs": [
           "Resolved ExecutionMode enum (INTERACTIVE or AUTO)"
         ],
-        "trigger": "Invocation of resolve_execution_mode()",
-        "priority": "Must",
-        "acceptance": [
-          "Given varying configuration levels, When mode is resolved, Then precedence hierarchy evaluates with safe interactive default."
+        "errors": [
+          "ERR_INVALID_EXECUTION_MODE"
         ],
+        "auth": "Boundary authorization",
+        "idempotency": "Pure deterministic resolution",
         "data_rules": [
           "CLI flag > item field > env var > default INTERACTIVE"
         ],
         "edge_cases": [
           "Unrecognized mode string safely defaults to INTERACTIVE"
         ],
-        "idempotency": "Pure deterministic resolution",
-        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_resolve_mode",
-        "preconditions": [
-          "Backlog item or environment configuration present"
-        ]
+        "acceptance": [
+          "Given varying configuration levels, When mode is resolved, Then precedence hierarchy evaluates with safe interactive default."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_resolve_mode"
       },
       {
         "id": "FR-4",
-        "auth": "Admin token for database operations",
         "title": "End-to-end pipeline gate orchestration and PostgreSQL DB authority",
+        "priority": "Must",
+        "source": "AC-4",
+        "preconditions": [
+          "Backlog database running and schema initialized"
+        ],
+        "trigger": "Pipeline delivery run",
+        "inputs": [
+          "Item ID, full gate chain"
+        ],
+        "outputs": [
+          "Gate 0 -> Gate 1.5 -> Gate 1 -> Gate 2.5 -> Gate 2 execution trail"
+        ],
         "errors": [
           "ERR_GATE_FAILURE",
           "ERR_DB_UNAVAILABLE"
         ],
-        "inputs": [
-          "Item ID, full gate chain"
-        ],
-        "source": "AC-4",
-        "outputs": [
-          "Gate 0 -> Gate 1.5 -> Gate 1 -> Gate 2.5 -> Gate 2 execution trail"
-        ],
-        "trigger": "Pipeline delivery run",
-        "priority": "Must",
-        "acceptance": [
-          "Given complete pipeline run, When all gates pass, Then delivery provenance and execution trail are stamped in DB and committed."
-        ],
+        "auth": "Admin token for database operations",
+        "idempotency": "Pipeline steps are re-entrant and record audit trail",
         "data_rules": [
           "PF_BACKLOG_DB defaults to 'on' everywhere without downgrade"
         ],
         "edge_cases": [
           "Database retry on transient failure avoids data corruption"
         ],
-        "idempotency": "Pipeline steps are re-entrant and record audit trail",
-        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_e2e_pipeline",
-        "preconditions": [
-          "Backlog database running and schema initialized"
-        ]
+        "acceptance": [
+          "Given complete pipeline run, When all gates pass, Then delivery provenance and execution trail are stamped in DB and committed."
+        ],
+        "verification": "pytest test-framework/tests/pipeline/test_gate_orchestrator.py -k test_e2e_pipeline"
       }
     ],
-    "traceability": [
+    "operation_matrix": [
       {
-        "fr": "FR-1",
-        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
-        "design": "engineering/design/BI-PF-1599.md",
-        "evidence": [
-          "scripts/dev/gate_orchestrator.py"
-        ]
+        "mode": "interactive",
+        "operation": "run_interactive_gate",
+        "scope": "orchestrator",
+        "actor": "developer",
+        "expected": "Prompt shown and decision captured",
+        "error": "ERR_INTERACTIVE_HALT"
       },
       {
-        "fr": "FR-2",
-        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
-        "design": "engineering/design/BI-PF-1599.md",
-        "evidence": [
-          "scripts/dev/gate_orchestrator.py"
-        ]
-      },
-      {
-        "fr": "FR-3",
-        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
-        "design": "engineering/design/BI-PF-1599.md",
-        "evidence": [
-          "scripts/dev/gate_orchestrator.py"
-        ]
-      },
-      {
-        "fr": "FR-4",
-        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
-        "design": "engineering/design/BI-PF-1599.md",
-        "evidence": [
-          "scripts/dev/gate_orchestrator.py",
-          "core/backlog.py",
-          "core/id_allocator.py"
-        ]
+        "mode": "auto",
+        "operation": "run_autonomous_gate",
+        "scope": "orchestrator",
+        "actor": "gate_orchestrator",
+        "expected": "Auto-dispositions applied and gate passed",
+        "error": "ERR_AUTO_HALT"
       }
-    ],
-    "compatibility": [
-      "Python 3.10+",
-      "PostgreSQL 14+"
-    ],
-    "observability": [
-      "Structured JSON disposition logs and milestone audit trail events",
-      "Deterministic Gate 0/1.5/2.5 status reporting"
-    ],
-    "data_lifecycle": [
-      "Append-only execution trail persisted in engineering/trails/<ID>.json",
-      "PostgreSQL sequence monotonicity enforced"
-    ],
-    "functional_sha": "46d98f37c5ed",
-    "open_questions": [
-      "None - all architectural assumptions validated with operator."
     ],
     "config_contract": [
       {
@@ -3336,24 +3290,70 @@
         "startup_validation": "backlog.is_db_enabled"
       }
     ],
-    "operation_matrix": [
+    "nfr": [
+      "Sub-50ms disposition evaluation and sub-200ms policy engine execution",
+      "Zero data corruption on concurrent ID sequence allocation"
+    ],
+    "data_lifecycle": [
+      "Append-only execution trail persisted in engineering/trails/<ID>.json",
+      "PostgreSQL sequence monotonicity enforced"
+    ],
+    "compatibility": [
+      "Python 3.10+",
+      "PostgreSQL 14+"
+    ],
+    "rollback": [
+      "Revert execution mode to interactive to immediately re-enable manual human gate sign-off."
+    ],
+    "observability": [
+      "Structured JSON disposition logs and milestone audit trail events",
+      "Deterministic Gate 0/1.5/2.5 status reporting"
+    ],
+    "traceability": [
       {
-        "mode": "interactive",
-        "actor": "developer",
-        "error": "ERR_INTERACTIVE_HALT",
-        "scope": "orchestrator",
-        "expected": "Prompt shown and decision captured",
-        "operation": "run_interactive_gate"
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1599.md",
+        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
+        "evidence": [
+          "scripts/dev/gate_orchestrator.py"
+        ]
       },
       {
-        "mode": "auto",
-        "actor": "gate_orchestrator",
-        "error": "ERR_AUTO_HALT",
-        "scope": "orchestrator",
-        "expected": "Auto-dispositions applied and gate passed",
-        "operation": "run_autonomous_gate"
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1599.md",
+        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
+        "evidence": [
+          "scripts/dev/gate_orchestrator.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "engineering/design/BI-PF-1599.md",
+        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
+        "evidence": [
+          "scripts/dev/gate_orchestrator.py"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "engineering/design/BI-PF-1599.md",
+        "test": "test-framework/tests/pipeline/test_gate_orchestrator.py",
+        "evidence": [
+          "scripts/dev/gate_orchestrator.py",
+          "core/backlog.py",
+          "core/id_allocator.py"
+        ]
       }
-    ]
+    ],
+    "open_questions": [
+      "None - all architectural assumptions validated with operator."
+    ],
+    "dod": [
+      "All 4 Acceptance Criteria verified with automated pytest tests",
+      "Gate 2.5 second-model Architect delivery review verified with 0 blockers",
+      "Execution trail and delivery provenance recorded"
+    ],
+    "functional_sha": "46d98f37c5ed"
   },
   "control_evidence": [
     {
