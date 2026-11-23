@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1610",
+  "sha": "312bb169dc34",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-23T18:35:12.692718+00:00",
+  "review_scope": "delta",
+  "base_sha": "387427ad4c2ecfc7c26dfbade5fe2616946ed0a0",
+  "head_sha": "cf3d1d7576d631ca516f7fad00931e544d00913f",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "The new secret-material guard `continue`s on non-string values and never recurses, so key material nested under a dict/list value in `architect-review.json` would pass the gate.",
+      "`test_events_typing.py` delta is whitespace-only churn (blank lines added, no assertion/behavior change) and the UTF-8 BOM on line 1 still persists, so that prior finding remains unaddressed.",
+      "The `key not in {\"api_key\", ...}` deny-list runs only for string values and only at the top level; it is a shallow heuristic, not a durable contract against secret leakage."
+    ],
+    "NIT": [
+      "Exact `base_url` literal is now inlined in the test; consider a single shared canonical-values fixture if other config gates assert the same constants (prior NIT, unchanged)."
+    ],
+    "SUMMARY": [
+      "The delta resolves the prior canonical-base_url MAJOR (exact-equality assert now gates AC1's base_url clause) and largely resolves the secret-material MINOR; no new blockers introduced.",
+      "Residual gaps are hardening only: non-recursive secret scan, persistent BOM, and whitespace-only churn in `test_events_typing.py`.",
+      "AC evidence (SHA-pinned entries) and AC2/AC3 gate outputs remain absent per prior findings \u2014 unchanged in this delta and out of re-report scope."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1610-92ce9b60bddc; exact base_url, secret scan, and AC evidence pinned",
+  "rereview_reason_sha256": "697dc25efcd29889e98648428863bab05d51789289fd1fa8e927ca7bbad54373"
+}
