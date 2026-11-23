@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-22T21:43:27 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-23T22:58:10 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 138  |  **Closed:** 644
+- **Open:** 144  |  **Closed:** 645
 - `blocked`: 1
-- `in_progress`: 2
-- `new`: 135
+- `in_progress`: 3
+- `new`: 140
 
-### new, by category (135)
-**API / reports / HIL / misc** (14)
+### new, by category (140)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -28,13 +28,14 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
+| BI-PF-1606 | Should | feature | **Mitigation**: Enforce a `git diff --check` rule and add a test that ensures the private key file path is excluded from | **Mitigation**: Enforce a `git diff --check` rule and add a test that ensures the private key file path is exc... |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (8)
+**Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -44,7 +45,6 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
-| BI-PF-1550 | Should | feature | Prompt and Persona Asset Compiler: secure compilation and runtime encryption for proprietary agent instructions | Build a secure prompt compiler and runtime packaging layer that compiles proprietary agent instructions into e... |
 
 **Dynamic pipeline / agents** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -101,7 +101,7 @@
 | BI-PF-1571 | Should | feature | Prospective Memory Engine: tracking deferred actions, future stage obligations, scheduled triggers, and cross-stage handoff notes | Deliver the Prospective Memory engine to track deferred actions, trigger conditions, and cross-stage obligatio... |
 | BI-PF-1572 | Should | feature | Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API | Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reas... |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -174,9 +174,14 @@
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
 | BI-PF-1551 | Should | feature | Universal Model Gateway and Dynamic Router: unified provider adapter with token budgeting and fallback chains | Implement an extensible multi-model gateway and dynamic router supporting multi-provider fallback chains, quot... |
 | BI-PF-1565 | Must | epic | EPIC: Unified Agent Memory Platform (6-Type Memory Model, Lifecycle, and Consolidation) | Implement the Unified Agent Memory Architecture from docs/Product_Forge_Agent_Memory_Architecture_Integration.... |
-| BI-PF-1566 | Should | feature | Canonical Memory Record Contract: schema definition, 6-type taxonomy classification, and storage mapping | Define the standard MemoryRecord contract and classify all memory assets into the 6 canonical types (Working, ... |
 | BI-PF-1569 | Should | feature | Memory Consolidator: post-execution distillation, episodic trace distillation into semantic/procedural patterns, and failure promotion guards | Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memo... |
 | BI-PF-1570 | Should | feature | Memory Governance & Lifecycle: explicit supersession tracking, temporal expiration, validity windows, and audit logging | Implement full lifecycle governance for memory records with explicit supersession, temporal expiration, and co... |
+| BI-PF-1603 | Should | feature | A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a development keypair. Production requires a | A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a development keypair. Production ... |
+| BI-PF-1604 | Should | feature | **Vendor keypair generation**: Implement a Go module `go/vendor_key` that creates an Ed25519 keypair and stores the priv | **Vendor keypair generation**: Implement a Go module `go/vendor_key` that creates an Ed25519 keypair and store... |
+| BI-PF-1605 | Should | feature | **Signing‑env workflow**: Add a script `scripts/dev/signing_env_setup.py` that injects the private key into the signing  | **Signing‑env workflow**: Add a script `scripts/dev/signing_env_setup.py` that injects the private key into th... |
+| BI-PF-1607 | Should | feature | **Mitigation**: Use the same Ed25519 format as A2; add unit tests for verification using the public key. | **Mitigation**: Use the same Ed25519 format as A2; add unit tests for verification using the public key. |
+| BI-PF-1608 | Should | feature | "moscow": "Should", | "moscow": "Should", |
+| BI-PF-1609 | Should | feature | "objective": "Provision a vendor signing keypair for production issuance; ship only the public key with the product; int | "objective": "Provision a vendor signing keypair for production issuance; ship only the public key with the pr... |
 
 ---
 
@@ -377,5 +382,5 @@
 ---
 
 ## Totals
-- backend: 138 open / 644 closed
+- backend: 144 open / 645 closed
 - dashboard: 147 open / 3 closed

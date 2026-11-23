@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "cd42c255dcf9",
+  "model": "gemini-3-flash-preview",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:58:20.140974+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "8b6a441c50fcb0bef5baec8a005fe44135664b73",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "[OUT_OF_SCOPE] `scripts/dev/gate_orchestrator.py` and `scripts/dev/sync_contracts.py` contain significant logic changes and new features (HIL rendering, contract syncing logic) that are unrelated to the MemoryRecord schema implementation (BI-PF-1566).",
+      "[OUT_OF_SCOPE] `scripts/dev/gate_orchestrator.py` introduces a hard dependency on `spec_contract` and `architect_review` modules which are not part of the PR or the standard library, potentially breaking the CI/CD pipeline."
+    ],
+    "MINOR": [
+      "`core/agent_memory.py` still contains a Python implementation of the legacy mapping logic and a hardcoded fallback dictionary; while it satisfies the \"adapter\" requirement, it duplicates the source of truth defined in `config/memory_legacy_mapping.json`.",
+      "`go/memory/record.go` uses `json.Unmarshal` on embedded bytes in `init()`, but ignores the error; if the embedded JSON is malformed, the `cachedLegacyMappings` will be silently empty, leading to runtime mapping failures."
+    ],
+    "NIT": [
+      "`go/memory/record.go` defines `identifierRegex` but does not use it for `Metadata` key validation in the `Validate` method, instead using a local regex or repeating the logic.",
+      "`go/memory/record.go` uses `float64` for confidence but `float32` for embeddings; while standard, consistency in precision for floating-point metadata/payloads is preferred."
+    ],
+    "SUMMARY": [
+      "The core MemoryRecord Go contract and validation logic (AC-1, AC-2, AC-4) are robust and well-tested.",
+      "The legacy mapping (AC-3) is implemented but suffers from logic duplication between the Go embed and Python fallback.",
+      "Significant out-of-scope changes to dev tooling were included in this diff and should be decoupled."
+    ]
+  }
+}

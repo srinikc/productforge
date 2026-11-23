@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "3bb2e012e8ec",
+  "model": "gemini-3-flash-preview",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:48:18.745928+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "a55d2fc5e32dd1a0b7e67f07abafdb82d8fb3a13",
+  "findings": {
+    "BLOCKER": [
+      "Language rule violation: `core/agent_memory.py` implements new business logic (legacy mapping adapter) in Python; per ENGINEERING_OPERATING_STANDARD and AC-1/FR-3, new shipped logic must be in Go.",
+      "Data Integrity: `_load_legacy_mapping` in `core/agent_memory.py` uses a bare `except: pass` which swallows JSON syntax errors or file access issues, returning a hardcoded fallback that may drift from the canonical `config/memory_legacy_mapping.json`."
+    ],
+    "MAJOR": [
+      "AC-3 Non-Conformance: The Python implementation in `core/agent_memory.py` does not load the shared `config/memory_legacy_mapping.json` correctly; it looks in `../config/` relative to the file, but the diff places the file at `product-forge/go/memory/memory_legacy_mapping.json`.",
+      "Logic Drift: The Go implementation embeds the mapping at compile time (`go:embed`), while the Python implementation attempts to load it at runtime; updates to the JSON will cause divergent behavior between Go and Python services until a recompile occurs.",
+      "Validation Gap: `ValidateTemporalBounds` allows `valid_from` to equal `valid_until` (uses `!from.Before(*until)`), violating FR-4 which requires `valid_from` to be strictly before `valid_until`."
+    ],
+    "MINOR": [
+      "Observability: `AuditCallback` is a global variable in `go/memory/record.go`, which is not thread-safe for assignment and lacks a default no-op implementation, potentially leading to nil pointer dereferences if invoked during concurrent init.",
+      "Security: `ErrInvalidPayloadRefScheme` validation is a simple prefix check; it does not validate that the URI is well-formed after the scheme, potentially allowing malformed strings to pass validation."
+    ],
+    "NIT": [
+      "Go version `1.25.0` in `go.mod` refers to a future/non-existent release; should be pinned to a stable version (e.g., `1.23`).",
+      "`metadataKeyRegex` and `tagRegex` are compiled twice or redundant; they use the same pattern and could be a single shared constant."
+    ],
+    "SUMMARY": [
+      "The implementation establishes a strong type-safe contract in Go but fails the language rule by duplicating mapping logic in Python.",
+      "Top risks include logic divergence between Go/Python due to inconsistent mapping sources and a failure to strictly enforce temporal ordering as required by AC-4."
+    ]
+  }
+}
