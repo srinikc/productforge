@@ -25,6 +25,11 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 import os
 import sys
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 sys.path.insert(0, os.getcwd())
 
 import os as _os
