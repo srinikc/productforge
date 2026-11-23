@@ -27,8 +27,8 @@ import sys
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except Exception:
-    pass
+except (AttributeError, ValueError) as exc:
+    print(f"wired-audit: stdout UTF-8 setup skipped: {exc}", file=sys.stderr)
 
 sys.path.insert(0, os.getcwd())
 
