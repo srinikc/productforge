@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "96dbcc0e57ee",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T16:47:49.542235+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0580e9515cc6e7e25a183b82dba9d381f4a762a1",
+  "findings": {
+    "BLOCKER": [
+      "Traceability/Integrity: Implementation Controls (CTRL-01 to CTRL-07) describe a generic `RollbackOrchestrator` and smoke probes that are entirely decoupled from the MemoryRecord schema, kind validation, and temporal logic required by AC-1 through AC-4.",
+      "Language Rule Violation: `core/memory_record.py` introduces new core domain logic in Python; per ENGINEERING_OPERATING_STANDARD.md, all new shipped logic must be implemented in Go.",
+      "AC-3 Data Integrity: The design lacks a defined mapping matrix for the 8-to-6 type consolidation, creating a high risk of data loss or incorrect classification during migration."
+    ],
+    "MAJOR": [
+      "AC-4 Temporal Logic: The design fails to specify UTC enforcement, null-handling for `valid_until` (infinite validity), or the invariant that `valid_from < valid_until`.",
+      "Security/RLS: The schema includes `tenant_id` and `project_id` but lacks a design for immutable binding to the authenticated context at the validation layer, violating CL-011 and CL-013.",
+      "AC-1 Schema Integrity: The design does not define size limits or validation rules for the `embedding` and `payload_ref` fields, risking database performance degradation."
+    ],
+    "MINOR": [
+      "AC-2 Observability: \"Fail closed\" behavior for unknown kinds lacks a requirement for structured error codes or evidence ledger emission to diagnose integration failures.",
+      "Schema Redundancy: The relationship between `embedding` and `payload_ref` is undefined; the system lacks a rule for which field takes precedence or if both are required."
+    ],
+    "NIT": [
+      "Terminology: Inconsistent use of \"kind\" (AC-2) and \"type\" (AC-3) persists in the design documentation; standardizing on \"kind\" is recommended for the canonical schema."
+    ],
+    "SUMMARY": [
+      "The design fails to provide the specific logic required to meet the acceptance criteria, substituting relevant validation controls with unrelated orchestration logic. The primary risks are language rule non-compliance, data corruption during type mapping, and lack of strict temporal/security validation."
+    ]
+  }
+}

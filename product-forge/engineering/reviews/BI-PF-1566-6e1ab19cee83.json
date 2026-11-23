@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "6e1ab19cee83",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T18:15:45.695784+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "8b6a441c50fcb0bef5baec8a005fe44135664b73",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "[OUT_OF_SCOPE] The `Metadata` map validation allows `any` values but only checks for scalar primitives at the validation layer; this creates a risk of `encoding/json` marshaling panics or unexpected behavior if non-serializable types (e.g., functions, channels) are injected before the validation call.",
+      "The `SetAuditCallback` mechanism uses a global `sync.RWMutex`, which may become a contention point in high-throughput concurrent validation scenarios across multiple agent instances within the same process."
+    ],
+    "NIT": [
+      "`Confidence` remains `float64` while `Embedding` is `[]float32`; as noted in prior reviews, this inconsistency persists, though it does not break the functional contract.",
+      "The `Metadata` entry limit (50) and `Tags` limit (50) are hardcoded in the validation logic rather than being injected via the `config_contract`, reducing runtime tunability without recompilation."
+    ],
+    "SUMMARY": [
+      "The design is architecturally sound, enforcing strict multi-tenant boundaries and a canonical 6-type taxonomy with a fail-closed Go implementation.",
+      "Top risks include potential lock contention on the global audit hook and minor type inconsistencies between ML and scoring fields."
+    ]
+  }
+}
