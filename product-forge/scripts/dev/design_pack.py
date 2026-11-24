@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
     if p not in sys.path:
         sys.path.insert(0, p)
+import gate_status  # noqa: E402
+
 from core import backlog  # noqa: E402
 
 DESIGN_DIR = ROOT / "engineering" / "design"
@@ -39,6 +41,8 @@ def _parse_date(value) -> date | None:
 
 
 def should_enforce(item: dict, cfg: dict) -> bool:
+    if gate_status.should_skip(item.get("status")):
+        return False
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
     if item.get("status") in ("new", "draft", "triaged"):
@@ -183,7 +187,7 @@ def check(item: dict) -> list[str]:
             bad.append(f"design_pack.contracts.{k} missing")
     try:
         import implementation_readiness_check as _irc
-        _cutoff = str((_irc._config().get("enforce_from") or ""))
+        _cutoff = str(_irc._config().get("enforce_from") or "")
     except Exception as e:
         _cutoff = ""
         bad.append(f"implementation-controls config error: {e}")

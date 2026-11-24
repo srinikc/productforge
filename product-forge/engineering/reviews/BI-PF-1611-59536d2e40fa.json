@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "59536d2e40fa",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T16:45:47.248161+00:00",
+  "review_scope": "delta",
+  "base_sha": "00cbda78f2ea77b49fc17a1c1f06d5db5e07e23f",
+  "head_sha": "15139926fcd0cd9d2252c853db73a8db92f7df61",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta flips `enforce_items` precedence so terminal items listed in `enforce_items` now skip, but no new/updated test asserts that case; the behavior change ships without fail-able coverage (AC-3 covers statuses only).",
+      "Delta changes shipped gate semantics (skip-before-enforce_items) without a corresponding update to `docs/BASELINE-GATE-REMEDIATION-DESIGN.md` \"Existing Path\"/line references, which still describe the old ordering at design_pack.py:42/44.",
+      "Delta removes `timezone` (functional_spec) and `re` (spec_pack) imports; if any remaining call site uses them (e.g. `datetime.now(timezone.utc)`), the gate fails at runtime \u2014 no test evidence in the delta confirms import safety."
+    ],
+    "NIT": [
+      "Cosmetic drive-by (`_irc._config().get(...)` paren removal) is unrelated to BI-PF-1611 scope; harmless but mixes cleanup into a behavioral patch.",
+      "Import reordering (`gate_status` before `core.backlog`) is stylistic only; no justification recorded, making the hunk noisier than needed for revert."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior MAJOR (missing `# noqa: E402` on `from core import backlog`) and the prior MINOR on terminal-skip precedence (skip now precedes `enforce_items`), matching the design contract's \"rejected returns not-enforced\".",
+      "No blockers or majors in this delta; core AC-1/AC-2 behavior (shared predicate first, live/unknown unchanged) is intact.",
+      "Top risks: the precedence flip lacks a dedicated regression test, and prior PENDING MINORs (grep-based AC-4 proof, config-coupled live/unknown tests, undeclared `gen_docs_index.py`) remain unresolved in the full candidate."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1611-09d4fdf3f92e; fixed E402 markers and terminal precedence",
+  "rereview_reason_sha256": "1d472890379b524530cc07cfb7bcf4ee435db3cf371c9b495440eab9d726356b"
+}

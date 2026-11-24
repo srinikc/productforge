@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "1c4dcea57705",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T16:17:12.149491+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-4 proof mechanism unspecified: no described spy/monkeypatch/source assertion showing all three gates actually invoke `gate_status.should_skip`; behavioral parity tests cannot prove call-site wiring, so AC-4 may be unmeetable with the listed tests.",
+      "Disposition-wrong re-report: prior ACTIONED dispositions are not reflected in the provided design \u2014 `controls`/`implementation_controls` still byte-identical, `observability_detail.gate_output` still \"checked count\" (no skip count/reason), `test_matrix` still one aggregate pytest per AC.",
+      "Traceability misalignment: AC-3 (terminal-status \u00d7 gate regression) binds to FR-3 (\"Apply predicate in functional/spec pack\") and C-3 (`gate_status.py:should_skip`), while FR-4 is the regression FR \u2014 AC\u2194FR\u2194control mapping is internally inconsistent for Gate 2 evidence."
+    ],
+    "MINOR": [
+      "AC-3 evidence lacks a named test covering `cancelled`/`won't_do`/`wont_do`; only `rejected` appears in proof_plan/positive-test names, so per-status completeness is asserted, not evidenced.",
+      "`ac_evidence.candidate_sha` (bc5a6145) differs from `functional_spec.functional_sha` (46397b51a002) with no stated relationship; CL-015 pinning is ambiguous.",
+      "`proof_plan.green_evidence` is prose (\"after fix rejected items are skipped\") rather than a runnable check with output/SHA.",
+      "`operation_matrix.error` misuses the error column for normal behavior (\"unknown remains enforced\"), which will misroute failure triage."
+    ],
+    "NIT": [
+      "`failure_taxonomy` enumerates only `predicate exception, unknown status, rejected skip`, omitting the other three terminal statuses named in AC-1.",
+      "`functional_spec.status` and `spec_pack.status` remain `draft` while design asserts `candidate_sha`-pinned evidence; finalizing status would make Gate 1.5 verification mechanical."
+    ],
+    "SUMMARY": [
+      "Sound, narrowly scoped tooling change with a single shared fail-closed predicate and explicit terminal set \u2014 right direction and language-rule compliant.",
+      "Top risks: AC-4 cannot be proven by the specified behavioral tests, AC\u2194FR\u2194control traceability is inconsistent, and prior ACTIONED dispositions are not visible in the supplied design artifacts (observability of skips and per-status/per-gate coverage evidence still missing).",
+      "Recommend Gate 1.5 hold until call-site proof, per-status \u00d7 gate evidence, and skip observability are concretely reflected in the design."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1611-1ad0121bacf0; add transition-required contracts/security aliases",
+  "rereview_reason_sha256": "56e5f179a27af2e6c2b4089845441c1235b4125d1dde5764a7f28dcd1fbca348"
+}
