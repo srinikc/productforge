@@ -23,6 +23,7 @@ import (
 	"productforge/edpsvc/internal/auth"
 	"productforge/edpsvc/internal/cache"
 	"productforge/edpsvc/internal/limits"
+	"productforge/pfmemory"
 	"productforge/store"
 )
 
@@ -886,4 +887,11 @@ func TestNoDirectMemoryRepositoryCalls(t *testing.T) {
 
 func TestMemoryHandlersUseOrchestrator(t *testing.T) {
 	TestServer_Memory_DualVec_Sqlite(t)
+}
+
+func TestMemoryAuditLifecycle(t *testing.T) {
+	a := newMemoryAudit(limits.NewMetrics(), nil)
+	a.Audit(pfmemory.AuditEvent{Op: "read", TenantID: "t", ProjectID: "p", Actor: "u"})
+	a.Close()
+	a.Audit(pfmemory.AuditEvent{Op: "read", TenantID: "t", ProjectID: "p", Actor: "u"})
 }

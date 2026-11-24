@@ -256,7 +256,6 @@ func main() {
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New(),
 		memoryMaxK: memMaxK, memoryTimeout: memTimeout}
 	s.memoryAuditor = newMemoryAudit(m, st)
-	defer s.memoryAuditor.Close()
 	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
@@ -316,6 +315,7 @@ func main() {
 		log.Printf("edpsvc shutdown: %v; force-closing the listener", err)
 		_ = srv.Close()
 	}
+	s.memoryAuditor.Close()
 	st.Close()
 }
 
@@ -1181,6 +1181,8 @@ type memoryAudit struct {
 	ch        chan pfmemory.AuditEvent
 	wg        sync.WaitGroup
 	closeOnce sync.Once
+	mu        sync.RWMutex
+	closed    bool
 }
 
 func newMemoryAudit(metrics *limits.Metrics, st *store.PgStore) *memoryAudit {
@@ -1220,19 +1222,37 @@ func (a *memoryAudit) write(e pfmemory.AuditEvent) {
 }
 
 func (a *memoryAudit) Audit(e pfmemory.AuditEvent) {
+	a.mu.RLock()
+	if a.closed {
+		a.mu.RUnlock()
+		a.drop(e)
+		return
+	}
+	timer := time.NewTimer(50 * time.Millisecond)
+	defer timer.Stop()
 	select {
 	case a.ch <- e:
-	default:
-		if a.metrics != nil {
-			a.metrics.Inc("memory_audit_dropped_total", "op", e.Op)
-		}
-		log.Printf("memory_audit_dropped op=%s tenant=%s project=%s", e.Op, e.TenantID, e.ProjectID)
+		a.mu.RUnlock()
+	case <-timer.C:
+		a.mu.RUnlock()
+		a.drop(e)
 	}
+}
+
+func (a *memoryAudit) drop(e pfmemory.AuditEvent) {
+	if a.metrics != nil {
+		a.metrics.Inc("memory_audit_dropped_total", "op", e.Op)
+	}
+	log.Printf("memory_audit_dropped op=%s tenant=%s project=%s actor=%s record=%s",
+		e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID)
 }
 
 func (a *memoryAudit) Close() {
 	a.closeOnce.Do(func() {
+		a.mu.Lock()
+		a.closed = true
 		close(a.ch)
+		a.mu.Unlock()
 		a.wg.Wait()
 	})
 }
