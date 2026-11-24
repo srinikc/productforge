@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "4946178448b9",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T16:25:19.013519+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "152c60ed0c05942109038a4462554b5ad49d71e4",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Prior MAJOR dispositions not reflected in the pack: `controls` and `implementation_controls` are still byte-identical duplicates, `test_matrix` is still one aggregate pytest command per AC, and `observability_detail.gate_output` is still \"checked count\" with no skip count/reason.",
+      "Traceability misalignment persists: AC-3 (terminal\u00d7gate regression coverage) is bound via C-3 to FR-3 \"Apply predicate in functional/spec pack\", while the regression FR-4 exists separately \u2014 AC\u2194FR\u2194control mapping remains internally inconsistent for Gate 2 evidence.",
+      "Design pack embeds neither a Gate 1.5 findings+dispositions section (CL-006 requires embedding the latest findings before approval) nor explicit answers to the 10-item design-guardrail checklist (CL-008 requires guardrails addressed at design time); enforcement hooks (gate1_check.py, core/design_guardrails.py) will likely reject at Gate 1.",
+      "AC-4 proof mechanism still underspecified: design names tests (`test_gates_share_the_terminal_predicate`, `test_terminal_status_set_is_explicit`) but describes no spy/monkeypatch/source-assert technique proving the three gates actually invoke `gate_status.should_skip`; behavioral parity alone cannot evidence call-site wiring."
+    ],
+    "MINOR": [
+      "`functional_spec.traceability` gives all four FRs identical evidence (same test file, same design doc, same `candidate_sha`), so FR-level traceability is non-discriminating and cannot isolate a regression to one requirement.",
+      "C-1/C-2 positive test `test_rejected_status_skips_design_and_spec_gates` never names functional-spec, and the same test is cited as positive evidence for both controls covering different gates \u2014 per-status/per-gate completeness is asserted, not evidenced.",
+      "Disposition-not-reflected re-reports: `functional_spec.status` and `spec_pack.status` still `draft`; `ac_evidence.candidate_sha` (bc5a6145) vs `functional_spec.functional_sha` (2e3796b2f765) relationship still unstated; `proof_plan.green_evidence` still prose, not a runnable check with output/SHA.",
+      "Disposition-not-reflected re-report: `operation_matrix.error` still carries behavior text (\"unknown remains enforced\") instead of an error condition, which will misroute failure triage."
+    ],
+    "NIT": [
+      "Disposition-not-reflected re-report: `failure_taxonomy` still lists only `predicate exception, unknown status, rejected skip`, omitting `cancelled`/`won't_do`/`wont_do` named in AC-1.",
+      "`affected_components` is `['Not specified.']` despite declared review scope components (\"design/spec tooling\", \"regression tests\")."
+    ],
+    "SUMMARY": [
+      "Design direction is sound (single shared fail-closed predicate, explicit terminal set, tooling-only Python) and AC-1/AC-2 intent is well specified; no blocker-level integrity or language-rule violation.",
+      "Top risks: prior MAJOR/Minor dispositions are recorded ACTIONED but the pack fields are unchanged, so Gate 1 evidence will not match the dispositions; AC-3\u2194FR-3 mapping and AC-4 proof mechanism remain unproven as written; CL-006/CL-008 embedding requirements appear unmet in the design pack."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1611-1c4dcea57705; normalize FR acceptance and classify design doc",
+  "rereview_reason_sha256": "b95b35430a26e85febf7d345808d3a69bfed4b4638f1780549e64317d2d63d1e"
+}
