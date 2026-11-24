@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 
 var (
 	ErrInvalidScope            = errors.New("pfmemory: invalid scope")
+	ErrValidation              = errors.New("pfmemory: validation failed")
 	ErrNotFound                = errors.New("pfmemory: not found")
 	ErrScopedReadUnsupported   = errors.New("pfmemory: scoped read unsupported")
 	ErrScopedDeleteUnsupported = errors.New("pfmemory: scoped delete unsupported")
@@ -59,9 +62,23 @@ type SearchRequest struct {
 }
 
 // Orchestrator is the single governed gateway for memory operations.
+type AuditEvent struct {
+	Op        string
+	TenantID  string
+	ProjectID string
+	Actor     string
+	Outcome   string
+	Reason    string
+}
+
+type Auditor interface {
+	Audit(AuditEvent)
+}
+
 type Orchestrator struct {
 	repo    datastore.MemoryRepository
 	obs     Observer
+	auditor Auditor
 	maxK    int
 	timeout time.Duration
 }
@@ -87,6 +104,36 @@ func WithObserver(obs Observer) Option {
 	}
 }
 
+func WithAuditor(a Auditor) Option {
+	return func(o *Orchestrator) { o.auditor = a }
+}
+
+func LoadLimitsFromEnv() (int, time.Duration, error) {
+	k := defaultMaxSearchK
+	if raw := strings.TrimSpace(os.Getenv("PF_MEMORY_MAX_SEARCH_K")); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, 0, fmt.Errorf("pfmemory: invalid PF_MEMORY_MAX_SEARCH_K: %w", err)
+		}
+		k = v
+	}
+	timeout := maxOperationTime
+	if raw := strings.TrimSpace(os.Getenv("PF_MEMORY_OP_TIMEOUT")); raw != "" {
+		v, err := time.ParseDuration(raw)
+		if err != nil {
+			return 0, 0, fmt.Errorf("pfmemory: invalid PF_MEMORY_OP_TIMEOUT: %w", err)
+		}
+		timeout = v
+	}
+	if k < 1 || k > maxSearchK {
+		return 0, 0, fmt.Errorf("pfmemory: max search k must be 1..%d", maxSearchK)
+	}
+	if timeout <= 0 || timeout > maxOperationTime {
+		return 0, 0, fmt.Errorf("pfmemory: timeout must be positive and <= %s", maxOperationTime)
+	}
+	return k, timeout, nil
+}
+
 func New(repo datastore.MemoryRepository, opts ...Option) (*Orchestrator, error) {
 	if repo == nil {
 		return nil, errors.New("pfmemory: nil repository")
@@ -108,6 +155,7 @@ func (o *Orchestrator) Put(ctx context.Context, scope Scope, entry datastore.Mem
 	start := time.Now()
 	res, err := o.put(ctx, scope, entry)
 	o.observe("put", start, err)
+	o.auditOutcome("write", scope, err)
 	return res, err
 }
 
@@ -132,7 +180,7 @@ func (o *Orchestrator) put(ctx context.Context, scope Scope, entry datastore.Mem
 	}
 	rec := canonicalRecord(scope, entry)
 	if err := rec.Validate(); err != nil {
-		return datastore.MemoryEntry{}, o.deny("validation", err)
+		return datastore.MemoryEntry{}, o.deny("validation", fmt.Errorf("%w: %v", ErrValidation, err))
 	}
 	res, err := o.repo.Put(ctx, entry)
 	if err != nil {
@@ -145,6 +193,7 @@ func (o *Orchestrator) Get(ctx context.Context, scope Scope, id string) (datasto
 	start := time.Now()
 	res, err := o.get(ctx, scope, id)
 	o.observe("get", start, err)
+	o.auditOutcome("read", scope, err)
 	return res, err
 }
 
@@ -176,6 +225,7 @@ func (o *Orchestrator) Search(ctx context.Context, scope Scope, req SearchReques
 	start := time.Now()
 	res, err := o.search(ctx, scope, req)
 	o.observe("search", start, err)
+	o.auditOutcome("search", scope, err)
 	return res, err
 }
 
@@ -214,6 +264,7 @@ func (o *Orchestrator) Delete(ctx context.Context, scope Scope, id string) error
 	start := time.Now()
 	err := o.delete(ctx, scope, id)
 	o.observe("delete", start, err)
+	o.auditOutcome("delete", scope, err)
 	return err
 }
 
@@ -227,6 +278,9 @@ func (o *Orchestrator) delete(ctx context.Context, scope Scope, id string) error
 	}
 	ctx, cancel := o.context(ctx)
 	defer cancel()
+	if _, err := o.get(ctx, scope, id); err != nil {
+		return err
+	}
 	if err := deleter.DeleteScoped(ctx, id, scopeForRepo(scope, "", "", nil)); errors.Is(err, datastore.ErrNotFound) {
 		o.obs.Denied("not_found")
 		return ErrNotFound
@@ -307,6 +361,31 @@ func (o *Orchestrator) mapStoreError(err error) error {
 func (o *Orchestrator) deny(reason string, err error) error {
 	o.obs.Denied(reason)
 	return err
+}
+
+func (o *Orchestrator) auditOutcome(op string, scope Scope, err error) {
+	if err == nil {
+		o.audit(op, scope, "allow", "")
+		return
+	}
+	reason := "error"
+	if errors.Is(err, ErrNotFound) {
+		reason = "not_found"
+	} else if errors.Is(err, ErrInvalidScope) {
+		reason = "invalid_scope"
+	} else if errors.Is(err, ErrValidation) {
+		reason = "validation"
+	} else if errors.Is(err, ErrLimitExceeded) {
+		reason = "limit"
+	}
+	o.audit(op, scope, "deny", reason)
+}
+
+func (o *Orchestrator) audit(op string, scope Scope, outcome string, reason string) {
+	if o.auditor == nil {
+		return
+	}
+	o.auditor.Audit(AuditEvent{Op: op, TenantID: scope.TenantID, ProjectID: scope.ProjectID, Actor: scope.Principal, Outcome: outcome, Reason: reason})
 }
 
 func (o *Orchestrator) observe(op string, start time.Time, err error) {

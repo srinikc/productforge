@@ -2,6 +2,7 @@ package pfmemory
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"productforge/datastore"
 )
@@ -136,8 +139,8 @@ func TestPutValidated(t *testing.T) {
 		t.Fatalf("valid put: %v", err)
 	}
 	badID := testEntry("not-a-uuid", "tenant-a", "proj-1", "")
-	if _, err := orch.Put(context.Background(), scope, badID); err == nil {
-		t.Fatal("expected invalid ID rejection")
+	if _, err := orch.Put(context.Background(), scope, badID); !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation rejection, got %v", err)
 	}
 	badKind := testEntry("11111111-1111-4111-8111-000000000002", "tenant-a", "proj-1", "")
 	badKind.Kind = "unknown"
@@ -222,6 +225,7 @@ func TestConcurrentBoundaryLoad(t *testing.T) {
 	orch := newTestOrchestrator(t, newFakeRepo())
 	scopes := []Scope{testScope("tenant-a", "proj-1", "alice"), testScope("tenant-b", "proj-1", "bob")}
 	var wg sync.WaitGroup
+	errCh := make(chan error, 80)
 	for i := 0; i < 40; i++ {
 		wg.Add(1)
 		go func(n int) {
@@ -229,13 +233,44 @@ func TestConcurrentBoundaryLoad(t *testing.T) {
 			s := scopes[n%2]
 			id := fmt.Sprintf("11111111-1111-4111-8111-%012d", n)
 			e := testEntry(id, s.TenantID, s.ProjectID, s.Principal)
-			_, _ = orch.Put(context.Background(), s, e)
-			_, _ = orch.Get(context.Background(), s, id)
-			_, _ = orch.Search(context.Background(), s, SearchRequest{Text: "memory"})
-			_ = orch.Delete(context.Background(), s, id)
+			if _, err := orch.Put(context.Background(), s, e); err != nil {
+				errCh <- err
+				return
+			}
+			if _, err := orch.Get(context.Background(), s, id); err != nil {
+				errCh <- err
+				return
+			}
+			other := scopes[(n+1)%2]
+			if _, err := orch.Get(context.Background(), other, id); !errors.Is(err, ErrNotFound) {
+				errCh <- fmt.Errorf("cross-boundary get: %v", err)
+				return
+			}
+			hits, err := orch.Search(context.Background(), s, SearchRequest{Text: "memory"})
+			if err != nil {
+				errCh <- err
+				return
+			}
+			for _, hit := range hits {
+				if hit.TenantID != s.TenantID || hit.Project != s.ProjectID {
+					errCh <- fmt.Errorf("cross-boundary search hit: %+v", hit)
+					return
+				}
+			}
+			if err := orch.Delete(context.Background(), other, id); !errors.Is(err, ErrNotFound) {
+				errCh <- fmt.Errorf("cross-boundary delete: %v", err)
+				return
+			}
+			if err := orch.Delete(context.Background(), s, id); err != nil {
+				errCh <- err
+			}
 		}(i)
 	}
 	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Error(err)
+	}
 }
 
 func TestDeleteScopedAtomic(t *testing.T) {
@@ -306,7 +341,52 @@ func TestLeakageSuites(t *testing.T) {
 }
 
 func TestRolePosture(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("PF_TEST_MEMORY_DSN"))
+	if dsn == "" {
+		t.Skip("PF_TEST_MEMORY_DSN not set")
+	}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var user string
+	var super, bypass bool
+	if err := db.QueryRow(`SELECT current_user, r.rolsuper, r.rolbypassrls FROM pg_roles r WHERE r.rolname = current_user`).Scan(&user, &super, &bypass); err != nil {
+		t.Fatal(err)
+	}
+	if super || bypass {
+		t.Fatalf("runtime role %s can bypass RLS (super=%v bypassrls=%v)", user, super, bypass)
+	}
+	var rls, force bool
+	if err := db.QueryRow(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'memory'::regclass`).Scan(&rls, &force); err != nil {
+		t.Fatal(err)
+	}
+	if !rls || !force {
+		t.Fatalf("memory RLS posture invalid (enabled=%v forced=%v)", rls, force)
+	}
+}
+
+func TestRolePostureBypassRejected(t *testing.T) {
 	if strings.TrimSpace(os.Getenv("PF_TEST_MEMORY_DSN")) == "" {
-		t.Skip("PF_TEST_MEMORY_DSN not set; PostgreSQL role posture is verified in CI")
+		t.Skip("PF_TEST_MEMORY_DSN not set")
+	}
+}
+
+func TestLoadLimitsFromEnv(t *testing.T) {
+	t.Setenv("PF_MEMORY_MAX_SEARCH_K", "50")
+	t.Setenv("PF_MEMORY_OP_TIMEOUT", "2s")
+	k, d, err := LoadLimitsFromEnv()
+	if err != nil || k != 50 || d != 2*time.Second {
+		t.Fatalf("valid env: k=%d d=%s err=%v", k, d, err)
+	}
+	t.Setenv("PF_MEMORY_MAX_SEARCH_K", "101")
+	if _, _, err := LoadLimitsFromEnv(); err == nil {
+		t.Fatal("expected invalid max k")
+	}
+	t.Setenv("PF_MEMORY_MAX_SEARCH_K", "20")
+	t.Setenv("PF_MEMORY_OP_TIMEOUT", "6s")
+	if _, _, err := LoadLimitsFromEnv(); err == nil {
+		t.Fatal("expected invalid timeout")
 	}
 }

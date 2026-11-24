@@ -1164,8 +1164,24 @@ func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error
 	return dualvec.New(dualvec.Config{RelationalStore: store.BindTenant(st, tenant)})
 }
 
+type memoryAudit struct {
+	metrics *limits.Metrics
+}
+
+func (a memoryAudit) Audit(e pfmemory.AuditEvent) {
+	if a.metrics != nil {
+		a.metrics.Inc("memory_audit_total", "op", e.Op, "outcome", e.Outcome, "reason", e.Reason)
+	}
+	log.Printf("memory_audit op=%s tenant=%s project=%s actor=%s outcome=%s reason=%s",
+		e.Op, e.TenantID, e.ProjectID, e.Actor, e.Outcome, e.Reason)
+}
+
 func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
 	repo, err := s.resolveMemory(tenant)
+	if err != nil {
+		return nil, err
+	}
+	maxK, timeout, err := pfmemory.LoadLimitsFromEnv()
 	if err != nil {
 		return nil, err
 	}
@@ -1187,17 +1203,23 @@ func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemo
 			}
 		},
 	}
-	return pfmemory.New(repo, pfmemory.WithObserver(obs))
+	return pfmemory.New(repo, pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout), pfmemory.WithAuditor(memoryAudit{metrics: s.metrics}))
 }
 
 func (s *server) memoryRequestError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, pfmemory.ErrNotFound):
-		s.bad(w, r, http.StatusNotFound, "not found")
-	case errors.Is(err, pfmemory.ErrInvalidScope), errors.Is(err, pfmemory.ErrLimitExceeded), errors.Is(err, pfmemory.ErrScopedReadUnsupported), errors.Is(err, pfmemory.ErrScopedDeleteUnsupported):
-		s.bad(w, r, http.StatusBadRequest, err.Error())
+		limits.WriteErrorCode(w, r, http.StatusNotFound, "MEMORY_NOT_FOUND", "not found", "memory", false)
+	case errors.Is(err, pfmemory.ErrInvalidScope):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_INVALID_SCOPE", "tenant, project, and principal are required", "memory", false)
+	case errors.Is(err, pfmemory.ErrValidation):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_VALIDATION_FAILED", err.Error(), "memory", false)
+	case errors.Is(err, pfmemory.ErrLimitExceeded):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_LIMIT_EXCEEDED", err.Error(), "memory", false)
+	case errors.Is(err, pfmemory.ErrScopedReadUnsupported), errors.Is(err, pfmemory.ErrScopedDeleteUnsupported):
+		limits.WriteErrorCode(w, r, http.StatusServiceUnavailable, "MEMORY_SCOPED_OPERATION_UNSUPPORTED", err.Error(), "memory", true)
 	default:
-		s.fail(w, r, http.StatusInternalServerError, err)
+		limits.WriteErrorCode(w, r, http.StatusInternalServerError, "MEMORY_STORE_UNAVAILABLE", "memory store unavailable", "memory", true)
 	}
 }
 

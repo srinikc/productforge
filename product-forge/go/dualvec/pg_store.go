@@ -13,6 +13,14 @@ type PgMemoryStore struct {
 	inner *edpdata.MemoryStore
 }
 
+var _ interface {
+	GetScoped(context.Context, string, datastore.MemoryScope) (datastore.MemoryEntry, error)
+} = (*PgMemoryStore)(nil)
+
+var _ interface {
+	DeleteScoped(context.Context, string, datastore.MemoryScope) error
+} = (*PgMemoryStore)(nil)
+
 // NewPgMemoryStore wraps an existing RelationalStore into a PgMemoryStore.
 func NewPgMemoryStore(db datastore.RelationalStore) *PgMemoryStore {
 	return &PgMemoryStore{inner: edpdata.NewMemory(db)}
