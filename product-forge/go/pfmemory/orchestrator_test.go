@@ -377,6 +377,14 @@ func TestRolePostureBypassRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	var user string
+	var super, bypass bool
+	if err := db.QueryRow(`SELECT current_user, r.rolsuper, r.rolbypassrls FROM pg_roles r WHERE r.rolname = current_user`).Scan(&user, &super, &bypass); err != nil {
+		t.Fatal(err)
+	}
+	if super || bypass {
+		t.Fatalf("runtime role %s can bypass RLS (super=%v bypassrls=%v)", user, super, bypass)
+	}
 	var policies int
 	if err := db.QueryRow(`SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='memory'`).Scan(&policies); err != nil {
 		t.Fatal(err)

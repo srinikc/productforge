@@ -87,6 +87,7 @@ type server struct {
 	memRepo        datastore.MemoryRepository
 	memoryMaxK     int
 	memoryTimeout  time.Duration
+	memoryAuditor  *memoryAudit
 }
 
 func (s *server) newBacklog(db datastore.RelationalStore) backlogStore {
@@ -254,6 +255,8 @@ func main() {
 	s := &server{admin: admin, authenticator: authenticator, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New(),
 		memoryMaxK: memMaxK, memoryTimeout: memTimeout}
+	s.memoryAuditor = newMemoryAudit(m, st)
+	defer s.memoryAuditor.Close()
 	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
@@ -1173,37 +1176,65 @@ func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error
 }
 
 type memoryAudit struct {
-	metrics *limits.Metrics
-	st      *store.PgStore
+	metrics   *limits.Metrics
+	st        *store.PgStore
+	ch        chan pfmemory.AuditEvent
+	wg        sync.WaitGroup
+	closeOnce sync.Once
 }
 
-func (a memoryAudit) Audit(e pfmemory.AuditEvent) {
-	if a.metrics != nil {
-		a.metrics.Inc("memory_audit_total", "op", e.Op, "outcome", e.Outcome, "reason", e.Reason)
+func newMemoryAudit(metrics *limits.Metrics, st *store.PgStore) *memoryAudit {
+	a := &memoryAudit{metrics: metrics, st: st, ch: make(chan pfmemory.AuditEvent, 256)}
+	a.wg.Add(1)
+	go a.worker()
+	return a
+}
+
+func (a *memoryAudit) worker() {
+	defer a.wg.Done()
+	for e := range a.ch {
+		a.write(e)
 	}
-	log.Printf("memory_audit op=%s tenant=%s project=%s actor=%s record=%s outcome=%s reason=%s",
-		e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID, e.Outcome, e.Reason)
+}
+
+func (a *memoryAudit) write(e pfmemory.AuditEvent) {
 	if a.st == nil || e.TenantID == "" {
 		return
 	}
-	go func(st *store.PgStore, ev pfmemory.AuditEvent, metrics *limits.Metrics) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		resource := ev.RecordID
-		if ev.ProjectID != "" {
-			resource = ev.ProjectID + "/" + resource
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resource := e.RecordID
+	if e.ProjectID != "" {
+		resource = e.ProjectID + "/" + resource
+	}
+	if err := edpdata.NewAudit(store.BindTenant(a.st, e.TenantID)).Append(ctx, datastore.AuditEvent{
+		TenantID: e.TenantID, Actor: e.Actor, Action: "memory." + e.Op, Resource: resource,
+		Outcome: e.Outcome, CorrelationID: e.Reason, At: time.Now().UTC(),
+	}); err != nil {
+		if a.metrics != nil {
+			a.metrics.Inc("memory_audit_failures_total", "op", e.Op)
 		}
-		if err := edpdata.NewAudit(store.BindTenant(st, ev.TenantID)).Append(ctx, datastore.AuditEvent{
-			TenantID: ev.TenantID, Actor: ev.Actor, Action: "memory." + ev.Op, Resource: resource,
-			Outcome: ev.Outcome, CorrelationID: ev.Reason, At: time.Now().UTC(),
-		}); err != nil {
-			if metrics != nil {
-				metrics.Inc("memory_audit_failures_total", "op", ev.Op)
-			}
-			log.Printf("memory_audit_failure op=%s tenant=%s project=%s actor=%s record=%s err=%v",
-				ev.Op, ev.TenantID, ev.ProjectID, ev.Actor, ev.RecordID, err)
+		log.Printf("memory_audit_failure op=%s tenant=%s project=%s actor=%s record=%s err=%v",
+			e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID, err)
+	}
+}
+
+func (a *memoryAudit) Audit(e pfmemory.AuditEvent) {
+	select {
+	case a.ch <- e:
+	default:
+		if a.metrics != nil {
+			a.metrics.Inc("memory_audit_dropped_total", "op", e.Op)
 		}
-	}(a.st, e, a.metrics)
+		log.Printf("memory_audit_dropped op=%s tenant=%s project=%s", e.Op, e.TenantID, e.ProjectID)
+	}
+}
+
+func (a *memoryAudit) Close() {
+	a.closeOnce.Do(func() {
+		close(a.ch)
+		a.wg.Wait()
+	})
 }
 
 func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
@@ -1236,7 +1267,11 @@ func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemo
 			}
 		},
 	}
-	return pfmemory.New(repo, pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout), pfmemory.WithAuditor(memoryAudit{metrics: s.metrics, st: s.st}))
+	opts := []pfmemory.Option{pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout)}
+	if s.memoryAuditor != nil {
+		opts = append(opts, pfmemory.WithAuditor(s.memoryAuditor))
+	}
+	return pfmemory.New(repo, opts...)
 }
 
 func (s *server) memoryRequestError(w http.ResponseWriter, r *http.Request, err error) {
