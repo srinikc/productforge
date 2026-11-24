@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition evidence references normalized",
+  "_note": "dispositions and fix evidence for Gate 1.5 review 27f05601",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -22,10 +22,11 @@
   "links": {},
   "owner": "agent",
   "risks": [
-    "D-1 strict project isolation hides legacy project-empty rows until migrated",
-    "PostgreSQL role misconfiguration could weaken RLS; role-posture test mitigates",
-    "Caller-supplied tenant in legacy payload could be trusted by mistake; Scope comparison test mitigates",
-    "Search result count could grow without bounds; k cap and timeout mitigate"
+    "D-1 strict project isolation hides legacy project-empty rows; migration owned by BI-PF-1570 and memory_filtered_projectless_total makes it observable",
+    "Direct repository bypass could reopen leakage; static bypass test fails the build",
+    "Delete before authorization could mutate a cross-boundary row; read-verify-delete is mandatory and tested",
+    "Search repository could return out-of-scope hits; per-hit revalidation drops them",
+    "Role-posture test could silently skip without a DSN; CI fails when DSN is missing"
   ],
   "scope": "product_forge",
   "score": 1.25,
@@ -355,14 +356,15 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:18:50.217723",
+  "updated_at": "2026-11-24T11:24:32.429563",
   "design_pack": {
-    "audit": "Append-only audit events for every mutation and denial with tenant, project, actor, operation, safe record ID, outcome, reason code, and timestamp. No content, embeddings, or secrets.",
+    "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
-      "D-1 strict project isolation hides legacy project-empty rows until migrated",
-      "PostgreSQL role misconfiguration could weaken RLS; role-posture test mitigates",
-      "Caller-supplied tenant in legacy payload could be trusted by mistake; Scope comparison test mitigates",
-      "Search result count could grow without bounds; k cap and timeout mitigate"
+      "D-1 strict project isolation hides legacy project-empty rows; migration owned by BI-PF-1570 and memory_filtered_projectless_total makes it observable",
+      "Direct repository bypass could reopen leakage; static bypass test fails the build",
+      "Delete before authorization could mutate a cross-boundary row; read-verify-delete is mandatory and tested",
+      "Search repository could return out-of-scope hits; per-hit revalidation drops them",
+      "Role-posture test could silently skip without a DSN; CI fails when DSN is missing"
     ],
     "scope": [
       "Go memory gateway go/pfmemory",
@@ -370,7 +372,7 @@
       "edpsvc /memory handler wiring",
       "Four negative leakage suites"
     ],
-    "quotas": "Single-record writes and deletes; search k capped at 100; canonical payload limits from go/memory; no consolidation batch.",
+    "quotas": "Single-record writes/deletes; k 1..100 default 20; canonical payload limits; no consolidation batch.",
     "rollout": "Additive Go package plus edpsvc wiring; deploy and roll back by binary rollback.",
     "tooling": false,
     "version": 2,
@@ -388,7 +390,7 @@
         "dimension": "runtime_contract",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestPutRejectsInvalidRecord",
         "observability": "memory_ops_total and audit",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestPutValidated",
@@ -408,7 +410,7 @@
         "dimension": "security_model",
         "applies_to": "go/edpsvc/main.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
         "observability": "memory_denied_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedReadWrite",
@@ -423,17 +425,17 @@
         "check": "go test ./...",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator.go:authorize",
-        "control": "Single-record reads and deletes verify tenant, project, and ACL after repository access",
+        "control": "Read-verify-delete: fetch, verify tenant/project/ACL/owner, then delete; never delete before authorization",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantGetDelete",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
         "observability": "memory_denied_total reason=acl_tenant_project",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
-        "failure_behavior": "deny non-leakily with ErrNotFound"
+        "failure_behavior": "deny non-leakily before mutation"
       },
       {
         "ac": "AC-3",
@@ -443,16 +445,16 @@
         "check": "go test -race ./...",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
-        "control": "Four negative leakage suites run under concurrency with the race detector",
+        "control": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial, and TestConcurrentBoundaryLoad run with -race",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "failure_taxonomy",
         "applies_to": "go/pfmemory/orchestrator_test.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
-        "negative_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
         "observability": "test output",
-        "positive_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedBoundaryOperations",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "fail the build on any cross-boundary exposure"
       },
       {
@@ -468,9 +470,9 @@
         "dimension": "observability",
         "applies_to": "go/pfmemory/metrics.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestDeniedAudit",
-        "observability": "memory_ops_total memory_denied_total memory_op_duration_seconds",
+        "observability": "reuse edpsvc metrics registry; memory_ops_total memory_denied_total memory_op_duration_seconds memory_filtered_projectless_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestMetricsAudit",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
         "failure_behavior": "observer failures never bypass the policy decision"
@@ -488,12 +490,32 @@
         "dimension": "quotas",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "N/A: limits are server policy",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestLimitExceeded",
         "observability": "memory_denied_total reason=limit",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestLimits",
         "concurrency_test": "N/A: limits are immutable",
         "failure_behavior": "reject invalid limits and oversized search before repository access"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-7",
+        "kind": "failure",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls",
+        "control": "Static bypass test fails if edpsvc calls MemoryRepository directly outside orchestrator wiring",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "go/pfmemory/bypass_test.go",
+        "tenant_test": "N/A: static analysis",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestMemoryHandlersUseOrchestrator",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls",
+        "concurrency_test": "N/A: static analysis",
+        "failure_behavior": "fail the build on any direct bypass path"
       }
     ],
     "coverage": [
@@ -503,7 +525,7 @@
           "go test ./..."
         ],
         "adapter": "datastore.MemoryRepository",
-        "contract": "Scope + Put/Get/Search/Delete/Validate; denied returns ErrNotFound",
+        "contract": "Scope + Put/Get/Search/Delete/Validate; every operation routes through pfmemory; static bypass test forbids direct repository calls",
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
         ],
@@ -515,7 +537,8 @@
         "failure_cases": [
           "missing scope",
           "validation failure",
-          "repository failure"
+          "repository failure",
+          "direct repository bypass"
         ]
       },
       {
@@ -555,10 +578,10 @@
         ],
         "entrypoint": "go/pfmemory/orchestrator.go:Orchestrator",
         "failure_cases": [
-          "concurrent cross-tenant",
-          "concurrent cross-project",
-          "concurrent ACL deny",
-          "mixed boundary load"
+          "TestCrossTenantReadWriteSearch",
+          "TestCrossProjectReadWriteSearch",
+          "TestACLPrivateDenial",
+          "TestConcurrentBoundaryLoad"
         ]
       }
     ],
@@ -580,27 +603,27 @@
         "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
       ],
       "config": {
-        "PF_MEMORY_PRINCIPAL": {
-          "empty": "deny in production",
-          "valid": "non-empty principal",
-          "default": "existing server principal",
-          "invalid": "deny",
-          "startup": "server resolved",
-          "precedence": "server"
+        "PF_TEST_MEMORY_DSN": {
+          "empty": "CI fails when CI=true",
+          "valid": "PostgreSQL DSN",
+          "default": "empty locally",
+          "invalid": "test fails",
+          "startup": "test setup",
+          "precedence": "CI env"
         },
         "PF_MEMORY_OP_TIMEOUT": {
           "empty": "5s",
-          "valid": "positive duration",
+          "valid": "positive duration <= 30s",
           "default": "5s",
-          "invalid": "fail startup",
+          "invalid": "fail closed",
           "startup": "validated",
           "precedence": "env"
         },
         "PF_MEMORY_MAX_SEARCH_K": {
           "empty": "100",
-          "valid": "1..1000",
+          "valid": "1..100",
           "default": "100",
-          "invalid": "fail startup",
+          "invalid": "fail closed",
           "startup": "validated",
           "precedence": "env"
         }
@@ -652,40 +675,40 @@
       "red_evidence": "current edpsvc Get/Delete by ID and project-empty search leak cross-boundary access",
       "green_evidence": "same tests pass after edpsvc handlers use pfmemory.Orchestrator"
     },
-    "rls_tenant": "PostgreSQL tenant binding stays in the existing datastore adapter. The orchestrator rechecks tenant and project after every single-record read. Role posture is tested against PostgreSQL when a test DSN is configured.",
+    "rls_tenant": "PostgreSQL tenant binding stays in datastore; orchestrator verifies tenant/project after every single-record read and after every search hit. Role-posture test is required in CI with PF_TEST_MEMORY_DSN.",
     "ac_evidence": [
       {
         "ac": "AC-1",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "candidate_sha": "a9425dfd"
+        "candidate_sha": "a536d6d1"
       },
       {
         "ac": "AC-2",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "candidate_sha": "a9425dfd"
+        "candidate_sha": "a536d6d1"
       },
       {
         "ac": "AC-3",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "candidate_sha": "a9425dfd"
+        "candidate_sha": "a536d6d1"
       }
     ],
     "performance": "bounded search and 5s timeout",
     "test_matrix": [
       {
         "ac": "AC-1",
-        "kind": "unit/integration",
-        "test": "go test ./... in go/pfmemory and go/edpsvc"
+        "kind": "unit/integration/static",
+        "test": "go test ./... in go/pfmemory and go/edpsvc; TestNoDirectMemoryRepositoryCalls"
       },
       {
         "ac": "AC-2",
         "kind": "negative/security",
-        "test": "go test ./... in go/pfmemory"
+        "test": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial in go/pfmemory"
       },
       {
         "ac": "AC-3",
         "kind": "negative/concurrency",
-        "test": "go test -race ./... in go/pfmemory"
+        "test": "go test -race ./... in go/pfmemory; TestConcurrentBoundaryLoad"
       }
     ],
     "api_contract": "Existing edpsvc /memory and /memory/{id} routes only. No new public route. Response shapes for allowed operations remain unchanged.",
@@ -748,7 +771,8 @@
         "go/edpsvc/main.go",
         "go/edpsvc/main_test.go",
         "go/edpsvc/go.mod",
-        "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "go/pfmemory/bypass_test.go"
       ],
       "ac_ids": [
         "AC-1",
@@ -768,7 +792,7 @@
       ]
     },
     "compatibility": "Allowed request/response shapes are preserved. Legacy project-empty rows are hidden from governed reads (D-1), and new writes require a project.",
-    "observability": "memory_ops_total{op,result}, memory_denied_total{reason}, memory_op_duration_seconds{op,result}; structured audit for read/write/search/delete/denied.",
+    "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds, memory_filtered_projectless_total; reuse edpsvc metrics registry; structured audit.",
     "prerequisites": [
       "BI-PF-1566 canonical MemoryRecord completed",
       "datastore.MemoryRepository and dualvec available",
@@ -778,6 +802,17 @@
     "runtime_calls": [
       "go/edpsvc/main.go:memoryHandle",
       "go/edpsvc/main.go:memoryByID"
+    ],
+    "affected_files": [
+      "go/pfmemory/go.mod",
+      "go/pfmemory/orchestrator.go",
+      "go/pfmemory/metrics.go",
+      "go/pfmemory/orchestrator_test.go",
+      "go/edpsvc/main.go",
+      "go/edpsvc/main_test.go",
+      "go/edpsvc/go.mod",
+      "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "go/pfmemory/bypass_test.go"
     ],
     "backup_restore": "No new store or artifact. Existing EDP database backup and restore path remains authoritative. Restore verification is unchanged and covered by the data plane runbook.",
     "failure_matrix": [
@@ -819,7 +854,7 @@
     ],
     "functional_ref": "engineering/specs/BI-PF-1567.md",
     "open_questions": [],
-    "security_model": "Tenant, project, principal, ACLScope, and owner are server-resolved and checked before records are returned or changed. Admin roles do not bypass tenant/project boundaries in this item.",
+    "security_model": "Tenant, project, principal, ACLScope, and owner are server-resolved; single-record reads and deletes verify before mutation; search revalidates every hit.",
     "code_guidelines": [
       "docs/guidelines/coding/go/pf-go.md",
       "docs/guidelines/coding/go/style-guide.md"
@@ -851,7 +886,7 @@
       "observable_result": "bounded metrics and structured audit"
     },
     "rollback_recovery": "Revert edpsvc wiring or deploy the previous binary. No schema migration and no bulk mutation, so no compensating data script is required.",
-    "deployment_rollout": "Build pfmemory and edpsvc, run unit/race/integration tests, deploy edpsvc, verify allowed operations and denial metrics, roll back on error or denial spikes.",
+    "deployment_rollout": "Build/test/deploy; roll back if denial reason tenant/project/acl exceeds 1% or 5xx exceeds 5% for two 5-minute windows.",
     "guideline_coverage": [
       {
         "check": "go test ./...",
@@ -880,7 +915,7 @@
         "memory_op_duration_seconds"
       ]
     },
-    "performance_capacity": "Search returns at most 100 rows (default 20). Operation timeout is 5 seconds or caller deadline. Canonical content is capped at 1 MiB and embeddings at 3072 dimensions. No unbounded scans or background jobs.",
+    "performance_capacity": "Search default 20 and maximum 100. Operation timeout 5s or caller deadline. Canonical content 1 MiB and embedding 3072. No unbounded scans.",
     "concurrency_idempotency": "Put is idempotent by record ID for the same tenant/project/owner. Cross-tenant/project ID reuse is denied. The orchestrator is stateless and race-tested under concurrent boundary load.",
     "failure_taxonomy_detail": {
       "limit": "reject before IO",
@@ -903,7 +938,7 @@
         "dimension": "runtime_contract",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestPutRejectsInvalidRecord",
         "observability": "memory_ops_total and audit",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestPutValidated",
@@ -923,7 +958,7 @@
         "dimension": "security_model",
         "applies_to": "go/edpsvc/main.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
         "observability": "memory_denied_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedReadWrite",
@@ -938,17 +973,17 @@
         "check": "go test ./...",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator.go:authorize",
-        "control": "Single-record reads and deletes verify tenant, project, and ACL after repository access",
+        "control": "Read-verify-delete: fetch, verify tenant/project/ACL/owner, then delete; never delete before authorization",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantGetDelete",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
         "observability": "memory_denied_total reason=acl_tenant_project",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
-        "failure_behavior": "deny non-leakily with ErrNotFound"
+        "failure_behavior": "deny non-leakily before mutation"
       },
       {
         "ac": "AC-3",
@@ -958,16 +993,16 @@
         "check": "go test -race ./...",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
-        "control": "Four negative leakage suites run under concurrency with the race detector",
+        "control": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial, and TestConcurrentBoundaryLoad run with -race",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "failure_taxonomy",
         "applies_to": "go/pfmemory/orchestrator_test.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
-        "negative_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
         "observability": "test output",
-        "positive_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedBoundaryOperations",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "fail the build on any cross-boundary exposure"
       },
       {
@@ -983,9 +1018,9 @@
         "dimension": "observability",
         "applies_to": "go/pfmemory/metrics.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestDeniedAudit",
-        "observability": "memory_ops_total memory_denied_total memory_op_duration_seconds",
+        "observability": "reuse edpsvc metrics registry; memory_ops_total memory_denied_total memory_op_duration_seconds memory_filtered_projectless_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestMetricsAudit",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
         "failure_behavior": "observer failures never bypass the policy decision"
@@ -1003,12 +1038,32 @@
         "dimension": "quotas",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "N/A: limits are server policy",
-        "candidate_sha": "a9425dfd",
+        "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestLimitExceeded",
         "observability": "memory_denied_total reason=limit",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestLimits",
         "concurrency_test": "N/A: limits are immutable",
         "failure_behavior": "reject invalid limits and oversized search before repository access"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-7",
+        "kind": "failure",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls",
+        "control": "Static bypass test fails if edpsvc calls MemoryRepository directly outside orchestrator wiring",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "go/pfmemory/bypass_test.go",
+        "tenant_test": "N/A: static analysis",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestMemoryHandlersUseOrchestrator",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls",
+        "concurrency_test": "N/A: static analysis",
+        "failure_behavior": "fail the build on any direct bypass path"
       }
     ]
   },
@@ -1117,6 +1172,162 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:e92ef29b855739a3",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:44dd628f88e3dc4d",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:7247e0c79cca89b2",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:91117aa32151088f",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:ca7eed78ec74787c",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:9c21ee4a1c0f6882",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:a979709fa66aaa2e",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:8651ef462f6d0296",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:29ffb8f712a95182",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:968edb4d9c7d0654",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:678fe3f95f366633",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:b11b5e8a7fc1a210",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/bypass_test.go"
     }
   ],
   "out_of_scope": [
@@ -1171,6 +1382,41 @@
       "review_sha": "053091627b34",
       "review_scope": "full_candidate",
       "candidate_sha": "b8ad85e7a7b66271cc2c29fa47e8f1502f4ac84d"
+    },
+    {
+      "at": "2026-11-24T05:52:27.350040+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1567-27f05601f27a.json",
+      "findings": {
+        "NIT": [
+          "All three ACs cite the same evidence artifact and candidate_sha a9425dfd; Gate 2 must replace these with distinct per-suite test evidence (partially acknowledged in pack learnings).",
+          "Audit \"safe record ID\" retention/redaction policy is unspecified while privacy_compliance is marked N/A; a short retention statement would close the gap."
+        ],
+        "MAJOR": [
+          "AC-1 \"all operations\" is unenforceable as designed: only go/edpsvc call sites are wired, with no stated arch-test/static check proving no other code path reaches go/memory or datastore directly (bypass is merely out_of_scope, not prevented).",
+          "Authorization-vs-mutation ordering for Delete is ambiguous: C-3 says deletes \"verify tenant, project, and ACL after repository access\"; the design must pin read-verify-then-delete (or tenant-filtered delete) or a cross-tenant row could be mutated before denial.",
+          "Search result post-filtering is unspecified: the rls_tenant section rechecks \"after every single-record read\" only, yet AC-2/coverage claim filters \"on every operation\" — per-hit tenant/project/ACL revalidation of multi-record Search results must be explicit.",
+          "Search bound contradicts the approved NFR: NFR says k <= 100 and performance says default 20, but config_contract allows PF_MEMORY_MAX_SEARCH_K = 1..1000 with default 100; the contract cannot be met as written."
+        ],
+        "MINOR": [
+          "RLS role-posture test runs only \"when a test DSN is configured\"; without a required CI DSN the CL-011 NOSUPERUSER/NOBYPASSRLS evidence is silently skipped.",
+          "PF_MEMORY_PRINCIPAL contract is internally contradictory (precedence \"server\" vs env key; empty→\"deny in production\" vs default→\"existing server principal\"); precedence and production-empty behavior need one rule.",
+          "AC-3's \"four negative leakage suites\" are not enumerated as four distinct named tests; C-4 lists TestLeakageSuites as both negative_test and positive_test.",
+          "D-1 hides legacy project-empty rows with no migration owner/ticket and no metric for filtered-out rows, so silent data invisibility is undetectable in production.",
+          "Rollback trigger \"roll back on denial spikes\" has no threshold, alert, or lead-time defined (checklist 2 availability).",
+          "No statement that pfmemory metrics reuse the existing edpsvc metrics registry/namespace; duplicate metric definitions would break dashboards (checklist 10 reuse)."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Design is now Go-only, fail-closed, and observability-aware; prior blockers are properly dispositioned. Top risks: AC-1 has no anti-bypass enforcement, delete/search authorization ordering and per-hit filtering are not pinned, and the k-bound NFR contradicts the config contract. Resolve the MAJOR items before Gate 1.5; no BLOCKERs remain."
+        ]
+      },
+      "head_sha": "a536d6d1e212ff6e424af2fab29f1d041f8db35a",
+      "review_sha": "27f05601f27a",
+      "review_scope": "full_candidate",
+      "candidate_sha": "a536d6d1e212ff6e424af2fab29f1d041f8db35a"
     }
   ],
   "affected_files": [
@@ -1181,7 +1427,8 @@
     "go/edpsvc/main.go",
     "go/edpsvc/main_test.go",
     "go/edpsvc/go.mod",
-    "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+    "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+    "go/pfmemory/bypass_test.go"
   ],
   "priority_class": "P2",
   "target_release": "",
@@ -1194,10 +1441,11 @@
       "delivery provenance recorded"
     ],
     "nfr": [
-      "search k <= 100",
+      "search k 1..100 (default 20)",
       "operation timeout <= 5s",
       "zero cross-tenant/project leakage under -race",
-      "no unbounded scans"
+      "no unbounded scans",
+      "static bypass test fails direct repository calls"
     ],
     "owner": "Srinikc",
     "scope": [
@@ -1262,7 +1510,7 @@
         "trigger": "Authenticated memory operation enters edpsvc.",
         "priority": "P0",
         "acceptance": [
-          "Given an authenticated memory operation, when it enters edpsvc, then it is validated, scoped, and routed through the orchestrator."
+          "Given an authenticated memory operation, when it enters edpsvc, then it is validated, scoped, and routed through the orchestrator; a static test forbids direct repository bypass."
         ],
         "data_rules": "Canonical validation then tenant/project/ACL filters.",
         "edge_cases": [
@@ -1297,7 +1545,7 @@
         "trigger": "Read, search, write, or delete targets another tenant/project or private owner.",
         "priority": "P0",
         "acceptance": [
-          "Given a cross-boundary request, when executed, then no data is returned or mutated and denial is non-leaky."
+          "Given a cross-boundary request, when executed, then no data is returned or mutated; search revalidates every hit and delete is read-verify-delete."
         ],
         "data_rules": "Tenant/project filters plus post-read authorization.",
         "edge_cases": [
@@ -1344,7 +1592,7 @@
         ],
         "idempotency": "Concurrent reads do not mutate state; writes use unique IDs.",
         "verification": [
-          "go test -race ./... in go/pfmemory"
+          "go test -race ./... in go/pfmemory; TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial, TestConcurrentBoundaryLoad"
         ],
         "preconditions": "Fake and real repository adapters are available in tests."
       }
@@ -1357,7 +1605,7 @@
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
         ],
-        "candidate_sha": "a9425dfd"
+        "candidate_sha": "a536d6d1"
       },
       {
         "fr": "FR-2",
@@ -1366,7 +1614,7 @@
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
         ],
-        "candidate_sha": "a9425dfd"
+        "candidate_sha": "a536d6d1"
       },
       {
         "fr": "FR-3",
@@ -1375,7 +1623,7 @@
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
         ],
-        "candidate_sha": "a9425dfd"
+        "candidate_sha": "a536d6d1"
       }
     ],
     "compatibility": "Allowed /memory response shapes are preserved. D-1 is a deliberate behavior change for legacy project-empty rows.",
@@ -1383,27 +1631,27 @@
     "data_lifecycle": "Existing memory rows are unchanged. Governed reads hide project-empty rows. New writes require project. No retention or schema change.",
     "open_questions": [],
     "config_contract": {
-      "PF_MEMORY_PRINCIPAL": {
-        "empty": "deny in production",
-        "valid": "non-empty principal",
-        "default": "existing server principal",
-        "invalid": "deny",
-        "startup": "server resolved",
-        "precedence": "server"
+      "PF_TEST_MEMORY_DSN": {
+        "empty": "CI fails when CI=true",
+        "valid": "PostgreSQL DSN",
+        "default": "empty locally",
+        "invalid": "test fails",
+        "startup": "test setup",
+        "precedence": "CI env"
       },
       "PF_MEMORY_OP_TIMEOUT": {
         "empty": "5s",
-        "valid": "positive duration",
+        "valid": "positive duration <= 30s",
         "default": "5s",
-        "invalid": "fail startup",
+        "invalid": "fail closed",
         "startup": "validated",
         "precedence": "env"
       },
       "PF_MEMORY_MAX_SEARCH_K": {
         "empty": "100",
-        "valid": "1..1000",
+        "valid": "1..100",
         "default": "100",
-        "invalid": "fail startup",
+        "invalid": "fail closed",
         "startup": "validated",
         "precedence": "env"
       }
@@ -1426,15 +1674,15 @@
       {
         "actor": "agent worker",
         "error": "ErrNotFound or limit error",
-        "scope": "tenant/project/ACL, k<=100",
-        "result": "bounded hits",
+        "scope": "tenant/project/ACL, k 1..100 default 20",
+        "result": "bounded hits; mismatched hits dropped",
         "operation": "Search"
       },
       {
         "actor": "operator or agent worker",
         "error": "ErrNotFound",
-        "scope": "tenant/project/ACL",
-        "result": "deleted",
+        "scope": "tenant/project/ACL, read-verify-delete",
+        "result": "deleted after authorization",
         "operation": "Delete"
       },
       {
@@ -1461,6 +1709,16 @@
         "note": "Bounded metrics and audit events are defined for operations and denials See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
         "status": "ACTIONED"
       },
+      "sig:29ffb8f712a95182": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:44dd628f88e3dc4d": {
+        "by": "worker:design-1567",
+        "note": "Pinned read-verify-delete ordering. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:4588f557b2800ced": {
         "by": "worker:design-1567",
         "note": "Design rewritten as Go-only go/pfmemory; no Python orchestrator See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
@@ -1481,14 +1739,64 @@
         "note": "Scope-derived tenant/project/owner and canonical validation replace caller authority (go/pfmemory design). See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:678fe3f95f366633": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:7247e0c79cca89b2": {
+        "by": "worker:design-1567",
+        "note": "Every search hit is revalidated and mismatches dropped. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:8651ef462f6d0296": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:91117aa32151088f": {
+        "by": "worker:design-1567",
+        "note": "Config and NFR now both bound k to 1..100 with default 20. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:968edb4d9c7d0654": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:9c21ee4a1c0f6882": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:a951ac411ae6d091": {
         "by": "worker:design-1567",
         "note": "Consolidation removed from 1567 and deferred to BI-PF-1569; only ACL-checked single-record delete remains. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:a979709fa66aaa2e": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:b11b5e8a7fc1a210": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:ca7eed78ec74787c": {
+        "by": "worker:design-1567",
+        "note": "Added static bypass test TestNoDirectMemoryRepositoryCalls and handler wiring test. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:d5c46bfd814f5ae7": {
         "by": "worker:design-1567",
         "note": "RLS role posture, server Scope, and non-leaky denial are specified with tests See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:e92ef29b855739a3": {
+        "by": "worker:design-1567",
+        "note": "Added static bypass test TestNoDirectMemoryRepositoryCalls and handler wiring test. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:f5cfe9fa92ee71d1": {
