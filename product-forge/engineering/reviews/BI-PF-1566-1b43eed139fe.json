@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "1b43eed139fe",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:15:20.719341+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cd52c17a713e033135637d8a6c3f29716a7c9b06",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "FR-1/FR-5 fails to enforce a non-self-referencing invariant for `SupersededBy`. A record referencing its own UUID as a superseding ID will cause infinite recursion in memory resolution chains and traversal logic.",
+      "FR-1 lacks a size limit for individual `Metadata` string values. While the map is limited to 50 entries, a single entry could exceed the 1MB `max_content_bytes` limit, creating a bypass for payload size enforcement."
+    ],
+    "MINOR": [
+      "FR-1 `PayloadRef` validation hardcodes `s3://` and `https://` schemes. This restricts adaptability for enterprise environments using GCS, Azure, or internal blob stores without a code change to the validation layer."
+    ],
+    "NIT": [
+      "`Confidence` is typed as `float64` while `Embedding` is `float32`. Using `float32` for confidence scores would maintain consistency with ML-related fields and reduce the memory footprint of large memory collections."
+    ],
+    "SUMMARY": [
+      "The design establishes a robust canonical contract for agent memory with strong polyglot consistency via shared JSON mappings.",
+      "Primary risks include potential infinite recursion in supersession logic and resource exhaustion through unconstrained metadata value sizes."
+    ]
+  }
+}

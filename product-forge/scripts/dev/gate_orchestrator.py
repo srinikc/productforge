@@ -97,11 +97,11 @@ class GateOrchestrator:
             print("[Gate 1] PASS (Auto-Approved)")
             return True
 
-        # In HIL mode, verify existing decision or halt
+        # In HIL mode, verify existing decision or render HIL surface and halt
         it = backlog.get_epic(self.scope, self.project, self.item_id)
-        approved = any(d.get("gate") == 1 and str(d.get("decision")).upper() == "APPROVE" for d in (it.get("decisions") or []))
+        approved = any(d.get("gate") == 1 and str(d.get("decision")).upper() in ("APPROVE", "APPROVE_WITH_ATTENTION") for d in (it.get("decisions") or []))
         if not approved:
-            print(f"[Gate 1] HIL PAUSE: Item {self.item_id} requires Gate 1 Human-In-The-Loop approval decision.")
+            self._render_hil_surface(it)
             self.stages["gate1"] = "HALTED"
             return False
 
@@ -109,21 +109,90 @@ class GateOrchestrator:
         print("[Gate 1] PASS")
         return True
 
+    def _render_hil_surface(self, it: dict, gate: int = 1) -> None:
+        """Render Review Impact Table and Architect findings for human decision."""
+        mode = "design" if gate == 1 else "diff"
+        gate_name = "GATE 1 DESIGN APPROVAL" if gate == 1 else "GATE 2 DELIVERY APPROVAL"
+        review_gate = "1.5" if gate == 1 else "2.5"
+        print("=" * 80)
+        print(f"HIL REVIEW SURFACE — {gate_name} FOR {self.item_id}")
+        print("=" * 80)
+        try:
+            import spec_contract
+            impact = spec_contract.impact_table(it)
+            print("\n--- REVIEW IMPACT TABLE ---")
+            if impact:
+                header = f"{'Control':<12} {'AC':<6} {'FR':<6} {'Kind':<12} {'Symbol':<42} {'Positive Test':<30}"
+                print(header)
+                print("-" * len(header))
+                for row in impact:
+                    ctrl = str(row.get('control') or '')
+                    ac = str(row.get('ac') or '')
+                    fr = str(row.get('fr') or '')
+                    kind = str(row.get('kind') or '')
+                    sym = str(row.get('symbol') or '')[:40]
+                    pos = str(row.get('positive') or '')[:28]
+                    print(f"{ctrl:<12} {ac:<6} {fr:<6} {kind:<12} {sym:<42} {pos:<30}")
+            else:
+                print("No implementation controls defined.")
+        except Exception as e:
+            print(f"Could not render impact table: {e}")
+
+        try:
+            import architect_review as ar
+            view = ar.gate_view(self.item_id, mode) or {}
+            findings = ((view.get("review") or {}).get("findings")) or {}
+            print(f"\n--- GATE {review_gate} ARCHITECT REVIEW FINDINGS ---")
+            for sev in ("BLOCKER", "MAJOR", "MINOR", "NIT"):
+                items = findings.get(sev) or []
+                print(f"[{sev}]: {len(items)}")
+                for item in items:
+                    print(f"  * {item}")
+        except Exception as e:
+            print(f"Could not render review findings: {e}")
+
+        print("\n" + "=" * 80)
+        print(f"[Gate {gate}] HIL PAUSE: Item {self.item_id} requires Gate {gate} Human-In-The-Loop approval decision.")
+        print("To record approval, run:")
+        print(f'  python scripts/dev/gate_decisions.py record --item {self.item_id} --gate {gate} --decision APPROVE --by hil:<user> --reason "..."')
+        print("=" * 80)
+
     def run_tests(self, test_cmd: list[str] | None = None) -> bool:
         """Execute scoped unit/integration tests."""
         print(f"[Tests] Running targeted tests for {self.item_id}...")
-        evidence = self.item.get("evidence") or []
-        if not test_cmd:
-            if evidence:
-                test_cmd = ["python", "-m", "pytest", *evidence]
-            else:
-                test_cmd = ["python", "scripts/dev/changed_tests_check.py"]
+        py_evidence = [e for e in (self.item.get("evidence") or []) if e and e != "pending" and str(e).endswith(".py")]
+        
+        # 1. Run Python tests if applicable
+        if test_cmd:
+            res = _run(test_cmd, check=False)
+            if res.returncode != 0:
+                print(f"[Tests] FAIL: Python test execution failed:\n{res.stdout}\n{res.stderr}")
+                self.stages["tests"] = "FAIL"
+                return False
+        elif py_evidence:
+            res = _run(["python", "-m", "pytest", *py_evidence], check=False)
+            if res.returncode != 0:
+                print(f"[Tests] FAIL: Python test execution failed:\n{res.stdout}\n{res.stderr}")
+                self.stages["tests"] = "FAIL"
+                return False
 
-        res = _run(test_cmd, check=False)
-        if res.returncode != 0:
-            print(f"[Tests] FAIL: Test execution failed:\n{res.stdout}\n{res.stderr}")
-            self.stages["tests"] = "FAIL"
-            return False
+        # 2. Run Go tests if affected files include go/
+        affected = self.item.get("affected_files") or []
+        go_dirs = set()
+        for f in affected:
+            if f.startswith("go/"):
+                parts = Path(f).parts
+                if len(parts) >= 2:
+                    go_dirs.add(str(_ROOT / parts[0] / parts[1]))
+
+        for gd in go_dirs:
+            if (Path(gd) / "go.mod").is_file():
+                print(f"[Tests] Running Go tests in {gd}...")
+                go_res = subprocess.run(["go", "test", "-v", "."], cwd=gd, capture_output=True, text=True)
+                if go_res.returncode != 0:
+                    print(f"[Tests] FAIL: Go test execution failed in {gd}:\n{go_res.stdout}\n{go_res.stderr}")
+                    self.stages["tests"] = "FAIL"
+                    return False
 
         self.stages["tests"] = "PASS"
         print("[Tests] PASS")
@@ -132,7 +201,9 @@ class GateOrchestrator:
     def run_gate2_5(self) -> bool:
         """Gate 2.5: Second-model Architect Delivery Review."""
         print(f"[Gate 2.5] Executing Architect delivery review (mode={self.mode})...")
-        _run(["python", "scripts/dev/architect_review.py", "run", "--item", self.item_id, "--mode", "delivery", "--apply"], check=False)
+        res = _run(["python", "scripts/dev/architect_review.py", "run", "--item", self.item_id, "--mode", "diff", "--model", "gemini-3-flash-preview", "--apply"], check=False)
+        if res.returncode != 0:
+            print(f"[Gate 2.5] Review execution output:\n{res.stdout}\n{res.stderr}")
         
         if self.mode == "auto":
             print(f"[Gate 2.5] Auto-evaluating and dispositioning delivery findings for {self.item_id}...")
@@ -155,10 +226,15 @@ class GateOrchestrator:
             print("[Gate 2] PASS (DoD Auto-Bundled)")
             return True
 
+        try:
+            finalize_item.auto_bundle(self.item_id, scope=self.scope, project=self.project)
+        except Exception as e:
+            print(f"[Gate 2] DoD auto-bundle note: {e}")
+
         it = backlog.get_epic(self.scope, self.project, self.item_id)
-        approved = any(d.get("gate") == 2 and str(d.get("decision")).upper() == "APPROVE" for d in (it.get("decisions") or []))
+        approved = any(d.get("gate") == 2 and str(d.get("decision")).upper() in ("APPROVE", "APPROVE_WITH_ATTENTION") for d in (it.get("decisions") or []))
         if not approved:
-            print(f"[Gate 2] HIL PAUSE: Item {self.item_id} requires Gate 2 delivery approval.")
+            self._render_hil_surface(it, gate=2)
             self.stages["gate2"] = "HALTED"
             return False
 

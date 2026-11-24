@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1610",
+  "sha": "b95f7e5290b5",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-23T18:28:08.934043+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "c48d02ee2e0923e1dfa29ad1a8f9d9a6ce16cf9c",
+  "findings": {
+    "BLOCKER": [
+      "AC1 not met: the diff contains no change to `config/architect-review.json` (no model `mimo-v2.6-flash`, provider `opencode-go`, base_url, or `OPENCODE_ZEN_API_KEY`), so the stated objective is unverifiable against this change.",
+      "AC2 not met: the change is not isolated to tooling config \u2014 it edits shipped Python (`product-forge/core/events.py`), tests, and four `scripts/dev` files, contradicting \"isolated to tooling config on its own branch\".",
+      "Acceptance evidence missing: no test or gate output demonstrates the architect-review model config now uses the canonical values; nothing in the diff fails if the config is wrong."
+    ],
+    "MAJOR": [
+      "`core/events.py` is shipped runtime code (language rule allows edits, but) modified with no accompanying behavior change rationale or test of the edited module's runtime path \u2014 scope creep beyond the approved single-file tooling-config change.",
+      "`backlog_scope_check.py` silently expands `active` scopes (`project`, `inbox`, `intake`) without an AC, design, or config (`PF_BACKLOG_DB_SCOPES`) reference \u2014 unrelated behavior change riding this item; scope drift from approved design contract."
+    ],
+    "MINOR": [
+      "`test_events_typing.py` asserts a type annotation via `__annotations__` string/object equality \u2014 brittle, tests no runtime behavior, and does not cover any change made in this diff.",
+      "`gen_docs_index.py` TOP entries for three new docs are added with no verification those docs exist in the tree; a missing file yields an unreachable/stale index row.",
+      "`wired_audit.py` swallows all exceptions on `reconfigure` (`except Exception: pass`) \u2014 masks real encoding failures; narrow to `AttributeError`/`ValueError` and log."
+    ],
+    "NIT": [
+      "`from typing import Any` added to `events.py` with no visible usage in the diff hunk; if unused it is dead import churn.",
+      "Hard-coded scope set in `backlog_scope_check.py` duplicates knowledge owned by `config/env-flags.json` `PF_BACKLOG_DB_SCOPES`; prefer deriving from the registry to avoid drift."
+    ],
+    "SUMMARY": [
+      "Verdict: reject \u2014 neither AC is satisfied: the required `config/architect-review.json` normalization is absent, and the diff touches shipped code beyond the approved tooling-config isolation.",
+      "Top risks: unverifiable objective (no test/gate proving model/provider/key source), scope drift (backlog scopes, docs index, encoding handling) beyond the one-line approved design, and a brittle annotation-only test providing no meaningful coverage.",
+      "Next step: produce the actual `config/architect-review.json` change with a fail-able verification, and move unrelated edits to their own items."
+    ]
+  }
+}

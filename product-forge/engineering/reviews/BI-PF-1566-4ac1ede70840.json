@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "4ac1ede70840",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T16:44:57.135663+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "e37acb2a2bd394c7720b4ca88172ab6763bb0d1c",
+  "findings": {
+    "BLOCKER": [
+      "Traceability/Integrity: The provided Design Pack and Implementation Controls (RollbackOrchestrator) are completely decoupled from the MemoryRecord requirements (BI-PF-1566), failing AC-1 through AC-4.",
+      "Language Rule Violation: `core/memory_record.py` introduces new shipped logic in Python; per ENGINEERING_OPERATING_STANDARD.md, all new shipped logic must be implemented in Go.",
+      "AC-3 Mapping: The design lacks a transformation matrix for consolidating 8 existing memory types into 6 canonical kinds, posing a high risk of data loss or context degradation during migration."
+    ],
+    "MAJOR": [
+      "AC-4 Temporal Validation: The design fails to define constraints for timezone consistency (UTC), null/infinite bounds, and logical ordering (e.g., `valid_until` must be greater than `valid_from`).",
+      "CL-011/CL-013: Missing enforcement of tenant/project ID immutability and binding to the authenticated context in the validation layer, risking cross-tenant data injection."
+    ],
+    "MINOR": [
+      "AC-2 Observability: \"Fail closed\" logic for unknown kinds lacks structured logging or evidence ledger emission, hindering detection of schema drift or integration errors.",
+      "Schema Redundancy: The inclusion of both `embedding` (data) and `payload_ref` (pointer) without defined precedence or size limits risks inconsistent record states."
+    ],
+    "NIT": [
+      "Terminology: Standardize on the term `kind` (per AC-2) rather than using \"type\" (per AC-3) to ensure consistency across the schema, code, and documentation."
+    ],
+    "SUMMARY": [
+      "Critical mismatch between the MemoryRecord requirements and the provided implementation controls (RollbackOrchestrator).",
+      "Language rule violation: new shipped logic implemented in Python (`core/memory_record.py`) instead of Go.",
+      "Data integrity risk: undefined mapping for the 8-to-6 type consolidation.",
+      "Security/Robustness: insufficient temporal validation and missing tenant-binding enforcement."
+    ]
+  }
+}
