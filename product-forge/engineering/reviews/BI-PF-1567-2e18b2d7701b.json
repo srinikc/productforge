@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "2e18b2d7701b",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T08:27:03.962861+00:00",
+  "review_scope": "delta",
+  "base_sha": "82b90ca4500fe2f505630791abef04fe83b7098e",
+  "head_sha": "12b3250fb319f6d394576d5dc6f3123cfc3f8f86",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "C-6's control text still names `PF_TEST_MEMORY_DSN` inside the WithLimits/production-quota control. The added \"test setup only\" clause resolves ownership, but the test-only variable remains attached to a runtime config control; if the disposition is full separation, move that reference to the test-setup row (C-8) and keep C-6 strictly `PF_MEMORY_MAX_SEARCH_K`/`PF_MEMORY_OP_TIMEOUT`.",
+      "All 19 controls cite a single evidence artifact (`docs/MEMORY-ORCHESTRATOR-DESIGN.md`) plus `candidate_sha 48157066` for checks that are declared as executable tests. This is acceptable at Gate 1 only if Gate 2 requires per-control test-run artifacts to replace design prose; the delta does not state that evidence-substitution step."
+    ],
+    "NIT": [
+      "`controls` and `implementation_controls` are pasted identically in this delta (~2x duplication) with only a prose note (`controls_mirrored_from`) guaranteeing sync; no equality check is named, so the mirror can drift silently between gates.",
+      "C-4 uses `dimension: failure_taxonomy` while it is an AC-3 concurrency/isolation aggregation control; C-8's `tenant_test` points at `TestCrossTenantReadWriteSearch` rather than a role-posture-specific test. Cosmetic metadata inconsistency only."
+    ],
+    "SUMMARY": [
+      "Delta design_pack controls are internally consistent: AC-1/2/3 each have coverage, four-suite enumeration matches FR-3, C-8 enforces CL-011 role posture, and C-19 covers CL-013 parameterized binding with constant-time comparison correctly scoped to the auth boundary.",
+      "No AC-contract, security, or test-coverage blocker found in the changed fields; `controls` mirrors `implementation_controls` exactly.",
+      "Top residual risks: evidence remains design-only pending Gate 2 proof, and the C-6 test-DSN clause is the last trace of the prior config-ownership blur."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-ae280fb8abef; clarified C-6 runtime config ownership",
+  "rereview_reason_sha256": "5d62a86c9465de862d0d1dfae04b4a1efd2f054792c260a8b4ab5c1ac604d54e"
+}
