@@ -6,13 +6,15 @@ import hashlib
 import json
 import re
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
     if p not in sys.path:
         sys.path.insert(0, p)
+import gate_status  # noqa: E402
+
 from core import backlog  # noqa: E402
 
 SPEC_DIR = ROOT / "engineering" / "specs"
@@ -47,6 +49,8 @@ def iter_items():
 
 
 def should_enforce(item: dict, cfg: dict) -> bool:
+    if gate_status.should_skip(item.get("status")):
+        return False
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
     if item.get("status") in ("new", "draft", "triaged"):

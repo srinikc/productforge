@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "1ad0121bacf0",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T15:58:48.539876+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Disposition integrity: prior findings marked ACTIONED are unchanged in artifacts \u2014 `controls`/`implementation_controls` still byte-identical, `runtime_contract.entrypoint` still `design_pack.py:should_enforce` vs `coverage.entrypoint` `gate_status.py:should_skip`, and `functional_sha` (46397b51a002) \u2260 `candidate_sha` (bc5a6145); Gate-1.5 evidence is unreliable (CL-006).",
+      "Guardrail 10 unmet: `observability_detail.gate_output` remains \"checked count\" with no skipped-count or skip reason, so a silently skipped item is undiagnosable from gate output; the ACTIONED disposition does not hold.",
+      "AC-3 lacks an explicit coverage matrix: design `test_matrix` maps each AC to one aggregate pytest invocation with no terminal-status \u00d7 gate (4 statuses \u00d7 3 gates) enumeration, so per-gate, per-status completeness is asserted rather than evidenced."
+    ],
+    "MINOR": [
+      "Positive control/test name `test_rejected_status_skips_design_and_spec_gates` names only two gates; AC-1 requires functional-spec too \u2014 add an explicit functional_spec assertion or gate-parametrized test name.",
+      "Rollback is only \"revert the change\"; guardrail 6 expects a fail-able check that revert restores enforcement (no post-revert test step defined).",
+      "`failure_matrix` lists only `in_progress` as the live case while AC-2 says \"live statuses\" plural; enumerate the representative live set (e.g. backlog, in_review) in design evidence.",
+      "Control kinds remain odd for tooling predicates (`C-3 kind: security`, `C-2 kind: config`), which misroutes review scope even after the prior disposition."
+    ],
+    "NIT": [
+      "CL-008 guardrail checklist items 2/3/5/8/9 are answered only implicitly (security_note, rls_tenant: \"N/A\"); an explicit guardrail-answers block in the design would make Gate 1.5 verification mechanical.",
+      "All four FRs share one test file and one evidence doc, so traceability rows are indistinguishable; add per-FR test node-ids."
+    ],
+    "SUMMARY": [
+      "Sound approach: shared `gate_status.should_skip` predicate with fail-closed unknown handling satisfies the core AC intent and the language rule (tooling Python).",
+      "Top risks: several prior ACTIONED dispositions are not reflected in the current artifacts, undermining Gate-1.5 trust; skip decisions remain unobservable; AC-3's status\u00d7gate coverage is asserted, not evidenced.",
+      "Recommend re-verifying dispositions against the actual design doc before Gate 1.5 sign-off."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1611-c65deace324d; user-approved tooling design fixes for shared predicate and AC-4",
+  "rereview_reason_sha256": "19fbd447af118bbeca306510ea72754ddb58f4546bc268a84d4f3610a59f7494"
+}

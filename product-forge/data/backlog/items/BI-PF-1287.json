@@ -1,103 +1,69 @@
 {
   "id": "BI-PF-1287",
+  "due": "",
   "tag": "PF",
-  "type": "change",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "LICENSE-ISSUANCE-VENDOR-KEY-1",
-  "label": "PF Backlog 578",
-  "title": "License issuance production: vendor keypair management + signing-env integration (A3 packaging)",
-  "body": "A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a dev keypair. Production needs a vendor keypair provisioned in the signing environment (never shipped), the public key packaged with the product, and integration with A3 compiled/signed packaging.",
-  "source": "generic",
-  "status": "new",
-  "priority": "P2",
-  "moscow": "Should",
-  "value": 4,
-  "effort": 2,
-  "risk": 2,
+  "body": "A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a dev keypair. Production needs a vendor keypair provisioned in the signing environment (never shipped), the public key packaged with the product, and integration with A3 compiled/signed packaging.\n\n## Merged implementation detail (from BI-PF-1603..1609 extraction duplicates)\n- Generate an Ed25519 vendor keypair in a Go signing module; store the private key in the signing environment secret store and emit the public key as PEM.\n- Add a signing-environment setup path that injects the private key only in the signing environment.\n- Enforce archive exclusion of the private key and test that the private key path never appears in the packaged artifact.\n- Reuse the A2 Ed25519 format and add verification tests using the packaged public key.",
   "deps": [],
-  "links": {},
-  "decisions": [],
-  "follow_up": {},
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "change",
+  "_note": "merge duplicate extraction details from BI-PF-1603..1609",
   "brief": {
+    "why": "A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a dev keypair. Production needs a vendor keypair provisioned in the signing environment (never shipped), the public key packaged with the product, and integration with A3 compiled/signed packaging.",
+    "source": "extracted",
     "problem": "A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a dev keypair. Production needs a vendor keypair provisioned in the signing environment (never shipped), the public key packaged with the product, and integration with A3 compiled/signed packaging.",
     "what_adds": "License issuance production: vendor keypair management + signing-env integration (A3 packaging)",
-    "why": "A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a dev keypair. Production needs a vendor keypair provisioned in the signing environment (never shipped), the public key packaged with the product, and integration with A3 compiled/signed packaging.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "extracted"
+    "who_feels": "Product Forge maintainers and consumers."
   },
-  "objective": "Provision a vendor signing keypair for production issuance; ship only the public key with the product; integrate with A3 packaging/signing.",
-  "acceptance_criteria": [
-    "issuance uses a vendor private key from the signing env (not shipped)",
-    "shipped artifact contains only the public key",
-    "A3 packaging includes the public key + vendor signing flow"
-  ],
-  "in_scope": [
-    "License issuance production: vendor keypair management + signing-env integration (A3 packaging)"
-  ],
-  "out_of_scope": [
-    "Not specified."
-  ],
-  "affected_components": [
-    "Not specified."
-  ],
-  "affected_files": [
-    "Not specified."
-  ],
-  "approach": "License issuance production: vendor keypair management + signing-env integration (A3 packaging)",
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
-  },
-  "verification": [
-    "Objective achieved: License issuance production: vendor keypair management + signing-env integration (A3 packaging)"
-  ],
+  "label": "PF Backlog 578",
+  "links": {},
+  "owner": "agent",
   "risks": [
     "Not specified."
   ],
-  "rollback": "Revert the change.",
-  "evidence": [
-    "pending"
-  ],
-  "owner": "agent",
-  "requester": "generic",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
-  "epic": "BI-PF-0390",
+  "scope": "product_forge",
+  "score": 1.5,
+  "title": "License issuance production: vendor keypair management + signing-env integration (A3 packaging)",
+  "value": 4,
+  "effort": 2,
+  "moscow": "Should",
+  "origin": "review",
   "parent": "BI-PF-0390",
-  "revision": 2,
-  "priority_rank": 2,
-  "priority_class": "P2",
-  "analyze_mode": "on_entry",
+  "review": {
+    "at": "",
+    "reviewed_by": "derived",
+    "impact_review": [],
+    "reconciliation": {
+      "assumptions": [],
+      "divergences": [],
+      "existing_path": [],
+      "open_questions": [],
+      "prior_decisions": []
+    }
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
     "status": "IN_PROGRESS",
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
     "analyzed_at": "",
     "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/byot_integration.py, core/integration_advisor.py, core/issues.py, core/issue_tracker.py",
-    "existing_components": [
-      "core/byot_integration.py",
-      "core/integration_advisor.py",
-      "core/issues.py",
-      "core/issue_tracker.py",
-      "core/packaging.py",
-      "core/test_framework_integration.py",
-      "core/vendor.py",
-      "core/vendor_adapters.py"
-    ],
+    "assumptions": [],
+    "missing_info": [],
     "existing_apis": [
       "/api/v1/enterprise/tenants/{tenant}/license",
       "/api/v1/issues",
@@ -108,55 +74,124 @@
       "/api/v1/packaging/build",
       "/api/v1/packaging/editions"
     ],
+    "architecture_fit": "EXTEND",
     "existing_modules": [],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [],
-    "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=1.5",
-      "components=8",
-      "apis=8"
+    "conflict_findings": [],
+    "revision_analyzed": 0,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/byot_integration.py",
+      "core/integration_advisor.py",
+      "core/issues.py",
+      "core/issue_tracker.py",
+      "core/packaging.py",
+      "core/test_framework_integration.py",
+      "core/vendor.py",
+      "core/vendor_adapters.py"
     ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic"
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/byot_integration.py, core/integration_advisor.py, core/issues.py, core/issue_tracker.py"
   },
-  "dependencies": [],
-  "blocked_by": [],
-  "unlocks": [],
+  "approach": "License issuance production: vendor keypair management + signing-env integration (A3 packaging)",
+  "children": [],
+  "evidence": [
+    "pending"
+  ],
+  "in_scope": [
+    "License issuance production: vendor keypair management + signing-env integration (A3 packaging)"
+  ],
+  "priority": "P2",
+  "revision": 3,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Provision a vendor signing keypair for production issuance; ship only the public key with the product; integrate with A3 packaging/signing.",
   "readiness": {
     "ready": false,
     "reasons": [],
     "computed_at": ""
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
-  },
-  "created_at": "2026-10-13T11:27:23.433216",
-  "updated_at": "2026-10-15T19:52:07.411282",
-  "score": 1.5,
-  "_note": "priority set",
+  "requester": "generic",
   "api_impact": {
-    "needs_api": false,
     "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
-  }
+    "routes": [],
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-10-13T11:27:23.433216",
+  "updated_at": "2026-11-24T16:37:54.498652",
+  "external_id": "LICENSE-ISSUANCE-VENDOR-KEY-1",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "verification": [
+    "Objective achieved: License issuance production: vendor keypair management + signing-env integration (A3 packaging)"
+  ],
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-23T09:08:57.756052+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1287-2fe12fce8283.json",
+      "findings": {
+        "NIT": [
+          "The `out_of_scope: ['Not specified.']` entry provides no useful information."
+        ],
+        "MAJOR": [
+          "The \"rollback: Revert the change\" strategy is insufficient for key management, which requires specific procedures for key compromise, rotation, and recovery.",
+          "The design does not address availability, disaster recovery, or single points of failure for the critical license signing service.",
+          "No API contracts or integration details are provided for the \"A3 packaging includes the public key + vendor signing flow\", making integration assessment impossible.",
+          "The design lacks details on observability (metrics, logging, alerting) for the key management and signing process, hindering diagnosis and operational integrity.",
+          "The design does not specify how the integrity of the public key in the shipped artifact will be verified or enforced."
+        ],
+        "MINOR": [
+          "The design does not explicitly define a testing strategy for key management, signing, and integration flows.",
+          "Key invariants (e.g., validity periods, key IDs) are not explicitly stated or addressed in the design."
+        ],
+        "BLOCKER": [
+          "The design does not specify the implementation language for \"new shipped logic\" (vendor keypair management, signing-env integration), violating the `new shipped logic -> Go` standard.",
+          "The design lacks critical details on how the vendor private key will be secured, managed (rotation, revocation), and accessed within the signing environment, failing to meet AC1's security implications.",
+          "`affected_components`, `affected_files`, and `risks` are all `Not specified`, preventing a comprehensive enterprise review of impact, dependencies, and potential vulnerabilities."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "3bda247ab668b0e8d940b8a518dd7787996169bc",
+      "review_sha": "2fe12fce8283",
+      "review_scope": "full_candidate",
+      "candidate_sha": "3bda247ab668b0e8d940b8a518dd7787996169bc"
+    }
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "issuance uses a vendor private key from the signing env (not shipped)",
+    "shipped artifact contains only the public key",
+    "A3 packaging includes the public key + vendor signing flow"
+  ],
+  "affected_components": [
+    "Not specified."
+  ]
 }

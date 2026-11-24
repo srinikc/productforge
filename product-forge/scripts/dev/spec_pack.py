@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -12,8 +11,10 @@ ROOT = Path(__file__).resolve().parents[2]
 for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
     if p not in sys.path:
         sys.path.insert(0, p)
-from core import backlog  # noqa: E402
+import gate_status  # noqa: E402
 from functional_spec import iter_items  # noqa: E402
+
+from core import backlog  # noqa: E402
 
 SPEC_DIR = ROOT / "engineering" / "specs"
 CFG = ROOT / "config" / "spec-pack.json"
@@ -34,6 +35,8 @@ def _date(v) -> date | None:
 
 
 def should_enforce(item: dict, cfg: dict) -> bool:
+    if gate_status.should_skip(item.get("status")):
+        return False
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
     if item.get("status") in ("new", "draft", "triaged"):

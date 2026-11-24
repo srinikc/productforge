@@ -80,6 +80,7 @@ TOP = {
     "IMPLEMENTATION-CONTROLS-DESIGN.md": ("Design", "BI-PF-1538 implementation controls and prompt mandates", 100),
     "PROMPT-MANDATES.md": ("Design", "BI-PF-1542 design and implementation prompt mandates", 100),
     "EVENT-TRANSPORTS-DESIGN.md": ("Design", "BI-PF-1270 event transports design", 100),
+    "BASELINE-GATE-REMEDIATION-DESIGN.md": ("Design", "BI-PF-1611 terminal gate skip remediation", 100),
     "SPEC-CONTRACT-DESIGN.md": ("Design", "BI-PF-1547 canonical spec contract compiler design", 100),
     "DUAL-VECTOR-STORE-DESIGN.md": ("Design", "Dual vector store design", 100),
     "Product_Forge_Agent_Memory_Architecture_Integration.md": ("Design", "Agent memory architecture integration", 100),

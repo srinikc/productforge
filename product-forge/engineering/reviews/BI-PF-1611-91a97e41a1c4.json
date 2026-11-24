@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "91a97e41a1c4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T13:27:23.160840+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "bc5a614500734dec60d2a34e9baf4b476f9d35c1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Design covers only the rejected-skip predicate; no FR, control, or test addresses acceptance criteria 1-3 (BI-PF-1603..1609 disposition, backlog-context zero-problem gate, precheck green on develop) or criterion 4 (PF_BACKLOG_DB on/off projection consistency), so the item's acceptance contract is unmet by the approved design.",
+      "'All three predicates agree' is an stated invariant, yet the change adds the status set independently in three files (design_pack/functional_spec/spec_pack) with no shared predicate module \u2014 structural drift risk against the invariant.",
+      "Status semantics are inconsistent: FR edge cases and C-3 include 'cancelled'/'won't_do', but decisions, invariants, and failure_matrix only name 'rejected/cancelled'; 'won't_do' behavior is undefined, leaving the skip set ambiguous.",
+      "Design does not embed or reference latest Gate 1.5 findings/dispositions or the guardrail checklist answers (CL-006/CL-008), so Gate 1 approval evidence is incomplete."
+    ],
+    "MINOR": [
+      "FR inputs list 'item.created_at' but no requirement, control, or edge case defines any rule using it \u2014 dead input in the contract.",
+      "Evidence SHAs are inconsistent: functional_spec 'functional_sha' 2e1047808fdb vs all ac_evidence/controls 'candidate_sha' bc5a6145 \u2014 traceability unclear (CL-015 intent).",
+      "No explicit test named for 'cancelled'/'won't_do' despite appearing in edge_cases; coverage claim rests on inferred test content.",
+      "Rollback is 'revert patch' only; no statement that the revert restores enforcement for previously skipped items (acceptable for read-only tooling but unverified).",
+      "security_threat_model declared APPLICABLE for a read-only status predicate; over-declared scope for a N/A-class concern."
+    ],
+    "NIT": [
+      "'affected_components: Not specified' in Gate-1 context despite design_pack naming concrete components.",
+      "operation_matrix and config_contract (PF_BACKLOG_DB) appear in functional_spec but are never referenced by any FR/control in this item's scope."
+    ],
+    "SUMMARY": [
+      "Design is coherent and low-risk for the rejected-skip predicate itself (read-only, fail-closed on unknown, testable, Python tooling within language rule), but it only addresses one of four acceptance criteria and leaves three remediation obligations with no coverage.",
+      "Top risks: untested acceptance criteria (backlog-context, precheck-on-develop, DB/file projection parity), triplicated predicate violating its own agreement invariant, and undefined 'won't_do' skip semantics.",
+      "Recommend Gate 1.5 hold until AC-to-FR traceability for criteria 1-4 is added or the remaining criteria are split into separately gated items."
+    ]
+  }
+}
