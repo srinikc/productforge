@@ -30,7 +30,7 @@
 - Memory writes after this item require a non-empty project. Legacy project-empty rows will not be returned by governed reads.
 
 ### DIVERGENCES
-- D-1: strict project isolation. Existing SQLite Search includes `project_id IS NULL` rows; this gateway excludes them. This is required by AC-2 and needs Gate 1 HIL approval.
+- D-1: strict project isolation. Existing SQLite Search includes `project_id IS NULL` rows; this gateway excludes them. This is required by AC-2 and needs Gate 1 HIL approval. Migration/backfill ownership is BI-PF-1570; `memory_filtered_projectless_total` makes filtered legacy rows observable.
 - D-2: `Consolidate` is removed from this item and deferred to BI-PF-1569 to keep one end-to-end capability per item.
 - D-3: no new public API. Existing `/memory` remains the only surface.
 
@@ -87,21 +87,33 @@ Tenant/project/principal are required. Empty values fail closed before any repos
 1. Require a complete `Scope`.
 2. Build `datastore.MemoryScope` from server state only.
 3. Apply `TenantID`, `ProjectID`, `User`, `ACL`, and `Kinds`.
-4. Bound `k` to 1..100; default 20.
-5. Post-filter every returned entry for tenant/project/ACL as defense in depth.
-6. Emit audit and metrics.
+4. Bound `k` to 1..100; default 20, maximum 100.
+5. Revalidate every returned hit for tenant, project, `ACLScope`, and owner. Drop any mismatched hit before returning it and increment `memory_denied_total{reason=search_filter}`. A repository that returns an out-of-scope hit is a defect, never a partial success.
+6. Emit audit and metrics for filtered hits and returned count.
 
 ### Delete
 1. Require a complete `Scope`.
-2. Fetch the entry and apply the same visibility check as Get.
-3. Delete only after the check passes.
-4. Return `ErrNotFound` for missing, forbidden, cross-tenant, or cross-project targets.
-5. Emit audit and metrics.
+2. Fetch the entry with `Get`.
+3. Apply the full tenant/project/ACL/owner check before any mutation.
+4. Only after authorization passes, call `Delete` by the verified record ID.
+5. Return `ErrNotFound` for missing, forbidden, cross-tenant, or cross-project targets.
+6. Emit audit and metrics.
+
+Delete is read-verify-delete, never delete-then-authorize. The TOCTOU window is bounded because record ID, tenant, project, and owner are immutable for an existing record and cross-tenant ID reuse is denied by the repository Put path.
 
 ### Validate
 Expose canonical validation for internal callers. Validation is the only operation that does not require repository access, but it still requires a complete `Scope`.
 
-## 4. ACL matrix
+## 4. Bypass prevention (AC-1)
+
+The only production callers of `datastore.MemoryRepository` memory methods are the two `edpsvc` handlers, and both use `pfmemory.Orchestrator`. This is enforced by a static Go test:
+
+- `go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls` scans `go/edpsvc` for direct `MemoryRepository.Put/Get/Search/Delete` calls outside the orchestrator wiring.
+- The test fails if a new direct call site appears.
+- `go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator` proves the handlers route through the orchestrator.
+- Other modules are out of scope for the runtime path and cannot claim memory access without adding a new, reviewed call site.
+
+## 5. ACL matrix
 
 | ACLScope | Tenant | Project | Principal rule | Read | Delete |
 |---|---|---|---|---|---|
@@ -121,7 +133,7 @@ Admin/operator roles do not bypass tenant or project boundaries in this item. Cr
 - PostgreSQL access continues through the existing tenant-bound transaction adapter.
 - The orchestrator verifies tenant/project after every single-record read, even when RLS is expected to enforce it.
 - Search filters by tenant and project before returning and post-filters results.
-- A role-posture test asserts `current_user` is not superuser and does not have BYPASSRLS when a PostgreSQL test DSN is supplied.
+- A required role-posture test asserts `current_user` is not superuser and does not have BYPASSRLS. CI must provide `PF_TEST_MEMORY_DSN`; in CI (`CI=true`) a missing DSN fails the test instead of skipping it.
 - SQLite conformance tests prove the gateway closes the repository fallback gap.
 - No SQL is constructed from caller-supplied tenant or project values.
 
@@ -152,6 +164,14 @@ Admin/operator roles do not bypass tenant or project boundaries in this item. Cr
 - No unbounded scans, consolidation batches, or background jobs are introduced.
 - No new indexes or schema changes are required.
 
+| Config | Default | Valid | Invalid behavior |
+|---|---|---|---|
+| `PF_MEMORY_MAX_SEARCH_K` | 100 | 1..100 | fail startup/use with `ErrInvalidScope`-style configuration error |
+| `PF_MEMORY_OP_TIMEOUT` | 5s | positive duration, <= 30s | fail startup/use |
+| `PF_TEST_MEMORY_DSN` | empty locally | PostgreSQL DSN in CI | CI fails if missing when `CI=true` |
+
+The authenticated principal is not configuration. It is server-resolved per request.
+
 ## 9. Observability and audit
 
 Metrics use a small injected observer so the gateway does not depend on an HTTP framework:
@@ -159,6 +179,9 @@ Metrics use a small injected observer so the gateway does not depend on an HTTP 
 - `memory_ops_total{op,result}`
 - `memory_denied_total{reason}`
 - `memory_op_duration_seconds{op,result}`
+- `memory_filtered_projectless_total`
+
+These metrics reuse the existing `edpsvc` metrics registry through an adapter. The gateway does not create a second registry or redefine existing edpsvc families.
 
 Audit events:
 
@@ -168,7 +191,7 @@ Audit events:
 - `memory.delete`
 - `memory.denied`
 
-Audit fields are tenant, project, actor, operation, record ID when safe, outcome, reason code, and timestamp. Content, embeddings, secrets, and unrestricted tenant identifiers are never logged.
+Audit fields are tenant, project, actor, operation, record ID when safe, outcome, reason code, and timestamp. Content, embeddings, secrets, and unrestricted tenant identifiers are never logged. Audit metadata follows the existing EDP audit retention policy; this item adds no separate personal-data store. A safe record ID is retained only when it is not a secret and is needed for traceability.
 
 ## 10. Quotas and limits
 
@@ -193,7 +216,7 @@ Audit fields are tenant, project, actor, operation, record ID when safe, outcome
 3. Run edpsvc memory integration tests with SQLite and, where configured, PostgreSQL.
 4. Deploy `edpsvc` with the gateway wiring.
 5. Verify `/memory` allowed operations and cross-boundary denial metrics.
-6. Roll back by reverting the deployment if denial rates or errors exceed the rollout threshold.
+6. Roll back by reverting the deployment if `memory_denied_total{reason=tenant|project|acl}` exceeds 1% of memory operations over 5 minutes, or memory 5xx errors exceed 5% over 5 minutes, for two consecutive evaluation windows.
 
 ## 13. Ownership
 
@@ -209,7 +232,7 @@ Audit fields are tenant, project, actor, operation, record ID when safe, outcome
 |---|---|---|---|
 | AC-1 | All operations routed through orchestrator | `go test ./...` in `go/pfmemory` and `go/edpsvc` | Handler integration test observes orchestrator calls and validation failures |
 | AC-2 | Tenant/project/ACL negative suites | `go test ./...` in `go/pfmemory` | Cross-tenant and cross-project read/write/search/delete return `ErrNotFound` |
-| AC-3 | Four negative leakage suites under concurrency | `go test -race ./...` in `go/pfmemory` | Cross-tenant, cross-project, ACL, and concurrent suites pass with `-race` |
+| AC-3 | Four negative leakage suites under concurrency | `go test -race ./...` in `go/pfmemory` | `TestCrossTenantReadWriteSearch`, `TestCrossProjectReadWriteSearch`, `TestACLPrivateDenial`, and `TestConcurrentBoundaryLoad` pass with `-race` |
 
 Additional suites:
 
@@ -235,9 +258,9 @@ The same tests must pass after the `edpsvc` handlers use `pfmemory.Orchestrator`
 
 | AC | Design evidence | Implementation evidence | Candidate SHA |
 |---|---|---|---|
-| AC-1 | this design + handler call sites | `go test ./...` in `go/edpsvc` | design baseline `a9425dfd` |
-| AC-2 | this design + datastore contract | `go test ./...` in `go/pfmemory` | design baseline `a9425dfd` |
-| AC-3 | this design + negative matrix | `go test -race ./...` in `go/pfmemory` | design baseline `a9425dfd` |
+| AC-1 | this design + handler call sites | `go test ./...` in `go/edpsvc` | design baseline `a536d6d1` |
+| AC-2 | this design + datastore contract | `go test ./...` in `go/pfmemory` | design baseline `a536d6d1` |
+| AC-3 | this design + negative matrix | `go test -race ./...` in `go/pfmemory` | design baseline `a536d6d1` |
 
 Implementation candidate SHA and command output are stamped at Gate 2. The design baseline SHA is not runtime proof.
 
