@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-23T09:37:59 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-23T23:40:49 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 137  |  **Closed:** 645
+- **Open:** 145  |  **Closed:** 645
 - `blocked`: 1
 - `in_progress`: 3
-- `new`: 133
+- `new`: 141
 
-### new, by category (133)
-**API / reports / HIL / misc** (14)
+### new, by category (141)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -28,6 +28,7 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
+| BI-PF-1606 | Should | feature | **Mitigation**: Enforce a `git diff --check` rule and add a test that ensures the private key file path is excluded from | **Mitigation**: Enforce a `git diff --check` rule and add a test that ensures the private key file path is exc... |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -100,7 +101,7 @@
 | BI-PF-1571 | Should | feature | Prospective Memory Engine: tracking deferred actions, future stage obligations, scheduled triggers, and cross-stage handoff notes | Deliver the Prospective Memory engine to track deferred actions, trigger conditions, and cross-stage obligatio... |
 | BI-PF-1572 | Should | feature | Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API | Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reas... |
 
-**Wiring / tech-debt / API** (72)
+**Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -175,6 +176,13 @@
 | BI-PF-1565 | Must | epic | EPIC: Unified Agent Memory Platform (6-Type Memory Model, Lifecycle, and Consolidation) | Implement the Unified Agent Memory Architecture from docs/Product_Forge_Agent_Memory_Architecture_Integration.... |
 | BI-PF-1569 | Should | feature | Memory Consolidator: post-execution distillation, episodic trace distillation into semantic/procedural patterns, and failure promotion guards | Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memo... |
 | BI-PF-1570 | Should | feature | Memory Governance & Lifecycle: explicit supersession tracking, temporal expiration, validity windows, and audit logging | Implement full lifecycle governance for memory records with explicit supersession, temporal expiration, and co... |
+| BI-PF-1603 | Should | feature | A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a development keypair. Production requires a | A2 implements asymmetric issue+verify (Ed25519) but issuance currently uses a development keypair. Production ... |
+| BI-PF-1604 | Should | feature | **Vendor keypair generation**: Implement a Go module `go/vendor_key` that creates an Ed25519 keypair and stores the priv | **Vendor keypair generation**: Implement a Go module `go/vendor_key` that creates an Ed25519 keypair and store... |
+| BI-PF-1605 | Should | feature | **Signing‑env workflow**: Add a script `scripts/dev/signing_env_setup.py` that injects the private key into the signing  | **Signing‑env workflow**: Add a script `scripts/dev/signing_env_setup.py` that injects the private key into th... |
+| BI-PF-1607 | Should | feature | **Mitigation**: Use the same Ed25519 format as A2; add unit tests for verification using the public key. | **Mitigation**: Use the same Ed25519 format as A2; add unit tests for verification using the public key. |
+| BI-PF-1608 | Should | feature | "moscow": "Should", | "moscow": "Should", |
+| BI-PF-1609 | Should | feature | "objective": "Provision a vendor signing keypair for production issuance; ship only the public key with the product; int | "objective": "Provision a vendor signing keypair for production issuance; ship only the public key with the pr... |
+| BI-PF-1610 | Should | chore | Normalize architect review model configuration to Mimo v2.6 Flash | Normalize architect review model configuration to Mimo v2.6 Flash |
 
 ---
 
@@ -375,5 +383,5 @@
 ---
 
 ## Totals
-- backend: 137 open / 645 closed
+- backend: 145 open / 645 closed
 - dashboard: 147 open / 3 closed

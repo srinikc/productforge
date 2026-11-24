@@ -13,7 +13,7 @@ import json
 import os
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 TYPES = ("run_started", "run_completed", "run_failed",
          "stage_started", "stage_completed", "stage_failed",
