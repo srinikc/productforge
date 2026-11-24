@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "a5919b328ffd",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T08:17:23.624823+00:00",
+  "review_scope": "delta",
+  "base_sha": "5e191c8ce524316b0a3594440928a35d06d89d1a",
+  "head_sha": "a707f168fb2f74bc4c952ff8a7a5e9b878ad7c9a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "C-20 `candidate_sha` is `a536d6d1` while every other control and all three `traceability` rows use `48157066`; an AC-1 control in this delta cites a different delivery candidate, breaking provenance consistency required by the DoD.",
+      "C-6 (`orchestrator.go:WithLimits`) and C-20 (`orchestrator.go:LoadLimits`) both claim the search-max/timeout config contract with different symbols and different SHAs; two overlapping control rows for one contract will drift and leave the config enforcement point ambiguous."
+    ],
+    "MINOR": [
+      "`design_pack.version` stays `3` while `functional_spec` and `spec_pack` are bumped to `4`, although `design_pack.controls`/`implementation_controls` changed in this same delta \u2014 pack versioning is out of step.",
+      "Guardrail 2 (availability/SPOF) has no explicit design statement for a on-startup store/RLS defence-in-depth check or alert lead-time; only fail-closed DB errors and rollout rollback thresholds are recorded.",
+      "`spec_pack.applicability` `api_contract` evidence cites only `go/edpsvc/main.go`; the D-1 behavioral change (project-empty rows hidden) is asserted in `functional_spec.compatibility` and should also be evidenced by `docs/MEMORY-ORCHESTRATOR-DESIGN.md`."
+    ],
+    "NIT": [
+      "The four leakage suites are enumerated twice (C-4 control text vs `FR-3.verification`); keep one authoritative list to prevent drift.",
+      "C-4 `observability` is \"test output\" while sibling AC-3 evidence rows point at the design doc; align evidence style across controls."
+    ],
+    "SUMMARY": [
+      "Prior dispositions check out: api_contract is APPLICABLE, statuses are approved/v4, functional_sha advanced, C-20 anchors the config contract, and traceability/operation_matrix wording is reconciled.",
+      "Top risks: split candidate SHAs across controls (provenance integrity) and duplicated config-control rows (C-6 vs C-20) that can diverge before Gate 2.",
+      "Overall the delta is Gate-1.5-ready once C-20's SHA is aligned with the reviewed candidate and control duplication/versioning is cleaned up; no blocker-level AC or tenant-isolation gap found."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-a1a15d81db1c; explicit API contract and config control",
+  "rereview_reason_sha256": "bbff46f918701a9efe2363b261b9239ea7af8236e54e821fe8c1553a4289a86a"
+}
