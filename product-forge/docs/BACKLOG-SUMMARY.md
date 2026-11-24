@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-24T15:53:53 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-24T16:37:24 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 143  |  **Closed:** 647
+- **Open:** 144  |  **Closed:** 647
 - `blocked`: 1
 - `in_progress`: 3
-- `new`: 139
+- `new`: 140
 
-### new, by category (139)
+### new, by category (140)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -82,7 +82,7 @@
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
-**Specs / cache / context / artifacts** (14)
+**Specs / cache / context / artifacts** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -99,6 +99,7 @@
 | BI-PF-1568 | Should | feature | Memory Compiler: persona-specific retrieval profiles (Coding, QA, Security), relevance ranking, and context injection | Implement the Memory Compiler to assemble persona-specific memory contexts (Coding, QA, Security) under strict... |
 | BI-PF-1571 | Should | feature | Prospective Memory Engine: tracking deferred actions, future stage obligations, scheduled triggers, and cross-stage handoff notes | Deliver the Prospective Memory engine to track deferred actions, trigger conditions, and cross-stage obligatio... |
 | BI-PF-1572 | Should | feature | Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API | Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reas... |
+| BI-PF-1611 | Should | bug | Repair repository baseline gates: unscoped items, backlog context, and BI-PF-1566 completion trail | Restore green baseline gates and trusted completion evidence before further feature delivery. |
 
 **Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
@@ -381,5 +382,5 @@
 ---
 
 ## Totals
-- backend: 143 open / 647 closed
+- backend: 144 open / 647 closed
 - dashboard: 147 open / 3 closed
