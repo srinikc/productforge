@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "c4d4dc3c9711",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:19:26.961871+00:00",
+  "review_scope": "delta",
+  "base_sha": "1f21aa1c45f0b06ccbfe4f3344be5ffb0aad5d57",
+  "head_sha": "fc26a2cf250682bcbf918d5511f194689231ec11",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "C-10 through C-18 cite `go/pfmemory/orchestrator_test.go` tests (e.g. TestCrossTenantReadWriteSearch, TestDeleteScopedAtomic) as tenant/negative evidence, but their `check` is `go test ./... (go/dualvec)` / `(go/edpdata)` \u2014 running the store modules never executes the cited pfmemory tests, so the AC-2 store controls' checks cannot produce their own evidence rows."
+    ],
+    "MINOR": [
+      "C-15 (edpdata GetScoped) `failure_behavior` is \"fail closed; no unscoped fallback\" while the sibling read controls C-13/C-14 state \"fail closed with ErrNotFound on mismatch\"; the delete-row alignment was actioned but the same divergence persists across the Get rows.",
+      "C-5 `check` is scoped to `go test ./... (go/pfmemory)` yet its `observability` control asserts \"reuse edpsvc metrics registry\" \u2014 registry reuse lives in go/edpsvc and is not verified by this check.",
+      "No control row encodes CL-013's parameterized tenant binding explicitly; AC-2 rows only say \"carries ... predicates\", leaving parameterization asserted implicitly rather than test-enforced."
+    ],
+    "NIT": [
+      "Check-command notation differs across artifacts: controls use `go test ./... (go/pfmemory)` while coverage/test_matrix rows use `in go/pfmemory`; unify the scope string to avoid drift checks flagging false mismatches.",
+      "C-6 `concurrency_test` and several `tenant_test` cells use \"N/A: ...\" free text instead of a stable sentinel, which complicates automated control-table validation."
+    ],
+    "SUMMARY": [
+      "Delta correctly actioned all five prior dispositions (C-8 and C-4 pinned, module scopes pinned, edpdata delete wording aligned, mirror declared), so no prior findings reopen.",
+      "Top risk: AC-2 store-level controls pair module-scoped checks with test symbols that live in a different module, leaving the strongest isolation evidence unexecutable by the stated check.",
+      "Secondary: observability reuse and parameterized-binding guarantees are asserted but not tied to an executable control; overall design direction (Go gateway, server-resolved Scope, fail-closed, race-tested leakage suites) remains sound."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-7ea3decdec29; pinned module scopes and denial semantics",
+  "rereview_reason_sha256": "c138b24dc0cd31f95051f5cf21907f9ee15ae80346cfe97f7e17eff7ddd45594"
+}
