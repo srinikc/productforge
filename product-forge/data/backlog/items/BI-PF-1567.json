@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "record Gate 0/1.5 timing ledger and variance",
+  "_note": "complete design aliases with migration owner and RLS posture",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -179,24 +179,34 @@
       "decision": "APPROVE"
     },
     {
-      "gate": 1,
-      "decision": "MATERIAL_CHANGE",
-      "by": "hil:operator",
       "at": "2026-11-24T07:41:51.885387+00:00",
+      "by": "hil:operator",
+      "seq": 1,
+      "gate": 1,
       "mode": "design",
-      "hil_confirmed": true,
       "note": "Operator-confirmed material change for contract and BIIS consolidation.",
-      "seq": 1
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-24T07:41:51.885387+00:00",
+      "by": "hil:operator",
+      "seq": 2,
+      "gate": 1,
+      "note": "User approved Gate 1 including D-1 strict project isolation",
+      "decision": "APPROVE",
+      "findings_sha": "1227436e6f2d",
+      "findings_digest": "f7eaa735d85b"
     },
     {
       "gate": 1,
       "decision": "APPROVE",
       "by": "hil:operator",
-      "at": "2026-11-24T07:41:51.885387+00:00",
-      "findings_sha": "1227436e6f2d",
+      "at": "2026-11-24T07:47:26.308571+00:00",
+      "findings_sha": "6d13c4446baa",
       "findings_digest": "f7eaa735d85b",
-      "note": "User approved Gate 1 including D-1 strict project isolation",
-      "seq": 2
+      "note": "Re-affirm user-approved Gate 1 after non-substantive design alias corrections",
+      "seq": 3
     }
   ],
   "execution": {
@@ -403,7 +413,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:54:48.314801",
+  "updated_at": "2026-11-24T13:16:26.095378",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -882,6 +892,7 @@
       "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
     ],
     "rollback": "Revert the gateway wiring and restore the prior edpsvc binary. No schema or stored-data mutation.",
+    "security": "Server-resolved Scope, read-verify-delete, per-hit search revalidation, and fail-closed denial. PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS with RLS FORCEd; C-8 proves role posture in CI.",
     "contracts": {
       "db": "Existing memory store and RLS; no schema change",
       "api": "Existing /memory and /memory/{id}; no new route",
@@ -1008,6 +1019,15 @@
       }
     ],
     "api_contract": "Existing edpsvc /memory and /memory/{id} routes only. No new public route. Response shapes for allowed operations remain unchanged.",
+    "dependencies": [
+      "BI-PF-1566",
+      "go/memory",
+      "go/datastore",
+      "go/dualvec",
+      "go/edpdata",
+      "go/edpsvc",
+      "BI-PF-1570"
+    ],
     "design_areas": [
       {
         "area": "agent-memory",
@@ -2883,6 +2903,53 @@
       "review_sha": "1227436e6f2d",
       "review_scope": "delta",
       "candidate_sha": "5760b425608f2c5d589ca79cf3978b60677720e4"
+    },
+    {
+      "at": "2026-11-24T07:43:53.993485+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "5760b425608f2c5d589ca79cf3978b60677720e4",
+      "evidence": "BI-PF-1567-54a696853561.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Changed `design_pack.dependencies` adds `go/edpdata` but still omits `BI-PF-1570`, which the design's own D-1 risk names as the owner of the project-empty-row migration; the dependency that closes the hidden-row data-access gap is undeclared.",
+          "Changed `design_pack.security` restates server-resolved Scope and post-read revalidation but omits the RLS/runtime-role posture (NOSUPERUSER/NOBYPASSRLS, RLS FORCEd) that CL-011 requires be proven; the only mention lives in control C-8, leaving the delta's security statement incomplete."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta is narrow (dependencies + security sentence) and consistent with the existing gateway design; no AC, control, or test rows changed, so traceability remains intact.",
+          "Top risks: undeclared BI-PF-1570 migration dependency for hidden project-empty rows, and a security statement that does not carry the CL-011 RLS/role-posture assertion.",
+          "Prior PENDING NITs (N/A sentinel, check-command notation, C-19 row self-containment) remain unresolved and are not reopened here."
+        ]
+      },
+      "head_sha": "4f94d05ce64282eb732fd77a47c1cbd756eb53cd",
+      "review_sha": "54a696853561",
+      "review_scope": "delta",
+      "candidate_sha": "4f94d05ce64282eb732fd77a47c1cbd756eb53cd"
+    },
+    {
+      "at": "2026-11-24T07:46:25.680695+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "4f94d05ce64282eb732fd77a47c1cbd756eb53cd",
+      "evidence": "BI-PF-1567-6d13c4446baa.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta adds `BI-PF-1570` to `design_pack.dependencies`, resolving the prior pending MINOR (D-1 hidden-row migration owner now declared).",
+          "Delta security statement now includes NOSUPERUSER/NOBYPASSRLS + RLS FORCEd posture tied to C-8, satisfying CL-011 and resolving the second prior pending MINOR.",
+          "Both prior findings have correct dispositions (RESOLVED); no new findings within the changed-field scope."
+        ]
+      },
+      "head_sha": "adf58a1cb26c116dbed20381fca7c681493fb2fb",
+      "review_sha": "6d13c4446baa",
+      "review_scope": "delta",
+      "candidate_sha": "adf58a1cb26c116dbed20381fca7c681493fb2fb"
     }
   ],
   "affected_files": [
