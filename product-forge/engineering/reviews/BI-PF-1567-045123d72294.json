@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "045123d72294",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T07:51:48.984123+00:00",
+  "review_scope": "delta",
+  "base_sha": "adf58a1cb26c116dbed20381fca7c681493fb2fb",
+  "head_sha": "4815706628f3c624b072e685d3c482b55615e7ea",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta declares `functional_spec`, `spec_pack`, and `design_pack` changed, yet every value is identical to prior Gate context while `functional_sha=33f8a90ee126`, `candidate_sha=a536d6d1`, `functional_spec.version=2`, and `spec_pack.version=1` are all unchanged \u2014 evidence provenance for AC-1/AC-2/AC-3 cannot be verified in this delta; the changed packs must be re-serialized with recomputed sha/version or the change must be retracted."
+    ],
+    "MINOR": [
+      "`design_pack.dependencies` includes `BI-PF-1570` while `spec_pack.migration_backfill` is `N/A` (\"No schema migration\") and `functional_spec.non_goals` excludes schema migration \u2014 label it an external follow-up, not a dependency of this change.",
+      "`spec_pack` config_contract reason \"ACL batch bound\" does not match the configured keys (PF_MEMORY_MAX_SEARCH_K, PF_MEMORY_OP_TIMEOUT, PF_TEST_MEMORY_DSN) and conflicts with the \"no consolidation batch\" guardrail.",
+      "AC-2 store controls (C-10..C-18) cite `TestConcurrentBoundaryLoad` as concurrency evidence but their `check` commands omit `-race`, so scoped-store concurrency claims are not race-verified.",
+      "`spec_pack.design_ref`/`functional_ref` point to `engineering/design/BI-PF-1567.md` and `engineering/specs/BI-PF-1567.md`, neither in `affected_files`; sole declared evidence is `docs/MEMORY-ORCHESTRATOR-DESIGN.md`."
+    ],
+    "NIT": [
+      "`spec_pack.status` remains `draft` at `version 1` despite being listed as a changed pack in this delta."
+    ],
+    "SUMMARY": [
+      "The delta appears to be a re-serialization with no substantive design change; the sole MAJOR is unverifiable provenance (declared changed packs with unchanged sha/version).",
+      "Security posture (server-resolved Scope, read-verify-delete, per-hit revalidation, RLS role posture C-8, parameterized binding C-19) is intact and consistent with CL-011/CL-013.",
+      "Top residual risks: BI-PF-1570 migration dependency vs \"no schema migration\" framing, and race coverage gaps for scoped store controls."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-6d13c4446baa; metadata-only freeze of coverage/spec aliases",
+  "rereview_reason_sha256": "0adb811c0de2162f1aade4b124a4376e2872c54eea05ae9e56eb237df9c8edd8"
+}

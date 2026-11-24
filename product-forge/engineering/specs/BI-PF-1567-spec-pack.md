@@ -1,6 +1,6 @@
 # Conditional Spec Pack — BI-PF-1567 — Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering
 
-- **Version:** 1
+- **Version:** 2
 - **Status:** draft
 - **Functional spec:** engineering/specs/BI-PF-1567.md
 - **Design pack:** engineering/design/BI-PF-1567.md
@@ -12,7 +12,7 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | product_design_spec | APPLICABLE | BI-PF-1567 | gateway design | engineering/design/BI-PF-1567.md | all | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 | api_contract | N/A | BI-PF-1567 | Internal Go gateway; no new public API |  |  |  |
 | data_contract | APPLICABLE | BI-PF-1567 | canonical memory store | docs/MEMORY-ORCHESTRATOR-DESIGN.md | data | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
-| config_contract | APPLICABLE | BI-PF-1567 | ACL batch bound | docs/MEMORY-ORCHESTRATOR-DESIGN.md | design | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
+| config_contract | APPLICABLE | BI-PF-1567 | Search limit, operation timeout, and test DSN configuration | docs/MEMORY-ORCHESTRATOR-DESIGN.md | design | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 | nfr_slo | APPLICABLE | BI-PF-1567 | bounded ops | docs/MEMORY-ORCHESTRATOR-DESIGN.md | observability | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 | security_threat_model | APPLICABLE | BI-PF-1567 | tenant/ACL | docs/MEMORY-ORCHESTRATOR-DESIGN.md | security | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 | migration_backfill | N/A | BI-PF-1567 | No schema migration |  |  |  |
