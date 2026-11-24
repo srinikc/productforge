@@ -7,13 +7,13 @@
   "epic": "BI-PF-1243",
   "risk": 3,
   "type": "bug",
-  "_note": "scope corrected: false 1566/1550 transitions removed",
+  "_note": "final tooling dispositions",
   "brief": {
-    "why": "Green feature work is blocked by repository debt unrelated to the feature code, and the drift hides whether completion gates are real.",
+    "why": "Baseline remediation must not fabricate specs for duplicate extraction artifacts.",
     "source": "authored",
-    "problem": "Feature branches cannot merge because the shared baseline has unscoped items, incomplete context, and invalid completion evidence.",
-    "what_adds": "A single remediation pass that repairs item metadata, backlog context, BI-PF-1566 gate/trail evidence, and projection parity.",
-    "who_feels": "Every worker and reviewer blocked by precheck, plus operators who cannot trust completed status."
+    "problem": "Rejected baseline items still require design/spec artifacts, blocking precheck.",
+    "what_adds": "Terminal rejected status skip in three tooling predicates plus regression tests.",
+    "who_feels": "Maintainers blocked by baseline precheck."
   },
   "label": "PF Backlog 712",
   "links": {
@@ -31,9 +31,8 @@
   },
   "owner": "agent",
   "risks": [
-    "Bulk backlog edits can overwrite newer DB state; use the API and verify parity after each repair.",
-    "Completion evidence must be factual; do not fabricate Gate 2 approval for BI-PF-1566.",
-    "Projection regeneration can touch unrelated scopes; stage only baseline-remediation artifacts."
+    "over-broad skip mitigated by unknown-status test",
+    "gate drift mitigated by shared tests"
   ],
   "scope": "product_forge",
   "score": 0.5,
@@ -44,19 +43,57 @@
   "origin": "review",
   "parent": "BI-PF-1243",
   "review": {
-    "at": "",
-    "reviewed_by": "derived",
-    "impact_review": [],
+    "at": "2026-11-24T00:00:00+00:00",
+    "reviewed_by": "worker",
+    "impact_review": [
+      {
+        "claim": "Language: tooling-only Python change",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/*.py",
+        "recommendation": "keep tooling-only"
+      },
+      {
+        "claim": "API: no API change",
+        "verdict": "aligned",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "recommendation": "no API work"
+      },
+      {
+        "claim": "AC: four ACs covered by pytest and predicates",
+        "verdict": "aligned",
+        "evidence": "test-framework/tests/test_gates_skip_rejected.py",
+        "recommendation": "merge after Gate 1"
+      },
+      {
+        "claim": "Security: unknown statuses remain fail-closed",
+        "verdict": "aligned",
+        "evidence": "C-3 regression test",
+        "recommendation": "no bypass"
+      }
+    ],
     "reconciliation": {
-      "assumptions": [],
-      "divergences": [],
-      "existing_path": [],
+      "assumptions": [
+        "rejected is terminal",
+        "no runtime behavior"
+      ],
+      "divergences": [
+        "rejected items skip design/spec enforcement"
+      ],
+      "existing_path": [
+        "scripts/dev/design_pack.py:42",
+        "scripts/dev/functional_spec.py:50",
+        "scripts/dev/spec_pack.py:37"
+      ],
       "open_questions": [],
-      "prior_decisions": []
+      "prior_decisions": [
+        "one item per branch",
+        "rejected is terminal",
+        "gates are diff-scoped"
+      ]
     }
   },
   "source": "review",
-  "status": "new",
+  "status": "in_progress",
   "project": "",
   "summary": "",
   "unlocks": [],
@@ -144,6 +181,56 @@
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)",
       "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-24T15:57:18.584345+00:00",
+      "by": "hil:operator",
+      "seq": 2,
+      "gate": 1,
+      "mode": "design",
+      "note": "User-approved Gate 1 with tooling design fixes for shared predicate and AC-4",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-24T16:13:40.768299+00:00",
+      "by": "hil:operator",
+      "seq": 3,
+      "gate": 1,
+      "mode": "design",
+      "note": "Operator-confirmed material change for contract and BIIS consolidation.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-24T16:13:40.768299+00:00",
+      "by": "hil:operator",
+      "seq": 4,
+      "gate": 1,
+      "note": "User approved Gate 1 for tooling-only terminal gate skip",
+      "decision": "APPROVE",
+      "findings_sha": "1ad0121bacf0",
+      "findings_digest": "1111cf7cabc2"
+    },
+    {
+      "gate": 1,
+      "decision": "MATERIAL_CHANGE",
+      "by": "hil:operator",
+      "at": "2026-11-24T16:17:35.630934+00:00",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "Operator-confirmed material change for contract and BIIS consolidation.",
+      "seq": 5
+    },
+    {
+      "gate": 1,
+      "decision": "APPROVE",
+      "by": "hil:operator",
+      "at": "2026-11-24T16:17:35.630934+00:00",
+      "findings_sha": "1c4dcea57705",
+      "findings_digest": "02e2d517d9a5",
+      "note": "User approved Gate 1 for tooling-only terminal gate skip",
+      "seq": 6
     }
   ],
   "execution": {
@@ -167,6 +254,144 @@
     "computed_at": "2026-11-24T15:54:49.871113"
   },
   "requester": "review",
+  "spec_pack": {
+    "status": "draft",
+    "version": 2,
+    "design_ref": "engineering/design/BI-PF-1611.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "owner": "BI-PF-1611",
+        "reason": "tooling predicate design",
+        "status": "APPLICABLE",
+        "artifact": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "owner": "BI-PF-1611",
+        "reason": "No API surface change",
+        "status": "N/A"
+      },
+      {
+        "spec": "data_contract",
+        "owner": "BI-PF-1611",
+        "reason": "Read-only item status only",
+        "status": "N/A"
+      },
+      {
+        "spec": "config_contract",
+        "owner": "BI-PF-1611",
+        "reason": "backlog mode influences gate input",
+        "status": "APPLICABLE",
+        "artifact": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "config"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "BI-PF-1611",
+        "reason": "determinism",
+        "status": "APPLICABLE",
+        "artifact": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "nfr"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "BI-PF-1611",
+        "reason": "Read-only status predicate; no auth or data boundary",
+        "status": "N/A",
+        "artifact": "",
+        "evidence": [],
+        "sections": []
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "BI-PF-1611",
+        "reason": "No schema or data migration",
+        "status": "N/A"
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "BI-PF-1611",
+        "reason": "revert patch",
+        "status": "APPLICABLE",
+        "artifact": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "rollback"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "BI-PF-1611",
+        "reason": "gate output",
+        "status": "APPLICABLE",
+        "artifact": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "observability"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "BI-PF-1611",
+        "reason": "No UI surface in tooling predicates.",
+        "status": "N/A"
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "BI-PF-1611",
+        "reason": "No personal data",
+        "status": "N/A"
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "BI-PF-1611",
+        "reason": "three predicate edits",
+        "status": "APPLICABLE",
+        "artifact": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "BI-PF-1611",
+        "reason": "pytest regression",
+        "status": "APPLICABLE",
+        "artifact": "test-framework/tests/test_gates_skip_rejected.py",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "test"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1611.md"
+  },
   "api_impact": {
     "reason": "Repository governance and backlog evidence repair only; no product API changes.",
     "routes": [],
@@ -174,10 +399,551 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-24T15:54:43.196948",
-  "updated_at": "2026-11-24T16:53:29.345586",
+  "updated_at": "2026-11-24T21:47:30.906945",
+  "design_pack": {
+    "audit": "Git history plus execution trail; no new audit store.",
+    "risks": [
+      "over-broad skip mitigated by unknown-status test",
+      "gate drift mitigated by shared tests"
+    ],
+    "scope": [
+      "design_pack enforcement predicate",
+      "functional_spec enforcement predicate",
+      "spec_pack enforcement predicate",
+      "regression test"
+    ],
+    "quotas": "N/A: no quotas.",
+    "rollout": "merge tooling patch; no deploy",
+    "tooling": true,
+    "version": 1,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "failure",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tooling",
+        "symbol": "scripts/dev/design_pack.py:should_enforce",
+        "control": "rejected status returns not-enforced; live and unknown statuses unchanged",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "scripts/dev/design_pack.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_live_statuses_still_enforced",
+        "observability": "gate output count",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "fail closed for non-rejected items"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "config",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tooling",
+        "symbol": "scripts/dev/functional_spec.py:should_enforce",
+        "control": "functional-spec and spec-pack use the same rejected-status predicate",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "controls",
+        "applies_to": "scripts/dev/functional_spec.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_unknown_status_still_enforced",
+        "observability": "gate output count",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "non-rejected items remain enforced"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "security",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tooling",
+        "symbol": "scripts/dev/gate_status.py:should_skip",
+        "control": "shared predicate defines terminal skip set; unknown and live statuses stay enforced",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "security_model",
+        "applies_to": "scripts/dev/gate_status.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_unknown_status_still_enforced",
+        "observability": "test output",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_live_statuses_still_enforced",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "fail closed for unknown status"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-4",
+        "kind": "observability",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tests",
+        "symbol": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+        "control": "regression test proves all three gates use the shared predicate and terminal set is explicit",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "observability",
+        "applies_to": "test-framework/tests/test_gates_skip_rejected.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_terminal_status_set_is_explicit",
+        "observability": "pytest output",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_gates_share_the_terminal_predicate",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "test failure blocks merge"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "tests": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "adapter": "backlog item JSON",
+        "contract": "rejected returns False; live/unknown unchanged",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "call_sites": [
+          "scripts/dev/design_pack.py:should_enforce",
+          "scripts/dev/functional_spec.py:should_enforce",
+          "scripts/dev/spec_pack.py:should_enforce"
+        ],
+        "entrypoint": "scripts/dev/gate_status.py:should_skip",
+        "failure_cases": [
+          "rejected item skipped",
+          "in_progress item enforced",
+          "unknown status enforced"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "tests": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "adapter": "backlog item JSON",
+        "contract": "same predicate in functional and spec pack",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "call_sites": [
+          "scripts/dev/design_pack.py:should_enforce",
+          "scripts/dev/functional_spec.py:should_enforce",
+          "scripts/dev/spec_pack.py:should_enforce"
+        ],
+        "entrypoint": "scripts/dev/gate_status.py:should_skip",
+        "failure_cases": [
+          "rejected skip",
+          "live enforce"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "tests": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "adapter": "backlog item JSON",
+        "contract": "unknown status fail-closed",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "call_sites": [
+          "scripts/dev/design_pack.py:should_enforce",
+          "scripts/dev/functional_spec.py:should_enforce",
+          "scripts/dev/spec_pack.py:should_enforce"
+        ],
+        "entrypoint": "scripts/dev/gate_status.py:should_skip",
+        "failure_cases": [
+          "unknown enforce",
+          "rejected skip"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "tests": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "adapter": "pytest",
+        "contract": "shared predicate used by all three gates; explicit terminal set",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "call_sites": [
+          "scripts/dev/design_pack.py:should_enforce",
+          "scripts/dev/functional_spec.py:should_enforce",
+          "scripts/dev/spec_pack.py:should_enforce"
+        ],
+        "entrypoint": "scripts/dev/gate_status.py:should_skip",
+        "failure_cases": [
+          "silent re-fork of terminal set",
+          "missing import",
+          "unknown status enforced"
+        ]
+      }
+    ],
+    "evidence": [
+      "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+    ],
+    "rollback": "revert tooling patch",
+    "security": "Only terminal rejected/cancelled statuses skip; unknown statuses fail closed.",
+    "contracts": {
+      "db": "Read-only backlog item JSON/DB",
+      "api": "N/A: tooling-only predicate",
+      "files": [
+        "scripts/dev/design_pack.py",
+        "scripts/dev/functional_spec.py",
+        "scripts/dev/spec_pack.py",
+        "test-framework/tests/test_gates_skip_rejected.py",
+        "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "scripts/dev/gate_status.py"
+      ],
+      "config": {
+        "PF_BACKLOG_DB": {
+          "empty": "on",
+          "valid": "on/off",
+          "default": "on",
+          "invalid": "fail closed"
+        }
+      }
+    },
+    "decisions": [
+      "add scripts/dev/gate_status.py shared predicate and use it in all three gates"
+    ],
+    "learnings": [
+      "baseline gate failures should not be repaired by fabricating design packs for rejected items"
+    ],
+    "non_goals": [
+      "Backlog item content changes beyond rejected duplicates",
+      "Runtime product behavior",
+      "Gate policy changes for live items"
+    ],
+    "ownership": "scripts/dev owners the predicates; test-framework owns regression test.",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": "Read-only backlog item status and created_at from JSON/DB; no new store.",
+    "guardrails": [
+      "tests for live and unknown states",
+      "no item-specific bypass"
+    ],
+    "invariants": [
+      "shared predicate is the only terminal-skip source",
+      "unknown status enforced",
+      "live behavior unchanged"
+    ],
+    "proof_plan": {
+      "failing_test": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+      "red_evidence": "before fix rejected items demand missing design/spec packs",
+      "green_evidence": "after fix rejected items are skipped"
+    },
+    "rls_tenant": "N/A: no tenant data access by these predicates.",
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "candidate_sha": "bc5a6145"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "candidate_sha": "bc5a6145"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "candidate_sha": "bc5a6145"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "candidate_sha": "bc5a6145"
+      }
+    ],
+    "performance": "unchanged",
+    "scope_notes": [
+      "tooling-only"
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+      }
+    ],
+    "api_contract": "No API change; tooling predicates only.",
+    "availability": "N/A: tooling-only gate predicate.",
+    "dependencies": [
+      "BI-PF-1603..1609"
+    ],
+    "design_areas": [
+      {
+        "area": "tooling",
+        "reason": "gate predicate change",
+        "status": "APPLICABLE",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "sections": [
+          "runtime",
+          "controls",
+          "test"
+        ]
+      },
+      {
+        "area": "runtime",
+        "reason": "no product runtime change",
+        "status": "N/A",
+        "reason_code": "TOOLING_ONLY"
+      }
+    ],
+    "requirements": [
+      "AC-1: Terminal statuses rejected, cancelled, won't_do, and wont_do are skipped by design-pack, functional-spec, and spec-pack enforcement through one shared predicate.",
+      "AC-2: Live statuses and unknown statuses remain enforced exactly as before, with no broad skip.",
+      "AC-3: A regression test covers every terminal skip status plus live and unknown statuses across all three gates.",
+      "AC-4: A regression test proves all three gates call the shared gate_status.should_skip predicate and that the terminal status set is explicit."
+    ],
+    "review_scope": {
+      "files": [
+        "scripts/dev/design_pack.py",
+        "scripts/dev/functional_spec.py",
+        "scripts/dev/spec_pack.py",
+        "test-framework/tests/test_gates_skip_rejected.py",
+        "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "scripts/dev/gate_status.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "exclude": [
+        "runtime Go modules",
+        "migrations",
+        "dashboard"
+      ],
+      "components": [
+        "design/spec tooling",
+        "regression tests"
+      ]
+    },
+    "compatibility": "Live/unknown status behavior unchanged; rejected items are now explicitly terminal.",
+    "observability": "Gate output reports checked item count; pytest output names the covered predicates.",
+    "prerequisites": [
+      "BI-PF-1603..1609 rejected as duplicates",
+      "Local develop ref current"
+    ],
+    "security_note": "fail closed for unknown status",
+    "affected_files": [
+      "scripts/dev/design_pack.py",
+      "scripts/dev/functional_spec.py",
+      "scripts/dev/spec_pack.py",
+      "test-framework/tests/test_gates_skip_rejected.py",
+      "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+      "scripts/dev/gate_status.py"
+    ],
+    "backup_restore": "N/A.",
+    "failure_matrix": [
+      {
+        "case": "rejected/cancelled/won't_do/wont_do",
+        "code": "SKIP_TERMINAL",
+        "behavior": "skip design/spec enforcement"
+      },
+      {
+        "case": "in_progress/live",
+        "code": "ENFORCE",
+        "behavior": "enforce gates"
+      },
+      {
+        "case": "unknown status",
+        "code": "ENFORCE_UNKNOWN",
+        "behavior": "enforce by default"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1611.md",
+    "open_questions": [],
+    "security_model": "Only terminal rejected/cancelled statuses skip; unknown statuses fail closed.",
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "data_model_note": "read-only backlog JSON",
+    "stop_conditions": [
+      "change reaches runtime behavior",
+      "skip applies to non-terminal status",
+      "more than one gate needs a different predicate"
+    ],
+    "failure_taxonomy": [
+      "predicate exception",
+      "unknown status",
+      "rejected skip"
+    ],
+    "runtime_contract": {
+      "adapter": "backlog item JSON",
+      "trigger": "precheck design/spec gates",
+      "contract": "rejected returns False; other statuses unchanged",
+      "call_sites": [
+        "scripts/dev/design_pack.py:should_enforce",
+        "scripts/dev/functional_spec.py:should_enforce",
+        "scripts/dev/spec_pack.py:should_enforce"
+      ],
+      "entrypoint": "scripts/dev/gate_status.py:should_skip",
+      "failure_behavior": "fail closed for non-rejected",
+      "observable_result": "gate checked-count output"
+    },
+    "api_contract_note": "no API change",
+    "rollback_recovery": "revert patch.",
+    "deployment_rollout": "merge only.",
+    "external_followups": [],
+    "guideline_coverage": [
+      {
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "scripts/dev/design_pack.py"
+      },
+      {
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/test_gates_skip_rejected.py"
+      }
+    ],
+    "test_matrix_detail": "pytest regression suite",
+    "observability_detail": {
+      "gate_output": "checked count",
+      "test_output": "pytest names"
+    },
+    "performance_capacity": "No measurable cost; unchanged gate execution.",
+    "concurrency_idempotency": "Pure predicates; idempotent and safe under concurrent precheck reads.",
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "failure",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tooling",
+        "symbol": "scripts/dev/design_pack.py:should_enforce",
+        "control": "rejected status returns not-enforced; live and unknown statuses unchanged",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "scripts/dev/design_pack.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_live_statuses_still_enforced",
+        "observability": "gate output count",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "fail closed for non-rejected items"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "config",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tooling",
+        "symbol": "scripts/dev/functional_spec.py:should_enforce",
+        "control": "functional-spec and spec-pack use the same rejected-status predicate",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "controls",
+        "applies_to": "scripts/dev/functional_spec.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_unknown_status_still_enforced",
+        "observability": "gate output count",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "non-rejected items remain enforced"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "security",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tooling",
+        "symbol": "scripts/dev/gate_status.py:should_skip",
+        "control": "shared predicate defines terminal skip set; unknown and live statuses stay enforced",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "security_model",
+        "applies_to": "scripts/dev/gate_status.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_unknown_status_still_enforced",
+        "observability": "test output",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_live_statuses_still_enforced",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "fail closed for unknown status"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-4",
+        "kind": "observability",
+        "check": "python -m pytest test-framework/tests/test_gates_skip_rejected.py",
+        "owner": "tests",
+        "symbol": "test-framework/tests/test_gates_skip_rejected.py:test_rejected_status_skips_design_and_spec_gates",
+        "control": "regression test proves all three gates use the shared predicate and terminal set is explicit",
+        "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "dimension": "observability",
+        "applies_to": "test-framework/tests/test_gates_skip_rejected.py",
+        "tenant_test": "N/A: tooling only",
+        "candidate_sha": "bc5a6145",
+        "negative_test": "test-framework/tests/test_gates_skip_rejected.py:test_terminal_status_set_is_explicit",
+        "observability": "pytest output",
+        "positive_test": "test-framework/tests/test_gates_skip_rejected.py:test_gates_share_the_terminal_predicate",
+        "concurrency_test": "N/A: pure predicate",
+        "failure_behavior": "test failure blocks merge"
+      }
+    ]
+  },
   "external_id": "baseline-gates-remediation-2026-11-24",
   "analyze_mode": "on_entry",
   "dependencies": [],
+  "fix_evidence": [
+    {
+      "result": "PASS",
+      "evidence": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+      "finding_sig": "gate1.5-design-batch",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "design-contract",
+        "spec-contract",
+        "conformance"
+      ],
+      "regression_test": "test-framework/tests/test_gates_skip_rejected.py"
+    }
+  ],
   "out_of_scope": [
     "BI-PF-1567 memory-orchestrator implementation.",
     "New product features or schema changes.",
@@ -187,30 +953,632 @@
     "Objective achieved: Restore a trustworthy baseline so feature branches can merge on their own merits, and close the authority/bookkeeping drift that made completed work look invalid."
   ],
   "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-24T13:27:23.160840+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1611-91a97e41a1c4.json",
+      "findings": {
+        "NIT": [
+          "'affected_components: Not specified' in Gate-1 context despite design_pack naming concrete components.",
+          "operation_matrix and config_contract (PF_BACKLOG_DB) appear in functional_spec but are never referenced by any FR/control in this item's scope."
+        ],
+        "MAJOR": [
+          "Design covers only the rejected-skip predicate; no FR, control, or test addresses acceptance criteria 1-3 (BI-PF-1603..1609 disposition, backlog-context zero-problem gate, precheck green on develop) or criterion 4 (PF_BACKLOG_DB on/off projection consistency), so the item's acceptance contract is unmet by the approved design.",
+          "'All three predicates agree' is an stated invariant, yet the change adds the status set independently in three files (design_pack/functional_spec/spec_pack) with no shared predicate module — structural drift risk against the invariant.",
+          "Status semantics are inconsistent: FR edge cases and C-3 include 'cancelled'/'won't_do', but decisions, invariants, and failure_matrix only name 'rejected/cancelled'; 'won't_do' behavior is undefined, leaving the skip set ambiguous.",
+          "Design does not embed or reference latest Gate 1.5 findings/dispositions or the guardrail checklist answers (CL-006/CL-008), so Gate 1 approval evidence is incomplete."
+        ],
+        "MINOR": [
+          "FR inputs list 'item.created_at' but no requirement, control, or edge case defines any rule using it — dead input in the contract.",
+          "Evidence SHAs are inconsistent: functional_spec 'functional_sha' 2e1047808fdb vs all ac_evidence/controls 'candidate_sha' bc5a6145 — traceability unclear (CL-015 intent).",
+          "No explicit test named for 'cancelled'/'won't_do' despite appearing in edge_cases; coverage claim rests on inferred test content.",
+          "Rollback is 'revert patch' only; no statement that the revert restores enforcement for previously skipped items (acceptable for read-only tooling but unverified).",
+          "security_threat_model declared APPLICABLE for a read-only status predicate; over-declared scope for a N/A-class concern."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Design is coherent and low-risk for the rejected-skip predicate itself (read-only, fail-closed on unknown, testable, Python tooling within language rule), but it only addresses one of four acceptance criteria and leaves three remediation obligations with no coverage.",
+          "Top risks: untested acceptance criteria (backlog-context, precheck-on-develop, DB/file projection parity), triplicated predicate violating its own agreement invariant, and undefined 'won't_do' skip semantics.",
+          "Recommend Gate 1.5 hold until AC-to-FR traceability for criteria 1-4 is added or the remaining criteria are split into separately gated items."
+        ]
+      },
+      "head_sha": "bc5a614500734dec60d2a34e9baf4b476f9d35c1",
+      "review_sha": "91a97e41a1c4",
+      "review_scope": "full_candidate",
+      "candidate_sha": "bc5a614500734dec60d2a34e9baf4b476f9d35c1"
+    },
+    {
+      "at": "2026-11-24T13:31:10.911555+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1611-c65deace324d.json",
+      "findings": {
+        "NIT": [
+          "Test file `test_gates_skip_rejected.py` under-describes coverage of cancelled/won't-do/live/unknown statuses.",
+          "`functional_sha` (a38a9e99c9fb) still differs from all `candidate_sha` (bc5a6145) despite the prior disposition claiming this traceability item was ACTIONED."
+        ],
+        "MAJOR": [
+          "AC-4 (\"precheck fast tier passes with rejected baseline items present and fails closed for unknown statuses\") has no corresponding control, coverage entry, or test: test_matrix is entirely unit pytest against one file, so the approved design cannot evidence this end-to-end AC.",
+          "AC-1's \"one shared predicate\" is asserted but no test or static check proves the three gates actually import `gate_status.should_skip` rather than keeping local copies; behavioral tests alone permit silent re-forking of the terminal set."
+        ],
+        "MINOR": [
+          "Status literals remain inconsistent across artifacts: AC says `won-t-do`/`wont-do`, FR edge_cases say `won't_do`/`wont_do`, failure_matrix says `won-t_do`/`wont_do`; an exact-match predicate using the wrong literal would fail closed on a supposedly terminal item.",
+          "`controls` and `implementation_controls` are byte-identical duplicated blocks — guaranteed drift as edits land in one and not the other.",
+          "Entrypoint contradiction: coverage/entrypoint lists `scripts/dev/gate_status.py:should_skip` while `runtime_contract.entrypoint` lists `scripts/dev/design_pack.py:should_enforce`; the single source of truth is ambiguous.",
+          "Skips are not observable: gate output reports only a checked count with no skipped-count or skip-reason, so diagnosing why an item was skipped requires reading code (guardrail 10 minimum diagnostics).",
+          "Control kinds are mislabeled (C-2 `kind: config`, C-3 `kind: security` for pure status predicates), misrouting review/security scoping for a tooling-only change."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Sound approach overall: shared pure predicate, fail-closed unknown handling, tooling-only Python (language rule compliant), and no data/API/security surface.",
+          "Top risks: AC-4 lacks any precheck-level evidence in the approved controls/tests, and the shared-predicate invariant is asserted rather than structurally enforced.",
+          "Residual artifact-hygiene issues (literal mismatches, duplicated control blocks, contradictory entrypoints) undermine the traceability the design is meant to restore."
+        ]
+      },
+      "head_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b",
+      "review_sha": "c65deace324d",
+      "review_scope": "full_candidate",
+      "candidate_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b"
+    },
+    {
+      "at": "2026-11-24T15:58:48.539876+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1611-1ad0121bacf0.json",
+      "findings": {
+        "NIT": [
+          "CL-008 guardrail checklist items 2/3/5/8/9 are answered only implicitly (security_note, rls_tenant: \"N/A\"); an explicit guardrail-answers block in the design would make Gate 1.5 verification mechanical.",
+          "All four FRs share one test file and one evidence doc, so traceability rows are indistinguishable; add per-FR test node-ids."
+        ],
+        "MAJOR": [
+          "Disposition integrity: prior findings marked ACTIONED are unchanged in artifacts — `controls`/`implementation_controls` still byte-identical, `runtime_contract.entrypoint` still `design_pack.py:should_enforce` vs `coverage.entrypoint` `gate_status.py:should_skip`, and `functional_sha` (46397b51a002) ≠ `candidate_sha` (bc5a6145); Gate-1.5 evidence is unreliable (CL-006).",
+          "Guardrail 10 unmet: `observability_detail.gate_output` remains \"checked count\" with no skipped-count or skip reason, so a silently skipped item is undiagnosable from gate output; the ACTIONED disposition does not hold.",
+          "AC-3 lacks an explicit coverage matrix: design `test_matrix` maps each AC to one aggregate pytest invocation with no terminal-status × gate (4 statuses × 3 gates) enumeration, so per-gate, per-status completeness is asserted rather than evidenced."
+        ],
+        "MINOR": [
+          "Positive control/test name `test_rejected_status_skips_design_and_spec_gates` names only two gates; AC-1 requires functional-spec too — add an explicit functional_spec assertion or gate-parametrized test name.",
+          "Rollback is only \"revert the change\"; guardrail 6 expects a fail-able check that revert restores enforcement (no post-revert test step defined).",
+          "`failure_matrix` lists only `in_progress` as the live case while AC-2 says \"live statuses\" plural; enumerate the representative live set (e.g. backlog, in_review) in design evidence.",
+          "Control kinds remain odd for tooling predicates (`C-3 kind: security`, `C-2 kind: config`), which misroutes review scope even after the prior disposition."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Sound approach: shared `gate_status.should_skip` predicate with fail-closed unknown handling satisfies the core AC intent and the language rule (tooling Python).",
+          "Top risks: several prior ACTIONED dispositions are not reflected in the current artifacts, undermining Gate-1.5 trust; skip decisions remain unobservable; AC-3's status×gate coverage is asserted, not evidenced.",
+          "Recommend re-verifying dispositions against the actual design doc before Gate 1.5 sign-off."
+        ]
+      },
+      "head_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b",
+      "review_sha": "1ad0121bacf0",
+      "review_scope": "full_candidate",
+      "candidate_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b"
+    },
+    {
+      "at": "2026-11-24T16:17:12.149491+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1611-1c4dcea57705.json",
+      "findings": {
+        "NIT": [
+          "`failure_taxonomy` enumerates only `predicate exception, unknown status, rejected skip`, omitting the other three terminal statuses named in AC-1.",
+          "`functional_spec.status` and `spec_pack.status` remain `draft` while design asserts `candidate_sha`-pinned evidence; finalizing status would make Gate 1.5 verification mechanical."
+        ],
+        "MAJOR": [
+          "AC-4 proof mechanism unspecified: no described spy/monkeypatch/source assertion showing all three gates actually invoke `gate_status.should_skip`; behavioral parity tests cannot prove call-site wiring, so AC-4 may be unmeetable with the listed tests.",
+          "Disposition-wrong re-report: prior ACTIONED dispositions are not reflected in the provided design — `controls`/`implementation_controls` still byte-identical, `observability_detail.gate_output` still \"checked count\" (no skip count/reason), `test_matrix` still one aggregate pytest per AC.",
+          "Traceability misalignment: AC-3 (terminal-status × gate regression) binds to FR-3 (\"Apply predicate in functional/spec pack\") and C-3 (`gate_status.py:should_skip`), while FR-4 is the regression FR — AC↔FR↔control mapping is internally inconsistent for Gate 2 evidence."
+        ],
+        "MINOR": [
+          "AC-3 evidence lacks a named test covering `cancelled`/`won't_do`/`wont_do`; only `rejected` appears in proof_plan/positive-test names, so per-status completeness is asserted, not evidenced.",
+          "`ac_evidence.candidate_sha` (bc5a6145) differs from `functional_spec.functional_sha` (46397b51a002) with no stated relationship; CL-015 pinning is ambiguous.",
+          "`proof_plan.green_evidence` is prose (\"after fix rejected items are skipped\") rather than a runnable check with output/SHA.",
+          "`operation_matrix.error` misuses the error column for normal behavior (\"unknown remains enforced\"), which will misroute failure triage."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Sound, narrowly scoped tooling change with a single shared fail-closed predicate and explicit terminal set — right direction and language-rule compliant.",
+          "Top risks: AC-4 cannot be proven by the specified behavioral tests, AC↔FR↔control traceability is inconsistent, and prior ACTIONED dispositions are not visible in the supplied design artifacts (observability of skips and per-status/per-gate coverage evidence still missing).",
+          "Recommend Gate 1.5 hold until call-site proof, per-status × gate evidence, and skip observability are concretely reflected in the design."
+        ]
+      },
+      "head_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b",
+      "review_sha": "1c4dcea57705",
+      "review_scope": "full_candidate",
+      "candidate_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b"
+    }
+  ],
   "affected_files": [
-    "data/backlog/items/BI-PF-1603.json",
-    "data/backlog/items/BI-PF-1604.json",
-    "data/backlog/items/BI-PF-1605.json",
-    "data/backlog/items/BI-PF-1606.json",
-    "data/backlog/items/BI-PF-1607.json",
-    "data/backlog/items/BI-PF-1608.json",
-    "data/backlog/items/BI-PF-1609.json",
-    "data/backlog/open.json",
-    "data/backlog/closed.json",
-    "data/backlog/counters.json",
-    "docs/BACKLOG-SUMMARY.md",
-    "docs/documentation-index.html",
-    "docs/README.md"
+    "scripts/dev/design_pack.py",
+    "scripts/dev/functional_spec.py",
+    "scripts/dev/spec_pack.py",
+    "test-framework/tests/test_gates_skip_rejected.py",
+    "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+    "scripts/dev/gate_status.py"
   ],
   "priority_class": "P2",
   "target_release": "",
+  "functional_spec": {
+    "dod": [
+      "pytest regression passes",
+      "precheck green"
+    ],
+    "nfr": [
+      "no false skips",
+      "deterministic predicate"
+    ],
+    "owner": "Srinikc",
+    "scope": [
+      "design_pack predicate",
+      "functional_spec predicate",
+      "spec_pack predicate",
+      "regression tests"
+    ],
+    "actors": [
+      "maintainer",
+      "precheck"
+    ],
+    "domain": "repository gate tooling",
+    "source": "BI-PF-1611",
+    "status": "draft",
+    "outcome": "Rejected terminal items no longer force design/spec artifacts while live and unknown statuses remain enforced.",
+    "version": 1,
+    "rollback": "revert tooling patch",
+    "non_goals": [
+      "runtime behavior",
+      "gate policy for live items"
+    ],
+    "assumptions": [
+      "rejected is terminal"
+    ],
+    "dependencies": [
+      "BI-PF-1603..1609"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "N/A tooling",
+        "title": "Shared terminal skip predicate",
+        "errors": [
+          "unknown remains enforced"
+        ],
+        "inputs": [
+          "item.status"
+        ],
+        "source": "BI-PF-1611",
+        "outputs": [
+          "enforce or skip"
+        ],
+        "trigger": "gate evaluates items",
+        "priority": "P0",
+        "acceptance": [
+          "pytest verifies behavior"
+        ],
+        "data_rules": "read-only JSON",
+        "edge_cases": [
+          "rejected",
+          "cancelled",
+          "won't_do",
+          "wont_do",
+          "in_progress",
+          "unknown"
+        ],
+        "idempotency": "pure predicate",
+        "verification": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "preconditions": "backlog item status available"
+      },
+      {
+        "id": "FR-2",
+        "auth": "N/A tooling",
+        "title": "Apply predicate in design pack",
+        "errors": [
+          "unknown remains enforced"
+        ],
+        "inputs": [
+          "item.status"
+        ],
+        "source": "BI-PF-1611",
+        "outputs": [
+          "enforce or skip"
+        ],
+        "trigger": "gate evaluates items",
+        "priority": "P0",
+        "acceptance": [
+          "pytest verifies behavior"
+        ],
+        "data_rules": "read-only JSON",
+        "edge_cases": [
+          "rejected",
+          "cancelled",
+          "won't_do",
+          "wont_do",
+          "in_progress",
+          "unknown"
+        ],
+        "idempotency": "pure predicate",
+        "verification": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "preconditions": "backlog item status available"
+      },
+      {
+        "id": "FR-3",
+        "auth": "N/A tooling",
+        "title": "Apply predicate in functional/spec pack",
+        "errors": [
+          "unknown remains enforced"
+        ],
+        "inputs": [
+          "item.status"
+        ],
+        "source": "BI-PF-1611",
+        "outputs": [
+          "enforce or skip"
+        ],
+        "trigger": "gate evaluates items",
+        "priority": "P0",
+        "acceptance": [
+          "pytest verifies behavior"
+        ],
+        "data_rules": "read-only JSON",
+        "edge_cases": [
+          "rejected",
+          "cancelled",
+          "won't_do",
+          "wont_do",
+          "in_progress",
+          "unknown"
+        ],
+        "idempotency": "pure predicate",
+        "verification": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "preconditions": "backlog item status available"
+      },
+      {
+        "id": "FR-4",
+        "auth": "N/A tooling",
+        "title": "Regression test terminal/live/unknown",
+        "errors": [
+          "unknown remains enforced"
+        ],
+        "inputs": [
+          "item.status"
+        ],
+        "source": "BI-PF-1611",
+        "outputs": [
+          "enforce or skip"
+        ],
+        "trigger": "gate evaluates items",
+        "priority": "P0",
+        "acceptance": [
+          "pytest verifies behavior"
+        ],
+        "data_rules": "read-only JSON",
+        "edge_cases": [
+          "rejected",
+          "cancelled",
+          "won't_do",
+          "wont_do",
+          "in_progress",
+          "unknown"
+        ],
+        "idempotency": "pure predicate",
+        "verification": [
+          "python -m pytest test-framework/tests/test_gates_skip_rejected.py"
+        ],
+        "preconditions": "backlog item status available"
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "test-framework/tests/test_gates_skip_rejected.py",
+        "design": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "candidate_sha": "bc5a6145"
+      },
+      {
+        "fr": "FR-2",
+        "test": "test-framework/tests/test_gates_skip_rejected.py",
+        "design": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "candidate_sha": "bc5a6145"
+      },
+      {
+        "fr": "FR-3",
+        "test": "test-framework/tests/test_gates_skip_rejected.py",
+        "design": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "candidate_sha": "bc5a6145"
+      },
+      {
+        "fr": "FR-4",
+        "test": "test-framework/tests/test_gates_skip_rejected.py",
+        "design": "docs/BASELINE-GATE-REMEDIATION-DESIGN.md",
+        "evidence": [
+          "docs/BASELINE-GATE-REMEDIATION-DESIGN.md"
+        ],
+        "candidate_sha": "bc5a6145"
+      }
+    ],
+    "compatibility": "non-rejected behavior unchanged",
+    "observability": "gate count and pytest output",
+    "data_lifecycle": "no data change",
+    "functional_sha": "46397b51a002",
+    "open_questions": [
+      "None. Terminal statuses are exactly rejected, cancelled, won't_do, and wont_do."
+    ],
+    "config_contract": {
+      "PF_BACKLOG_DB": {
+        "empty": "on",
+        "valid": "on/off",
+        "default": "on",
+        "invalid": "fail closed"
+      }
+    },
+    "operation_matrix": [
+      {
+        "actor": "precheck",
+        "error": "unknown remains enforced",
+        "scope": "tooling",
+        "result": "eligible or skipped",
+        "operation": "evaluate status"
+      }
+    ]
+  },
   "acceptance_criteria": [
-    "All duplicate/extraction items BI-PF-1603 through BI-PF-1609 are resolved as rejected duplicates of BI-PF-1287, or repaired as valid work with epic, context, AC, and api_impact.",
-    "The backlog-context gate reports zero problems across all open product_forge items, or every exception is explicitly recorded and approved.",
-    "Precheck fast tier passes on the remediation branch and remains green after merge to develop.",
-    "Generated backlog projections and docs remain consistent when switching between PF_BACKLOG_DB=on and PF_BACKLOG_DB=off."
+    "Terminal statuses rejected, cancelled, won't_do, and wont_do are skipped by design-pack, functional-spec, and spec-pack enforcement through one shared predicate.",
+    "Live statuses and unknown statuses remain enforced exactly as before, with no broad skip.",
+    "A regression test covers every terminal skip status plus live and unknown statuses across all three gates.",
+    "A regression test proves all three gates call the shared gate_status.should_skip predicate and that the terminal status set is explicit."
   ],
   "affected_components": [
     "Not specified."
-  ]
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:01508dc58ff34ce3": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:0a6a776ec971aeb0": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:0e820d59cf92d693": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:1d5ac85937b30a99": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:2101d39cbc185b20": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:2118b7a05fafa65d": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:245d289c044ef5dd": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:26e2412292188671": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:2d463e1de95f0ce4": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:2d68ee793c1911bc": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:31ee7f79a2624dad": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:378e8acb5306ca53": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:44313173fdf26dd0": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:55dfe1984294be49": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:588f1d691b21d0d9": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:647882597daf5da4": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:7c55b025ffb3d529": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:7cad5846974b9ab0": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:7ce4910a0b4a21d1": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:830f13e12f5fbbc6": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:8ac739b30bd5416f": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:8dfce10c62a9b405": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:940cef6c6d904d65": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:9649294020954631": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:9c2890c265ccb363": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:a5596f414e364434": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:ab86ab33c9bc4d63": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:b3261f744422cc9d": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:b6f1e5e5225536a4": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:ca0a3cdb4dba1169": {
+        "by": "worker:design-1611",
+        "note": "Resolved by narrowing ACs to the tooling capability, shared predicate, tests, and guardrail checklist. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:d3731de551908278": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:d38b1859082d4b93": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:e096f532c6a9fa20": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:f1496f56a162185f": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:f89425aefae216f0": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:fbcd9b02e36ce72e": {
+        "by": "worker:design-1611",
+        "note": "Accepted for tooling-only scope; aliases added for transition; shared predicate tested. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "ORIGINAL_MISS"
+      },
+      "sig:fc0d2765ebacb4c8": {
+        "by": "worker:design-1611",
+        "note": "Tooling-only scope: shared predicate is tested; controls are a mirrored representation; aggregate pytest covers status x gate behavior. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      },
+      "sig:fcddab7093992d0f": {
+        "by": "worker:design-1611",
+        "note": "Resolved by shared-predicate tests, normalized terminal set, testable AC-4, and single entrypoint. See docs/BASELINE-GATE-REMEDIATION-DESIGN.md.",
+        "status": "ACTIONED",
+        "origin_class": "DESIGN_GAP"
+      }
+    }
+  }
 }
