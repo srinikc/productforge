@@ -177,19 +177,11 @@
 | [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |
 | [`product_forge_AI_Model_Strategy_Orchestration.md`](Product_Factory_AI_Model_Strategy_Orchestration.md) | Analysis (reference) | 100% | Multi-model strategy: routing, cost-per-accepted, intelligence loop | — | — |
 | [`product_forge_Multi_Model_Adapters_Aggregators.md`](Product_Factory_Multi_Model_Adapters_Aggregators.md) | Analysis (reference) | 100% | Multi-model architecture: adapters/registry/router/generator/aggregator separation | — | — |
-<<<<<<< HEAD
 | [`Product_Forge_Agent_Memory_Architecture_Integration.md`](Product_Forge_Agent_Memory_Architecture_Integration.md) | Design | 100% | Agent memory architecture integration with episodic and semantic stores (BI-PF-1356) | — | — |
 | [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
 | [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Design | 10% | Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392 | — | — |
 | [`Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md`](Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md) | Design | 0% | Enterprise DB/storage architecture: performance+security design, repo reconciliation, phased roadmap (BI-PF-1320) | — | — |
 | [`Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md`](Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md) | Design | 100% | RAG/CAG knowledge fabric integration architecture (BI-PF-1357) | — | — |
-=======
-| [`Product_Forge_Agent_Memory_Architecture_Integration.md`](Product_Forge_Agent_Memory_Architecture_Integration.md) | Design | 100% | Agent memory architecture integration | — | — |
-| [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
-| [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Design | 10% | Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392 | — | — |
-| [`Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md`](Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md) | Design | 0% | Enterprise DB/storage architecture: performance+security design, repo reconciliation, phased roadmap (BI-PF-1320) | — | — |
-| [`Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md`](Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md) | Design | 100% | RAG/CAG knowledge fabric integration | — | — |
->>>>>>> origin/develop
 | [`RAG-PROCESS-MEMORY.md`](RAG-PROCESS-MEMORY.md) | SSOT | 100% | RAG + process memory: index decisions/learning/corrections with metadata + supersession, retrieve/inject at task start and gates; durable vs working memory | — | — |
 | [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
