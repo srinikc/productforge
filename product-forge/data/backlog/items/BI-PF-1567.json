@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta fd5d571",
+  "_note": "disposition Gate 1.5 delta 6c404bed",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -356,7 +356,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:29:12.401260",
+  "updated_at": "2026-11-24T11:33:33.701850",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -408,7 +408,7 @@
         "control": "Tenant/project/ACL are derived from server Scope and checked before returning or mutating",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "security_model",
-        "applies_to": "go/edpsvc/main.go",
+        "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
         "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
@@ -424,14 +424,14 @@
         "kind": "tenant",
         "check": "go test ./...",
         "owner": "go/pfmemory",
-        "symbol": "go/pfmemory/orchestrator.go:authorize",
-        "control": "Read-verify-delete: fetch, verify tenant/project/ACL/owner, then delete; never delete before authorization",
+        "symbol": "go/pfmemory/orchestrator.go:deleteScoped",
+        "control": "ScopedDeleter carries tenant/project/ACL/owner predicates in the DELETE; unsupported adapters fail closed",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantGetDelete",
         "candidate_sha": "a536d6d1",
-        "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestDeleteScopedAtomic",
         "observability": "memory_denied_total reason=acl_tenant_project",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
@@ -556,6 +556,26 @@
         "positive_test": "go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator",
         "concurrency_test": "N/A: handler unit test",
         "failure_behavior": "fail the build if a handler bypasses the orchestrator"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-10",
+        "kind": "tenant",
+        "check": "go test ./...",
+        "owner": "store",
+        "symbol": "go/dualvec/sqlite_store.go:DeleteScoped",
+        "control": "SQLite and PostgreSQL scoped delete predicates remove only the authorized tenant/project/ACL/owner row",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "rls_tenant",
+        "applies_to": "go/dualvec/sqlite_store.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestDeleteScopedAtomic",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestDeleteScopedAllowed",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
+        "failure_behavior": "fail closed; no unscoped fallback"
       }
     ],
     "coverage": [
@@ -585,10 +605,11 @@
       {
         "ac": "AC-2",
         "tests": [
-          "go test ./..."
+          "go test ./... in go/pfmemory",
+          "go test ./... in go/edpsvc"
         ],
         "adapter": "datastore.MemoryRepository",
-        "contract": "tenant/project/ACL filters on every operation",
+        "contract": "tenant/project/ACL filters on every operation; atomic scoped delete; edpsvc boundary tests",
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
         ],
@@ -600,7 +621,8 @@
         "failure_cases": [
           "cross-tenant",
           "cross-project",
-          "private ACL denial"
+          "private ACL denial",
+          "stale verify/delete mismatch"
         ]
       },
       {
@@ -642,7 +664,10 @@
         "go/edpsvc/go.mod",
         "go/pfmemory/go.mod",
         "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "go/pfmemory/bypass_test.go"
+        "go/pfmemory/bypass_test.go",
+        "go/dualvec/sqlite_store.go",
+        "go/dualvec/pg_store.go",
+        "go/edpdata/memory.go"
       ],
       "config": {
         "PF_TEST_MEMORY_DSN": {
@@ -745,7 +770,7 @@
       {
         "ac": "AC-2",
         "kind": "negative/security",
-        "test": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial; TestMemoryCrossTenantDenied in go/edpsvc"
+        "test": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial, TestDeleteScopedAtomic; TestMemoryCrossTenantDenied in go/edpsvc"
       },
       {
         "ac": "AC-3",
@@ -814,7 +839,10 @@
         "go/edpsvc/main_test.go",
         "go/edpsvc/go.mod",
         "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "go/pfmemory/bypass_test.go"
+        "go/pfmemory/bypass_test.go",
+        "go/dualvec/sqlite_store.go",
+        "go/dualvec/pg_store.go",
+        "go/edpdata/memory.go"
       ],
       "ac_ids": [
         "AC-1",
@@ -855,7 +883,10 @@
       "go/edpsvc/main_test.go",
       "go/edpsvc/go.mod",
       "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-      "go/pfmemory/bypass_test.go"
+      "go/pfmemory/bypass_test.go",
+      "go/dualvec/sqlite_store.go",
+      "go/dualvec/pg_store.go",
+      "go/edpdata/memory.go"
     ],
     "backup_restore": "No new store or artifact. Existing EDP database backup and restore path remains authoritative. Restore verification is unchanged and covered by the data plane runbook.",
     "failure_matrix": [
@@ -1000,7 +1031,7 @@
         "control": "Tenant/project/ACL are derived from server Scope and checked before returning or mutating",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "security_model",
-        "applies_to": "go/edpsvc/main.go",
+        "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
         "candidate_sha": "a536d6d1",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
@@ -1016,14 +1047,14 @@
         "kind": "tenant",
         "check": "go test ./...",
         "owner": "go/pfmemory",
-        "symbol": "go/pfmemory/orchestrator.go:authorize",
-        "control": "Read-verify-delete: fetch, verify tenant/project/ACL/owner, then delete; never delete before authorization",
+        "symbol": "go/pfmemory/orchestrator.go:deleteScoped",
+        "control": "ScopedDeleter carries tenant/project/ACL/owner predicates in the DELETE; unsupported adapters fail closed",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantGetDelete",
         "candidate_sha": "a536d6d1",
-        "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestDeleteScopedAtomic",
         "observability": "memory_denied_total reason=acl_tenant_project",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
@@ -1148,6 +1179,26 @@
         "positive_test": "go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator",
         "concurrency_test": "N/A: handler unit test",
         "failure_behavior": "fail the build if a handler bypasses the orchestrator"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-10",
+        "kind": "tenant",
+        "check": "go test ./...",
+        "owner": "store",
+        "symbol": "go/dualvec/sqlite_store.go:DeleteScoped",
+        "control": "SQLite and PostgreSQL scoped delete predicates remove only the authorized tenant/project/ACL/owner row",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "rls_tenant",
+        "applies_to": "go/dualvec/sqlite_store.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestDeleteScopedAtomic",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestDeleteScopedAllowed",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
+        "failure_behavior": "fail closed; no unscoped fallback"
       }
     ]
   },
@@ -1544,6 +1595,78 @@
         "control-gate"
       ],
       "regression_test": "go/edpsvc/main_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:a62478e5a4f48836",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:75d0af868f46c24a",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:d3dd261f97754022",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:5e9f7e9e1a451a27",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:28198d48016b74d6",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:4990a2bc1015848b",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -1693,6 +1816,36 @@
       "review_sha": "fd5d571d193e",
       "review_scope": "delta",
       "candidate_sha": "f49ac48d4297d6d8e87364c0a0538b170835d296"
+    },
+    {
+      "at": "2026-11-24T06:02:08.955512+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "f49ac48d4297d6d8e87364c0a0538b170835d296",
+      "evidence": "BI-PF-1567-6c404bedf21c.json",
+      "findings": {
+        "NIT": [
+          "Prior NIT disposition text does not address its finding (traceability/ac_evidence still give all three ACs the single artifact docs/MEMORY-ORCHESTRATOR-DESIGN.md with identical candidate_sha a536d6d1); DEFERRED is acceptable for Gate 1.5 but the disposition wording is mismatched.",
+          "C-7 static bypass test lives in go/pfmemory while enforcing go/edpsvc behavior; ensure CI always runs go/pfmemory tests on any edpsvc change, or the guard silently weakens."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "FR-2/AC-2 traceability and coverage still omit go/edpsvc/main_test.go; the handler-level denial test TestMemoryCrossTenantDenied is now attached only under C-9 (AC-1), so AC-2's edpsvc boundary evidence remains unmapped to its own AC.",
+          "AC-2 coverage test string is bare `go test ./...` with no package scope, unlike AC-1 (`in go/pfmemory`, `in go/edpsvc`); evidence of which package proves AC-2 is ambiguous.",
+          "C-2 is `applies_to: go/edpsvc/main.go` with `owner: go/pfmemory`, yet all four cited tests live in go/pfmemory; cross-package evidence/ownership for an edpsvc-file control is inconsistent with C-9's pattern.",
+          "C-3 read-verify-delete has a verify-then-delete window; design should pin that the DELETE itself carries tenant/project predicates (or equivalent atomicity) so TestConcurrentBoundaryLoad cannot mutate a row that changed between verify and delete."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta correctly actioned the prior MAJOR/MINORs: C-9 added, FR-1 traceability includes go/edpsvc, dangling TestConcurrentCrossBoundary reference removed, and memory_filtered_projectless_total restored to observability; no blockers found.",
+          "Top residual risks: AC-2/FR-2 edpsvc evidence still not mapped to AC-2, and read-verify-delete atomicity under concurrent load needs an explicit tenant/project-scoped DELETE invariant.",
+          "Guardrails otherwise satisfied: Go-only logic, C-8 role posture (CL-011), rollback defined, bounded metrics, no schema migration."
+        ]
+      },
+      "head_sha": "aa4e31c3ba84d007f1ff911a2040d84fe3f0c45c",
+      "review_sha": "6c404bedf21c",
+      "review_scope": "delta",
+      "candidate_sha": "aa4e31c3ba84d007f1ff911a2040d84fe3f0c45c"
     }
   ],
   "affected_files": [
@@ -1704,7 +1857,10 @@
     "go/edpsvc/main_test.go",
     "go/edpsvc/go.mod",
     "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-    "go/pfmemory/bypass_test.go"
+    "go/pfmemory/bypass_test.go",
+    "go/dualvec/sqlite_store.go",
+    "go/dualvec/pg_store.go",
+    "go/edpdata/memory.go"
   ],
   "priority_class": "P2",
   "target_release": "",
@@ -1885,7 +2041,7 @@
       },
       {
         "fr": "FR-2",
-        "test": "go/pfmemory/orchestrator_test.go",
+        "test": "go/pfmemory/orchestrator_test.go, go/edpsvc/main_test.go, go/dualvec/sqlite_store.go",
         "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
@@ -1902,7 +2058,7 @@
         "candidate_sha": "a536d6d1"
       }
     ],
-    "compatibility": "Allowed /memory response shapes are preserved. D-1 is a deliberate behavior change for legacy project-empty rows.",
+    "compatibility": "Allowed response shapes preserved; project-empty rows hidden; delete requires ScopedDeleter support and fails closed otherwise.",
     "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds, memory_filtered_projectless_total; reuse edpsvc registry; audit.",
     "data_lifecycle": "Existing memory rows are unchanged. Governed reads hide project-empty rows. New writes require project. No retention or schema change.",
     "open_questions": [],
@@ -1995,6 +2151,11 @@
         "note": "Bounded metrics and audit events are defined for operations and denials See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
         "status": "ACTIONED"
       },
+      "sig:28198d48016b74d6": {
+        "by": "worker:design-1567",
+        "note": "Gate 2 will attach per-suite evidence; design-phase artifact remains the design doc. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:29ffb8f712a95182": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -2015,6 +2176,11 @@
         "note": "Added C-9 edpsvc wiring control and test_matrix row. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:4990a2bc1015848b": {
+        "by": "worker:design-1567",
+        "note": "Gate 2 will attach per-suite evidence; design-phase artifact remains the design doc. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:4afb293c3bb5d5f0": {
         "by": "worker:design-1567",
         "note": "Consolidation removed; rollback is binary/wiring rollback with no data mutation See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
@@ -2028,6 +2194,11 @@
       "sig:5043c3b0512b8ca3": {
         "by": "worker:design-1567",
         "note": "Only go/pfmemory is in scope; the Python orchestrator is explicitly prohibited. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:5e9f7e9e1a451a27": {
+        "by": "worker:design-1567",
+        "note": "Added ScopedDeleter atomic predicates and fail-closed fallback; see docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:5ea13e33ba167e98": {
@@ -2053,6 +2224,11 @@
       "sig:73953dbeb17db4a0": {
         "by": "worker:design-1567",
         "note": "Added C-8 role-posture control and required CI DSN rule. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:75d0af868f46c24a": {
+        "by": "worker:design-1567",
+        "note": "AC-2 traceability and coverage now include go/edpsvc/main_test.go and package-scoped tests. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:798eab32f8027293": {
@@ -2090,6 +2266,11 @@
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:a62478e5a4f48836": {
+        "by": "worker:design-1567",
+        "note": "AC-2 traceability and coverage now include go/edpsvc/main_test.go and package-scoped tests. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:a951ac411ae6d091": {
         "by": "worker:design-1567",
         "note": "Consolidation removed from 1567 and deferred to BI-PF-1569; only ACL-checked single-record delete remains. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -2113,6 +2294,11 @@
       "sig:d0bf0c08c714f4d9": {
         "by": "worker:design-1567",
         "note": "Search default is now 20 with max 100 in both config and NFR. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:d3dd261f97754022": {
+        "by": "worker:design-1567",
+        "note": "C-2 now applies to go/pfmemory/orchestrator.go with owner go/pfmemory; edpsvc evidence is C-9/C-10. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:d5c46bfd814f5ae7": {
