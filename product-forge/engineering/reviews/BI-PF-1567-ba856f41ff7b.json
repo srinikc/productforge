@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "ba856f41ff7b",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:14:42.154190+00:00",
+  "review_scope": "delta",
+  "base_sha": "082eae5921b88a1437c0879916b68b76719d7c7a",
+  "head_sha": "7dbccbdf7fa29d84161f8aa91ea9d4084bdf2c14",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "C-16 asserts \"SQLite and PostgreSQL Search\" storage filters but applies_to/symbol point only at go/dualvec/sqlite_store.go; no control row covers go/dualvec/pg_store.go:Search or go/edpdata Search, so AC-2's storage-filter guarantee for the production PostgreSQL search path is unevidenced (residual of the prior scoped-read/search finding).",
+      "AC-2 test_matrix/coverage `tests` list go/pfmemory, go/edpsvc, go/dualvec but omit go/edpdata, although C-12/C-15 apply to go/edpdata/memory.go; those controls' `go test ./...` check has no pinned package scope."
+    ],
+    "MINOR": [
+      "C-7 owner remains \"go/pfmemory\" although applies_to/symbol were moved to go/edpsvc/main_test.go; its negative_test still points at go/pfmemory/orchestrator_test.go:TestMemoryHandlersUseOrchestrator rather than an edpsvc bypass failure case.",
+      "C-12/C-15 edpdata controls specify only tenant/project predicates while the dualvec counterparts (C-10/C-11/C-13/C-14) include ACL/owner; storage-layer enforcement depth differs across adapters for the same FR-2 guarantee.",
+      "C-8 check `go test -run TestRolePosture ./...` still does not encode the CI=true/missing-PF_TEST_MEMORY_DSN gate stated in failure_behavior, and `./...` does not pin the module (prior disposition only pinned the test name)."
+    ],
+    "NIT": [
+      "`controls` and `implementation_controls` remain byte-identical full duplicates in the delta; the prior disposition (go-modules gate) does not address duplication, so the drift risk stands.",
+      "C-4's check `go test -race ./...` lacks the \"in go/pfmemory\" package scope now present in the AC-3 coverage row."
+    ],
+    "SUMMARY": [
+      "Delta correctly actioned most prior findings: C-13..C-16 scoped read/search controls added, bypass guard relocated to go/edpsvc, C-8 test pinned, AC-3 coverage scoped.",
+      "Residual risk: storage-layer search guarantee is only control-row-evidenced for SQLite while production runs PostgreSQL; edpdata controls lack package-pinned tests and full ACL/owner predicate parity.",
+      "Duplicate control arrays and minor owner/test-reference mismatches persist; no blockers \u2014 design is otherwise coherent with AC-1/AC-2/AC-3 and the Go language rule."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-1a196ef6b7bb; added scoped storage read/search controls and moved bypass guard",
+  "rereview_reason_sha256": "be5bf02f3231f9c3938253d6d05247455d9d3fd58c4ade7a9e9dd2ef9e20032c"
+}

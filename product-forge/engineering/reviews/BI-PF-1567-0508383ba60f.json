@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "0508383ba60f",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:06:55.425566+00:00",
+  "review_scope": "delta",
+  "base_sha": "aa4e31c3ba84d007f1ff911a2040d84fe3f0c45c",
+  "head_sha": "1d83dfc27bfa99dde31aeaf1e122f4f819c07d06",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "review_scope.components excludes \"go/dualvec storage implementation\" while controls C-10 and review_scope.files include go/dualvec/*.go; AC-2's SQL/storage-filter guarantee therefore rests on a control in an explicitly excluded component, making the AC-2 storage path unverifiable within the declared scope."
+    ],
+    "MINOR": [
+      "Residual from prior C-2 fix: row now has applies_to=go/pfmemory/orchestrator.go but symbol still go/edpsvc/main.go:memoryHandle; control file/symbol/owner remain internally inconsistent.",
+      "go/dualvec/pg_store.go is in affected_files/contracts.files but no control, test, or symbol row references it; C-10 names only sqlite_store.go:DeleteScoped despite claiming \"SQLite and PostgreSQL\" predicates.",
+      "C-4 symbol `TestLeakageSuites` is not among the four named suites listed in its own control text or test_matrix AC-3; confirm the aggregator exists or re-point the symbol.",
+      "AC-3 coverage row lists test names under `failure_cases`, unlike AC-1/AC-2 rows which list failure modes; the delta field is inconsistent within itself."
+    ],
+    "NIT": [
+      "The C-7 disposition (\"Gate 2 will attach per-suite evidence\") still does not address the original NIT about ensuring go/pfmemory tests run on any edpsvc change; disposition/finding mismatch persists.",
+      "Delta design_pack carries both `controls` and `implementation_controls` as full duplicates (acknowledged mirror); long-term drift risk\u2014consider deriving one at render time."
+    ],
+    "SUMMARY": [
+      "Delta is largely consistent with the prior ACTIONED dispositions; AC-1/AC-2 traceability, package-scoped tests, and ScopedDeleter atomicity are now reflected in the design rows.",
+      "Top risks: AC-2's storage-filter control sits in an excluded component, and the pg_store path plus C-2's symbol/applies_to mismatch leave residual evidence gaps for the leakage guarantees.",
+      "No blocker-level AC, security, or data-loss defect found in the changed fields; Gate 1.5 can proceed once the scope/control-row mismatches are reconciled."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-6c404bedf21c; mapped AC-2 evidence and atomic scoped delete",
+  "rereview_reason_sha256": "5286d8a90424e53afd85e0972af37a3f554e209abf3b2702719bf410accbde1e"
+}

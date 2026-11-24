@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "27f05601f27a",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T05:52:27.350040+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "a536d6d1e212ff6e424af2fab29f1d041f8db35a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-1 \"all operations\" is unenforceable as designed: only go/edpsvc call sites are wired, with no stated arch-test/static check proving no other code path reaches go/memory or datastore directly (bypass is merely out_of_scope, not prevented).",
+      "Authorization-vs-mutation ordering for Delete is ambiguous: C-3 says deletes \"verify tenant, project, and ACL after repository access\"; the design must pin read-verify-then-delete (or tenant-filtered delete) or a cross-tenant row could be mutated before denial.",
+      "Search result post-filtering is unspecified: the rls_tenant section rechecks \"after every single-record read\" only, yet AC-2/coverage claim filters \"on every operation\" \u2014 per-hit tenant/project/ACL revalidation of multi-record Search results must be explicit.",
+      "Search bound contradicts the approved NFR: NFR says k <= 100 and performance says default 20, but config_contract allows PF_MEMORY_MAX_SEARCH_K = 1..1000 with default 100; the contract cannot be met as written."
+    ],
+    "MINOR": [
+      "RLS role-posture test runs only \"when a test DSN is configured\"; without a required CI DSN the CL-011 NOSUPERUSER/NOBYPASSRLS evidence is silently skipped.",
+      "PF_MEMORY_PRINCIPAL contract is internally contradictory (precedence \"server\" vs env key; empty\u2192\"deny in production\" vs default\u2192\"existing server principal\"); precedence and production-empty behavior need one rule.",
+      "AC-3's \"four negative leakage suites\" are not enumerated as four distinct named tests; C-4 lists TestLeakageSuites as both negative_test and positive_test.",
+      "D-1 hides legacy project-empty rows with no migration owner/ticket and no metric for filtered-out rows, so silent data invisibility is undetectable in production.",
+      "Rollback trigger \"roll back on denial spikes\" has no threshold, alert, or lead-time defined (checklist 2 availability).",
+      "No statement that pfmemory metrics reuse the existing edpsvc metrics registry/namespace; duplicate metric definitions would break dashboards (checklist 10 reuse)."
+    ],
+    "NIT": [
+      "All three ACs cite the same evidence artifact and candidate_sha a9425dfd; Gate 2 must replace these with distinct per-suite test evidence (partially acknowledged in pack learnings).",
+      "Audit \"safe record ID\" retention/redaction policy is unspecified while privacy_compliance is marked N/A; a short retention statement would close the gap."
+    ],
+    "SUMMARY": [
+      "Design is now Go-only, fail-closed, and observability-aware; prior blockers are properly dispositioned. Top risks: AC-1 has no anti-bypass enforcement, delete/search authorization ordering and per-hit filtering are not pinned, and the k-bound NFR contradicts the config contract. Resolve the MAJOR items before Gate 1.5; no BLOCKERs remain."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-053091627b34; design rewritten with Go-only runtime wiring, Scope/ACL, RLS, observability, and fix evidence",
+  "rereview_reason_sha256": "ff0862a79956f861bb6d537d4d6ab8070d09eb33b630b387cf5ec6bf6995ba4a"
+}

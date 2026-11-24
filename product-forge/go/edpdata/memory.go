@@ -129,6 +129,61 @@ func (s *MemoryStore) Get(ctx context.Context, id string) (datastore.MemoryEntry
 	return e, nil
 }
 
+// GetScoped reads a memory entry with tenant/project/ACL predicates in SQL.
+func (s *MemoryStore) GetScoped(ctx context.Context, id string, scope datastore.MemoryScope) (datastore.MemoryEntry, error) {
+	var e datastore.MemoryEntry
+	var found bool
+	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		rows, err := tx.Query(ctx,
+			`SELECT id, tenant_id, COALESCE(project_id,''), kind, object_ref, acl_scope,
+			        content, source, owner
+			 FROM memory
+			 WHERE id=$1 AND tenant_id=$2 AND project_id=$3
+			   AND (acl_scope <> 'private' OR owner=$4)`,
+			id, scope.TenantID, scope.Project, scope.User)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		if rows.Next() {
+			if err := rows.Scan(&e.ID, &e.TenantID, &e.Project, &e.Kind, &e.ObjectRef, &e.ACLScope,
+				&e.Content, &e.Source, &e.Owner); err != nil {
+				return err
+			}
+			found = true
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return datastore.MemoryEntry{}, err
+	}
+	if !found {
+		return datastore.MemoryEntry{}, datastore.ErrNotFound
+	}
+	return e, nil
+}
+
+// DeleteScoped deletes a memory entry with tenant/project/ACL predicates in SQL.
+func (s *MemoryStore) DeleteScoped(ctx context.Context, id string, scope datastore.MemoryScope) error {
+	var affected int64
+	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		n, err := tx.Exec(ctx,
+			`DELETE FROM memory
+			 WHERE id=$1 AND tenant_id=$2 AND project_id=$3
+			   AND (acl_scope <> 'private' OR owner=$4)`,
+			id, scope.TenantID, scope.Project, scope.User)
+		affected = n
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return datastore.ErrNotFound
+	}
+	return nil
+}
+
 // Delete removes a memory entry.
 func (s *MemoryStore) Delete(ctx context.Context, id string) error {
 	var affected int64

@@ -23,6 +23,7 @@ import (
 	"productforge/edpsvc/internal/auth"
 	"productforge/edpsvc/internal/cache"
 	"productforge/edpsvc/internal/limits"
+	"productforge/pfmemory"
 	"productforge/store"
 )
 
@@ -811,7 +812,7 @@ func TestServer_Memory_DualVec_Sqlite(t *testing.T) {
 	}()
 
 	// POST /memory
-	body := `{"id":"mem-dual-1","tenant":"test-tenant","kind":"semantic","content":"dualvec test content"}`
+	body := `{"id":"11111111-1111-4111-8111-111111111111","tenant":"test-tenant","project":"proj-1","kind":"semantic","content":"dualvec test content"}`
 	req := httptest.NewRequest(http.MethodPost, "/memory", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -821,8 +822,8 @@ func TestServer_Memory_DualVec_Sqlite(t *testing.T) {
 		t.Fatalf("POST /memory failed: code=%d body=%s", w.Code, w.Body.String())
 	}
 
-	// GET /memory?tenant=test-tenant&q=dualvec
-	reqGet := httptest.NewRequest(http.MethodGet, "/memory?tenant=test-tenant&q=dualvec", nil)
+	// GET /memory?tenant=test-tenant&project=proj-1&q=dualvec
+	reqGet := httptest.NewRequest(http.MethodGet, "/memory?tenant=test-tenant&project=proj-1&q=dualvec", nil)
 	wGet := httptest.NewRecorder()
 	s.memoryHandle(wGet, reqGet)
 
@@ -836,23 +837,61 @@ func TestServer_Memory_DualVec_Sqlite(t *testing.T) {
 	if err := json.NewDecoder(wGet.Body).Decode(&res); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if len(res.Hits) != 1 || res.Hits[0].ID != "mem-dual-1" {
+	if len(res.Hits) != 1 || res.Hits[0].ID != "11111111-1111-4111-8111-111111111111" {
 		t.Fatalf("unexpected hits: %+v", res.Hits)
 	}
 
-	// GET /memory/mem-dual-1?tenant=test-tenant
-	reqByID := httptest.NewRequest(http.MethodGet, "/memory/mem-dual-1?tenant=test-tenant", nil)
+	// GET /memory/11111111-1111-4111-8111-111111111111?tenant=test-tenant&project=proj-1
+	reqByID := httptest.NewRequest(http.MethodGet, "/memory/11111111-1111-4111-8111-111111111111?tenant=test-tenant&project=proj-1", nil)
 	wByID := httptest.NewRecorder()
 	s.memoryByID(wByID, reqByID)
 	if wByID.Code != http.StatusOK {
-		t.Fatalf("GET /memory/mem-dual-1 failed: code=%d body=%s", wByID.Code, wByID.Body.String())
+		t.Fatalf("GET /memory/11111111-1111-4111-8111-111111111111 failed: code=%d body=%s", wByID.Code, wByID.Body.String())
 	}
 
-	// DELETE /memory/mem-dual-1?tenant=test-tenant
-	reqDel := httptest.NewRequest(http.MethodDelete, "/memory/mem-dual-1?tenant=test-tenant", nil)
+	reqOtherTenant := httptest.NewRequest(http.MethodGet, "/memory/11111111-1111-4111-8111-111111111111?tenant=other&project=proj-1", nil)
+	wOtherTenant := httptest.NewRecorder()
+	s.memoryByID(wOtherTenant, reqOtherTenant)
+	if wOtherTenant.Code != http.StatusNotFound {
+		t.Fatalf("cross-tenant get must be 404, got %d body=%s", wOtherTenant.Code, wOtherTenant.Body.String())
+	}
+
+	reqOtherProject := httptest.NewRequest(http.MethodGet, "/memory/11111111-1111-4111-8111-111111111111?tenant=test-tenant&project=proj-2", nil)
+	wOtherProject := httptest.NewRecorder()
+	s.memoryByID(wOtherProject, reqOtherProject)
+	if wOtherProject.Code != http.StatusNotFound {
+		t.Fatalf("cross-project get must be 404, got %d body=%s", wOtherProject.Code, wOtherProject.Body.String())
+	}
+
+	// DELETE /memory/11111111-1111-4111-8111-111111111111?tenant=test-tenant&project=proj-1
+	reqDel := httptest.NewRequest(http.MethodDelete, "/memory/11111111-1111-4111-8111-111111111111?tenant=test-tenant&project=proj-1", nil)
 	wDel := httptest.NewRecorder()
 	s.memoryByID(wDel, reqDel)
 	if wDel.Code != http.StatusOK {
-		t.Fatalf("DELETE /memory/mem-dual-1 failed: code=%d body=%s", wDel.Code, wDel.Body.String())
+		t.Fatalf("DELETE /memory/11111111-1111-4111-8111-111111111111 failed: code=%d body=%s", wDel.Code, wDel.Body.String())
 	}
+}
+
+func TestNoDirectMemoryRepositoryCalls(t *testing.T) {
+	b, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	for _, bad := range []string{"mem.Put(", "mem.Get(", "mem.Search(", "mem.Delete("} {
+		if strings.Contains(src, bad) {
+			t.Fatalf("direct memory repository call found: %s", bad)
+		}
+	}
+}
+
+func TestMemoryHandlersUseOrchestrator(t *testing.T) {
+	TestServer_Memory_DualVec_Sqlite(t)
+}
+
+func TestMemoryAuditLifecycle(t *testing.T) {
+	a := newMemoryAudit(limits.NewMetrics(), nil)
+	a.Audit(pfmemory.AuditEvent{Op: "read", TenantID: "t", ProjectID: "p", Actor: "u"})
+	a.Close()
+	a.Audit(pfmemory.AuditEvent{Op: "read", TenantID: "t", ProjectID: "p", Actor: "u"})
 }

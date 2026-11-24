@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "053091627b34",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-23T08:44:08.719911+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "b8ad85e7a7b66271cc2c29fa47e8f1502f4ac84d",
+  "findings": {
+    "BLOCKER": [
+      "Language Rule Violation: \"Build the central Memory Orchestrator\" constitutes new shipped logic; implementation in `core/memory_orchestrator.py` violates the Go-only requirement for new logic.",
+      "Security Posture (CL-011): Design fails to specify or enforce the runtime role posture (NOSUPERUSER/NOBYPASSRLS), which is mandatory to ensure RLS integrity and prevent bypass.",
+      "Parameterized Binding (CL-013): Missing requirement for constant-time token comparison and strictly parameterized tenant binding in the gateway interface to prevent leakage."
+    ],
+    "MAJOR": [
+      "Observability (CL-010): No definition for telemetry, metrics, or logging of intercepted operations and ACL denials, preventing auditability of the security gateway.",
+      "Availability (Checklist 2): Design lacks a failure-mode definition (e.g., fail-closed) and circuit-breaking logic for when the underlying storage provider is unreachable."
+    ],
+    "MINOR": [
+      "Dry-run Mode (Checklist 4): Destructive operations like 'Delete' and 'Consolidate' lack a mandatory dry-run/report mode to bound the blast radius of automated operations.",
+      "Reversibility (Checklist 1): No verified backup or state-reversal path is defined for the 'Consolidate' operation, which may destructively modify memory history."
+    ],
+    "NIT": [
+      "Logic Duplication: The simultaneous existence of `core/memory_orchestrator.py` and `go/pfmemory/orchestrator.go` suggests logic drift and unclear component ownership."
+    ],
+    "SUMMARY": [
+      "The design establishes a critical security gateway but violates core engineering standards regarding language selection and mandatory security postures (RLS).",
+      "Top risks include potential RLS bypass due to undefined role permissions and a total lack of operational observability for security events."
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "5ca89f7c3cab",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T09:11:26.828189+00:00",
+  "review_scope": "delta",
+  "base_sha": "ea71adcdbac1d803dc6f4ac04da81b701d32d335",
+  "head_sha": "980053be6c2877d6094bbdefaed8654188f64e1c",
+  "findings": {
+    "BLOCKER": [
+      "none (prior vacuous `TestRolePostureBypassRejected` no-op is now fail-able via the `pg_policies` assertion; per-request `LoadLimitsFromEnv` and missing record-ID/EDP-audit findings are addressed by this delta)"
+    ],
+    "MAJOR": [
+      "`memoryAudit.Audit` discards the EDP audit `Append` error (`_ =`) with no metric, log, or retry: security-relevant allow/deny records can vanish silently, so AC-1 interception evidence and the design-pack \"structured audit\" contract are unobservable on failure.",
+      "The audit write is synchronous on the request path using `context.Background()` with a 2s timeout: every memory op can add up to +2s latency that ignores caller deadlines, so audit-store degradation directly degrades `/memory` availability.",
+      "`TestRolePostureBypassRejected` (C-8 designated negative test) still does not prove bypass rejection: it only counts `pg_policies` rows, so a BYPASSRLS/superuser connection or non-`FORCE` RLS passes while the test claims \"bypass is not rejected\".",
+      "(placeholder removed)"
+    ],
+    "MINOR": [
+      "EDP audit row omits `ProjectID`; the design-pack audit contract requires tenant, project, actor, record ID, outcome, reason, timestamp \u2014 project survives only in the process `log.Printf`, not in retained audit storage.",
+      "`CorrelationID: e.Reason` overloads a correlation field with a denial reason, breaking downstream audit join/trace semantics.",
+      "`resolveOrchestrator` fallback defaults (`maxK==0 -> 20`, `timeout==0 -> 5s`) duplicate `LoadLimitsFromEnv`'s contract; dead today, but they mask future fail-closed regressions if loader semantics change.",
+      "`memoryAudit` hard-codes `*store.PgStore`, coupling the auditor to one concrete store instead of a narrow audit-sink interface (reuse/testability).",
+      "`TestRolePostureBypassRejected` still skips when `PF_TEST_MEMORY_DSN` is unset, so it does not itself enforce the config contract's \"empty = CI fails when CI=true\" for C-8."
+    ],
+    "NIT": [
+      "`memoryMaxK`/`memoryTimeout` defaults are re-declared inline in `main.go` rather than shared with `LoadLimitsFromEnv`, risking drift between startup validation and runtime values."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior per-request config-load MAJOR, the record-ID/EDP-audit MAJOR, and makes the C-8 no-op test fail-able \u2014 direction is correct and no AC is regressed.",
+      "Top residual risks: silent synchronous audit failures (integrity + availability) on the memory hot path, and the C-8 negative test still asserting policy presence rather than actual bypass rejection."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-8e78149685b1; addressed blockers with real role test, concurrency assertions, startup config, audit sink, error codes",
+  "rereview_reason_sha256": "e12f0e76e56f9496afa34348c46cb439e659e89a861d6cce0cb5c17c61bb097d"
+}

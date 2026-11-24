@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "6c404bedf21c",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:02:08.955512+00:00",
+  "review_scope": "delta",
+  "base_sha": "f49ac48d4297d6d8e87364c0a0538b170835d296",
+  "head_sha": "aa4e31c3ba84d007f1ff911a2040d84fe3f0c45c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "FR-2/AC-2 traceability and coverage still omit go/edpsvc/main_test.go; the handler-level denial test TestMemoryCrossTenantDenied is now attached only under C-9 (AC-1), so AC-2's edpsvc boundary evidence remains unmapped to its own AC.",
+      "AC-2 coverage test string is bare `go test ./...` with no package scope, unlike AC-1 (`in go/pfmemory`, `in go/edpsvc`); evidence of which package proves AC-2 is ambiguous.",
+      "C-2 is `applies_to: go/edpsvc/main.go` with `owner: go/pfmemory`, yet all four cited tests live in go/pfmemory; cross-package evidence/ownership for an edpsvc-file control is inconsistent with C-9's pattern.",
+      "C-3 read-verify-delete has a verify-then-delete window; design should pin that the DELETE itself carries tenant/project predicates (or equivalent atomicity) so TestConcurrentBoundaryLoad cannot mutate a row that changed between verify and delete."
+    ],
+    "NIT": [
+      "Prior NIT disposition text does not address its finding (traceability/ac_evidence still give all three ACs the single artifact docs/MEMORY-ORCHESTRATOR-DESIGN.md with identical candidate_sha a536d6d1); DEFERRED is acceptable for Gate 1.5 but the disposition wording is mismatched.",
+      "C-7 static bypass test lives in go/pfmemory while enforcing go/edpsvc behavior; ensure CI always runs go/pfmemory tests on any edpsvc change, or the guard silently weakens."
+    ],
+    "SUMMARY": [
+      "Delta correctly actioned the prior MAJOR/MINORs: C-9 added, FR-1 traceability includes go/edpsvc, dangling TestConcurrentCrossBoundary reference removed, and memory_filtered_projectless_total restored to observability; no blockers found.",
+      "Top residual risks: AC-2/FR-2 edpsvc evidence still not mapped to AC-2, and read-verify-delete atomicity under concurrent load needs an explicit tenant/project-scoped DELETE invariant.",
+      "Guardrails otherwise satisfied: Go-only logic, C-8 role posture (CL-011), rollback defined, bounded metrics, no schema migration."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-fd5d571d193e; mapped edpsvc wiring control and normalized test references",
+  "rereview_reason_sha256": "cd599e1487b885d6c7012b188dfcc122c3a6d22508d767dd34ad1b9bd1505c8f"
+}

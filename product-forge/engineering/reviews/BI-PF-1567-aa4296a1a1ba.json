@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "aa4296a1a1ba",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T08:29:59.092391+00:00",
+  "review_scope": "delta",
+  "base_sha": "12b3250fb319f6d394576d5dc6f3123cfc3f8f86",
+  "head_sha": "257dfea3dad03731c73c3fce0d2639cc5d5c4b0e",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Prior finding disposition appears wrong: C-4 still carries `dimension: failure_taxonomy` and C-8 still has `tenant_test: TestCrossTenantReadWriteSearch` in this delta, despite dispositions marking both ACTIONED (\"Resolved in revised design\"). Update the design rows or correct the dispositions before Gate 1.5.",
+      "The delta's `design_pack` omits the `controls_mirrored_from: implementation_controls` note relied on by the accepted mirror-duplication NIT; if this delta is applied as a replace rather than a merge, the mirror provenance (and other unchanged design_pack keys such as observability/rollback/coverage) is silently dropped. Confirm merge semantics."
+    ],
+    "NIT": [
+      "`controls` and `implementation_controls` are again pasted identically (~2x) in this delta with no machine equality check; prior acceptance held only because Gate 2 `control_gate` remains canonical \u2014 worth an automated diff in the gate to prevent silent drift.",
+      "C-19's `constant_time_comparison: N/A` defers to the auth boundary but no control reference names that boundary artifact; a pointer to the auth-boundary evidence would make CL-013 traceable end-to-end."
+    ],
+    "SUMMARY": [
+      "Delta is narrowly scoped and correctly actioned the two substantive prior findings (C-6 DSN separation, Gate 2 evidence substitution); no blockers to AC-1/2/3 coverage.",
+      "Top risks: two prior ACTIONED dispositions are not actually reflected in the delta rows (C-4 dimension, C-8 tenant_test), and the design_pack delta may not be a safe replace \u2014 verify merge semantics and gate-time mirror equality before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-2e18b2d7701b; separated runtime/test config and declared Gate 2 evidence",
+  "rereview_reason_sha256": "feabed6b425fe03d378cd5497c2933dd37a533201d3d1e2d3fe97558e3cd8df7"
+}

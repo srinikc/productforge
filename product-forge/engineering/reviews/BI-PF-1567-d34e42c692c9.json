@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "d34e42c692c9",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T09:20:59.732974+00:00",
+  "review_scope": "delta",
+  "base_sha": "479a89c1d991b28849c23ea125459c661abbb64d",
+  "head_sha": "c9802711788a221346091dc3b9226b0015e8455e",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Moving `Close()` from `defer` to an explicit post-shutdown call means a panic between auditor construction and shutdown no longer flushes the audit queue (a `defer` would have run during unwind); consider keeping a `defer` as a backstop alongside the ordered explicit call.",
+      "`TestMemoryAuditLifecycle` asserts no observable outcome (no `memory_audit_dropped_total` increment, no record-in-store check), and the channel-full drop path with the 50ms timer remains untested, so the delta's core drop/shutdown behavior can regress undetected.",
+      "The drop path logs one unbounded line per dropped event with no rate limiting; under the same burst that fills the channel this can flood logs and degrade the observability needed to diagnose the loss.",
+      "`Audit` holds `mu.RLock()` across a blocking send of up to 50ms, so `Close()` (and thus shutdown) can be stalled by up to 50ms per in-flight audit under a full channel; bounded but worth documenting as an accepted shutdown-latency cost."
+    ],
+    "NIT": [
+      "The `50 * time.Millisecond` backoff is a hard-coded magic duration with no rationale or configurability; derive it from the /memory latency budget or document why 50ms is the accepted bound.",
+      "`TestMemoryAuditLifecycle` is a smoke test with no `-race`-specific concurrency coverage of `Audit` racing `Close`; a concurrent variant would pin the new `closed`/`mu` guard under the race detector."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior panic-on-closed-channel MAJOR (closed-state guard under RLock held across send), the shutdown-ordering MINOR (explicit `Close()` before `st.Close()`), and the drop-log correlation MINOR (actor/record added); prior drop-on-full MAJOR remains validly PENDING since events can still be dropped after the 50ms wait.",
+      "No AC-1/AC-2/AC-3 regression introduced by this delta; residual risk is audit-integrity under burst load and weak assertion coverage of the new lifecycle/drop paths.",
+      "Top risks: untested channel-full drop path, panic-path audit flush loss from the defer removal, and per-event log flooding during degradation."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-8e78149685b1; bounded shutdown-safe audit and lifecycle test",
+  "rereview_reason_sha256": "4f248edede8fc4077fb1607e7e8c96caae570aeda6ecf4c055381534771e0a58"
+}

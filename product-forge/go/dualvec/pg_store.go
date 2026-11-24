@@ -13,6 +13,14 @@ type PgMemoryStore struct {
 	inner *edpdata.MemoryStore
 }
 
+var _ interface {
+	GetScoped(context.Context, string, datastore.MemoryScope) (datastore.MemoryEntry, error)
+} = (*PgMemoryStore)(nil)
+
+var _ interface {
+	DeleteScoped(context.Context, string, datastore.MemoryScope) error
+} = (*PgMemoryStore)(nil)
+
 // NewPgMemoryStore wraps an existing RelationalStore into a PgMemoryStore.
 func NewPgMemoryStore(db datastore.RelationalStore) *PgMemoryStore {
 	return &PgMemoryStore{inner: edpdata.NewMemory(db)}
@@ -40,6 +48,22 @@ func (p *PgMemoryStore) Search(ctx context.Context, q string, scope datastore.Me
 	entries, err := p.inner.Search(ctx, q, scope, k)
 	currentObserver.Observe(EnginePostgres, "Search", scope.TenantID, scope.Project, time.Since(start), err)
 	return entries, err
+}
+
+// GetScoped delegates to the inner PostgreSQL scoped read.
+func (p *PgMemoryStore) GetScoped(ctx context.Context, id string, scope datastore.MemoryScope) (datastore.MemoryEntry, error) {
+	start := time.Now()
+	entry, err := p.inner.GetScoped(ctx, id, scope)
+	currentObserver.Observe(EnginePostgres, "GetScoped", scope.TenantID, scope.Project, time.Since(start), err)
+	return entry, err
+}
+
+// DeleteScoped delegates to the inner PostgreSQL scoped delete.
+func (p *PgMemoryStore) DeleteScoped(ctx context.Context, id string, scope datastore.MemoryScope) error {
+	start := time.Now()
+	err := p.inner.DeleteScoped(ctx, id, scope)
+	currentObserver.Observe(EnginePostgres, "DeleteScoped", scope.TenantID, scope.Project, time.Since(start), err)
+	return err
 }
 
 // Delete delegates to the inner PostgreSQL memory store.

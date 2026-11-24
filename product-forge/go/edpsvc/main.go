@@ -52,6 +52,7 @@ import (
 	"productforge/objpolicy"
 	"productforge/objstore"
 	"productforge/objstorerest"
+	"productforge/pfmemory"
 	"productforge/s3store"
 	"productforge/store"
 )
@@ -84,6 +85,9 @@ type server struct {
 	cacheStore     *cache.Store
 	authorityMu    sync.Mutex
 	memRepo        datastore.MemoryRepository
+	memoryMaxK     int
+	memoryTimeout  time.Duration
+	memoryAuditor  *memoryAudit
 }
 
 func (s *server) newBacklog(db datastore.RelationalStore) backlogStore {
@@ -243,8 +247,15 @@ func main() {
 	gwSecret := envOr("PF_GATEWAY_SECRET", "")
 	gwSecretOld := envOr("PF_GATEWAY_SECRET_OLD", "")
 	authenticator := auth.NewAuthenticator(admin, tenantTokens, gwSecret, gwSecretOld)
+	memMaxK, memTimeout, err := pfmemory.LoadLimitsFromEnv()
+	if err != nil {
+		st.Close()
+		log.Fatalf("memory config: %v", err)
+	}
 	s := &server{admin: admin, authenticator: authenticator, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
-		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
+		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New(),
+		memoryMaxK: memMaxK, memoryTimeout: memTimeout}
+	s.memoryAuditor = newMemoryAudit(m, st)
 	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
@@ -304,6 +315,7 @@ func main() {
 		log.Printf("edpsvc shutdown: %v; force-closing the listener", err)
 		_ = srv.Close()
 	}
+	s.memoryAuditor.Close()
 	st.Close()
 }
 
@@ -1163,17 +1175,147 @@ func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error
 	return dualvec.New(dualvec.Config{RelationalStore: store.BindTenant(st, tenant)})
 }
 
+type memoryAudit struct {
+	metrics   *limits.Metrics
+	st        *store.PgStore
+	ch        chan pfmemory.AuditEvent
+	wg        sync.WaitGroup
+	closeOnce sync.Once
+	mu        sync.RWMutex
+	closed    bool
+}
+
+func newMemoryAudit(metrics *limits.Metrics, st *store.PgStore) *memoryAudit {
+	a := &memoryAudit{metrics: metrics, st: st, ch: make(chan pfmemory.AuditEvent, 256)}
+	a.wg.Add(1)
+	go a.worker()
+	return a
+}
+
+func (a *memoryAudit) worker() {
+	defer a.wg.Done()
+	for e := range a.ch {
+		a.write(e)
+	}
+}
+
+func (a *memoryAudit) write(e pfmemory.AuditEvent) {
+	if a.st == nil || e.TenantID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resource := e.RecordID
+	if e.ProjectID != "" {
+		resource = e.ProjectID + "/" + resource
+	}
+	if err := edpdata.NewAudit(store.BindTenant(a.st, e.TenantID)).Append(ctx, datastore.AuditEvent{
+		TenantID: e.TenantID, Actor: e.Actor, Action: "memory." + e.Op, Resource: resource,
+		Outcome: e.Outcome, CorrelationID: e.Reason, At: time.Now().UTC(),
+	}); err != nil {
+		if a.metrics != nil {
+			a.metrics.Inc("memory_audit_failures_total", "op", e.Op)
+		}
+		log.Printf("memory_audit_failure op=%s tenant=%s project=%s actor=%s record=%s err=%v",
+			e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID, err)
+	}
+}
+
+func (a *memoryAudit) Audit(e pfmemory.AuditEvent) {
+	a.mu.RLock()
+	if a.closed {
+		a.mu.RUnlock()
+		a.drop(e)
+		return
+	}
+	timer := time.NewTimer(50 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case a.ch <- e:
+		a.mu.RUnlock()
+	case <-timer.C:
+		a.mu.RUnlock()
+		a.drop(e)
+	}
+}
+
+func (a *memoryAudit) drop(e pfmemory.AuditEvent) {
+	if a.metrics != nil {
+		a.metrics.Inc("memory_audit_dropped_total", "op", e.Op)
+	}
+	log.Printf("memory_audit_dropped op=%s tenant=%s project=%s actor=%s record=%s",
+		e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID)
+}
+
+func (a *memoryAudit) Close() {
+	a.closeOnce.Do(func() {
+		a.mu.Lock()
+		a.closed = true
+		close(a.ch)
+		a.mu.Unlock()
+		a.wg.Wait()
+	})
+}
+
+func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
+	repo, err := s.resolveMemory(tenant)
+	if err != nil {
+		return nil, err
+	}
+	maxK, timeout := s.memoryMaxK, s.memoryTimeout
+	if maxK == 0 {
+		maxK = 20
+	}
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+	obs := pfmemory.ObserverFuncs{
+		ObserveFn: func(op, result string, d time.Duration) {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_ops_total", "op", op, "result", result)
+				s.metrics.ObserveHistogram("memory_op_duration_seconds", []string{"op", op, "result", result}, d)
+			}
+		},
+		DeniedFn: func(reason string) {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_denied_total", "reason", reason)
+			}
+		},
+		FilteredFn: func() {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_filtered_projectless_total")
+			}
+		},
+	}
+	opts := []pfmemory.Option{pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout)}
+	if s.memoryAuditor != nil {
+		opts = append(opts, pfmemory.WithAuditor(s.memoryAuditor))
+	}
+	return pfmemory.New(repo, opts...)
+}
+
+func (s *server) memoryRequestError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, pfmemory.ErrNotFound):
+		limits.WriteErrorCode(w, r, http.StatusNotFound, "MEMORY_NOT_FOUND", "not found", "memory", false)
+	case errors.Is(err, pfmemory.ErrInvalidScope):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_INVALID_SCOPE", "tenant, project, and principal are required", "memory", false)
+	case errors.Is(err, pfmemory.ErrValidation):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_VALIDATION_FAILED", err.Error(), "memory", false)
+	case errors.Is(err, pfmemory.ErrLimitExceeded):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_LIMIT_EXCEEDED", err.Error(), "memory", false)
+	case errors.Is(err, pfmemory.ErrScopedReadUnsupported), errors.Is(err, pfmemory.ErrScopedDeleteUnsupported):
+		limits.WriteErrorCode(w, r, http.StatusServiceUnavailable, "MEMORY_SCOPED_OPERATION_UNSUPPORTED", err.Error(), "memory", true)
+	default:
+		limits.WriteErrorCode(w, r, http.StatusInternalServerError, "MEMORY_STORE_UNAVAILABLE", "memory store unavailable", "memory", true)
+	}
+}
+
 func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	q := r.URL.Query()
 	tenant := s.resolveTenant(r, q.Get("tenant"))
-	mem, err := s.resolveMemory(tenant)
-	if err != nil {
-		s.fail(w, r, http.StatusInternalServerError, err)
-		return
-	}
-	// The ACL principal is server-side. Client-supplied `owner`/`user` are never trusted.
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
 		principal = p.ID
@@ -1197,11 +1339,18 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 			s.bad(w, r, http.StatusForbidden, "owner is derived from the authenticated principal")
 			return
 		}
-		e, err := mem.Put(ctx, datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
-			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
-			Owner: principal, Embedding: b.Embedding})
+		tenant = s.resolveTenant(r, b.Tenant)
+		orch, err := s.resolveOrchestrator(tenant, b.Project, principal)
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		e, err := orch.Put(ctx, pfmemory.Scope{TenantID: tenant, ProjectID: b.Project, Principal: principal},
+			datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project, Kind: b.Kind,
+				ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
+				Owner: principal, Embedding: b.Embedding})
+		if err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, e)
@@ -1224,20 +1373,24 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		// Backward compatible: `kind` used to be the free-text query.
 		text := q.Get("q")
 		if text == "" {
 			text = q.Get("kind")
 		}
 		src, acl := q.Get("source"), ""
 		if src == "private" || src == "project" || src == "tenant" || src == "shared" {
-			acl, src = src, "" // legacy: `source` used to filter acl_scope
+			acl, src = src, ""
 		}
-		hits, err := mem.Search(ctx, text, datastore.MemoryScope{
-			TenantID: tenant, Project: q.Get("project"), Source: src, ACL: acl,
-			User: principal, Kinds: kinds}, k)
+		project := q.Get("project")
+		orch, err := s.resolveOrchestrator(tenant, project, principal)
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		hits, err := orch.Search(ctx, pfmemory.Scope{TenantID: tenant, ProjectID: project, Principal: principal},
+			pfmemory.SearchRequest{Text: text, K: k, Source: src, ACL: acl, Kinds: kinds})
+		if err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"hits": hits})
@@ -1250,28 +1403,30 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/memory/")
-	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
-	mem, err := s.resolveMemory(tenant)
-	if err != nil {
-		s.fail(w, r, http.StatusInternalServerError, err)
-		return
-	}
+	q := r.URL.Query()
+	tenant := s.resolveTenant(r, q.Get("tenant"))
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
 		principal = p.ID
 	}
-	visible := func(e datastore.MemoryEntry) bool { return e.ACLScope != "private" || e.Owner == principal }
-	e, err := mem.Get(ctx, id)
-	if err != nil || !visible(e) {
-		s.bad(w, r, http.StatusNotFound, "not found")
+	project := q.Get("project")
+	orch, err := s.resolveOrchestrator(tenant, project, principal)
+	if err != nil {
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
+	scope := pfmemory.Scope{TenantID: tenant, ProjectID: project, Principal: principal}
 	if r.Method == http.MethodDelete {
-		if err := mem.Delete(ctx, id); err != nil {
-			s.fail(w, r, http.StatusNotFound, err)
+		if err := orch.Delete(ctx, scope, id); err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return
+	}
+	e, err := orch.Get(ctx, scope, id)
+	if err != nil {
+		s.memoryRequestError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, e)
