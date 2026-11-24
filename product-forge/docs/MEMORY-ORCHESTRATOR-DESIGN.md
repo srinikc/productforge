@@ -78,14 +78,14 @@ Tenant/project/principal are required. Empty values fail closed before any repos
 
 ### Get
 1. Require a complete `Scope`.
-2. Call `MemoryRepository.Get`.
-3. Return `ErrNotFound` unless the entry matches tenant, project, and ACL visibility.
+2. Require the adapter to implement `ScopedGetter.GetScoped` carrying tenant/project/ACL/owner predicates; fail closed with `ErrScopedReadUnsupported` if unsupported.
+3. Return `ErrNotFound` unless the scoped result matches tenant, project, and ACL visibility.
 4. Project-empty legacy rows are denied under D-1.
 5. Emit audit and metrics; never reveal whether a denied record exists.
 
 ### Search
 1. Require a complete `Scope`.
-2. Build `datastore.MemoryScope` from server state only.
+2. Build `datastore.MemoryScope` from server state only and require storage Search to apply those predicates.
 3. Apply `TenantID`, `ProjectID`, `User`, `ACL`, and `Kinds`.
 4. Bound `k` to 1..100; default 20, maximum 100.
 5. Revalidate every returned hit for tenant, project, `ACLScope`, and owner. Drop any mismatched hit before returning it and increment `memory_denied_total{reason=search_filter}`. A repository that returns an out-of-scope hit is a defect, never a partial success.
@@ -119,9 +119,10 @@ Expose canonical validation for internal callers. Validation is the only operati
 
 The only production callers of `datastore.MemoryRepository` memory methods are the two `edpsvc` handlers, and both use `pfmemory.Orchestrator`. This is enforced by a static Go test:
 
-- `go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls` scans `go/edpsvc` for direct `MemoryRepository.Put/Get/Search/Delete` calls outside the orchestrator wiring.
+- `go/edpsvc/main_test.go:TestNoDirectMemoryRepositoryCalls` scans `go/edpsvc` for direct `MemoryRepository.Put/Get/Search/Delete` calls outside the orchestrator wiring.
 - The test fails if a new direct call site appears.
 - `go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator` proves the handlers route through the orchestrator.
+- The edpsvc module test runs whenever `go/edpsvc` changes, so the bypass guard cannot silently weaken.
 - Other modules are out of scope for the runtime path and cannot claim memory access without adding a new, reviewed call site.
 
 ## 5. ACL matrix
@@ -243,7 +244,7 @@ Audit fields are tenant, project, actor, operation, record ID when safe, outcome
 |---|---|---|---|
 | AC-1 | All operations routed through orchestrator | `go test ./...` in `go/pfmemory` and `go/edpsvc` | Handler integration test observes orchestrator calls and validation failures |
 | AC-2 | Tenant/project/ACL negative suites | `go test ./...` in `go/pfmemory` | Cross-tenant and cross-project read/write/search/delete return `ErrNotFound` |
-| AC-3 | Four negative leakage suites under concurrency | `go test -race ./...` in `go/pfmemory` | `TestCrossTenantReadWriteSearch`, `TestCrossProjectReadWriteSearch`, `TestACLPrivateDenial`, and `TestConcurrentBoundaryLoad` pass with `-race` |
+| AC-3 | Four negative leakage suites under concurrency | `go test -race ./...` in `go/pfmemory` | `TestCrossTenantReadWriteSearch`, `TestCrossProjectReadWriteSearch`, `TestACLPrivateDenial`, and `TestConcurrentBoundaryLoad` pass with `-race` in `go/pfmemory` |
 
 `TestLeakageSuites` is the aggregator that runs the four named negative suites (`TestCrossTenantReadWriteSearch`, `TestCrossProjectReadWriteSearch`, `TestACLPrivateDenial`, `TestConcurrentBoundaryLoad`) as subtests.
 
