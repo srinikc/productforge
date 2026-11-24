@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta 05aa43c",
+  "_note": "record Gate 0/1.5 timing ledger and variance",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -187,10 +187,37 @@
     "started_at": "2026-11-24T05:38:57.404012+00:00",
     "assigned_at": "",
     "completed_at": "",
+    "gate_timings": {
+      "rcca": "Gate 1.5 exceeded target because the design contract required repeated evidence/control reconciliation across storage adapters. Preventive action: add adapter-level control templates to the design pack before the next Gate 1.5.",
+      "gate0_design": {
+        "end": "2026-11-24T11:19:48+05:30",
+        "start": "2026-11-24T05:38:57.404012+00:00",
+        "actual_min": 10,
+        "target_min": "15-20",
+        "variance_min": -10
+      },
+      "gate1_5_review": {
+        "end": "2026-11-24T06:23:28.992462+00:00",
+        "start": "2026-11-24T11:19:48+05:30",
+        "actual_min": 33,
+        "iterations": 10,
+        "target_min": "10-15",
+        "final_review": "BI-PF-1567-1227436e6f2d",
+        "variance_min": 18,
+        "first_full_review": "2026-11-24T05:52:27.350040+00:00"
+      },
+      "gate1_approval": {
+        "start": "2026-11-24T06:24:47.944908+00:00",
+        "status": "awaiting_hil",
+        "actual_min": 0,
+        "target_min": "5-10"
+      },
+      "total_to_gate1_ready_min": 45
+    },
     "assignment_id": "",
-    "duration_seconds": 0,
+    "duration_seconds": 2750,
     "lease_expires_at": "",
-    "last_heartbeat_at": ""
+    "last_heartbeat_at": "2026-11-24T06:24:47.944908+00:00"
   },
   "follow_up": {},
   "objective": "Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.",
@@ -356,7 +383,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:51:57.860959",
+  "updated_at": "2026-11-24T11:54:48.314801",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -2810,6 +2837,32 @@
       "review_sha": "05aa43c1fb39",
       "review_scope": "delta",
       "candidate_sha": "94d33329cfc612914ddee4007f7506577e347537"
+    },
+    {
+      "at": "2026-11-24T06:23:28.992462+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "94d33329cfc612914ddee4007f7506577e347537",
+      "evidence": "BI-PF-1567-1227436e6f2d.json",
+      "findings": {
+        "NIT": [
+          "Prior NIT disposition (stable sentinel for N/A cells) is not actually reflected in the delta: C-6 `concurrency_test`/`tenant_test`, C-7 `concurrency_test`/`tenant_test`, C-8 `concurrency_test`, and C-9 `concurrency_test` still carry free-text `N/A: ...` strings instead of a stable sentinel.",
+          "Prior NIT disposition (unified check-command notation) is not carried into the delta: controls still use `go test ./... (go/pfmemory)` while the design's `coverage`/`test_matrix` rows use `in go/pfmemory`; the two notations remain divergent in the same design_pack.",
+          "C-19 `symbol` points to `go/pfmemory/orchestrator.go:scopeTx` while its `constant_time_comparison` note defers to the auth boundary; the row mixes an in-scope symbol with an out-of-scope N/A annotation, weakening row self-containment."
+        ],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta correctly actioned CL-013 (constant-time marked N/A) and unified RLS read controls to `kind: security`; controls and implementation_controls are in sync and all three ACs have matching controls and tests.",
+          "No blocker: AC-1/AC-2/AC-3 coverage, fail-closed behaviors, and RLS posture control (C-8) are present.",
+          "Top residual risk is documentation hygiene only: two prior NIT dispositions overstate resolution (free-text N/A and check-command notation still diverge in the delta)."
+        ]
+      },
+      "head_sha": "5760b425608f2c5d589ca79cf3978b60677720e4",
+      "review_sha": "1227436e6f2d",
+      "review_scope": "delta",
+      "candidate_sha": "5760b425608f2c5d589ca79cf3978b60677720e4"
     }
   ],
   "affected_files": [
