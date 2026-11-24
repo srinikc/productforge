@@ -17,9 +17,9 @@ func (noopObserver) FilteredProjectless()                  {}
 
 // ObserverFuncs lets callers adapt an existing metrics registry without importing one here.
 type ObserverFuncs struct {
-	ObserveFn   func(op string, result string, duration time.Duration)
-	DeniedFn    func(reason string)
-	FilteredFn  func()
+	ObserveFn  func(op string, result string, duration time.Duration)
+	DeniedFn   func(reason string)
+	FilteredFn func()
 }
 
 func (o ObserverFuncs) Observe(op string, result string, duration time.Duration) {
