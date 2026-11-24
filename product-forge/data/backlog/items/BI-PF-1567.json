@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta ae280fb",
+  "_note": "disposition Gate 1.5 delta 2e18b2d",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -421,7 +421,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T13:54:14.847130",
+  "updated_at": "2026-11-24T13:57:55.456027",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -550,7 +550,7 @@
         "check": "go test ./... (go/pfmemory)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator.go:WithLimits",
-        "control": "WithLimits enforces runtime search max and operation timeout fail-closed; PF_TEST_MEMORY_DSN is test setup only",
+        "control": "WithLimits enforces runtime search maximum and operation timeout fail-closed",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "quotas",
         "applies_to": "go/pfmemory/orchestrator.go",
@@ -590,7 +590,7 @@
         "check": "go test -run TestRolePosture ./... (go/pfmemory)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator_test.go:TestRolePosture",
-        "control": "PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS and RLS remains FORCEd",
+        "control": "PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS and RLS remains FORCEd; PF_TEST_MEMORY_DSN is test setup and CI fails when missing",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator_test.go",
@@ -1258,6 +1258,7 @@
       ]
     },
     "performance_capacity": "Search default 20 and maximum 100. Operation timeout 5s or caller deadline. Canonical content 1 MiB and embedding 3072. No unbounded scans.",
+    "evidence_substitution": "Gate 2 replaces design-only evidence with per-control test-run artifacts; design evidence is not delivery proof.",
     "controls_mirrored_from": "implementation_controls",
     "concurrency_idempotency": "Put is idempotent by record ID for the same tenant/project/owner. Cross-tenant/project ID reuse is denied. The orchestrator is stateless and race-tested under concurrent boundary load.",
     "failure_taxonomy_detail": {
@@ -1376,7 +1377,7 @@
         "check": "go test ./... (go/pfmemory)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator.go:WithLimits",
-        "control": "WithLimits enforces runtime search max and operation timeout fail-closed; PF_TEST_MEMORY_DSN is test setup only",
+        "control": "WithLimits enforces runtime search maximum and operation timeout fail-closed",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "quotas",
         "applies_to": "go/pfmemory/orchestrator.go",
@@ -1416,7 +1417,7 @@
         "check": "go test -run TestRolePosture ./... (go/pfmemory)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator_test.go:TestRolePosture",
-        "control": "PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS and RLS remains FORCEd",
+        "control": "PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS and RLS remains FORCEd; PF_TEST_MEMORY_DSN is test setup and CI fails when missing",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator_test.go",
@@ -2839,6 +2840,54 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:a246a9d7ca77118d",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:23b1bc6db174dea5",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:a24833a8374c213e",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:866110c1349ed4c2",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -3420,6 +3469,34 @@
       "review_sha": "ae280fb8abef",
       "review_scope": "delta",
       "candidate_sha": "82b90ca4500fe2f505630791abef04fe83b7098e"
+    },
+    {
+      "at": "2026-11-24T08:27:03.962861+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "82b90ca4500fe2f505630791abef04fe83b7098e",
+      "evidence": "BI-PF-1567-2e18b2d7701b.json",
+      "findings": {
+        "NIT": [
+          "`controls` and `implementation_controls` are pasted identically in this delta (~2x duplication) with only a prose note (`controls_mirrored_from`) guaranteeing sync; no equality check is named, so the mirror can drift silently between gates.",
+          "C-4 uses `dimension: failure_taxonomy` while it is an AC-3 concurrency/isolation aggregation control; C-8's `tenant_test` points at `TestCrossTenantReadWriteSearch` rather than a role-posture-specific test. Cosmetic metadata inconsistency only."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "C-6's control text still names `PF_TEST_MEMORY_DSN` inside the WithLimits/production-quota control. The added \"test setup only\" clause resolves ownership, but the test-only variable remains attached to a runtime config control; if the disposition is full separation, move that reference to the test-setup row (C-8) and keep C-6 strictly `PF_MEMORY_MAX_SEARCH_K`/`PF_MEMORY_OP_TIMEOUT`.",
+          "All 19 controls cite a single evidence artifact (`docs/MEMORY-ORCHESTRATOR-DESIGN.md`) plus `candidate_sha 48157066` for checks that are declared as executable tests. This is acceptable at Gate 1 only if Gate 2 requires per-control test-run artifacts to replace design prose; the delta does not state that evidence-substitution step."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta design_pack controls are internally consistent: AC-1/2/3 each have coverage, four-suite enumeration matches FR-3, C-8 enforces CL-011 role posture, and C-19 covers CL-013 parameterized binding with constant-time comparison correctly scoped to the auth boundary.",
+          "No AC-contract, security, or test-coverage blocker found in the changed fields; `controls` mirrors `implementation_controls` exactly.",
+          "Top residual risks: evidence remains design-only pending Gate 2 proof, and the C-6 test-DSN clause is the last trace of the prior config-ownership blur."
+        ]
+      },
+      "head_sha": "12b3250fb319f6d394576d5dc6f3123cfc3f8f86",
+      "review_sha": "2e18b2d7701b",
+      "review_scope": "delta",
+      "candidate_sha": "12b3250fb319f6d394576d5dc6f3123cfc3f8f86"
     }
   ],
   "affected_files": [
@@ -3786,6 +3863,11 @@
         "note": "C-4 aggregator and FR-3 verification intentionally list the same named suites; C-4 is executable control. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:23b1bc6db174dea5": {
+        "by": "worker:design-1567",
+        "note": "Declared Gate 2 per-control evidence substitution. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:243eadd4500a79ef": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3996,6 +4078,11 @@
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:866110c1349ed4c2": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:8de9413b7b428476": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -4045,6 +4132,16 @@
         "by": "worker:design-1567",
         "note": "RLS read controls now use kind=security for consistent grouping. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
+      },
+      "sig:a246a9d7ca77118d": {
+        "by": "worker:design-1567",
+        "note": "Removed test DSN from C-6; C-8 owns test setup. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:a24833a8374c213e": {
+        "by": "hil:operator",
+        "note": "HIL Gate 1 approved; controls is generated from implementation_controls; Gate 2 control_gate remains canonical. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACCEPTED"
       },
       "sig:a4b600c375735fc6": {
         "by": "worker:design-1567",
