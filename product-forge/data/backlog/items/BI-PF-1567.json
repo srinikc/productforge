@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 provenance delta 045123d",
+  "_note": "disposition Gate 1.5 delta 00df1b8",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -258,8 +258,8 @@
   },
   "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
   "spec_pack": {
-    "status": "draft",
-    "version": 2,
+    "status": "approved",
+    "version": 3,
     "design_ref": "engineering/design/BI-PF-1567.md",
     "applicability": [
       {
@@ -413,7 +413,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T13:22:41.989460",
+  "updated_at": "2026-11-24T13:29:43.101358",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -2599,6 +2599,45 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:a4b600c375735fc6",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "functional-spec",
+        "spec-pack",
+        "conformance"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:c0c98b8e8a53858c",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "functional-spec",
+        "spec-pack",
+        "conformance"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:0a2cfd0230bb793d",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "functional-spec",
+        "spec-pack",
+        "conformance"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -3064,6 +3103,32 @@
       "review_sha": "045123d72294",
       "review_scope": "delta",
       "candidate_sha": "4815706628f3c624b072e685d3c482b55615e7ea"
+    },
+    {
+      "at": "2026-11-24T07:59:12.036891+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "4815706628f3c624b072e685d3c482b55615e7ea",
+      "evidence": "BI-PF-1567-00df1b8308c6.json",
+      "findings": {
+        "NIT": [
+          "Prior NIT disposition claims actioned, but `spec_pack.status` remains `draft` (only `version` was bumped to 2) — confirm draft is intended at Gate 1 or correct the disposition."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "`functional_spec.dependencies` omits `go/edpdata` while `design_pack.dependencies` includes it and `go/edpdata/memory.go` carries AC-2 controls C-12/C-15/C-18 — the two changed packs disagree on scope.",
+          "`functional_spec.traceability` FR-2 lists `go/dualvec/sqlite_store.go` under `test` — an implementation file, not a test artifact; AC-2 traceability should cite test evidence only."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Prior dispositions verified: functional/candidate SHAs and pack versions bumped, `-race` added to store controls C-10..C-18, BI-PF-1570 moved to external_followups, config reason and design/functional refs now in affected_files — all correctly actioned.",
+          "No blockers or majors in this delta; remaining issues are cross-pack consistency (dependency list, traceability citation) and one partially addressed prior NIT."
+        ]
+      },
+      "head_sha": "51487b175cd95201133e1a60b964f5139f2ffe47",
+      "review_sha": "00df1b8308c6",
+      "review_scope": "delta",
+      "candidate_sha": "51487b175cd95201133e1a60b964f5139f2ffe47"
     }
   ],
   "affected_files": [
@@ -3134,6 +3199,7 @@
       "go/memory",
       "go/datastore",
       "go/dualvec",
+      "go/edpdata",
       "go/edpsvc"
     ],
     "requirements": [
@@ -3261,7 +3327,7 @@
       },
       {
         "fr": "FR-2",
-        "test": "go/pfmemory/orchestrator_test.go, go/edpsvc/main_test.go, go/dualvec/sqlite_store.go",
+        "test": "go/pfmemory/orchestrator_test.go, go/edpsvc/main_test.go",
         "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
@@ -3281,7 +3347,7 @@
     "compatibility": "Allowed response shapes preserved; project-empty rows hidden; delete requires ScopedDeleter support and fails closed otherwise.",
     "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds, memory_filtered_projectless_total; reuse edpsvc registry; audit.",
     "data_lifecycle": "Existing memory rows are unchanged. Governed reads hide project-empty rows. New writes require project. No retention or schema change.",
-    "functional_sha": "51bec38c6d74",
+    "functional_sha": "d0c39e3f214d",
     "open_questions": [
       "None. D-1 strict project isolation is approved at Gate 1."
     ],
@@ -3367,6 +3433,11 @@
       "sig:0897d8ab96604cb9": {
         "by": "worker:design-1567",
         "note": "C-7 owner and negative test now point at go/edpsvc. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:0a2cfd0230bb793d": {
+        "by": "worker:design-1567",
+        "note": "Spec pack status set to approved at Gate 1. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:0cbe88f6f4b790a4": {
@@ -3634,6 +3705,11 @@
         "note": "RLS read controls now use kind=security for consistent grouping. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:a4b600c375735fc6": {
+        "by": "worker:design-1567",
+        "note": "Functional and design dependency lists now match including go/edpdata. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:a62478e5a4f48836": {
         "by": "worker:design-1567",
         "note": "AC-2 traceability and coverage now include go/edpsvc/main_test.go and package-scoped tests. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3657,6 +3733,11 @@
       "sig:b5fd8aa5d7b20c31": {
         "by": "worker:design-1567",
         "note": "C-2 symbol now go/pfmemory/orchestrator.go:authorize. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:c0c98b8e8a53858c": {
+        "by": "worker:design-1567",
+        "note": "FR-2 traceability now cites tests only. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:c14f7807c56edd5a": {
