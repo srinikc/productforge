@@ -1,0 +1,216 @@
+{
+  "id": "BI-PF-1611",
+  "due": "",
+  "tag": "PF",
+  "body": "## Problem / why\nThe current integration baseline is red before BI-PF-1567 changes are considered. Precheck reports seven new open items without api_impact/epic/detailed AC (BI-PF-1603..BI-PF-1609), 112 backlog-context problems across open items, and a completed BI-PF-1566 that lacks Gate 2/Gate 2.5 and completion trail evidence. This blocks every delivery branch, including otherwise green work.\n\n## Goal & value\nRestore a trustworthy baseline so feature branches can merge on their own merits, and close the authority/bookkeeping drift that made completed work look invalid.\n\n## In scope\n- Repair BI-PF-1603 through BI-PF-1609: epic, context, detailed AC, api_impact with reason/routes.\n- Repair open product_forge backlog context until backlog-context passes.\n- Reconcile DB/file projections and generated docs under both PF_BACKLOG_DB=on and off.\n- Re-run precheck fast and prove the baseline is green.\n\n## Out of scope\n- BI-PF-1567 memory-orchestrator implementation.\n- New product features or schema changes.\n- Reopening rejected BI-PF-1538.\n\n## Closure note\nThe BI-PF-1566/1550 completion failures were false transitions caused by a stale local develop ref plus our own inspection edits; no HIL Gate 2 approval was fabricated. Repairing the local develop ref restored zero-transition checks.\n",
+  "deps": [],
+  "epic": "BI-PF-1243",
+  "risk": 3,
+  "type": "bug",
+  "_note": "scope corrected: false 1566/1550 transitions removed",
+  "brief": {
+    "why": "Green feature work is blocked by repository debt unrelated to the feature code, and the drift hides whether completion gates are real.",
+    "source": "authored",
+    "problem": "Feature branches cannot merge because the shared baseline has unscoped items, incomplete context, and invalid completion evidence.",
+    "what_adds": "A single remediation pass that repairs item metadata, backlog context, BI-PF-1566 gate/trail evidence, and projection parity.",
+    "who_feels": "Every worker and reviewer blocked by precheck, plus operators who cannot trust completed status."
+  },
+  "label": "PF Backlog 712",
+  "links": {
+    "related": [
+      "BI-PF-1567",
+      "BI-PF-1566",
+      "BI-PF-1603",
+      "BI-PF-1604",
+      "BI-PF-1605",
+      "BI-PF-1606",
+      "BI-PF-1607",
+      "BI-PF-1608",
+      "BI-PF-1609"
+    ]
+  },
+  "owner": "agent",
+  "risks": [
+    "Bulk backlog edits can overwrite newer DB state; use the API and verify parity after each repair.",
+    "Completion evidence must be factual; do not fabricate Gate 2 approval for BI-PF-1566.",
+    "Projection regeneration can touch unrelated scopes; stage only baseline-remediation artifacts."
+  ],
+  "scope": "product_forge",
+  "score": 0.5,
+  "title": "Repair repository baseline gates: unscoped items, backlog context, and BI-PF-1566 completion trail",
+  "value": 4,
+  "effort": 4,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-1243",
+  "review": {
+    "at": "",
+    "reviewed_by": "derived",
+    "impact_review": [],
+    "reconciliation": {
+      "assumptions": [],
+      "divergences": [],
+      "existing_path": [],
+      "open_questions": [],
+      "prior_decisions": []
+    }
+  },
+  "source": "review",
+  "status": "new",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "STALE",
+    "evidence": [
+      "similar=4",
+      "score=0.5",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-24T15:54:49.635688",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/grooming/stranded",
+      "/api/v1/backlog/ids:reserve"
+    ],
+    "arch_fingerprint": "a3b4531aa189f9aa",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/api-first-baseline.json",
+      "config/architect-review-baseline.json",
+      "config/backlog-dod-baseline.json",
+      "config/backlog-verification-baseline.json",
+      "config/ci-cd-gates.json",
+      "config/context-policy.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/audit_trail.py",
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/audit_trail.py, core/backlog.py, core/backlog_link.py, core/context_discipline.py"
+  },
+  "approach": "Repair BI-PF-1603 through BI-PF-1609: epic, context, detailed AC, api_impact with reason/routes.; Repair open product_forge backlog context until backlog-context passes.; Restore BI-PF-1566 Gate 2.5/Gate 2 decision evidence and execution-trail completion/design_review ordering.",
+  "children": [],
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1611): sig:bc98733f504864cb (20 lines)"
+  ],
+  "in_scope": [
+    "Repair BI-PF-1603 through BI-PF-1609: epic, context, detailed AC, api_impact with reason/routes.",
+    "Repair open product_forge backlog context until backlog-context passes.",
+    "Restore BI-PF-1566 Gate 2.5/Gate 2 decision evidence and execution-trail completion/design_review ordering.",
+    "Reconcile DB/file projections and generated docs under both PF_BACKLOG_DB=on and off.",
+    "Re-run precheck fast and prove the baseline is green."
+  ],
+  "priority": "P2",
+  "revision": 3,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-24T15:54:50.080774",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Restore green baseline gates and trusted completion evidence before further feature delivery.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-24T15:54:49.871113"
+  },
+  "requester": "review",
+  "api_impact": {
+    "reason": "Repository governance and backlog evidence repair only; no product API changes.",
+    "routes": [],
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-24T15:54:43.196948",
+  "updated_at": "2026-11-24T16:53:29.345586",
+  "external_id": "baseline-gates-remediation-2026-11-24",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "BI-PF-1567 memory-orchestrator implementation.",
+    "New product features or schema changes.",
+    "Reopening rejected BI-PF-1538."
+  ],
+  "verification": [
+    "Objective achieved: Restore a trustworthy baseline so feature branches can merge on their own merits, and close the authority/bookkeeping drift that made completed work look invalid."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "data/backlog/items/BI-PF-1603.json",
+    "data/backlog/items/BI-PF-1604.json",
+    "data/backlog/items/BI-PF-1605.json",
+    "data/backlog/items/BI-PF-1606.json",
+    "data/backlog/items/BI-PF-1607.json",
+    "data/backlog/items/BI-PF-1608.json",
+    "data/backlog/items/BI-PF-1609.json",
+    "data/backlog/open.json",
+    "data/backlog/closed.json",
+    "data/backlog/counters.json",
+    "docs/BACKLOG-SUMMARY.md",
+    "docs/documentation-index.html",
+    "docs/README.md"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "All duplicate/extraction items BI-PF-1603 through BI-PF-1609 are resolved as rejected duplicates of BI-PF-1287, or repaired as valid work with epic, context, AC, and api_impact.",
+    "The backlog-context gate reports zero problems across all open product_forge items, or every exception is explicitly recorded and approved.",
+    "Precheck fast tier passes on the remediation branch and remains green after merge to develop.",
+    "Generated backlog projections and docs remain consistent when switching between PF_BACKLOG_DB=on and PF_BACKLOG_DB=off."
+  ],
+  "affected_components": [
+    "Not specified."
+  ]
+}
