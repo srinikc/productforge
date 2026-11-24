@@ -384,6 +384,13 @@ func TestRolePostureBypassRejected(t *testing.T) {
 	if policies == 0 {
 		t.Fatal("memory table has no RLS policy; bypass is not rejected")
 	}
+	var force bool
+	if err := db.QueryRow(`SELECT relforcerowsecurity FROM pg_class WHERE oid = 'memory'::regclass`).Scan(&force); err != nil {
+		t.Fatal(err)
+	}
+	if !force {
+		t.Fatal("memory RLS is not FORCEd; table owner could bypass policy")
+	}
 }
 
 func TestLoadLimitsFromEnv(t *testing.T) {

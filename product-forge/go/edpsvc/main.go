@@ -1186,12 +1186,24 @@ func (a memoryAudit) Audit(e pfmemory.AuditEvent) {
 	if a.st == nil || e.TenantID == "" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	_ = edpdata.NewAudit(store.BindTenant(a.st, e.TenantID)).Append(ctx, datastore.AuditEvent{
-		TenantID: e.TenantID, Actor: e.Actor, Action: "memory." + e.Op, Resource: e.RecordID,
-		Outcome: e.Outcome, CorrelationID: e.Reason, At: time.Now().UTC(),
-	})
+	go func(st *store.PgStore, ev pfmemory.AuditEvent, metrics *limits.Metrics) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		resource := ev.RecordID
+		if ev.ProjectID != "" {
+			resource = ev.ProjectID + "/" + resource
+		}
+		if err := edpdata.NewAudit(store.BindTenant(st, ev.TenantID)).Append(ctx, datastore.AuditEvent{
+			TenantID: ev.TenantID, Actor: ev.Actor, Action: "memory." + ev.Op, Resource: resource,
+			Outcome: ev.Outcome, CorrelationID: ev.Reason, At: time.Now().UTC(),
+		}); err != nil {
+			if metrics != nil {
+				metrics.Inc("memory_audit_failures_total", "op", ev.Op)
+			}
+			log.Printf("memory_audit_failure op=%s tenant=%s project=%s actor=%s record=%s err=%v",
+				ev.Op, ev.TenantID, ev.ProjectID, ev.Actor, ev.RecordID, err)
+		}
+	}(a.st, e, a.metrics)
 }
 
 func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
