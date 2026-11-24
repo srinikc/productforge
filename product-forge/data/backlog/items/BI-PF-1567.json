@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "dispositions and fix evidence for Gate 1.5 review 27f05601",
+  "_note": "disposition Gate 1.5 delta d9b5a29",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -356,7 +356,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:24:32.429563",
+  "updated_at": "2026-11-24T11:26:38.436302",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -516,6 +516,26 @@
         "positive_test": "go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls",
         "concurrency_test": "N/A: static analysis",
         "failure_behavior": "fail the build on any direct bypass path"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-8",
+        "kind": "security",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator_test.go:TestRolePosture",
+        "control": "PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS and RLS remains FORCEd",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "rls_tenant",
+        "applies_to": "go/pfmemory/orchestrator_test.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestRolePostureBypassRejected",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestRolePosture",
+        "concurrency_test": "N/A: role posture is startup invariant",
+        "failure_behavior": "fail CI when PF_TEST_MEMORY_DSN is missing in CI or the role can bypass RLS"
       }
     ],
     "coverage": [
@@ -600,7 +620,8 @@
         "go/edpsvc/main_test.go",
         "go/edpsvc/go.mod",
         "go/pfmemory/go.mod",
-        "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "go/pfmemory/bypass_test.go"
       ],
       "config": {
         "PF_TEST_MEMORY_DSN": {
@@ -613,16 +634,16 @@
         },
         "PF_MEMORY_OP_TIMEOUT": {
           "empty": "5s",
-          "valid": "positive duration <= 30s",
+          "valid": "positive duration <= 5s",
           "default": "5s",
           "invalid": "fail closed",
           "startup": "validated",
           "precedence": "env"
         },
         "PF_MEMORY_MAX_SEARCH_K": {
-          "empty": "100",
+          "empty": "20",
           "valid": "1..100",
-          "default": "100",
+          "default": "20",
           "invalid": "fail closed",
           "startup": "validated",
           "precedence": "env"
@@ -792,6 +813,7 @@
       ]
     },
     "compatibility": "Allowed request/response shapes are preserved. Legacy project-empty rows are hidden from governed reads (D-1), and new writes require a project.",
+    "controls_note": "controls is a render mirror of implementation_controls; implementation_controls is canonical",
     "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds, memory_filtered_projectless_total; reuse edpsvc metrics registry; structured audit.",
     "prerequisites": [
       "BI-PF-1566 canonical MemoryRecord completed",
@@ -916,6 +938,7 @@
       ]
     },
     "performance_capacity": "Search default 20 and maximum 100. Operation timeout 5s or caller deadline. Canonical content 1 MiB and embedding 3072. No unbounded scans.",
+    "controls_mirrored_from": "implementation_controls",
     "concurrency_idempotency": "Put is idempotent by record ID for the same tenant/project/owner. Cross-tenant/project ID reuse is denied. The orchestrator is stateless and race-tested under concurrent boundary load.",
     "failure_taxonomy_detail": {
       "limit": "reject before IO",
@@ -1064,6 +1087,26 @@
         "positive_test": "go/pfmemory/bypass_test.go:TestNoDirectMemoryRepositoryCalls",
         "concurrency_test": "N/A: static analysis",
         "failure_behavior": "fail the build on any direct bypass path"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-8",
+        "kind": "security",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator_test.go:TestRolePosture",
+        "control": "PostgreSQL runtime role is NOSUPERUSER/NOBYPASSRLS and RLS remains FORCEd",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "rls_tenant",
+        "applies_to": "go/pfmemory/orchestrator_test.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestRolePostureBypassRejected",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestRolePosture",
+        "concurrency_test": "N/A: role posture is startup invariant",
+        "failure_behavior": "fail CI when PF_TEST_MEMORY_DSN is missing in CI or the role can bypass RLS"
       }
     ]
   },
@@ -1328,6 +1371,78 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/bypass_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:d0bf0c08c714f4d9",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:2217d95d0f1e02bd",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:9a06f792e879c699",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:798eab32f8027293",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:73953dbeb17db4a0",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:6aa5e4aa486814be",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -1417,6 +1532,37 @@
       "review_sha": "27f05601f27a",
       "review_scope": "full_candidate",
       "candidate_sha": "a536d6d1e212ff6e424af2fab29f1d041f8db35a"
+    },
+    {
+      "at": "2026-11-24T05:55:56.465934+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a536d6d1e212ff6e424af2fab29f1d041f8db35a",
+      "evidence": "BI-PF-1567-d9b5a29b50a7.json",
+      "findings": {
+        "NIT": [
+          "All three ACs still cite the same single evidence artifact docs/MEMORY-ORCHESTRATOR-DESIGN.md with an identical candidate_sha a536d6d1; distinct per-suite Gate 2 test evidence remains to be substituted (prior NIT reopened with the new sha)."
+        ],
+        "MAJOR": [
+          "PF_MEMORY_MAX_SEARCH_K default/empty is \"100\" while NFR, quotas, and performance_capacity all pin default 20; prior finding was dispositioned ACTIONED (\"default 20\") but the delta still ships 100 — contract contradicts the approved NFR as written.",
+          "PF_MEMORY_OP_TIMEOUT valid range is \"positive duration <= 30s\" while NFR states \"operation timeout <= 5s\"; a 30s configured value would violate the approved bound yet pass startup validation."
+        ],
+        "MINOR": [
+          "controls and implementation_controls are byte-identical duplicated rows (7 controls twice) in the same delta; two maintained copies will diverge at Gate 2 evidence updates — keep one or state they are mirrored.",
+          "design_pack.contracts.files omits go/pfmemory/bypass_test.go while affected_files and review_scope.files include it; the contract file list is the one Gate 2 traces.",
+          "No control row maps CL-011 runtime role posture (NOSUPERUSER/NOBYPASSRLS) to a check/symbol/test, although risks and rls_tenant reference a required role-posture test with PF_TEST_MEMORY_DSN."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta correctly actioned the prior ordering, search-revalidation, bypass-test, metric-reuse, and rollout-threshold findings; the security model (server-resolved Scope, read-verify-delete, per-hit revalidation) is coherent and Go-only per language rule.",
+          "Top risks: two config/NFR contradictions (search default, timeout ceiling) that make the approved contract unenforceable as written, and duplicated control rows that will drift during evidence collection.",
+          "No blocker; recommend fixing the two config-vs-NFR mismatches and de-duplicating control rows before Gate 1.5."
+        ]
+      },
+      "head_sha": "07f5e8a51fff76f4c196519240432c01b0b6a8d9",
+      "review_sha": "d9b5a29b50a7",
+      "review_scope": "delta",
+      "candidate_sha": "07f5e8a51fff76f4c196519240432c01b0b6a8d9"
     }
   ],
   "affected_files": [
@@ -1441,7 +1587,7 @@
       "delivery provenance recorded"
     ],
     "nfr": [
-      "search k 1..100 (default 20)",
+      "search k 1..100 with default 20",
       "operation timeout <= 5s",
       "zero cross-tenant/project leakage under -race",
       "no unbounded scans",
@@ -1641,16 +1787,16 @@
       },
       "PF_MEMORY_OP_TIMEOUT": {
         "empty": "5s",
-        "valid": "positive duration <= 30s",
+        "valid": "positive duration <= 5s",
         "default": "5s",
         "invalid": "fail closed",
         "startup": "validated",
         "precedence": "env"
       },
       "PF_MEMORY_MAX_SEARCH_K": {
-        "empty": "100",
+        "empty": "20",
         "valid": "1..100",
-        "default": "100",
+        "default": "20",
         "invalid": "fail closed",
         "startup": "validated",
         "precedence": "env"
@@ -1704,6 +1850,11 @@
   ],
   "review_dispositions": {
     "design": {
+      "sig:2217d95d0f1e02bd": {
+        "by": "worker:design-1567",
+        "note": "Timeout valid range and NFR both cap at 5s. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:275df5718d45bad3": {
         "by": "worker:design-1567",
         "note": "Bounded metrics and audit events are defined for operations and denials See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
@@ -1744,9 +1895,24 @@
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:6aa5e4aa486814be": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:7247e0c79cca89b2": {
         "by": "worker:design-1567",
         "note": "Every search hit is revalidated and mismatches dropped. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:73953dbeb17db4a0": {
+        "by": "worker:design-1567",
+        "note": "Added C-8 role-posture control and required CI DSN rule. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:798eab32f8027293": {
+        "by": "worker:design-1567",
+        "note": "contracts.files now includes go/pfmemory/bypass_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:8651ef462f6d0296": {
@@ -1762,6 +1928,11 @@
       "sig:968edb4d9c7d0654": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:9a06f792e879c699": {
+        "by": "worker:design-1567",
+        "note": "implementation_controls is canonical; controls is declared a render mirror. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:9c21ee4a1c0f6882": {
@@ -1787,6 +1958,11 @@
       "sig:ca7eed78ec74787c": {
         "by": "worker:design-1567",
         "note": "Added static bypass test TestNoDirectMemoryRepositoryCalls and handler wiring test. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:d0bf0c08c714f4d9": {
+        "by": "worker:design-1567",
+        "note": "Search default is now 20 with max 100 in both config and NFR. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:d5c46bfd814f5ae7": {
