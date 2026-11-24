@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+// ErrNotFound is the shared not-found sentinel for storage ports.
+var ErrNotFound = errors.New("datastore: not found")
+
 // Capabilities declares optional provider features. Never assume a provider supports them; adapters report
 // their real capabilities and callers degrade explicitly (ADR-0006 "provider portability = tested contracts").
 type Capabilities struct {

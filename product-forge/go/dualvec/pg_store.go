@@ -42,6 +42,22 @@ func (p *PgMemoryStore) Search(ctx context.Context, q string, scope datastore.Me
 	return entries, err
 }
 
+// GetScoped delegates to the inner PostgreSQL scoped read.
+func (p *PgMemoryStore) GetScoped(ctx context.Context, id string, scope datastore.MemoryScope) (datastore.MemoryEntry, error) {
+	start := time.Now()
+	entry, err := p.inner.GetScoped(ctx, id, scope)
+	currentObserver.Observe(EnginePostgres, "GetScoped", scope.TenantID, scope.Project, time.Since(start), err)
+	return entry, err
+}
+
+// DeleteScoped delegates to the inner PostgreSQL scoped delete.
+func (p *PgMemoryStore) DeleteScoped(ctx context.Context, id string, scope datastore.MemoryScope) error {
+	start := time.Now()
+	err := p.inner.DeleteScoped(ctx, id, scope)
+	currentObserver.Observe(EnginePostgres, "DeleteScoped", scope.TenantID, scope.Project, time.Since(start), err)
+	return err
+}
+
 // Delete delegates to the inner PostgreSQL memory store.
 func (p *PgMemoryStore) Delete(ctx context.Context, id string) error {
 	start := time.Now()

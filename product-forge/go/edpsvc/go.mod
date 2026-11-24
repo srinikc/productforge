@@ -15,6 +15,7 @@ require (
 	productforge/objpolicy v0.0.0
 	productforge/objstore v0.0.0
 	productforge/objstorerest v0.0.0
+	productforge/pfmemory v0.0.0
 	productforge/s3store v0.0.0
 	productforge/store v0.0.0
 )
@@ -44,6 +45,7 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.62.0 // indirect
+	productforge/memory v0.0.0 // indirect
 )
 
 replace productforge/artifacts => ../artifacts
@@ -60,6 +62,8 @@ replace productforge/gcsstore => ../gcsstore
 
 replace productforge/gdrivestore => ../gdrivestore
 
+replace productforge/memory => ../memory
+
 replace productforge/migrate => ../migrate
 
 replace productforge/objpolicy => ../objpolicy
@@ -69,6 +73,8 @@ replace productforge/objstore => ../objstore
 replace productforge/objstorerest => ../objstorerest
 
 replace productforge/pfaudit => ../pfaudit
+
+replace productforge/pfmemory => ../pfmemory
 
 replace productforge/s3store => ../s3store
 

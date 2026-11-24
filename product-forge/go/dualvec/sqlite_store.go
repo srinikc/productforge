@@ -253,6 +253,62 @@ func (s *SqliteMemoryStore) getLocked(ctx context.Context, id string) (datastore
 }
 
 // Delete removes a memory entry by ID.
+func (s *SqliteMemoryStore) GetScoped(ctx context.Context, id string, scope datastore.MemoryScope) (datastore.MemoryEntry, error) {
+	start := time.Now()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	entry, err := s.getScopedLocked(ctx, id, scope)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = datastore.ErrNotFound
+	}
+	currentObserver.Observe(EngineSQLite, "GetScoped", scope.TenantID, scope.Project, time.Since(start), err)
+	return entry, err
+}
+
+func (s *SqliteMemoryStore) getScopedLocked(ctx context.Context, id string, scope datastore.MemoryScope) (datastore.MemoryEntry, error) {
+	var e datastore.MemoryEntry
+	var project sql.NullString
+	var vecBlob []byte
+	query := `SELECT id, tenant_id, project_id, kind, object_ref, acl_scope, content, source, owner, embedding
+		FROM memory_entries
+		WHERE id = ? AND tenant_id = ? AND project_id = ? AND (acl_scope != 'private' OR owner = ?)`
+	err := s.db.QueryRowContext(ctx, query, id, scope.TenantID, scope.Project, scope.User).Scan(
+		&e.ID, &e.TenantID, &project, &e.Kind, &e.ObjectRef, &e.ACLScope,
+		&e.Content, &e.Source, &e.Owner, &vecBlob,
+	)
+	if err != nil {
+		return e, err
+	}
+	if project.Valid {
+		e.Project = project.String
+	}
+	e.Embedding = decodeVector(vecBlob)
+	return e, nil
+}
+
+func (s *SqliteMemoryStore) DeleteScoped(ctx context.Context, id string, scope datastore.MemoryScope) error {
+	start := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM memory_entries
+		 WHERE id = ? AND tenant_id = ? AND project_id = ? AND (acl_scope != 'private' OR owner = ?)`,
+		id, scope.TenantID, scope.Project, scope.User)
+	if err != nil {
+		err = fmt.Errorf("dualvec: scoped delete failed: %w", err)
+		currentObserver.Observe(EngineSQLite, "DeleteScoped", scope.TenantID, scope.Project, time.Since(start), err)
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		err = datastore.ErrNotFound
+		currentObserver.Observe(EngineSQLite, "DeleteScoped", scope.TenantID, scope.Project, time.Since(start), err)
+		return err
+	}
+	currentObserver.Observe(EngineSQLite, "DeleteScoped", scope.TenantID, scope.Project, time.Since(start), nil)
+	return nil
+}
+
 func (s *SqliteMemoryStore) Delete(ctx context.Context, id string) error {
 	start := time.Now()
 	s.mu.Lock()
@@ -306,7 +362,7 @@ func (s *SqliteMemoryStore) searchInternal(ctx context.Context, q string, scope 
 
 	// 2. Project Scope Filter
 	if scope.Project != "" {
-		conditions = append(conditions, "(project_id = ? OR project_id IS NULL OR project_id = '')")
+		conditions = append(conditions, "project_id = ?")
 		args = append(args, scope.Project)
 	}
 

@@ -52,6 +52,7 @@ import (
 	"productforge/objpolicy"
 	"productforge/objstore"
 	"productforge/objstorerest"
+	"productforge/pfmemory"
 	"productforge/s3store"
 	"productforge/store"
 )
@@ -1163,17 +1164,48 @@ func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error
 	return dualvec.New(dualvec.Config{RelationalStore: store.BindTenant(st, tenant)})
 }
 
+func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
+	repo, err := s.resolveMemory(tenant)
+	if err != nil {
+		return nil, err
+	}
+	obs := pfmemory.ObserverFuncs{
+		ObserveFn: func(op, result string, d time.Duration) {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_ops_total", "op", op, "result", result)
+				s.metrics.ObserveHistogram("memory_op_duration_seconds", []string{"op", op, "result", result}, d)
+			}
+		},
+		DeniedFn: func(reason string) {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_denied_total", "reason", reason)
+			}
+		},
+		FilteredFn: func() {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_filtered_projectless_total")
+			}
+		},
+	}
+	return pfmemory.New(repo, pfmemory.WithObserver(obs))
+}
+
+func (s *server) memoryRequestError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, pfmemory.ErrNotFound):
+		s.bad(w, r, http.StatusNotFound, "not found")
+	case errors.Is(err, pfmemory.ErrInvalidScope), errors.Is(err, pfmemory.ErrLimitExceeded), errors.Is(err, pfmemory.ErrScopedReadUnsupported), errors.Is(err, pfmemory.ErrScopedDeleteUnsupported):
+		s.bad(w, r, http.StatusBadRequest, err.Error())
+	default:
+		s.fail(w, r, http.StatusInternalServerError, err)
+	}
+}
+
 func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	q := r.URL.Query()
 	tenant := s.resolveTenant(r, q.Get("tenant"))
-	mem, err := s.resolveMemory(tenant)
-	if err != nil {
-		s.fail(w, r, http.StatusInternalServerError, err)
-		return
-	}
-	// The ACL principal is server-side. Client-supplied `owner`/`user` are never trusted.
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
 		principal = p.ID
@@ -1197,11 +1229,18 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 			s.bad(w, r, http.StatusForbidden, "owner is derived from the authenticated principal")
 			return
 		}
-		e, err := mem.Put(ctx, datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
-			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
-			Owner: principal, Embedding: b.Embedding})
+		tenant = s.resolveTenant(r, b.Tenant)
+		orch, err := s.resolveOrchestrator(tenant, b.Project, principal)
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		e, err := orch.Put(ctx, pfmemory.Scope{TenantID: tenant, ProjectID: b.Project, Principal: principal},
+			datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project, Kind: b.Kind,
+				ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
+				Owner: principal, Embedding: b.Embedding})
+		if err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, e)
@@ -1224,20 +1263,24 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		// Backward compatible: `kind` used to be the free-text query.
 		text := q.Get("q")
 		if text == "" {
 			text = q.Get("kind")
 		}
 		src, acl := q.Get("source"), ""
 		if src == "private" || src == "project" || src == "tenant" || src == "shared" {
-			acl, src = src, "" // legacy: `source` used to filter acl_scope
+			acl, src = src, ""
 		}
-		hits, err := mem.Search(ctx, text, datastore.MemoryScope{
-			TenantID: tenant, Project: q.Get("project"), Source: src, ACL: acl,
-			User: principal, Kinds: kinds}, k)
+		project := q.Get("project")
+		orch, err := s.resolveOrchestrator(tenant, project, principal)
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		hits, err := orch.Search(ctx, pfmemory.Scope{TenantID: tenant, ProjectID: project, Principal: principal},
+			pfmemory.SearchRequest{Text: text, K: k, Source: src, ACL: acl, Kinds: kinds})
+		if err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"hits": hits})
@@ -1250,28 +1293,30 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/memory/")
-	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
-	mem, err := s.resolveMemory(tenant)
-	if err != nil {
-		s.fail(w, r, http.StatusInternalServerError, err)
-		return
-	}
+	q := r.URL.Query()
+	tenant := s.resolveTenant(r, q.Get("tenant"))
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
 		principal = p.ID
 	}
-	visible := func(e datastore.MemoryEntry) bool { return e.ACLScope != "private" || e.Owner == principal }
-	e, err := mem.Get(ctx, id)
-	if err != nil || !visible(e) {
-		s.bad(w, r, http.StatusNotFound, "not found")
+	project := q.Get("project")
+	orch, err := s.resolveOrchestrator(tenant, project, principal)
+	if err != nil {
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
+	scope := pfmemory.Scope{TenantID: tenant, ProjectID: project, Principal: principal}
 	if r.Method == http.MethodDelete {
-		if err := mem.Delete(ctx, id); err != nil {
-			s.fail(w, r, http.StatusNotFound, err)
+		if err := orch.Delete(ctx, scope, id); err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return
+	}
+	e, err := orch.Get(ctx, scope, id)
+	if err != nil {
+		s.memoryRequestError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, e)
