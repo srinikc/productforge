@@ -1,6 +1,6 @@
 # Conditional Spec Pack — BI-PF-1567 — Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering
 
-- **Version:** 3
+- **Version:** 4
 - **Status:** approved
 - **Functional spec:** engineering/specs/BI-PF-1567.md
 - **Design pack:** engineering/design/BI-PF-1567.md
@@ -10,7 +10,7 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | Spec | Status | Owner | Reason | Artifact | Sections | Evidence |
 |---|---|---|---|---|---|---|
 | product_design_spec | APPLICABLE | BI-PF-1567 | gateway design | engineering/design/BI-PF-1567.md | all | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
-| api_contract | N/A | BI-PF-1567 | Internal Go gateway; no new public API |  |  |  |
+| api_contract | APPLICABLE | BI-PF-1567 | Existing /memory contract preserved; D-1 hides project-empty rows | go/edpsvc/main.go | api | go/edpsvc/main.go |
 | data_contract | APPLICABLE | BI-PF-1567 | canonical memory store | docs/MEMORY-ORCHESTRATOR-DESIGN.md | data | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 | config_contract | APPLICABLE | BI-PF-1567 | Search limit, operation timeout, and test DSN configuration | docs/MEMORY-ORCHESTRATOR-DESIGN.md | design | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 | nfr_slo | APPLICABLE | BI-PF-1567 | bounded ops | docs/MEMORY-ORCHESTRATOR-DESIGN.md | observability | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
