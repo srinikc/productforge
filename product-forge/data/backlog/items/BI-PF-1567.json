@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta d9b5a29",
+  "_note": "disposition Gate 1.5 delta fd5d571",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -356,7 +356,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:26:38.436302",
+  "updated_at": "2026-11-24T11:29:12.401260",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -394,7 +394,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestPutRejectsInvalidRecord",
         "observability": "memory_ops_total and audit",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestPutValidated",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "fail closed with ErrNotFound or validation error"
       },
       {
@@ -414,7 +414,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
         "observability": "memory_denied_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedReadWrite",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "deny non-leakily with ErrNotFound"
       },
       {
@@ -434,7 +434,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
         "observability": "memory_denied_total reason=acl_tenant_project",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "deny non-leakily before mutation"
       },
       {
@@ -474,7 +474,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestDeniedAudit",
         "observability": "reuse edpsvc metrics registry; memory_ops_total memory_denied_total memory_op_duration_seconds memory_filtered_projectless_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestMetricsAudit",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "observer failures never bypass the policy decision"
       },
       {
@@ -536,13 +536,34 @@
         "positive_test": "go/pfmemory/orchestrator_test.go:TestRolePosture",
         "concurrency_test": "N/A: role posture is startup invariant",
         "failure_behavior": "fail CI when PF_TEST_MEMORY_DSN is missing in CI or the role can bypass RLS"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-9",
+        "kind": "failure",
+        "check": "go test ./...",
+        "owner": "go/edpsvc",
+        "symbol": "go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator",
+        "control": "edpsvc /memory and /memory/{id} handler tests prove operations route through pfmemory.Orchestrator",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "go/edpsvc/main_test.go",
+        "tenant_test": "go/edpsvc/main_test.go:TestMemoryCrossTenantDenied",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/edpsvc/main_test.go:TestMemoryRejectsInvalidScope",
+        "observability": "test output",
+        "positive_test": "go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator",
+        "concurrency_test": "N/A: handler unit test",
+        "failure_behavior": "fail the build if a handler bypasses the orchestrator"
       }
     ],
     "coverage": [
       {
         "ac": "AC-1",
         "tests": [
-          "go test ./..."
+          "go test ./... in go/pfmemory",
+          "go test ./... in go/edpsvc"
         ],
         "adapter": "datastore.MemoryRepository",
         "contract": "Scope + Put/Get/Search/Delete/Validate; every operation routes through pfmemory; static bypass test forbids direct repository calls",
@@ -719,12 +740,12 @@
       {
         "ac": "AC-1",
         "kind": "unit/integration/static",
-        "test": "go test ./... in go/pfmemory and go/edpsvc; TestNoDirectMemoryRepositoryCalls"
+        "test": "go test ./... in go/pfmemory and go/edpsvc; TestNoDirectMemoryRepositoryCalls; TestMemoryHandlersUseOrchestrator"
       },
       {
         "ac": "AC-2",
         "kind": "negative/security",
-        "test": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial in go/pfmemory"
+        "test": "TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial; TestMemoryCrossTenantDenied in go/edpsvc"
       },
       {
         "ac": "AC-3",
@@ -965,7 +986,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestPutRejectsInvalidRecord",
         "observability": "memory_ops_total and audit",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestPutValidated",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "fail closed with ErrNotFound or validation error"
       },
       {
@@ -985,7 +1006,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
         "observability": "memory_denied_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedReadWrite",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "deny non-leakily with ErrNotFound"
       },
       {
@@ -1005,7 +1026,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
         "observability": "memory_denied_total reason=acl_tenant_project",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "deny non-leakily before mutation"
       },
       {
@@ -1045,7 +1066,7 @@
         "negative_test": "go/pfmemory/orchestrator_test.go:TestDeniedAudit",
         "observability": "reuse edpsvc metrics registry; memory_ops_total memory_denied_total memory_op_duration_seconds memory_filtered_projectless_total",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestMetricsAudit",
-        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "observer failures never bypass the policy decision"
       },
       {
@@ -1107,6 +1128,26 @@
         "positive_test": "go/pfmemory/orchestrator_test.go:TestRolePosture",
         "concurrency_test": "N/A: role posture is startup invariant",
         "failure_behavior": "fail CI when PF_TEST_MEMORY_DSN is missing in CI or the role can bypass RLS"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-9",
+        "kind": "failure",
+        "check": "go test ./...",
+        "owner": "go/edpsvc",
+        "symbol": "go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator",
+        "control": "edpsvc /memory and /memory/{id} handler tests prove operations route through pfmemory.Orchestrator",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "go/edpsvc/main_test.go",
+        "tenant_test": "go/edpsvc/main_test.go:TestMemoryCrossTenantDenied",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/edpsvc/main_test.go:TestMemoryRejectsInvalidScope",
+        "observability": "test output",
+        "positive_test": "go/edpsvc/main_test.go:TestMemoryHandlersUseOrchestrator",
+        "concurrency_test": "N/A: handler unit test",
+        "failure_behavior": "fail the build if a handler bypasses the orchestrator"
       }
     ]
   },
@@ -1443,6 +1484,66 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:ffcabb4863412e86",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/edpsvc/main_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:494b0e61f31088fe",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/edpsvc/main_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:7de65140765534db",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/edpsvc/main_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:4b0a34134e3e4d0d",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/edpsvc/main_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:1d7e3cf6fc24760d",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/edpsvc/main_test.go"
     }
   ],
   "out_of_scope": [
@@ -1563,6 +1664,35 @@
       "review_sha": "d9b5a29b50a7",
       "review_scope": "delta",
       "candidate_sha": "07f5e8a51fff76f4c196519240432c01b0b6a8d9"
+    },
+    {
+      "at": "2026-11-24T05:58:40.827471+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "07f5e8a51fff76f4c196519240432c01b0b6a8d9",
+      "evidence": "BI-PF-1567-fd5d571d193e.json",
+      "findings": {
+        "NIT": [
+          "Prior NIT disposition appears wrong: traceability and ac_evidence still give all three ACs the single evidence artifact docs/MEMORY-ORCHESTRATOR-DESIGN.md with identical candidate_sha a536d6d1; per-suite Gate 2 test evidence not yet substituted."
+        ],
+        "MAJOR": [
+          "No control row maps the DoD-required \"edpsvc handler tests prove wiring\": C-2 applies_to go/edpsvc/main.go but every cited test lives in go/pfmemory/orchestrator_test.go, and go/edpsvc/main_test.go appears in no control, traceability, or test_matrix row — AC-1/AC-2 edpsvc evidence would be unmapped at Gate 2."
+        ],
+        "MINOR": [
+          "FR-1 traceability.test lists only go/pfmemory/orchestrator_test.go although FR-1 verification and DoD require \"go test ./... in go/edpsvc\"; traceability omits the second package.",
+          "Controls C-1/C-2/C-3/C-5 cite concurrency_test TestConcurrentCrossBoundary, which appears in no FR verification, suite list, or traceability row (FR-3 pins only TestConcurrentBoundaryLoad); dangling or duplicated test reference.",
+          "functional_spec.observability lists only memory_ops_total, memory_denied_total, memory_op_duration_seconds, omitting memory_filtered_projectless_total that control C-5 and risk D-1 depend on; the two changed sections disagree on the metric contract."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta correctly fixes the prior config contradictions (default 20, 5s cap), declares the controls mirror, adds bypass_test to contracts.files, and adds C-8 role-posture control; no blocker.",
+          "Top risks: unmapped edpsvc wiring test evidence for AC-1/AC-2, a dangling TestConcurrentCrossBoundary reference, and metric-contract drift on memory_filtered_projectless_total between functional_spec and controls."
+        ]
+      },
+      "head_sha": "f49ac48d4297d6d8e87364c0a0538b170835d296",
+      "review_sha": "fd5d571d193e",
+      "review_scope": "delta",
+      "candidate_sha": "f49ac48d4297d6d8e87364c0a0538b170835d296"
     }
   ],
   "affected_files": [
@@ -1746,7 +1876,7 @@
     "traceability": [
       {
         "fr": "FR-1",
-        "test": "go/pfmemory/orchestrator_test.go",
+        "test": "go/pfmemory/orchestrator_test.go, go/edpsvc/main_test.go",
         "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
@@ -1773,7 +1903,7 @@
       }
     ],
     "compatibility": "Allowed /memory response shapes are preserved. D-1 is a deliberate behavior change for legacy project-empty rows.",
-    "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds plus structured audit.",
+    "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds, memory_filtered_projectless_total; reuse edpsvc registry; audit.",
     "data_lifecycle": "Existing memory rows are unchanged. Governed reads hide project-empty rows. New writes require project. No retention or schema change.",
     "open_questions": [],
     "config_contract": {
@@ -1850,6 +1980,11 @@
   ],
   "review_dispositions": {
     "design": {
+      "sig:1d7e3cf6fc24760d": {
+        "by": "worker:design-1567",
+        "note": "FR-1 traceability now includes go/edpsvc/main_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "DEFERRED"
+      },
       "sig:2217d95d0f1e02bd": {
         "by": "worker:design-1567",
         "note": "Timeout valid range and NFR both cap at 5s. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -1875,9 +2010,19 @@
         "note": "Design rewritten as Go-only go/pfmemory; no Python orchestrator See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
         "status": "ACTIONED"
       },
+      "sig:494b0e61f31088fe": {
+        "by": "worker:design-1567",
+        "note": "Added C-9 edpsvc wiring control and test_matrix row. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:4afb293c3bb5d5f0": {
         "by": "worker:design-1567",
         "note": "Consolidation removed; rollback is binary/wiring rollback with no data mutation See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:4b0a34134e3e4d0d": {
+        "by": "worker:design-1567",
+        "note": "functional_spec observability now includes memory_filtered_projectless_total. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:5043c3b0512b8ca3": {
@@ -1913,6 +2058,11 @@
       "sig:798eab32f8027293": {
         "by": "worker:design-1567",
         "note": "contracts.files now includes go/pfmemory/bypass_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:7de65140765534db": {
+        "by": "worker:design-1567",
+        "note": "FR-1 traceability now includes go/edpsvc/main_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:8651ef462f6d0296": {
@@ -1978,6 +2128,11 @@
       "sig:f5cfe9fa92ee71d1": {
         "by": "worker:design-1567",
         "note": "Fail-closed store error and 5s timeout are defined See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:ffcabb4863412e86": {
+        "by": "worker:design-1567",
+        "note": "Added C-9 edpsvc wiring control and test_matrix row. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       }
     }
