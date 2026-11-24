@@ -1,46 +1,164 @@
 {
   "id": "BI-PF-1567",
+  "due": "",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "agent-memory-platform:memory-orchestrator",
-  "label": "PF Backlog 702",
-  "title": "Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering",
   "body": "## Problem / why\nDirect database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.\n\n## Goal & value\nBuild the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.\n\n## Reference Documents\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-7`\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-14`\n\n## In scope\n- Unified gateway interface (Put, Get, Search, Delete, Validate, Consolidate).\n- Multi-tenant isolation and Row-Level Security (RLS) enforcement.\n- Project and user ACL boundary checks.\n- Negative penetration tests verifying zero cross-tenant leakage.\n\n## Out of scope\n- Direct bypass of the orchestrator by individual agent workers.\n\n## Definition of Done\n- Leakage penetration tests pass with zero cross-boundary exposure.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
-  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
-  "status": "in_progress",
-  "priority": "P2",
-  "moscow": "Should",
-  "value": 5,
-  "effort": 3,
-  "risk": 2,
   "deps": [
     "BI-PF-1566"
   ],
-  "links": {},
-  "decisions": [
-    {
-      "at": "2026-11-22T14:11:22.904861",
-      "decision": "APPROVE",
-      "by": "system",
-      "note": "auto-approved on add (BI-PF-1282)"
-    }
-  ],
-  "follow_up": {},
+  "epic": "BI-PF-1565",
+  "risk": 2,
+  "tier": 3,
+  "type": "feature",
+  "_note": "disposition evidence references normalized",
   "brief": {
+    "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
+    "source": "authored",
     "problem": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "what_adds": "Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.",
-    "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "authored"
+    "who_feels": "Product Forge maintainers and consumers."
   },
-  "objective": "Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.",
-  "acceptance_criteria": [
-    "AC-1: Memory Orchestrator intercepts and validates all memory reads, writes, and searches.",
-    "AC-2: SQL/storage filters guarantee zero cross-tenant and cross-project data leakage.",
-    "AC-3: Four negative leakage test suites verify boundary isolation under concurrent load."
+  "label": "PF Backlog 702",
+  "links": {},
+  "owner": "agent",
+  "risks": [
+    "D-1 strict project isolation hides legacy project-empty rows until migrated",
+    "PostgreSQL role misconfiguration could weaken RLS; role-posture test mitigates",
+    "Caller-supplied tenant in legacy payload could be trusted by mistake; Scope comparison test mitigates",
+    "Search result count could grow without bounds; k cap and timeout mitigate"
+  ],
+  "scope": "product_forge",
+  "score": 1.25,
+  "title": "Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering",
+  "value": 5,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-1565",
+  "review": {
+    "at": "2026-11-24T05:45:44.555210+00:00",
+    "reviewed_by": "worker",
+    "impact_review": [
+      {
+        "claim": "Language rule: all new logic is Go in go/pfmemory; no new Python",
+        "verdict": "aligned",
+        "evidence": "go/pfmemory planned; docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "recommendation": "Keep implementation Go-only"
+      },
+      {
+        "claim": "API: existing /memory only; no new public API",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/main.go:334",
+        "recommendation": "Wire existing handlers"
+      },
+      {
+        "claim": "AC: three ACs map to runtime coverage, controls, and tests",
+        "verdict": "aligned",
+        "evidence": "design_pack.coverage and implementation_controls",
+        "recommendation": "Implement after Gate 1"
+      },
+      {
+        "claim": "Tenant/RLS: server Scope plus repository filters and post-read checks",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/main.go:1166, go/datastore/datastore.go:201",
+        "recommendation": "Keep non-leaky denials"
+      },
+      {
+        "claim": "Scope: consolidation and lifecycle are excluded",
+        "verdict": "aligned",
+        "evidence": "BI-PF-1569, BI-PF-1570",
+        "recommendation": "No scope expansion"
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "Server resolves authenticated tenant/project/principal",
+        "datastore.MemoryRepository remains the adapter",
+        "Legacy project-empty rows are hidden"
+      ],
+      "divergences": [
+        "D-1 strict project isolation",
+        "D-2 consolidation deferred to BI-PF-1569",
+        "D-3 no new public API"
+      ],
+      "existing_path": [
+        "go/memory/record.go:180 Validate",
+        "go/datastore/datastore.go:201 MemoryRepository",
+        "go/edpsvc/main.go:1166 memoryHandle",
+        "go/edpsvc/main.go:1249 memoryByID",
+        "go/dualvec/sqlite_store.go:230 Get",
+        "go/dualvec/sqlite_store.go:256 Delete"
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "BI-PF-1566 canonical MemoryRecord completed",
+        "Go-only new logic",
+        "RLS/tenant isolation remains mandatory",
+        "Existing /memory is the EDP surface"
+      ]
+    }
+  },
+  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "status": "new",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "STALE",
+    "evidence": [
+      "similar=4",
+      "score=1.25",
+      "components=5",
+      "apis=6"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-22T14:11:22.561527",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/audit/readiness",
+      "/api/v1/backlog/items/{item_id}/readiness",
+      "/api/v1/engineering/ci-cd/{scope}",
+      "/api/v1/ready",
+      "/api/v1/release/readiness",
+      "/ready"
+    ],
+    "arch_fingerprint": "ad347cce52333ab0",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/pf-review-scope.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/agent_readiness.py",
+      "core/global_orchestrator.py",
+      "core/memory_api.py",
+      "core/write_safety.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/agent_readiness.py, core/global_orchestrator.py, core/memory_api.py"
+  },
+  "approach": "Go-only memory gateway in go/pfmemory wrapping the canonical memory store with server-resolved Scope, tenant/project filters, RLS and ACL checks.",
+  "children": [],
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1567): sig:7c54798b95d891e9 (20 lines)"
   ],
   "in_scope": [
     "Unified gateway interface (Put, Get, Search, Delete, Validate, Consolidate).",
@@ -48,30 +166,967 @@
     "Project and user ACL boundary checks.",
     "Negative penetration tests verifying zero cross-tenant leakage."
   ],
+  "priority": "P2",
+  "revision": 3,
+  "rollback": "Remove go/pfmemory and call-site wiring; no schema migration.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-22T14:11:22.904861",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 1,
+    "lease_id": "",
+    "worker_id": "opencode:gate0-1567",
+    "started_at": "2026-11-24T05:38:57.404012+00:00",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict tenant and project ACL enforcement.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:11:22.736371"
+  },
+  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "spec_pack": {
+    "status": "draft",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1567.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "owner": "BI-PF-1567",
+        "reason": "gateway design",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1567.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "owner": "BI-PF-1567",
+        "reason": "Internal Go gateway; no new public API",
+        "status": "N/A"
+      },
+      {
+        "spec": "data_contract",
+        "owner": "BI-PF-1567",
+        "reason": "canonical memory store",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "data"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "owner": "BI-PF-1567",
+        "reason": "ACL batch bound",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "design"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "BI-PF-1567",
+        "reason": "bounded ops",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "observability"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "BI-PF-1567",
+        "reason": "tenant/ACL",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "security"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "BI-PF-1567",
+        "reason": "No schema migration",
+        "status": "N/A"
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "BI-PF-1567",
+        "reason": "package rollback",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "rollback"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "BI-PF-1567",
+        "reason": "metrics/audit",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "observability"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "BI-PF-1567",
+        "reason": "No user interface",
+        "status": "N/A"
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "BI-PF-1567",
+        "reason": "No new personal data collection",
+        "status": "N/A"
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "BI-PF-1567",
+        "reason": "Go package plan",
+        "status": "APPLICABLE",
+        "artifact": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "BI-PF-1567",
+        "reason": "negative suites",
+        "status": "APPLICABLE",
+        "artifact": "go/pfmemory/orchestrator_test.go",
+        "evidence": [
+          "go/pfmemory/orchestrator_test.go"
+        ],
+        "sections": [
+          "all"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1567.md"
+  },
+  "api_impact": {
+    "reason": "Internal Go gateway; no new public /memory API.",
+    "routes": [],
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-22T14:11:18.369085",
+  "updated_at": "2026-11-24T11:18:50.217723",
+  "design_pack": {
+    "audit": "Append-only audit events for every mutation and denial with tenant, project, actor, operation, safe record ID, outcome, reason code, and timestamp. No content, embeddings, or secrets.",
+    "risks": [
+      "D-1 strict project isolation hides legacy project-empty rows until migrated",
+      "PostgreSQL role misconfiguration could weaken RLS; role-posture test mitigates",
+      "Caller-supplied tenant in legacy payload could be trusted by mistake; Scope comparison test mitigates",
+      "Search result count could grow without bounds; k cap and timeout mitigate"
+    ],
+    "scope": [
+      "Go memory gateway go/pfmemory",
+      "Authenticated Scope and ACL enforcement",
+      "edpsvc /memory handler wiring",
+      "Four negative leakage suites"
+    ],
+    "quotas": "Single-record writes and deletes; search k capped at 100; canonical payload limits from go/memory; no consolidation batch.",
+    "rollout": "Additive Go package plus edpsvc wiring; deploy and roll back by binary rollback.",
+    "tooling": false,
+    "version": 2,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "failure",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:Orchestrator",
+        "control": "All memory operations route through the orchestrator and writes use canonical validation",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestPutRejectsInvalidRecord",
+        "observability": "memory_ops_total and audit",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestPutValidated",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "fail closed with ErrNotFound or validation error"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "security",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/edpsvc/main.go:memoryHandle",
+        "control": "Tenant/project/ACL are derived from server Scope and checked before returning or mutating",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "security_model",
+        "applies_to": "go/edpsvc/main.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
+        "observability": "memory_denied_total",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedReadWrite",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "deny non-leakily with ErrNotFound"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-3",
+        "kind": "tenant",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:authorize",
+        "control": "Single-record reads and deletes verify tenant, project, and ACL after repository access",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "rls_tenant",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantGetDelete",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
+        "observability": "memory_denied_total reason=acl_tenant_project",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "deny non-leakily with ErrNotFound"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-4",
+        "kind": "failure",
+        "check": "go test -race ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "control": "Four negative leakage suites run under concurrency with the race detector",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "failure_taxonomy",
+        "applies_to": "go/pfmemory/orchestrator_test.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "fail the build on any cross-boundary exposure"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-5",
+        "kind": "observability",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/metrics.go:Observer",
+        "control": "Every operation and denial emits bounded metrics and audit",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "observability",
+        "applies_to": "go/pfmemory/metrics.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestDeniedAudit",
+        "observability": "memory_ops_total memory_denied_total memory_op_duration_seconds",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestMetricsAudit",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "observer failures never bypass the policy decision"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-6",
+        "kind": "config",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:WithLimits",
+        "control": "Search size and operation timeout are bounded and validated at startup/use",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "quotas",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "N/A: limits are server policy",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestLimitExceeded",
+        "observability": "memory_denied_total reason=limit",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestLimits",
+        "concurrency_test": "N/A: limits are immutable",
+        "failure_behavior": "reject invalid limits and oversized search before repository access"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "go test ./..."
+        ],
+        "adapter": "datastore.MemoryRepository",
+        "contract": "Scope + Put/Get/Search/Delete/Validate; denied returns ErrNotFound",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "call_sites": [
+          "go/edpsvc/main.go:memoryHandle",
+          "go/edpsvc/main.go:memoryByID"
+        ],
+        "entrypoint": "go/pfmemory/orchestrator.go:Orchestrator",
+        "failure_cases": [
+          "missing scope",
+          "validation failure",
+          "repository failure"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "go test ./..."
+        ],
+        "adapter": "datastore.MemoryRepository",
+        "contract": "tenant/project/ACL filters on every operation",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "call_sites": [
+          "go/edpsvc/main.go:memoryHandle",
+          "go/edpsvc/main.go:memoryByID"
+        ],
+        "entrypoint": "go/pfmemory/orchestrator.go:Orchestrator",
+        "failure_cases": [
+          "cross-tenant",
+          "cross-project",
+          "private ACL denial"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "go test -race ./..."
+        ],
+        "adapter": "datastore.MemoryRepository",
+        "contract": "four negative leakage suites under concurrent load",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "call_sites": [
+          "go/edpsvc/main.go:memoryHandle",
+          "go/edpsvc/main.go:memoryByID"
+        ],
+        "entrypoint": "go/pfmemory/orchestrator.go:Orchestrator",
+        "failure_cases": [
+          "concurrent cross-tenant",
+          "concurrent cross-project",
+          "concurrent ACL deny",
+          "mixed boundary load"
+        ]
+      }
+    ],
+    "evidence": [
+      "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+    ],
+    "rollback": "Revert the gateway wiring and restore the prior edpsvc binary. No schema or stored-data mutation.",
+    "contracts": {
+      "db": "Existing memory store and RLS; no schema change",
+      "api": "Existing /memory and /memory/{id}; no new route",
+      "files": [
+        "go/pfmemory/orchestrator.go",
+        "go/pfmemory/metrics.go",
+        "go/pfmemory/orchestrator_test.go",
+        "go/edpsvc/main.go",
+        "go/edpsvc/main_test.go",
+        "go/edpsvc/go.mod",
+        "go/pfmemory/go.mod",
+        "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+      ],
+      "config": {
+        "PF_MEMORY_PRINCIPAL": {
+          "empty": "deny in production",
+          "valid": "non-empty principal",
+          "default": "existing server principal",
+          "invalid": "deny",
+          "startup": "server resolved",
+          "precedence": "server"
+        },
+        "PF_MEMORY_OP_TIMEOUT": {
+          "empty": "5s",
+          "valid": "positive duration",
+          "default": "5s",
+          "invalid": "fail startup",
+          "startup": "validated",
+          "precedence": "env"
+        },
+        "PF_MEMORY_MAX_SEARCH_K": {
+          "empty": "100",
+          "valid": "1..1000",
+          "default": "100",
+          "invalid": "fail startup",
+          "startup": "validated",
+          "precedence": "env"
+        }
+      }
+    },
+    "decisions": [
+      "Go-only gateway",
+      "Existing /memory surface is governed, no new API",
+      "Strict project isolation for governed reads",
+      "Consolidation deferred to BI-PF-1569"
+    ],
+    "learnings": [
+      "Prior 1567 draft claimed tests before implementation; design evidence is now separated from Gate 2 proof"
+    ],
+    "non_goals": [
+      "New public memory API",
+      "Python orchestrator",
+      "Consolidation (BI-PF-1569)",
+      "Lifecycle governance (BI-PF-1570)",
+      "Schema migration"
+    ],
+    "ownership": "go/pfmemory owns gateway policy; go/memory owns canonical validation; go/datastore owns repository contract; go/dualvec owns storage; go/edpsvc owns the HTTP surface and authenticated Scope.",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": "Canonical memory.MemoryRecord is validated then mapped to datastore.MemoryEntry. Existing memory storage schema is unchanged; project-empty legacy rows are not returned by governed reads.",
+    "guardrails": [
+      "No cross-tenant/project leakage",
+      "Server-resolved Scope only",
+      "RLS role posture test",
+      "Non-leaky denial",
+      "Bounded search",
+      "No bulk delete",
+      "No schema migration"
+    ],
+    "invariants": [
+      "No cross-tenant or cross-project data exposure",
+      "Caller cannot choose authoritative tenant/project",
+      "Denied access is indistinguishable from not found",
+      "Writes require canonical validation",
+      "Search and batch sizes are bounded"
+    ],
+    "proof_plan": {
+      "failing_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+      "red_evidence": "current edpsvc Get/Delete by ID and project-empty search leak cross-boundary access",
+      "green_evidence": "same tests pass after edpsvc handlers use pfmemory.Orchestrator"
+    },
+    "rls_tenant": "PostgreSQL tenant binding stays in the existing datastore adapter. The orchestrator rechecks tenant and project after every single-record read. Role posture is tested against PostgreSQL when a test DSN is configured.",
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "candidate_sha": "a9425dfd"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "candidate_sha": "a9425dfd"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "candidate_sha": "a9425dfd"
+      }
+    ],
+    "performance": "bounded search and 5s timeout",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/integration",
+        "test": "go test ./... in go/pfmemory and go/edpsvc"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "negative/security",
+        "test": "go test ./... in go/pfmemory"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "negative/concurrency",
+        "test": "go test -race ./... in go/pfmemory"
+      }
+    ],
+    "api_contract": "Existing edpsvc /memory and /memory/{id} routes only. No new public route. Response shapes for allowed operations remain unchanged.",
+    "design_areas": [
+      {
+        "area": "agent-memory",
+        "reason": "governed memory gateway",
+        "status": "APPLICABLE",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "runtime",
+          "security",
+          "tenant",
+          "observability",
+          "rollback"
+        ]
+      },
+      {
+        "area": "api",
+        "reason": "existing /memory surface only",
+        "status": "APPLICABLE",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "api"
+        ]
+      },
+      {
+        "area": "data",
+        "reason": "existing memory store and RLS",
+        "status": "APPLICABLE",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "sections": [
+          "data"
+        ]
+      },
+      {
+        "area": "ui",
+        "reason": "no user interface",
+        "status": "N/A",
+        "reason_code": "NO_UI"
+      }
+    ],
+    "requirements": [
+      "Intercept and validate all memory operations",
+      "Enforce zero cross-tenant and cross-project leakage",
+      "Prove four negative leakage suites under concurrency"
+    ],
+    "review_scope": {
+      "files": [
+        "go/pfmemory/go.mod",
+        "go/pfmemory/orchestrator.go",
+        "go/pfmemory/metrics.go",
+        "go/pfmemory/orchestrator_test.go",
+        "go/edpsvc/main.go",
+        "go/edpsvc/main_test.go",
+        "go/edpsvc/go.mod",
+        "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "exclude": [
+        "go/dualvec storage implementation",
+        "go/memory contract implementation",
+        "migrations",
+        "dashboard"
+      ],
+      "components": [
+        "go/pfmemory",
+        "go/edpsvc memory handlers",
+        "datastore memory contract"
+      ]
+    },
+    "compatibility": "Allowed request/response shapes are preserved. Legacy project-empty rows are hidden from governed reads (D-1), and new writes require a project.",
+    "observability": "memory_ops_total{op,result}, memory_denied_total{reason}, memory_op_duration_seconds{op,result}; structured audit for read/write/search/delete/denied.",
+    "prerequisites": [
+      "BI-PF-1566 canonical MemoryRecord completed",
+      "datastore.MemoryRepository and dualvec available",
+      "edpsvc /memory routes available",
+      "runtime DB role is NOSUPERUSER/NOBYPASSRLS in production"
+    ],
+    "runtime_calls": [
+      "go/edpsvc/main.go:memoryHandle",
+      "go/edpsvc/main.go:memoryByID"
+    ],
+    "backup_restore": "No new store or artifact. Existing EDP database backup and restore path remains authoritative. Restore verification is unchanged and covered by the data plane runbook.",
+    "failure_matrix": [
+      {
+        "case": "missing scope",
+        "code": "MEMORY_INVALID_SCOPE",
+        "behavior": "deny before repository call"
+      },
+      {
+        "case": "cross-tenant",
+        "code": "MEMORY_NOT_FOUND",
+        "behavior": "ErrNotFound"
+      },
+      {
+        "case": "cross-project",
+        "code": "MEMORY_NOT_FOUND",
+        "behavior": "ErrNotFound"
+      },
+      {
+        "case": "private owner mismatch",
+        "code": "MEMORY_NOT_FOUND",
+        "behavior": "ErrNotFound"
+      },
+      {
+        "case": "validation failure",
+        "code": "MEMORY_VALIDATION_FAILED",
+        "behavior": "reject request"
+      },
+      {
+        "case": "repository unavailable",
+        "code": "MEMORY_STORE_UNAVAILABLE",
+        "behavior": "fail closed"
+      },
+      {
+        "case": "search limit exceeded",
+        "code": "MEMORY_LIMIT_EXCEEDED",
+        "behavior": "reject request"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1567.md",
+    "open_questions": [],
+    "security_model": "Tenant, project, principal, ACLScope, and owner are server-resolved and checked before records are returned or changed. Admin roles do not bypass tenant/project boundaries in this item.",
+    "code_guidelines": [
+      "docs/guidelines/coding/go/pf-go.md",
+      "docs/guidelines/coding/go/style-guide.md"
+    ],
+    "stop_conditions": [
+      "new public API requested",
+      "consolidation or lifecycle scope requested",
+      "project isolation relaxed",
+      "schema migration required",
+      "more than one capability requested"
+    ],
+    "failure_taxonomy": [
+      "ErrInvalidScope",
+      "validation error",
+      "ErrNotFound for cross-tenant/project/ACL denial",
+      "wrapped repository error",
+      "ErrLimitExceeded"
+    ],
+    "runtime_contract": {
+      "adapter": "datastore.MemoryRepository backed by dualvec",
+      "trigger": "HTTP memory operation",
+      "contract": "Authenticated Scope; 5s maximum operation timeout; fail closed",
+      "call_sites": [
+        "go/edpsvc/main.go:memoryHandle",
+        "go/edpsvc/main.go:memoryByID"
+      ],
+      "entrypoint": "go/pfmemory/orchestrator.go:Orchestrator",
+      "failure_behavior": "ErrNotFound for denial; wrapped store error for unavailable storage",
+      "observable_result": "bounded metrics and structured audit"
+    },
+    "rollback_recovery": "Revert edpsvc wiring or deploy the previous binary. No schema migration and no bulk mutation, so no compensating data script is required.",
+    "deployment_rollout": "Build pfmemory and edpsvc, run unit/race/integration tests, deploy edpsvc, verify allowed operations and denial metrics, roll back on error or denial spikes.",
+    "guideline_coverage": [
+      {
+        "check": "go test ./...",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "guideline": "docs/guidelines/coding/go/pf-go.md",
+        "applies_to": "go/pfmemory/orchestrator.go"
+      },
+      {
+        "check": "go test ./...",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "guideline": "docs/guidelines/coding/go/style-guide.md",
+        "applies_to": "go/pfmemory/orchestrator.go"
+      }
+    ],
+    "observability_detail": {
+      "audit": [
+        "memory.write",
+        "memory.read",
+        "memory.search",
+        "memory.delete",
+        "memory.denied"
+      ],
+      "metrics": [
+        "memory_ops_total",
+        "memory_denied_total",
+        "memory_op_duration_seconds"
+      ]
+    },
+    "performance_capacity": "Search returns at most 100 rows (default 20). Operation timeout is 5 seconds or caller deadline. Canonical content is capped at 1 MiB and embeddings at 3072 dimensions. No unbounded scans or background jobs.",
+    "concurrency_idempotency": "Put is idempotent by record ID for the same tenant/project/owner. Cross-tenant/project ID reuse is denied. The orchestrator is stateless and race-tested under concurrent boundary load.",
+    "failure_taxonomy_detail": {
+      "limit": "reject before IO",
+      "store": "fail closed with wrapped error",
+      "denial": "ErrNotFound",
+      "validation": "reject with validation error",
+      "invalid_scope": "deny before IO"
+    },
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "failure",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:Orchestrator",
+        "control": "All memory operations route through the orchestrator and writes use canonical validation",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "runtime_contract",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestPutRejectsInvalidRecord",
+        "observability": "memory_ops_total and audit",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestPutValidated",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "fail closed with ErrNotFound or validation error"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "security",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/edpsvc/main.go:memoryHandle",
+        "control": "Tenant/project/ACL are derived from server Scope and checked before returning or mutating",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "security_model",
+        "applies_to": "go/edpsvc/main.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestTenantProjectDenied",
+        "observability": "memory_denied_total",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestAllowedReadWrite",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "deny non-leakily with ErrNotFound"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-3",
+        "kind": "tenant",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:authorize",
+        "control": "Single-record reads and deletes verify tenant, project, and ACL after repository access",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "rls_tenant",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantGetDelete",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteNonLeaky",
+        "observability": "memory_denied_total reason=acl_tenant_project",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestGetDeleteAllowed",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "deny non-leakily with ErrNotFound"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-4",
+        "kind": "failure",
+        "check": "go test -race ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "control": "Four negative leakage suites run under concurrency with the race detector",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "failure_taxonomy",
+        "applies_to": "go/pfmemory/orchestrator_test.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "fail the build on any cross-boundary exposure"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-5",
+        "kind": "observability",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/metrics.go:Observer",
+        "control": "Every operation and denial emits bounded metrics and audit",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "observability",
+        "applies_to": "go/pfmemory/metrics.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestDeniedAudit",
+        "observability": "memory_ops_total memory_denied_total memory_op_duration_seconds",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestMetricsAudit",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentCrossBoundary",
+        "failure_behavior": "observer failures never bypass the policy decision"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-6",
+        "kind": "config",
+        "check": "go test ./...",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:WithLimits",
+        "control": "Search size and operation timeout are bounded and validated at startup/use",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "quotas",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "N/A: limits are server policy",
+        "candidate_sha": "a9425dfd",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestLimitExceeded",
+        "observability": "memory_denied_total reason=limit",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestLimits",
+        "concurrency_test": "N/A: limits are immutable",
+        "failure_behavior": "reject invalid limits and oversized search before repository access"
+      }
+    ]
+  },
+  "external_id": "agent-memory-platform:memory-orchestrator",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1566",
+      "required_state": "completed"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:4588f557b2800ced",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:d5c46bfd814f5ae7",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:5ea13e33ba167e98",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:275df5718d45bad3",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:f5cfe9fa92ee71d1",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:a951ac411ae6d091",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:4afb293c3bb5d5f0",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:5043c3b0512b8ca3",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "design-contract",
+        "design-completeness",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    }
+  ],
   "out_of_scope": [
     "Direct bypass of the orchestrator by individual agent workers."
   ],
-  "affected_components": [
-    "docs"
+  "tier_reasons": [
+    "tenant/ACL/RLS security boundary",
+    "new Go runtime gateway wired into edpsvc",
+    "cross-tenant leakage risk requires independent verification"
   ],
-  "affected_files": [
-    "core/memory_orchestrator.py",
-    "go/pfmemory/orchestrator.go",
-    "go/pfmemory/orchestrator_test.go"
-  ],
-  "approach": "Unified gateway interface (Put, Get, Search, Delete, Validate, Consolidate).; Multi-tenant isolation and Row-Level Security (RLS) enforcement.; Project and user ACL boundary checks.",
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [\n          {"claim": "api", "verdict": "aligned", "evidence": "none", "recommendation": "none"},\n          {"claim": "ac", "verdict": "aligned", "evidence": "none", "recommendation": "none"}\n        ],
-    "reviewed_by": "derived",
-    "at": ""
-  },
   "verification": [
     "Leakage penetration tests pass with zero cross-boundary exposure.",
     "Feature branch off develop (never commit to develop/main directly).",
@@ -82,113 +1137,365 @@
     "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
     "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
   ],
-  "risks": [
-    "Not specified."
-  ],
-  "rollback": "Revert the change.",
-  "evidence": [
-    "pending",
-    "Design guardrails applied (BI-PF-1567): sig:7c54798b95d891e9 (20 lines)"
-  ],
-  "owner": "agent",
-  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
-  "epic": "BI-PF-1565",
-  "parent": "BI-PF-1565",
-  "revision": 3,
   "priority_rank": 2,
-  "priority_class": "P2",
-  "analyze_mode": "on_entry",
-  "analysis": {
-    "status": "STALE",
-    "analyzed_at": "2026-11-22T14:11:22.561527",
-    "analyzed_by": "system",
-    "revision_analyzed": 2,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/agent_readiness.py, core/global_orchestrator.py, core/memory_api.py",
-    "existing_components": [
-      "core/agent_memory.py",
-      "core/agent_readiness.py",
-      "core/global_orchestrator.py",
-      "core/memory_api.py",
-      "core/write_safety.py"
-    ],
-    "existing_apis": [
-      "/api/v1/audit/readiness",
-      "/api/v1/backlog/items/{item_id}/readiness",
-      "/api/v1/engineering/ci-cd/{scope}",
-      "/api/v1/ready",
-      "/api/v1/release/readiness",
-      "/ready"
-    ],
-    "existing_modules": [
-      "config/pf-review-scope.json"
-    ],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=1.25",
-      "components=5",
-      "apis=6"
-    ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
-    "decision_request": {
-      "needed": false,
-      "reasons": [],
-      "ask": ""
-    },
-    "arch_fingerprint": "ad347cce52333ab0"
-  },
-  "dependencies": [
+  "review_ledger": [
     {
-      "task_id": "BI-PF-1566",
-      "type": "REQUIRES",
-      "required_state": "completed"
+      "at": "2026-11-23T08:44:08.719911+00:00",
+      "mode": "design",
+      "model": "gemini-3-flash-preview",
+      "base_sha": "",
+      "evidence": "BI-PF-1567-053091627b34.json",
+      "findings": {
+        "NIT": [
+          "Logic Duplication: The simultaneous existence of `core/memory_orchestrator.py` and `go/pfmemory/orchestrator.go` suggests logic drift and unclear component ownership."
+        ],
+        "MAJOR": [
+          "Observability (CL-010): No definition for telemetry, metrics, or logging of intercepted operations and ACL denials, preventing auditability of the security gateway.",
+          "Availability (Checklist 2): Design lacks a failure-mode definition (e.g., fail-closed) and circuit-breaking logic for when the underlying storage provider is unreachable."
+        ],
+        "MINOR": [
+          "Dry-run Mode (Checklist 4): Destructive operations like 'Delete' and 'Consolidate' lack a mandatory dry-run/report mode to bound the blast radius of automated operations.",
+          "Reversibility (Checklist 1): No verified backup or state-reversal path is defined for the 'Consolidate' operation, which may destructively modify memory history."
+        ],
+        "BLOCKER": [
+          "Language Rule Violation: \"Build the central Memory Orchestrator\" constitutes new shipped logic; implementation in `core/memory_orchestrator.py` violates the Go-only requirement for new logic.",
+          "Security Posture (CL-011): Design fails to specify or enforce the runtime role posture (NOSUPERUSER/NOBYPASSRLS), which is mandatory to ensure RLS integrity and prevent bypass.",
+          "Parameterized Binding (CL-013): Missing requirement for constant-time token comparison and strictly parameterized tenant binding in the gateway interface to prevent leakage."
+        ],
+        "SUMMARY": [
+          "The design establishes a critical security gateway but violates core engineering standards regarding language selection and mandatory security postures (RLS).",
+          "Top risks include potential RLS bypass due to undefined role permissions and a total lack of operational observability for security events."
+        ]
+      },
+      "head_sha": "b8ad85e7a7b66271cc2c29fa47e8f1502f4ac84d",
+      "review_sha": "053091627b34",
+      "review_scope": "full_candidate",
+      "candidate_sha": "b8ad85e7a7b66271cc2c29fa47e8f1502f4ac84d"
     }
   ],
-  "blocked_by": [],
-  "unlocks": [],
-  "readiness": {
-    "ready": true,
-    "reasons": [],
-    "computed_at": "2026-11-22T14:11:22.736371"
+  "affected_files": [
+    "go/pfmemory/go.mod",
+    "go/pfmemory/orchestrator.go",
+    "go/pfmemory/metrics.go",
+    "go/pfmemory/orchestrator_test.go",
+    "go/edpsvc/main.go",
+    "go/edpsvc/main_test.go",
+    "go/edpsvc/go.mod",
+    "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "functional_spec": {
+    "dod": [
+      "All four leakage suites pass with -race",
+      "edpsvc handler tests prove wiring",
+      "allowed /memory behavior remains compatible",
+      "metrics and audit observed",
+      "delivery provenance recorded"
+    ],
+    "nfr": [
+      "search k <= 100",
+      "operation timeout <= 5s",
+      "zero cross-tenant/project leakage under -race",
+      "no unbounded scans"
+    ],
+    "owner": "Srinikc",
+    "scope": [
+      "go/pfmemory gateway",
+      "edpsvc /memory wiring",
+      "tenant/project/ACL enforcement",
+      "four negative leakage suites"
+    ],
+    "actors": [
+      "agent worker",
+      "operator",
+      "edpsvc HTTP caller"
+    ],
+    "domain": "agent memory",
+    "source": "BI-PF-1567",
+    "status": "draft",
+    "outcome": "A Go gateway governs every existing memory operation with server-resolved tenant/project/ACL enforcement and canonical validation.",
+    "version": 2,
+    "rollback": "Revert the gateway wiring and restore the prior edpsvc binary. No schema or stored-data mutation.",
+    "non_goals": [
+      "new public memory API",
+      "Python orchestrator",
+      "consolidation",
+      "lifecycle governance",
+      "schema migration"
+    ],
+    "assumptions": [
+      "Authenticated tenant/project/principal are resolved at the server boundary",
+      "datastore.MemoryRepository remains the storage adapter",
+      "Legacy project-empty rows are hidden by governed reads pending migration"
+    ],
+    "dependencies": [
+      "BI-PF-1566",
+      "go/memory",
+      "go/datastore",
+      "go/dualvec",
+      "go/edpsvc"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "Scope and ACL are enforced server-side; caller authority fields are rejected on mismatch.",
+        "title": "Govern every memory operation",
+        "errors": [
+          "ErrInvalidScope",
+          "validation error",
+          "ErrNotFound",
+          "store error",
+          "ErrLimitExceeded"
+        ],
+        "inputs": [
+          "authenticated Scope",
+          "operation payload",
+          "server-resolved principal"
+        ],
+        "source": "BI-PF-1567",
+        "outputs": [
+          "scoped result",
+          "non-leaky denial",
+          "bounded metrics/audit"
+        ],
+        "trigger": "Authenticated memory operation enters edpsvc.",
+        "priority": "P0",
+        "acceptance": [
+          "Given an authenticated memory operation, when it enters edpsvc, then it is validated, scoped, and routed through the orchestrator."
+        ],
+        "data_rules": "Canonical validation then tenant/project/ACL filters.",
+        "edge_cases": [
+          "missing project",
+          "invalid kind",
+          "oversized payload",
+          "store unavailable"
+        ],
+        "idempotency": "Put is idempotent by record ID for the same tenant/project/owner.",
+        "verification": [
+          "go test ./... in go/pfmemory",
+          "go test ./... in go/edpsvc"
+        ],
+        "preconditions": "Canonical MemoryRecord and datastore.MemoryRepository exist."
+      },
+      {
+        "id": "FR-2",
+        "auth": "Tenant, project, ACLScope, and owner must match before any data or mutation is returned.",
+        "title": "Deny cross-boundary access",
+        "errors": [
+          "ErrNotFound"
+        ],
+        "inputs": [
+          "Scope",
+          "record target",
+          "search query"
+        ],
+        "source": "BI-PF-1567",
+        "outputs": [
+          "ErrNotFound on denial"
+        ],
+        "trigger": "Read, search, write, or delete targets another tenant/project or private owner.",
+        "priority": "P0",
+        "acceptance": [
+          "Given a cross-boundary request, when executed, then no data is returned or mutated and denial is non-leaky."
+        ],
+        "data_rules": "Tenant/project filters plus post-read authorization.",
+        "edge_cases": [
+          "cross-tenant ID read",
+          "cross-project ID delete",
+          "private owner mismatch",
+          "project-empty legacy row"
+        ],
+        "idempotency": "Denied operations have no side effects.",
+        "verification": [
+          "go test ./... in go/pfmemory",
+          "go test -race ./... in go/pfmemory"
+        ],
+        "preconditions": "Records from multiple tenants/projects exist."
+      },
+      {
+        "id": "FR-3",
+        "auth": "All suites use server-resolved Scope only.",
+        "title": "Prove leakage resistance under concurrency",
+        "errors": [
+          "any exposure fails the test suite"
+        ],
+        "inputs": [
+          "concurrent cross-tenant requests",
+          "concurrent cross-project requests",
+          "ACL denial requests",
+          "mixed load"
+        ],
+        "source": "BI-PF-1567",
+        "outputs": [
+          "all suites pass under race detector"
+        ],
+        "trigger": "Four negative leakage suites run concurrently.",
+        "priority": "P0",
+        "acceptance": [
+          "Given four negative leakage suites, when run concurrently with -race, then all pass with zero exposure."
+        ],
+        "data_rules": "No test may bypass the orchestrator.",
+        "edge_cases": [
+          "same ID across tenants",
+          "same project name across tenants",
+          "private record collision",
+          "concurrent delete/read"
+        ],
+        "idempotency": "Concurrent reads do not mutate state; writes use unique IDs.",
+        "verification": [
+          "go test -race ./... in go/pfmemory"
+        ],
+        "preconditions": "Fake and real repository adapters are available in tests."
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "go/pfmemory/orchestrator_test.go",
+        "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "candidate_sha": "a9425dfd"
+      },
+      {
+        "fr": "FR-2",
+        "test": "go/pfmemory/orchestrator_test.go",
+        "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "candidate_sha": "a9425dfd"
+      },
+      {
+        "fr": "FR-3",
+        "test": "go/pfmemory/orchestrator_test.go",
+        "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "evidence": [
+          "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
+        ],
+        "candidate_sha": "a9425dfd"
+      }
+    ],
+    "compatibility": "Allowed /memory response shapes are preserved. D-1 is a deliberate behavior change for legacy project-empty rows.",
+    "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds plus structured audit.",
+    "data_lifecycle": "Existing memory rows are unchanged. Governed reads hide project-empty rows. New writes require project. No retention or schema change.",
+    "open_questions": [],
+    "config_contract": {
+      "PF_MEMORY_PRINCIPAL": {
+        "empty": "deny in production",
+        "valid": "non-empty principal",
+        "default": "existing server principal",
+        "invalid": "deny",
+        "startup": "server resolved",
+        "precedence": "server"
+      },
+      "PF_MEMORY_OP_TIMEOUT": {
+        "empty": "5s",
+        "valid": "positive duration",
+        "default": "5s",
+        "invalid": "fail startup",
+        "startup": "validated",
+        "precedence": "env"
+      },
+      "PF_MEMORY_MAX_SEARCH_K": {
+        "empty": "100",
+        "valid": "1..1000",
+        "default": "100",
+        "invalid": "fail startup",
+        "startup": "validated",
+        "precedence": "env"
+      }
+    },
+    "operation_matrix": [
+      {
+        "actor": "agent worker",
+        "error": "validation or non-leaky denial",
+        "scope": "tenant/project",
+        "result": "validated scoped write",
+        "operation": "Put"
+      },
+      {
+        "actor": "agent worker",
+        "error": "ErrNotFound",
+        "scope": "tenant/project/ACL",
+        "result": "visible record",
+        "operation": "Get"
+      },
+      {
+        "actor": "agent worker",
+        "error": "ErrNotFound or limit error",
+        "scope": "tenant/project/ACL, k<=100",
+        "result": "bounded hits",
+        "operation": "Search"
+      },
+      {
+        "actor": "operator or agent worker",
+        "error": "ErrNotFound",
+        "scope": "tenant/project/ACL",
+        "result": "deleted",
+        "operation": "Delete"
+      },
+      {
+        "actor": "internal caller",
+        "error": "validation error",
+        "scope": "tenant/project",
+        "result": "validation result",
+        "operation": "Validate"
+      }
+    ]
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
-  },
-  "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-22T14:12:31.410009",
-  "score": 1.25,
-  "_note": "dependencies set",
-  "api_impact": {
-    "needs_api": false,
-    "routes": [],
-    "consumers": [],
-    "reason": "extends /memory API; internal gateway for agent workers"
+  "acceptance_criteria": [
+    "AC-1: Memory Orchestrator intercepts and validates all memory reads, writes, and searches.",
+    "AC-2: SQL/storage filters guarantee zero cross-tenant and cross-project data leakage.",
+    "AC-3: Four negative leakage test suites verify boundary isolation under concurrent load."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:275df5718d45bad3": {
+        "by": "worker:design-1567",
+        "note": "Bounded metrics and audit events are defined for operations and denials See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:4588f557b2800ced": {
+        "by": "worker:design-1567",
+        "note": "Design rewritten as Go-only go/pfmemory; no Python orchestrator See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:4afb293c3bb5d5f0": {
+        "by": "worker:design-1567",
+        "note": "Consolidation removed; rollback is binary/wiring rollback with no data mutation See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:5043c3b0512b8ca3": {
+        "by": "worker:design-1567",
+        "note": "Only go/pfmemory is in scope; the Python orchestrator is explicitly prohibited. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:5ea13e33ba167e98": {
+        "by": "worker:design-1567",
+        "note": "Scope-derived tenant/project/owner and canonical validation replace caller authority (go/pfmemory design). See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:a951ac411ae6d091": {
+        "by": "worker:design-1567",
+        "note": "Consolidation removed from 1567 and deferred to BI-PF-1569; only ACL-checked single-record delete remains. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:d5c46bfd814f5ae7": {
+        "by": "worker:design-1567",
+        "note": "RLS role posture, server Scope, and non-leaky denial are specified with tests See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:f5cfe9fa92ee71d1": {
+        "by": "worker:design-1567",
+        "note": "Fail-closed store error and 5s timeout are defined See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      }
+    }
   }
 }
