@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta 7ea3dec",
+  "_note": "disposition Gate 1.5 delta c4d4dc3",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -356,7 +356,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:47:55.855862",
+  "updated_at": "2026-11-24T11:49:57.789995",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -462,7 +462,7 @@
         "fr": "FR-1",
         "id": "C-5",
         "kind": "observability",
-        "check": "go test ./... (go/pfmemory)",
+        "check": "go test ./... (go/pfmemory + go/edpsvc)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/metrics.go:Observer",
         "control": "Every operation and denial emits bounded metrics and audit",
@@ -562,7 +562,7 @@
         "fr": "FR-2",
         "id": "C-10",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:DeleteScoped",
         "control": "SQLite scoped delete carries tenant/project/ACL/owner predicates",
@@ -582,7 +582,7 @@
         "fr": "FR-2",
         "id": "C-11",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:DeleteScoped",
         "control": "PostgreSQL scoped delete carries tenant/project/ACL/owner predicates",
@@ -602,7 +602,7 @@
         "fr": "FR-2",
         "id": "C-12",
         "kind": "tenant",
-        "check": "go test ./... (go/edpdata)",
+        "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:DeleteScoped",
         "control": "Underlying PostgreSQL memory store scoped delete carries tenant/project/ACL/owner predicates",
@@ -622,7 +622,7 @@
         "fr": "FR-2",
         "id": "C-13",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:GetScoped",
         "control": "SQLite scoped read applies tenant/project/ACL/owner predicates before returning",
@@ -642,7 +642,7 @@
         "fr": "FR-2",
         "id": "C-14",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:GetScoped",
         "control": "PostgreSQL scoped read applies tenant/project/ACL/owner predicates before returning",
@@ -662,7 +662,7 @@
         "fr": "FR-2",
         "id": "C-15",
         "kind": "tenant",
-        "check": "go test ./... (go/edpdata)",
+        "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:GetScoped",
         "control": "Underlying PostgreSQL memory store scoped read applies tenant/project/ACL/owner predicates",
@@ -675,14 +675,14 @@
         "observability": "test output",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetScopedAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
-        "failure_behavior": "fail closed; no unscoped fallback"
+        "failure_behavior": "fail closed with ErrNotFound on mismatch"
       },
       {
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-16",
         "kind": "security",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:Search",
         "control": "SQLite Search applies tenant/project/ACL filters before ranking and returning results",
@@ -702,7 +702,7 @@
         "fr": "FR-2",
         "id": "C-17",
         "kind": "security",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:Search",
         "control": "PostgreSQL Search applies tenant/project/ACL filters before ranking and returning results",
@@ -722,7 +722,7 @@
         "fr": "FR-2",
         "id": "C-18",
         "kind": "security",
-        "check": "go test ./... (go/edpdata)",
+        "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:Search",
         "control": "Underlying PostgreSQL memory store Search applies tenant/project/ACL filters in SQL",
@@ -736,6 +736,26 @@
         "positive_test": "go/pfmemory/orchestrator_test.go:TestSearchScopedAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "fail closed; mismatched hits never returned"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-19",
+        "kind": "security",
+        "check": "go test ./... (go/pfmemory)",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:scopeTx",
+        "control": "Tenant/project binding is parameterized through datastore.MemoryScope and never string-interpolated from caller input",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "security_model",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestScopeInjectionRejected",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestParameterizedScopeAllowed",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
+        "failure_behavior": "reject injection payloads and deny non-leakily"
       }
     ],
     "coverage": [
@@ -1245,7 +1265,7 @@
         "fr": "FR-1",
         "id": "C-5",
         "kind": "observability",
-        "check": "go test ./... (go/pfmemory)",
+        "check": "go test ./... (go/pfmemory + go/edpsvc)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/metrics.go:Observer",
         "control": "Every operation and denial emits bounded metrics and audit",
@@ -1345,7 +1365,7 @@
         "fr": "FR-2",
         "id": "C-10",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:DeleteScoped",
         "control": "SQLite scoped delete carries tenant/project/ACL/owner predicates",
@@ -1365,7 +1385,7 @@
         "fr": "FR-2",
         "id": "C-11",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:DeleteScoped",
         "control": "PostgreSQL scoped delete carries tenant/project/ACL/owner predicates",
@@ -1385,7 +1405,7 @@
         "fr": "FR-2",
         "id": "C-12",
         "kind": "tenant",
-        "check": "go test ./... (go/edpdata)",
+        "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:DeleteScoped",
         "control": "Underlying PostgreSQL memory store scoped delete carries tenant/project/ACL/owner predicates",
@@ -1405,7 +1425,7 @@
         "fr": "FR-2",
         "id": "C-13",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:GetScoped",
         "control": "SQLite scoped read applies tenant/project/ACL/owner predicates before returning",
@@ -1425,7 +1445,7 @@
         "fr": "FR-2",
         "id": "C-14",
         "kind": "tenant",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:GetScoped",
         "control": "PostgreSQL scoped read applies tenant/project/ACL/owner predicates before returning",
@@ -1445,7 +1465,7 @@
         "fr": "FR-2",
         "id": "C-15",
         "kind": "tenant",
-        "check": "go test ./... (go/edpdata)",
+        "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:GetScoped",
         "control": "Underlying PostgreSQL memory store scoped read applies tenant/project/ACL/owner predicates",
@@ -1458,14 +1478,14 @@
         "observability": "test output",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestGetScopedAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
-        "failure_behavior": "fail closed; no unscoped fallback"
+        "failure_behavior": "fail closed with ErrNotFound on mismatch"
       },
       {
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-16",
         "kind": "security",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:Search",
         "control": "SQLite Search applies tenant/project/ACL filters before ranking and returning results",
@@ -1485,7 +1505,7 @@
         "fr": "FR-2",
         "id": "C-17",
         "kind": "security",
-        "check": "go test ./... (go/dualvec)",
+        "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:Search",
         "control": "PostgreSQL Search applies tenant/project/ACL filters before ranking and returning results",
@@ -1505,7 +1525,7 @@
         "fr": "FR-2",
         "id": "C-18",
         "kind": "security",
-        "check": "go test ./... (go/edpdata)",
+        "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:Search",
         "control": "Underlying PostgreSQL memory store Search applies tenant/project/ACL filters in SQL",
@@ -1519,6 +1539,26 @@
         "positive_test": "go/pfmemory/orchestrator_test.go:TestSearchScopedAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "fail closed; mismatched hits never returned"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-19",
+        "kind": "security",
+        "check": "go test ./... (go/pfmemory)",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:scopeTx",
+        "control": "Tenant/project binding is parameterized through datastore.MemoryScope and never string-interpolated from caller input",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "security_model",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestScopeInjectionRejected",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestParameterizedScopeAllowed",
+        "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
+        "failure_behavior": "reject injection payloads and deny non-leakily"
       }
     ]
   },
@@ -2287,6 +2327,78 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:1cc54fd0f395e2a6",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:1fd6bcc8b20af825",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:4b83ebeb61192b26",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:584fe5f5ea7c116f",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:d4641eec8c1df1b7",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:d75d55ec8642c68a",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -2589,6 +2701,37 @@
       "review_sha": "7ea3decdec29",
       "review_scope": "delta",
       "candidate_sha": "1f21aa1c45f0b06ccbfe4f3344be5ffb0aad5d57"
+    },
+    {
+      "at": "2026-11-24T06:19:26.961871+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "1f21aa1c45f0b06ccbfe4f3344be5ffb0aad5d57",
+      "evidence": "BI-PF-1567-c4d4dc3c9711.json",
+      "findings": {
+        "NIT": [
+          "Check-command notation differs across artifacts: controls use `go test ./... (go/pfmemory)` while coverage/test_matrix rows use `in go/pfmemory`; unify the scope string to avoid drift checks flagging false mismatches.",
+          "C-6 `concurrency_test` and several `tenant_test` cells use \"N/A: ...\" free text instead of a stable sentinel, which complicates automated control-table validation."
+        ],
+        "MAJOR": [
+          "C-10 through C-18 cite `go/pfmemory/orchestrator_test.go` tests (e.g. TestCrossTenantReadWriteSearch, TestDeleteScopedAtomic) as tenant/negative evidence, but their `check` is `go test ./... (go/dualvec)` / `(go/edpdata)` — running the store modules never executes the cited pfmemory tests, so the AC-2 store controls' checks cannot produce their own evidence rows."
+        ],
+        "MINOR": [
+          "C-15 (edpdata GetScoped) `failure_behavior` is \"fail closed; no unscoped fallback\" while the sibling read controls C-13/C-14 state \"fail closed with ErrNotFound on mismatch\"; the delete-row alignment was actioned but the same divergence persists across the Get rows.",
+          "C-5 `check` is scoped to `go test ./... (go/pfmemory)` yet its `observability` control asserts \"reuse edpsvc metrics registry\" — registry reuse lives in go/edpsvc and is not verified by this check.",
+          "No control row encodes CL-013's parameterized tenant binding explicitly; AC-2 rows only say \"carries ... predicates\", leaving parameterization asserted implicitly rather than test-enforced."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta correctly actioned all five prior dispositions (C-8 and C-4 pinned, module scopes pinned, edpdata delete wording aligned, mirror declared), so no prior findings reopen.",
+          "Top risk: AC-2 store-level controls pair module-scoped checks with test symbols that live in a different module, leaving the strongest isolation evidence unexecutable by the stated check.",
+          "Secondary: observability reuse and parameterized-binding guarantees are asserted but not tied to an executable control; overall design direction (Go gateway, server-resolved Scope, fail-closed, race-tested leakage suites) remains sound."
+        ]
+      },
+      "head_sha": "fc26a2cf250682bcbf918d5511f194689231ec11",
+      "review_sha": "c4d4dc3c9711",
+      "review_scope": "delta",
+      "candidate_sha": "fc26a2cf250682bcbf918d5511f194689231ec11"
     }
   ],
   "affected_files": [
@@ -2903,6 +3046,11 @@
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:1cc54fd0f395e2a6": {
+        "by": "worker:design-1567",
+        "note": "Store controls now run both adapter and pfmemory packages. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:1d7e3cf6fc24760d": {
         "by": "worker:design-1567",
         "note": "FR-1 traceability now includes go/edpsvc/main_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -2911,6 +3059,11 @@
       "sig:1dd0e54baa61c20e": {
         "by": "worker:design-1567",
         "note": "Added C-17 pg_store Search and C-18 edpdata Search controls. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:1fd6bcc8b20af825": {
+        "by": "worker:design-1567",
+        "note": "C-15 denial wording aligned with C-13/C-14. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:1fef906c3771cc3e": {
@@ -2983,6 +3136,11 @@
         "note": "functional_spec observability now includes memory_filtered_projectless_total. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:4b83ebeb61192b26": {
+        "by": "worker:design-1567",
+        "note": "C-5 check now includes go/edpsvc metrics registry reuse. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:4c85b927be7ef52c": {
         "by": "worker:design-1567",
         "note": "C-8 check now pins go/pfmemory and the role test enforces CI DSN. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -2996,6 +3154,11 @@
       "sig:5043c3b0512b8ca3": {
         "by": "worker:design-1567",
         "note": "Only go/pfmemory is in scope; the Python orchestrator is explicitly prohibited. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:584fe5f5ea7c116f": {
+        "by": "worker:design-1567",
+        "note": "Added C-19 parameterized tenant/project binding control. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:5bc3ca9458215ece": {
@@ -3143,9 +3306,19 @@
         "note": "C-2 now applies to go/pfmemory/orchestrator.go with owner go/pfmemory; edpsvc evidence is C-9/C-10. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:d4641eec8c1df1b7": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:d5c46bfd814f5ae7": {
         "by": "worker:design-1567",
         "note": "RLS role posture, server Scope, and non-leaky denial are specified with tests See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:d75d55ec8642c68a": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:e7bcc0bb6498ffd3": {
