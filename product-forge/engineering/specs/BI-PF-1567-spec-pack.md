@@ -21,7 +21,7 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | accessibility_i18n | N/A | BI-PF-1567 | No user interface |  |  |  |
 | privacy_compliance | N/A | BI-PF-1567 | No new personal data collection |  |  |  |
 | implementation_plan | APPLICABLE | BI-PF-1567 | Go package plan | docs/MEMORY-ORCHESTRATOR-DESIGN.md | all | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
-| release_verification | APPLICABLE | BI-PF-1567 | negative suites | go/pfmemory/orchestrator_test.go | all | go/pfmemory/orchestrator_test.go |
+| release_verification | APPLICABLE | BI-PF-1567 | negative suites | docs/MEMORY-ORCHESTRATOR-DESIGN.md | all | docs/MEMORY-ORCHESTRATOR-DESIGN.md |
 
 
 ## Mandatory 360? Design & Functional Specification
