@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta 2e18b2d",
+  "_note": "disposition Gate 1.5 delta aa4296a",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -421,7 +421,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T13:57:55.456027",
+  "updated_at": "2026-11-24T14:00:42.641355",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -512,7 +512,7 @@
         "symbol": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
         "control": "TestLeakageSuites aggregates TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial, and TestConcurrentBoundaryLoad under -race",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "dimension": "failure_taxonomy",
+        "dimension": "concurrency_idempotency",
         "applies_to": "go/pfmemory/orchestrator_test.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
         "candidate_sha": "48157066",
@@ -594,7 +594,7 @@
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator_test.go",
-        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestRolePosture",
         "candidate_sha": "48157066",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestRolePostureBypassRejected",
         "observability": "test output",
@@ -821,6 +821,7 @@
         "positive_test": "go/pfmemory/orchestrator_test.go:TestParameterizedScopeAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "reject injection payloads and deny non-leakily",
+        "auth_boundary_evidence": "go/edpsvc/main.go:authenticate",
         "constant_time_comparison": "N/A: credential verification/constant-time token comparison is owned by the auth boundary, not the memory gateway"
       }
     ],
@@ -1339,7 +1340,7 @@
         "symbol": "go/pfmemory/orchestrator_test.go:TestLeakageSuites",
         "control": "TestLeakageSuites aggregates TestCrossTenantReadWriteSearch, TestCrossProjectReadWriteSearch, TestACLPrivateDenial, and TestConcurrentBoundaryLoad under -race",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
-        "dimension": "failure_taxonomy",
+        "dimension": "concurrency_idempotency",
         "applies_to": "go/pfmemory/orchestrator_test.go",
         "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
         "candidate_sha": "48157066",
@@ -1421,7 +1422,7 @@
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "rls_tenant",
         "applies_to": "go/pfmemory/orchestrator_test.go",
-        "tenant_test": "go/pfmemory/orchestrator_test.go:TestCrossTenantReadWriteSearch",
+        "tenant_test": "go/pfmemory/orchestrator_test.go:TestRolePosture",
         "candidate_sha": "48157066",
         "negative_test": "go/pfmemory/orchestrator_test.go:TestRolePostureBypassRejected",
         "observability": "test output",
@@ -1648,6 +1649,7 @@
         "positive_test": "go/pfmemory/orchestrator_test.go:TestParameterizedScopeAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "reject injection payloads and deny non-leakily",
+        "auth_boundary_evidence": "go/edpsvc/main.go:authenticate",
         "constant_time_comparison": "N/A: credential verification/constant-time token comparison is owned by the auth boundary, not the memory gateway"
       }
     ]
@@ -2888,6 +2890,54 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:e3cd08973b31d5ad",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:e41aec1fd26584e1",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:cc33235f1043e2aa",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:8f744502925da25a",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -3497,6 +3547,33 @@
       "review_sha": "2e18b2d7701b",
       "review_scope": "delta",
       "candidate_sha": "12b3250fb319f6d394576d5dc6f3123cfc3f8f86"
+    },
+    {
+      "at": "2026-11-24T08:29:59.092391+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "12b3250fb319f6d394576d5dc6f3123cfc3f8f86",
+      "evidence": "BI-PF-1567-aa4296a1a1ba.json",
+      "findings": {
+        "NIT": [
+          "`controls` and `implementation_controls` are again pasted identically (~2x) in this delta with no machine equality check; prior acceptance held only because Gate 2 `control_gate` remains canonical — worth an automated diff in the gate to prevent silent drift.",
+          "C-19's `constant_time_comparison: N/A` defers to the auth boundary but no control reference names that boundary artifact; a pointer to the auth-boundary evidence would make CL-013 traceable end-to-end."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "Prior finding disposition appears wrong: C-4 still carries `dimension: failure_taxonomy` and C-8 still has `tenant_test: TestCrossTenantReadWriteSearch` in this delta, despite dispositions marking both ACTIONED (\"Resolved in revised design\"). Update the design rows or correct the dispositions before Gate 1.5.",
+          "The delta's `design_pack` omits the `controls_mirrored_from: implementation_controls` note relied on by the accepted mirror-duplication NIT; if this delta is applied as a replace rather than a merge, the mirror provenance (and other unchanged design_pack keys such as observability/rollback/coverage) is silently dropped. Confirm merge semantics."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta is narrowly scoped and correctly actioned the two substantive prior findings (C-6 DSN separation, Gate 2 evidence substitution); no blockers to AC-1/2/3 coverage.",
+          "Top risks: two prior ACTIONED dispositions are not actually reflected in the delta rows (C-4 dimension, C-8 tenant_test), and the design_pack delta may not be a safe replace — verify merge semantics and gate-time mirror equality before Gate 1.5."
+        ]
+      },
+      "head_sha": "257dfea3dad03731c73c3fce0d2639cc5d5c4b0e",
+      "review_sha": "aa4296a1a1ba",
+      "review_scope": "delta",
+      "candidate_sha": "257dfea3dad03731c73c3fce0d2639cc5d5c4b0e"
     }
   ],
   "affected_files": [
@@ -4098,6 +4175,11 @@
         "note": "BI-PF-1570 moved to external_followups, not a schema dependency. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:8f744502925da25a": {
+        "by": "worker:design-1567",
+        "note": "C-19 now points at go/edpsvc/main.go:authenticate. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:91117aa32151088f": {
         "by": "worker:design-1567",
         "note": "Config and NFR now both bound k to 1..100 with default 20. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -4198,6 +4280,11 @@
         "note": "Added static bypass test TestNoDirectMemoryRepositoryCalls and handler wiring test. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:cc33235f1043e2aa": {
+        "by": "hil:operator",
+        "note": "HIL Gate 1 accepted mirrored controls; control_gate remains canonical at Gate 2.",
+        "status": "ACCEPTED"
+      },
       "sig:cea9b1d6665b2d6d": {
         "by": "worker:design-1567",
         "note": "spec_pack api_contract is APPLICABLE for existing /memory contract. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -4241,6 +4328,16 @@
       "sig:e3aa759c13af9d7f": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:e3cd08973b31d5ad": {
+        "by": "worker:design-1567",
+        "note": "C-4 dimension and C-8 role-posture test corrected. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:e41aec1fd26584e1": {
+        "by": "worker:design-1567",
+        "note": "controls_mirrored_from retained in the current design pack. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:e7bcc0bb6498ffd3": {
