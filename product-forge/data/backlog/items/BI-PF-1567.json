@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta a5919b3",
+  "_note": "disposition Gate 1.5 delta ae280fb",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -421,7 +421,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T13:52:05.988721",
+  "updated_at": "2026-11-24T13:54:14.847130",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -550,7 +550,7 @@
         "check": "go test ./... (go/pfmemory)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator.go:WithLimits",
-        "control": "WithLimits enforces search max, operation timeout, and test-DSN configuration fail-closed",
+        "control": "WithLimits enforces runtime search max and operation timeout fail-closed; PF_TEST_MEMORY_DSN is test setup only",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "quotas",
         "applies_to": "go/pfmemory/orchestrator.go",
@@ -1376,7 +1376,7 @@
         "check": "go test ./... (go/pfmemory)",
         "owner": "go/pfmemory",
         "symbol": "go/pfmemory/orchestrator.go:WithLimits",
-        "control": "WithLimits enforces search max, operation timeout, and test-DSN configuration fail-closed",
+        "control": "WithLimits enforces runtime search max and operation timeout fail-closed; PF_TEST_MEMORY_DSN is test setup only",
         "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "dimension": "quotas",
         "applies_to": "go/pfmemory/orchestrator.go",
@@ -2803,6 +2803,42 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:8204a321954701e4",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:22c0dc6bd67d0a37",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:d96086c2c6d44f3a",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -3357,6 +3393,33 @@
       "review_sha": "a5919b328ffd",
       "review_scope": "delta",
       "candidate_sha": "a707f168fb2f74bc4c952ff8a7a5e9b878ad7c9a"
+    },
+    {
+      "at": "2026-11-24T08:23:35.474773+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "a707f168fb2f74bc4c952ff8a7a5e9b878ad7c9a",
+      "evidence": "BI-PF-1567-ae280fb8abef.json",
+      "findings": {
+        "NIT": [
+          "Prior NIT disposition for C-4 `observability` alignment is unverifiable here: C-4 still records `observability: \"test output\"` while every other control points at the design doc; either align or note the intended exception."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "C-6 now claims WithLimits enforces \"test-DSN configuration\", but the config contract places PF_TEST_MEMORY_DSN startup in `test setup` (test-only), not the orchestrator's production limits; the merged control blurs production vs test config ownership and does not match config_contract.",
+          "Prior NIT disposition \"Resolved in revised design\" for the four-suite enumeration is not evidenced in this delta: C-4 still enumerates all four suites while FR-3.verification (unchanged) lists the same names; keep one authoritative list or record where the duplicate was removed."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta is structurally sound: C-20 removed with C-6 as the sole config control, provenance unified on candidate_sha 48157066, design_pack/spec_pack both at version 4, and controls/implementation_controls mirrors are in sync with RLS posture (C-8) and parameterized binding (C-19) retained.",
+          "No AC-1/AC-2/AC-3 contract gaps or blockers found in the changed fields.",
+          "Top residual risks: C-6 config-contract ownership ambiguity (test DSN vs runtime limits) and two prior dispositions whose claimed resolution is not observable in the delta."
+        ]
+      },
+      "head_sha": "82b90ca4500fe2f505630791abef04fe83b7098e",
+      "review_sha": "ae280fb8abef",
+      "review_scope": "delta",
+      "candidate_sha": "82b90ca4500fe2f505630791abef04fe83b7098e"
     }
   ],
   "affected_files": [
@@ -3718,6 +3781,11 @@
         "note": "Timeout valid range and NFR both cap at 5s. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:22c0dc6bd67d0a37": {
+        "by": "worker:design-1567",
+        "note": "C-4 aggregator and FR-3 verification intentionally list the same named suites; C-4 is executable control. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:243eadd4500a79ef": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3913,6 +3981,11 @@
         "note": "FR-1 traceability now includes go/edpsvc/main_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:8204a321954701e4": {
+        "by": "worker:design-1567",
+        "note": "C-6 now owns runtime search/timeout only; test DSN remains test setup. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:828cd2641a8d40e0": {
         "by": "worker:design-1567",
         "note": "Added C-20 config contract control. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -4056,6 +4129,11 @@
       "sig:d75d55ec8642c68a": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:d96086c2c6d44f3a": {
+        "by": "worker:design-1567",
+        "note": "C-4 observability is test output by intent; all other observability is design-doc based. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:db3b724e27f6a447": {
