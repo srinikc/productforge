@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "d9b5a29b50a7",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T05:55:56.465934+00:00",
+  "review_scope": "delta",
+  "base_sha": "a536d6d1e212ff6e424af2fab29f1d041f8db35a",
+  "head_sha": "07f5e8a51fff76f4c196519240432c01b0b6a8d9",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "PF_MEMORY_MAX_SEARCH_K default/empty is \"100\" while NFR, quotas, and performance_capacity all pin default 20; prior finding was dispositioned ACTIONED (\"default 20\") but the delta still ships 100 \u2014 contract contradicts the approved NFR as written.",
+      "PF_MEMORY_OP_TIMEOUT valid range is \"positive duration <= 30s\" while NFR states \"operation timeout <= 5s\"; a 30s configured value would violate the approved bound yet pass startup validation."
+    ],
+    "MINOR": [
+      "controls and implementation_controls are byte-identical duplicated rows (7 controls twice) in the same delta; two maintained copies will diverge at Gate 2 evidence updates \u2014 keep one or state they are mirrored.",
+      "design_pack.contracts.files omits go/pfmemory/bypass_test.go while affected_files and review_scope.files include it; the contract file list is the one Gate 2 traces.",
+      "No control row maps CL-011 runtime role posture (NOSUPERUSER/NOBYPASSRLS) to a check/symbol/test, although risks and rls_tenant reference a required role-posture test with PF_TEST_MEMORY_DSN."
+    ],
+    "NIT": [
+      "All three ACs still cite the same single evidence artifact docs/MEMORY-ORCHESTRATOR-DESIGN.md with an identical candidate_sha a536d6d1; distinct per-suite Gate 2 test evidence remains to be substituted (prior NIT reopened with the new sha)."
+    ],
+    "SUMMARY": [
+      "Delta correctly actioned the prior ordering, search-revalidation, bypass-test, metric-reuse, and rollout-threshold findings; the security model (server-resolved Scope, read-verify-delete, per-hit revalidation) is coherent and Go-only per language rule.",
+      "Top risks: two config/NFR contradictions (search default, timeout ceiling) that make the approved contract unenforceable as written, and duplicated control rows that will drift during evidence collection.",
+      "No blocker; recommend fixing the two config-vs-NFR mismatches and de-duplicating control rows before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-27f05601f27a; closed bypass, delete ordering, search filter, and bounds majors",
+  "rereview_reason_sha256": "d2cc168ffa8e213435dadc4101123953a417134be72fab57cc4be4ba2c96b66d"
+}

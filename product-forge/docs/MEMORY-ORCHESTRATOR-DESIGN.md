@@ -166,8 +166,8 @@ Admin/operator roles do not bypass tenant or project boundaries in this item. Cr
 
 | Config | Default | Valid | Invalid behavior |
 |---|---|---|---|
-| `PF_MEMORY_MAX_SEARCH_K` | 100 | 1..100 | fail startup/use with `ErrInvalidScope`-style configuration error |
-| `PF_MEMORY_OP_TIMEOUT` | 5s | positive duration, <= 30s | fail startup/use |
+| `PF_MEMORY_MAX_SEARCH_K` | 20 | 1..100 | fail closed with a configuration error |
+| `PF_MEMORY_OP_TIMEOUT` | 5s | positive duration, <= 5s | fail closed with a configuration error |
 | `PF_TEST_MEMORY_DSN` | empty locally | PostgreSQL DSN in CI | CI fails if missing when `CI=true` |
 
 The authenticated principal is not configuration. It is server-resolved per request.
