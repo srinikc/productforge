@@ -245,6 +245,8 @@ Audit fields are tenant, project, actor, operation, record ID when safe, outcome
 | AC-2 | Tenant/project/ACL negative suites | `go test ./...` in `go/pfmemory` | Cross-tenant and cross-project read/write/search/delete return `ErrNotFound` |
 | AC-3 | Four negative leakage suites under concurrency | `go test -race ./...` in `go/pfmemory` | `TestCrossTenantReadWriteSearch`, `TestCrossProjectReadWriteSearch`, `TestACLPrivateDenial`, and `TestConcurrentBoundaryLoad` pass with `-race` |
 
+`TestLeakageSuites` is the aggregator that runs the four named negative suites (`TestCrossTenantReadWriteSearch`, `TestCrossProjectReadWriteSearch`, `TestACLPrivateDenial`, `TestConcurrentBoundaryLoad`) as subtests.
+
 Additional suites:
 
 - canonical validation rejection;
