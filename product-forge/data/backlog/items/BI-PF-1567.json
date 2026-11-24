@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta c4d4dc3",
+  "_note": "disposition Gate 1.5 delta 05aa43c",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -356,7 +356,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T11:49:57.789995",
+  "updated_at": "2026-11-24T11:51:57.860959",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -621,7 +621,7 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-13",
-        "kind": "tenant",
+        "kind": "security",
         "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:GetScoped",
@@ -641,7 +641,7 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-14",
-        "kind": "tenant",
+        "kind": "security",
         "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:GetScoped",
@@ -661,7 +661,7 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-15",
-        "kind": "tenant",
+        "kind": "security",
         "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:GetScoped",
@@ -755,7 +755,8 @@
         "observability": "test output",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestParameterizedScopeAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
-        "failure_behavior": "reject injection payloads and deny non-leakily"
+        "failure_behavior": "reject injection payloads and deny non-leakily",
+        "constant_time_comparison": "N/A: credential verification/constant-time token comparison is owned by the auth boundary, not the memory gateway"
       }
     ],
     "coverage": [
@@ -1424,7 +1425,7 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-13",
-        "kind": "tenant",
+        "kind": "security",
         "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/sqlite_store.go:GetScoped",
@@ -1444,7 +1445,7 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-14",
-        "kind": "tenant",
+        "kind": "security",
         "check": "go test ./... (go/dualvec + go/pfmemory)",
         "owner": "store",
         "symbol": "go/dualvec/pg_store.go:GetScoped",
@@ -1464,7 +1465,7 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "id": "C-15",
-        "kind": "tenant",
+        "kind": "security",
         "check": "go test ./... (go/edpdata + go/pfmemory)",
         "owner": "edpdata",
         "symbol": "go/edpdata/memory.go:GetScoped",
@@ -1558,7 +1559,8 @@
         "observability": "test output",
         "positive_test": "go/pfmemory/orchestrator_test.go:TestParameterizedScopeAllowed",
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
-        "failure_behavior": "reject injection payloads and deny non-leakily"
+        "failure_behavior": "reject injection payloads and deny non-leakily",
+        "constant_time_comparison": "N/A: credential verification/constant-time token comparison is owned by the auth boundary, not the memory gateway"
       }
     ]
   },
@@ -2399,6 +2401,54 @@
         "control-gate"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:4286e69f81a6461e",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:9f11ebc42cdefdf6",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:681f62294aa98e38",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:48ae9c0b08074b4e",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "design-contract",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -2732,6 +2782,34 @@
       "review_sha": "c4d4dc3c9711",
       "review_scope": "delta",
       "candidate_sha": "fc26a2cf250682bcbf918d5511f194689231ec11"
+    },
+    {
+      "at": "2026-11-24T06:21:30.139145+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "fc26a2cf250682bcbf918d5511f194689231ec11",
+      "evidence": "BI-PF-1567-05aa43c1fb39.json",
+      "findings": {
+        "NIT": [
+          "Free-text `N/A: ...` persists in delta cells (C-6 `concurrency_test`/`tenant_test`, C-7/C-8/C-9 `concurrency_test`) despite the prior NIT disposition claiming a stable sentinel was adopted.",
+          "Check-command notation is still split: delta controls use `go test ./... (go/pfmemory)` while unchanged `coverage`/`test_matrix` rows use `in go/pfmemory`; the prior NIT disposition says resolved but the delta does not touch those rows."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "CL-013 is only half-encoded: C-19 covers parameterized tenant binding, but no control row asserts constant-time token comparison; either add a row or explicitly mark that half N/A for this component.",
+          "C-13/C-14/C-15 use `kind: \"tenant\"` while the equivalent search controls C-16/C-17/C-18 use `kind: \"security\"` for the same `rls_tenant` dimension, which will fragment automated control grouping by kind."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Prior MAJOR and three prior MINORs are verifiably addressed in this delta: store controls now check `go/dualvec + go/pfmemory` / `go/edpdata + go/pfmemory`, C-15 wording aligns with C-13/C-14, C-5 spans `go/pfmemory + go/edpsvc`, and C-19 adds the parameterized-binding control.",
+          "All three ACs retain control coverage, `controls` mirrors `implementation_controls`, and role-posture (C-8) plus static bypass (C-7/C-9) guardrails remain intact.",
+          "Top residual risks are cosmetic drift (notation, `N/A` sentinels, kind labels) and the unaddressed constant-time-comparison half of CL-013; none block Gate 1.5."
+        ]
+      },
+      "head_sha": "94d33329cfc612914ddee4007f7506577e347537",
+      "review_sha": "05aa43c1fb39",
+      "review_scope": "delta",
+      "candidate_sha": "94d33329cfc612914ddee4007f7506577e347537"
     }
   ],
   "affected_files": [
@@ -3101,6 +3179,11 @@
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:4286e69f81a6461e": {
+        "by": "worker:design-1567",
+        "note": "C-19 marks constant-time token comparison N/A; auth boundary owns credentials. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:44dd628f88e3dc4d": {
         "by": "worker:design-1567",
         "note": "Pinned read-verify-delete ordering. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3114,6 +3197,11 @@
       "sig:4588f557b2800ced": {
         "by": "worker:design-1567",
         "note": "Design rewritten as Go-only go/pfmemory; no Python orchestrator See docs/MEMORY-ORCHESTRATOR-DESIGN.md..",
+        "status": "ACTIONED"
+      },
+      "sig:48ae9c0b08074b4e": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:494b0e61f31088fe": {
@@ -3186,6 +3274,11 @@
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:681f62294aa98e38": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:6aa5e4aa486814be": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3254,6 +3347,11 @@
       "sig:9c21ee4a1c0f6882": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:9f11ebc42cdefdf6": {
+        "by": "worker:design-1567",
+        "note": "RLS read controls now use kind=security for consistent grouping. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:a62478e5a4f48836": {
