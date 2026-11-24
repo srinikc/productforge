@@ -10,7 +10,7 @@
   "risk": 2,
   "tier": 3,
   "type": "feature",
-  "_note": "disposition Gate 1.5 delta 00df1b8",
+  "_note": "disposition Gate 1.5 delta a1a15d8",
   "brief": {
     "why": "Direct database queries and file reads bypass security checks, risking cross-tenant memory leakage and inconsistent writes.",
     "source": "authored",
@@ -259,7 +259,7 @@
   "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
   "spec_pack": {
     "status": "approved",
-    "version": 3,
+    "version": 4,
     "design_ref": "engineering/design/BI-PF-1567.md",
     "applicability": [
       {
@@ -278,8 +278,15 @@
       {
         "spec": "api_contract",
         "owner": "BI-PF-1567",
-        "reason": "Internal Go gateway; no new public API",
-        "status": "N/A"
+        "reason": "Existing /memory contract preserved; D-1 hides project-empty rows",
+        "status": "APPLICABLE",
+        "artifact": "go/edpsvc/main.go",
+        "evidence": [
+          "go/edpsvc/main.go"
+        ],
+        "sections": [
+          "api"
+        ]
       },
       {
         "spec": "data_contract",
@@ -413,7 +420,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-11-22T14:11:18.369085",
-  "updated_at": "2026-11-24T13:29:43.101358",
+  "updated_at": "2026-11-24T13:43:58.062504",
   "design_pack": {
     "audit": "Audit read/write/search/delete/denied with tenant, project, actor, safe record ID, outcome, reason, timestamp; existing EDP audit retention; no content/embeddings/secrets.",
     "risks": [
@@ -814,6 +821,26 @@
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "reject injection payloads and deny non-leakily",
         "constant_time_comparison": "N/A: credential verification/constant-time token comparison is owned by the auth boundary, not the memory gateway"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-20",
+        "kind": "config",
+        "check": "go test ./... (go/pfmemory)",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:LoadLimits",
+        "control": "Config contract enforces search max, timeout, and test DSN semantics fail-closed",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "quotas",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "N/A: process configuration",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestConfigContractInvalid",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestConfigContract",
+        "concurrency_test": "N/A: immutable after startup",
+        "failure_behavior": "reject invalid configuration before serving"
       }
     ],
     "coverage": [
@@ -1639,6 +1666,26 @@
         "concurrency_test": "go/pfmemory/orchestrator_test.go:TestConcurrentBoundaryLoad",
         "failure_behavior": "reject injection payloads and deny non-leakily",
         "constant_time_comparison": "N/A: credential verification/constant-time token comparison is owned by the auth boundary, not the memory gateway"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-20",
+        "kind": "config",
+        "check": "go test ./... (go/pfmemory)",
+        "owner": "go/pfmemory",
+        "symbol": "go/pfmemory/orchestrator.go:LoadLimits",
+        "control": "Config contract enforces search max, timeout, and test DSN semantics fail-closed",
+        "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+        "dimension": "quotas",
+        "applies_to": "go/pfmemory/orchestrator.go",
+        "tenant_test": "N/A: process configuration",
+        "candidate_sha": "a536d6d1",
+        "negative_test": "go/pfmemory/orchestrator_test.go:TestConfigContractInvalid",
+        "observability": "test output",
+        "positive_test": "go/pfmemory/orchestrator_test.go:TestConfigContract",
+        "concurrency_test": "N/A: immutable after startup",
+        "failure_behavior": "reject invalid configuration before serving"
       }
     ]
   },
@@ -2638,6 +2685,78 @@
         "conformance"
       ],
       "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:cea9b1d6665b2d6d",
+      "origin_class": "ORIGINAL_MISS",
+      "controls_rerun": [
+        "spec-contract",
+        "spec-pack",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:319d31f97210379b",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "spec-pack",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:ff4a9ec1cbe07324",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "spec-pack",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:828cd2641a8d40e0",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "spec-pack",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:e3aa759c13af9d7f",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "spec-pack",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
+    },
+    {
+      "result": "PASS",
+      "evidence": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
+      "finding_sig": "sig:f87dca3961716509",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "spec-contract",
+        "spec-pack",
+        "control-gate"
+      ],
+      "regression_test": "go/pfmemory/orchestrator_test.go"
     }
   ],
   "out_of_scope": [
@@ -3129,6 +3248,37 @@
       "review_sha": "00df1b8308c6",
       "review_scope": "delta",
       "candidate_sha": "51487b175cd95201133e1a60b964f5139f2ffe47"
+    },
+    {
+      "at": "2026-11-24T08:12:52.316739+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "base_sha": "51487b175cd95201133e1a60b964f5139f2ffe47",
+      "evidence": "BI-PF-1567-a1a15d81db1c.json",
+      "findings": {
+        "NIT": [
+          "`functional_spec.traceability` FR-3 `test` is a bare file while FR-1/FR-2 pair a test list; keep one format so traceability renders uniformly.",
+          "`operation_matrix` lists `Validate` with scope `tenant/project` but no ACL, while `in_scope` still names `Consolidate` in the gateway interface though consolidation is a non-goal (BI-PF-1569) — reconcile wording to avoid implying shipped scope."
+        ],
+        "MAJOR": [
+          "delta `spec_pack.applicibility` marks `api_contract` N/A (\"no new public API\") while `functional_spec.compatibility` asserts preserved response shapes **and** project-empty rows hidden — a behavioral change to the existing `/memory` surface; `design_pack.design_areas` lists `api` as APPLICABLE, so the delta understates contract coverage with no spec row validating it."
+        ],
+        "MINOR": [
+          "`functional_spec.status` remains `draft` while `spec_pack.status` is `approved` at the same version 3 — inconsistent gate status within the changed delta.",
+          "`functional_spec.functional_sha` is unchanged (`d0c39e3f214d`) despite edits to `traceability` and `dependencies`; confirm the digest was recomputed for version 3.",
+          "`spec_pack.applicability` for `config_contract` cites only `docs/MEMORY-ORCHESTRATOR-DESIGN.md:design`, but the delta's `config_contract` now pins fail-closed empty/invalid semantics for `PF_TEST_MEMORY_DSN`/`PF_MEMORY_OP_TIMEOUT`/`PF_MEMORY_MAX_SEARCH_K` — no row ties those exact semantics to a verification test."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Delta cleanly actioned the three prior findings (dependencies aligned, traceability cites tests only, spec pack approved); no prior disposition is wrong.",
+          "Top risk is the `api_contract` N/A gap: compatibility claims for the existing `/memory` surface (including hidden project-empty rows) have no spec-pack row enforcing them.",
+          "Secondary: gate-status mismatch (`draft` vs `approved`) and unrefreshed `functional_sha` weaken provenance for Gate 1.5."
+        ]
+      },
+      "head_sha": "5e191c8ce524316b0a3594440928a35d06d89d1a",
+      "review_sha": "a1a15d81db1c",
+      "review_scope": "delta",
+      "candidate_sha": "5e191c8ce524316b0a3594440928a35d06d89d1a"
     }
   ],
   "affected_files": [
@@ -3178,9 +3328,9 @@
     ],
     "domain": "agent memory",
     "source": "BI-PF-1567",
-    "status": "draft",
+    "status": "approved",
     "outcome": "A Go gateway governs every existing memory operation with server-resolved tenant/project/ACL enforcement and canonical validation.",
-    "version": 3,
+    "version": 4,
     "rollback": "Revert the gateway wiring and restore the prior edpsvc binary. No schema or stored-data mutation.",
     "non_goals": [
       "new public memory API",
@@ -3336,7 +3486,7 @@
       },
       {
         "fr": "FR-3",
-        "test": "go/pfmemory/orchestrator_test.go",
+        "test": "go/pfmemory/orchestrator_test.go, go/edpsvc/main_test.go",
         "design": "docs/MEMORY-ORCHESTRATOR-DESIGN.md",
         "evidence": [
           "docs/MEMORY-ORCHESTRATOR-DESIGN.md"
@@ -3347,7 +3497,7 @@
     "compatibility": "Allowed response shapes preserved; project-empty rows hidden; delete requires ScopedDeleter support and fails closed otherwise.",
     "observability": "memory_ops_total, memory_denied_total, memory_op_duration_seconds, memory_filtered_projectless_total; reuse edpsvc registry; audit.",
     "data_lifecycle": "Existing memory rows are unchanged. Governed reads hide project-empty rows. New writes require project. No retention or schema change.",
-    "functional_sha": "d0c39e3f214d",
+    "functional_sha": "f0025ea63f6d",
     "open_questions": [
       "None. D-1 strict project isolation is approved at Gate 1."
     ],
@@ -3409,7 +3559,7 @@
       {
         "actor": "internal caller",
         "error": "validation error",
-        "scope": "tenant/project",
+        "scope": "tenant/project/ACL",
         "result": "validation result",
         "operation": "Validate"
       }
@@ -3508,6 +3658,11 @@
       "sig:29ffb8f712a95182": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:319d31f97210379b": {
+        "by": "worker:design-1567",
+        "note": "Functional and spec pack statuses now approved/versioned. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:33e3744de3852df5": {
@@ -3660,6 +3815,11 @@
         "note": "FR-1 traceability now includes go/edpsvc/main_test.go. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:828cd2641a8d40e0": {
+        "by": "worker:design-1567",
+        "note": "Added C-20 config contract control. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:8651ef462f6d0296": {
         "by": "worker:design-1567",
         "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3755,6 +3915,11 @@
         "note": "Added static bypass test TestNoDirectMemoryRepositoryCalls and handler wiring test. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
+      "sig:cea9b1d6665b2d6d": {
+        "by": "worker:design-1567",
+        "note": "spec_pack api_contract is APPLICABLE for existing /memory contract. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
       "sig:d0bf0c08c714f4d9": {
         "by": "worker:design-1567",
         "note": "Search default is now 20 with max 100 in both config and NFR. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
@@ -3783,6 +3948,11 @@
       "sig:db3b724e27f6a447": {
         "by": "worker:design-1567",
         "note": "Engineering design/spec artifacts added to affected_files and ownership. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:e3aa759c13af9d7f": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:e7bcc0bb6498ffd3": {
@@ -3823,6 +3993,16 @@
       "sig:f70e6b4c142f3ed7": {
         "by": "worker:design-1567",
         "note": "Pack versions and functional/candidate SHAs bumped for provenance. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:f87dca3961716509": {
+        "by": "worker:design-1567",
+        "note": "Resolved in revised design. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
+        "status": "ACTIONED"
+      },
+      "sig:ff4a9ec1cbe07324": {
+        "by": "worker:design-1567",
+        "note": "Functional SHA recomputed for version 4. See docs/MEMORY-ORCHESTRATOR-DESIGN.md.",
         "status": "ACTIONED"
       },
       "sig:ffcabb4863412e86": {
