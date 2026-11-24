@@ -7,7 +7,7 @@ from core import backlog
 
 def main():
     allowed=backlog._backlog_db_scopes()
-    active={"product_forge"}
+    active={"product_forge"} | (allowed & {"project", "inbox", "intake"})
     active |= {p.name for p in (ROOT/"products").iterdir() if (p/"data"/"backlog"/"items").is_dir()}
     unknown=sorted(allowed-active)
     unlisted=sorted(active-allowed)

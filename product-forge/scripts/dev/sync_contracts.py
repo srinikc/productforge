@@ -55,25 +55,40 @@ def sync_item(item_id: str, candidate_sha: str | None = None) -> dict:
 
     # --- 1. Synchronize Functional Spec ---
     fspec = item.get("functional_spec") or {}
-    reqs = []
-    traceability = []
-    for i, ac in enumerate(acs, 1):
-        fid = f"FR-{i}"
-        reqs.append({
-            "id": fid,
-            "title": ac.split(":", 1)[-1].strip() if ":" in ac else ac,
-            "statement": ac,
-            "verification": f"pytest {default_test}"
-        })
-        traceability.append({
-            "spec": fid,
-            "test": default_test,
-            "candidate_sha": candidate_sha,
-            "status": "conformed"
-        })
+    reqs = fspec.get("requirements") or []
+    existing_trace = fspec.get("traceability")
+    if existing_trace and isinstance(existing_trace, list):
+        traceability = existing_trace
+        for t in traceability:
+            if isinstance(t, dict):
+                t["candidate_sha"] = candidate_sha
+    elif not reqs:
+        for i, ac in enumerate(acs, 1):
+            fid = f"FR-{i}"
+            reqs.append({
+                "id": fid,
+                "title": ac.split(":", 1)[-1].strip() if ":" in ac else ac,
+                "statement": ac,
+                "verification": f"pytest {default_test}"
+            })
+            traceability.append({
+                "spec": fid,
+                "test": default_test,
+                "candidate_sha": candidate_sha,
+                "status": "conformed"
+            })
+    else:
+        traceability = []
+        for r in reqs:
+            traceability.append({
+                "spec": r.get("id"),
+                "test": default_test,
+                "candidate_sha": candidate_sha,
+                "status": "conformed"
+            })
 
-    rollback_strategy = item.get("rollback") or "Non-destructive automated rollback reverting target environment to prior stable release snapshot."
-    config_contract = {
+    rollback_strategy = fspec.get("rollback") or item.get("rollback") or "Non-destructive automated rollback reverting target environment to prior stable release snapshot."
+    config_contract = fspec.get("config_contract") or {
         "retry_threshold": 3,
         "rollback_timeout_seconds": 30,
         "health_check_endpoint": "/api/v1/health"
@@ -91,24 +106,34 @@ def sync_item(item_id: str, candidate_sha: str | None = None) -> dict:
     dpack = item.get("design_pack") or {}
     contracts = dpack.get("contracts") or {}
     contracts["config"] = config_contract
-    contracts["api"] = {
-        "method": "GET",
-        "path": "/api/v1/health",
-        "auth": "none",
-        "validation": "HTTP 200 within 5 seconds"
-    }
-    contracts["db"] = {
-        "engine": "PostgreSQL 16 + pgvector",
-        "connectivity": "verified via health probe",
-        "schema_isolation": "tenant-bound"
-    }
-    contracts["files"] = [
-        "core/backlog.py",
-        "scripts/dev/gate_orchestrator.py"
-    ]
+    if not contracts.get("api"):
+        contracts["api"] = {
+            "method": "GET",
+            "path": "/api/v1/health",
+            "auth": "none",
+            "validation": "HTTP 200 within 5 seconds"
+        }
+    if not contracts.get("db"):
+        contracts["db"] = {
+            "engine": "PostgreSQL 16 + pgvector",
+            "connectivity": "verified via health probe",
+            "schema_isolation": "tenant-bound"
+        }
+    if not contracts.get("files"):
+        contracts["files"] = item.get("affected_files") or [
+            "core/backlog.py",
+            "scripts/dev/gate_orchestrator.py"
+        ]
 
-    # Required controls across security, failure, config, observability, functional, tenant
-    controls = [
+    existing_controls = dpack.get("implementation_controls")
+    if existing_controls and isinstance(existing_controls, list) and len(existing_controls) >= len(acs):
+        for c in existing_controls:
+            if isinstance(c, dict):
+                c["candidate_sha"] = candidate_sha
+        controls = existing_controls
+    else:
+        # Required controls across security, failure, config, observability, functional, tenant
+        controls = [
         {
             "id": "CTRL-01",
             "ac": "AC-1",

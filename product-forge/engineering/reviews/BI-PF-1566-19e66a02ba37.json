@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "19e66a02ba37",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T16:59:14.856763+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0580e9515cc6e7e25a183b82dba9d381f4a762a1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Inconsistency between `max_embedding_dimensions` (1536) and `max_embedding_bytes` (12288); 1536 float32 values require exactly 6144 bytes, leaving the enforcement bound ambiguous and potentially allowing oversized vectors.",
+      "`Evidence` and `Metadata` fields use `map[string]any`, which permits \"bespoke unversioned JSON structures\" explicitly declared as out-of-scope and violates AC-1's \"strict field validation\" requirement.",
+      "Lack of explicit UUID format validation for `ID` and `SupersededBy` strings in the validation layer (CTRL-01) allows malformed identifiers to persist, failing the AC-1 \"strict validation\" mandate."
+    ],
+    "MINOR": [
+      "Use of `string` for `ID` and `SupersededBy` instead of native 16-byte UUID types increases storage overhead and reduces indexing performance in the `memory_records` table.",
+      "Temporal validation (FR-4) on ISO8601 strings is computationally expensive and error-prone compared to using native `time.Time` or `datetime` objects for internal logic.",
+      "[OUT_OF_SCOPE] The design specifies a `memory_records` DB table but lacks corresponding SQL migration files in the affected components, risking a mismatch between the Go contract and the persistence layer."
+    ],
+    "NIT": [
+      "PascalCase field naming in FR-1 requires explicit struct tags in Go to maintain consistency with the snake_case convention used in the `memory_records` table and legacy mapping.",
+      "The `Embedding` slice in Go should be validated for `nil` or empty states to ensure consistency with the `EmbeddingRef` logic."
+    ],
+    "SUMMARY": [
+      "Verdict: The design successfully centralizes the legacy mapping and defines necessary payload limits, addressing all prior blockers.",
+      "Top Risks: Schema leakage via unconstrained `map[string]any` fields; inconsistent resource limits for embeddings; reliance on string-based validation for UUIDs and timestamps."
+    ]
+  }
+}
