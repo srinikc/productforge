@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "7ea3decdec29",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:17:26.114128+00:00",
+  "review_scope": "delta",
+  "base_sha": "7dbccbdf7fa29d84161f8aa91ea9d4084bdf2c14",
+  "head_sha": "1f21aa1c45f0b06ccbfe4f3344be5ffb0aad5d57",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "C-8 check remains `go test -run TestRolePosture ./...` unpinned to `go/pfmemory`; the CI=true/missing-DSN gate is only in `failure_behavior`, not encoded in the check \u2014 prior disposition overstates the action.",
+      "C-12/C-15 (and C-1/C-2/C-3/C-5/C-6) still use unpinned `go test ./...` while the coverage rows pin \"in go/pfmemory\"/\"in go/edpsvc\"; the prior MAJOR's \"no pinned package scope\" half of the disposition is unresolved.",
+      "C-12/C-15 `failure_behavior` (\"ErrNotFound on mismatch\") diverges from dualvec C-10/C-11 (\"fail closed; no unscoped fallback\") for the same FR-2 scoped-delete guarantee; denial semantics should be stated consistently across adapters."
+    ],
+    "NIT": [
+      "`controls` and `implementation_controls` remain byte-identical full duplicates in the delta despite disposition \"Resolved in revised design\"; drift risk stands.",
+      "C-4 `check` is still `go test -race ./...` without the \"in go/pfmemory\" scope now present in the AC-3 coverage row, despite the claimed action."
+    ],
+    "SUMMARY": [
+      "Delta correctly adds C-17/C-18 (PG/edpdata Search), edpdata coverage, C-7 edpsvc ownership, and ACL/owner parity on C-12/C-15; no blockers.",
+      "Top risks: several prior dispositions (C-8 CI gate, package pinning, controls duplication, C-4 scope) are not actually reflected in the changed fields, and denial-semantics wording is inconsistent between adapter controls."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-ba856f41ff7b; added PostgreSQL/edpdata search controls",
+  "rereview_reason_sha256": "beb1354e8ae27bf5a8682072b4867806508aec8dc2e4a473b9e306153b13d0e5"
+}
