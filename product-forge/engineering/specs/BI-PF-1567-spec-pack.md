@@ -1,7 +1,7 @@
 # Conditional Spec Pack — BI-PF-1567 — Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering
 
-- **Version:** 2
-- **Status:** draft
+- **Version:** 3
+- **Status:** approved
 - **Functional spec:** engineering/specs/BI-PF-1567.md
 - **Design pack:** engineering/design/BI-PF-1567.md
 
