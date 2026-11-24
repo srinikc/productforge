@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "05aa43c1fb39",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:21:30.139145+00:00",
+  "review_scope": "delta",
+  "base_sha": "fc26a2cf250682bcbf918d5511f194689231ec11",
+  "head_sha": "94d33329cfc612914ddee4007f7506577e347537",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "CL-013 is only half-encoded: C-19 covers parameterized tenant binding, but no control row asserts constant-time token comparison; either add a row or explicitly mark that half N/A for this component.",
+      "C-13/C-14/C-15 use `kind: \"tenant\"` while the equivalent search controls C-16/C-17/C-18 use `kind: \"security\"` for the same `rls_tenant` dimension, which will fragment automated control grouping by kind."
+    ],
+    "NIT": [
+      "Free-text `N/A: ...` persists in delta cells (C-6 `concurrency_test`/`tenant_test`, C-7/C-8/C-9 `concurrency_test`) despite the prior NIT disposition claiming a stable sentinel was adopted.",
+      "Check-command notation is still split: delta controls use `go test ./... (go/pfmemory)` while unchanged `coverage`/`test_matrix` rows use `in go/pfmemory`; the prior NIT disposition says resolved but the delta does not touch those rows."
+    ],
+    "SUMMARY": [
+      "Prior MAJOR and three prior MINORs are verifiably addressed in this delta: store controls now check `go/dualvec + go/pfmemory` / `go/edpdata + go/pfmemory`, C-15 wording aligns with C-13/C-14, C-5 spans `go/pfmemory + go/edpsvc`, and C-19 adds the parameterized-binding control.",
+      "All three ACs retain control coverage, `controls` mirrors `implementation_controls`, and role-posture (C-8) plus static bypass (C-7/C-9) guardrails remain intact.",
+      "Top residual risks are cosmetic drift (notation, `N/A` sentinels, kind labels) and the unaddressed constant-time-comparison half of CL-013; none block Gate 1.5."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-c4d4dc3c9711; executable control evidence and parameterized binding",
+  "rereview_reason_sha256": "b50b115d9798e7c14a33848d2319a51bc2c7a94fed90349398c9d898625f9437"
+}
