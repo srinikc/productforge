@@ -368,8 +368,21 @@ func TestRolePosture(t *testing.T) {
 }
 
 func TestRolePostureBypassRejected(t *testing.T) {
-	if strings.TrimSpace(os.Getenv("PF_TEST_MEMORY_DSN")) == "" {
+	dsn := strings.TrimSpace(os.Getenv("PF_TEST_MEMORY_DSN"))
+	if dsn == "" {
 		t.Skip("PF_TEST_MEMORY_DSN not set")
+	}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var policies int
+	if err := db.QueryRow(`SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='memory'`).Scan(&policies); err != nil {
+		t.Fatal(err)
+	}
+	if policies == 0 {
+		t.Fatal("memory table has no RLS policy; bypass is not rejected")
 	}
 }
 

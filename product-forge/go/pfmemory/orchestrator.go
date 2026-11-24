@@ -67,6 +67,7 @@ type AuditEvent struct {
 	TenantID  string
 	ProjectID string
 	Actor     string
+	RecordID  string
 	Outcome   string
 	Reason    string
 }
@@ -155,7 +156,7 @@ func (o *Orchestrator) Put(ctx context.Context, scope Scope, entry datastore.Mem
 	start := time.Now()
 	res, err := o.put(ctx, scope, entry)
 	o.observe("put", start, err)
-	o.auditOutcome("write", scope, err)
+	o.auditOutcome("write", scope, res.ID, err)
 	return res, err
 }
 
@@ -193,7 +194,7 @@ func (o *Orchestrator) Get(ctx context.Context, scope Scope, id string) (datasto
 	start := time.Now()
 	res, err := o.get(ctx, scope, id)
 	o.observe("get", start, err)
-	o.auditOutcome("read", scope, err)
+	o.auditOutcome("read", scope, id, err)
 	return res, err
 }
 
@@ -225,7 +226,7 @@ func (o *Orchestrator) Search(ctx context.Context, scope Scope, req SearchReques
 	start := time.Now()
 	res, err := o.search(ctx, scope, req)
 	o.observe("search", start, err)
-	o.auditOutcome("search", scope, err)
+	o.auditOutcome("search", scope, "", err)
 	return res, err
 }
 
@@ -264,7 +265,7 @@ func (o *Orchestrator) Delete(ctx context.Context, scope Scope, id string) error
 	start := time.Now()
 	err := o.delete(ctx, scope, id)
 	o.observe("delete", start, err)
-	o.auditOutcome("delete", scope, err)
+	o.auditOutcome("delete", scope, id, err)
 	return err
 }
 
@@ -363,9 +364,9 @@ func (o *Orchestrator) deny(reason string, err error) error {
 	return err
 }
 
-func (o *Orchestrator) auditOutcome(op string, scope Scope, err error) {
+func (o *Orchestrator) auditOutcome(op string, scope Scope, recordID string, err error) {
 	if err == nil {
-		o.audit(op, scope, "allow", "")
+		o.audit(op, scope, recordID, "allow", "")
 		return
 	}
 	reason := "error"
@@ -378,14 +379,14 @@ func (o *Orchestrator) auditOutcome(op string, scope Scope, err error) {
 	} else if errors.Is(err, ErrLimitExceeded) {
 		reason = "limit"
 	}
-	o.audit(op, scope, "deny", reason)
+	o.audit(op, scope, recordID, "deny", reason)
 }
 
-func (o *Orchestrator) audit(op string, scope Scope, outcome string, reason string) {
+func (o *Orchestrator) audit(op string, scope Scope, recordID string, outcome string, reason string) {
 	if o.auditor == nil {
 		return
 	}
-	o.auditor.Audit(AuditEvent{Op: op, TenantID: scope.TenantID, ProjectID: scope.ProjectID, Actor: scope.Principal, Outcome: outcome, Reason: reason})
+	o.auditor.Audit(AuditEvent{Op: op, TenantID: scope.TenantID, ProjectID: scope.ProjectID, Actor: scope.Principal, RecordID: recordID, Outcome: outcome, Reason: reason})
 }
 
 func (o *Orchestrator) observe(op string, start time.Time, err error) {

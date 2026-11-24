@@ -85,6 +85,8 @@ type server struct {
 	cacheStore     *cache.Store
 	authorityMu    sync.Mutex
 	memRepo        datastore.MemoryRepository
+	memoryMaxK     int
+	memoryTimeout  time.Duration
 }
 
 func (s *server) newBacklog(db datastore.RelationalStore) backlogStore {
@@ -244,8 +246,14 @@ func main() {
 	gwSecret := envOr("PF_GATEWAY_SECRET", "")
 	gwSecretOld := envOr("PF_GATEWAY_SECRET_OLD", "")
 	authenticator := auth.NewAuthenticator(admin, tenantTokens, gwSecret, gwSecretOld)
+	memMaxK, memTimeout, err := pfmemory.LoadLimitsFromEnv()
+	if err != nil {
+		st.Close()
+		log.Fatalf("memory config: %v", err)
+	}
 	s := &server{admin: admin, authenticator: authenticator, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
-		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
+		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New(),
+		memoryMaxK: memMaxK, memoryTimeout: memTimeout}
 	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
@@ -1166,14 +1174,24 @@ func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error
 
 type memoryAudit struct {
 	metrics *limits.Metrics
+	st      *store.PgStore
 }
 
 func (a memoryAudit) Audit(e pfmemory.AuditEvent) {
 	if a.metrics != nil {
 		a.metrics.Inc("memory_audit_total", "op", e.Op, "outcome", e.Outcome, "reason", e.Reason)
 	}
-	log.Printf("memory_audit op=%s tenant=%s project=%s actor=%s outcome=%s reason=%s",
-		e.Op, e.TenantID, e.ProjectID, e.Actor, e.Outcome, e.Reason)
+	log.Printf("memory_audit op=%s tenant=%s project=%s actor=%s record=%s outcome=%s reason=%s",
+		e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID, e.Outcome, e.Reason)
+	if a.st == nil || e.TenantID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = edpdata.NewAudit(store.BindTenant(a.st, e.TenantID)).Append(ctx, datastore.AuditEvent{
+		TenantID: e.TenantID, Actor: e.Actor, Action: "memory." + e.Op, Resource: e.RecordID,
+		Outcome: e.Outcome, CorrelationID: e.Reason, At: time.Now().UTC(),
+	})
 }
 
 func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
@@ -1181,9 +1199,12 @@ func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemo
 	if err != nil {
 		return nil, err
 	}
-	maxK, timeout, err := pfmemory.LoadLimitsFromEnv()
-	if err != nil {
-		return nil, err
+	maxK, timeout := s.memoryMaxK, s.memoryTimeout
+	if maxK == 0 {
+		maxK = 20
+	}
+	if timeout == 0 {
+		timeout = 5 * time.Second
 	}
 	obs := pfmemory.ObserverFuncs{
 		ObserveFn: func(op, result string, d time.Duration) {
@@ -1203,7 +1224,7 @@ func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemo
 			}
 		},
 	}
-	return pfmemory.New(repo, pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout), pfmemory.WithAuditor(memoryAudit{metrics: s.metrics}))
+	return pfmemory.New(repo, pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout), pfmemory.WithAuditor(memoryAudit{metrics: s.metrics, st: s.st}))
 }
 
 func (s *server) memoryRequestError(w http.ResponseWriter, r *http.Request, err error) {
