@@ -99,7 +99,18 @@ Tenant/project/principal are required. Empty values fail closed before any repos
 5. Return `ErrNotFound` for missing, forbidden, cross-tenant, or cross-project targets.
 6. Emit audit and metrics.
 
-Delete is read-verify-delete, never delete-then-authorize. The TOCTOU window is bounded because record ID, tenant, project, and owner are immutable for an existing record and cross-tenant ID reuse is denied by the repository Put path.
+Delete is read-verify-delete, never delete-then-authorize. To close the verify-then-delete window, the gateway requires an atomic scoped delete:
+
+```go
+type ScopedDeleter interface {
+    DeleteScoped(ctx context.Context, id string, scope datastore.MemoryScope) error
+}
+```
+
+- If the adapter implements `ScopedDeleter`, the DELETE itself carries tenant, project, ACL, and owner predicates.
+- If the adapter does not implement it, delete fails closed with `ErrScopedDeleteUnsupported`; the gateway never falls back to unscoped `Delete`.
+- `dualvec` SQLite/PostgreSQL and the underlying `edpdata` memory store implement the scoped predicate.
+- `TestDeleteScopedAtomic` proves a row cannot be removed when its tenant/project/ACL changes or mismatches between verify and delete.
 
 ### Validate
 Expose canonical validation for internal callers. Validation is the only operation that does not require repository access, but it still requires a complete `Scope`.
