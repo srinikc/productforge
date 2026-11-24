@@ -1,0 +1,54 @@
+{
+  "item": "BI-PF-1610",
+  "prior_review": "BI-PF-1610-92ce9b60bddc",
+  "candidate_sha": "cf3d1d7576d631ca516f7fad00931e544d00913f",
+  "checks": [
+    {
+      "check": "architect review config",
+      "command": "python -m pytest test-framework/tests/test_architect_review_config.py -q",
+      "result": "PASS",
+      "output": "3 passed",
+      "asserts": "model=mimo-v2.6-flash, provider=opencode-go, exact https://opencode.ai/zen/go/v1 base_url, OPENCODE_ZEN_API_KEY env source, no literal secret material"
+    },
+    {
+      "check": "changed events typing",
+      "command": "python -m pytest test-framework/tests/test_events_typing.py -q",
+      "result": "PASS",
+      "asserts": "core.events.bus_status resolves Dict[str, Any] return annotation"
+    },
+    {
+      "check": "wired audit",
+      "command": "python scripts/dev/wired_audit.py --fast",
+      "result": "PASS",
+      "asserts": "unwired modules, naming, store registry, diff contract, destructive audit"
+    },
+    {
+      "check": "scope check",
+      "command": "python scripts/dev/backlog_scope_check.py",
+      "result": "PASS",
+      "asserts": "configured scopes match active scopes plus configured pseudo scopes"
+    },
+    {
+      "check": "spec contract",
+      "command": "python scripts/dev/spec_contract.py --all",
+      "result": "PASS",
+      "asserts": "enforced design/spec/control contracts are consistent"
+    },
+    {
+      "check": "design pack freshness",
+      "command": "python scripts/dev/design_pack.py --all --check --fresh",
+      "result": "PASS",
+      "asserts": "generated design docs match file-authoritative backlog items"
+    }
+  ],
+  "recorded_outputs": {
+    "wired-audit": "wired_exit=0",
+    "workflow-matrix": "RESULT: PASS (0 failure(s))",
+    "backlog-scope": "backlog-scope: OK (3 configured scope(s))",
+    "spec-contract": "spec-contract: OK",
+    "design-pack": "design-pack: OK",
+    "functional-spec": "functional-spec: OK",
+    "docs-index": "unclassified docs: none"
+  }
+}
+

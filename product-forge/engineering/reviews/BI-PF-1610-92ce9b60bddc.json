@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1610",
+  "sha": "92ce9b60bddc",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-23T18:32:44.944777+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "8c19d967e6bb0d515e1efcb45fe9d87e07191485",
+  "head_sha": "387427ad4c2ecfc7c26dfbade5fe2616946ed0a0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC1 enforcement is weak: `test_architect_review_config.py` accepts any host via `base_url.rstrip(\"/\").endswith(\"/zen/go/v1\")`; a non-canonical base_url passes, so the \"canonical base_url\" clause of AC1 is not objectively gated.",
+      "AC evidence still `(none recorded)` for the full candidate; CL-015 requires SHA-pinned AC evidence entries \u2014 the new config test is not registered as AC evidence, so AC1/AC3 remain unverifiable at Gate 2.",
+      "AC3 (baseline CI gates green) has no recorded output in the delta for docs index, workflow matrix, spec-contract, design-pack, wired-audit, backlog-db, backlog-scope; the delta only adds code, not gate evidence."
+    ],
+    "MINOR": [
+      "`test_events_typing.py` asserts `get_type_hints(events.bus_status)[\"return\"] == Dict[str, Any]` while the delta's `events.py` hunk only adds the `Any` import \u2014 if `bus_status` lacks a resolvable return annotation, this test errors; annotation resolution is assumed, not shown.",
+      "New test files carry a UTF-8 BOM (`\ufeffimport json`); Python tolerates it, but it is avoidable encoding churn in tooling tests.",
+      "`test_architect_review_config.py` validates values but not that `config/architect-review.json` contains no literal key material (only the env-var name) \u2014 a committed secret would pass this gate."
+    ],
+    "NIT": [
+      "Assertion style duplicates expected constants inline; a single canonical-values fixture shared with any other config gates would prevent future drift."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully improves prior findings (narrowed `wired_audit` reconfigure handler, `get_type_hints`-based events test, added config test), but AC1/AC3 evidence remains unpinned and the base_url assertion is suffix-only, so the canonical-config AC is not strictly enforced. Top risks: unrecorded AC evidence (CL-015) and a passing test that would not catch a non-canonical base_url."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1610-b95f7e5290b5; fix evidence recorded",
+  "rereview_reason_sha256": "e2fdccd966dd0a70fee3e789d32a9337a321b2a38e08b61698e9ca2c5aa48c38"
+}
