@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-24T11:54:50 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-24T13:12:28 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
 - **Open:** 144  |  **Closed:** 646
 - `blocked`: 1
-- `in_progress`: 3
-- `new`: 140
+- `in_progress`: 4
+- `new`: 139
 
-### new, by category (140)
+### new, by category (139)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -73,7 +73,7 @@
 | BI-PF-1563 | Should | feature | Knowledge Authority & Conflict Resolution: hierarchy enforcement, contradiction detection, and fail-closed HIL escalation | Enforce strict authority ordering (SSOT > ADR > Decision > Learned) and fail-closed contradiction detection be... |
 | BI-PF-1564 | Should | feature | Retrieval & Context Evaluation: Precision@k, Recall@k, faithfulness scoring, ground-truth benchmark suite, and latency observability | Build an automated evaluation harness measuring retrieval precision, recall, faithfulness, and latency across ... |
 
-**Licensing / tenancy** (6)
+**Licensing / tenancy** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
@@ -81,7 +81,6 @@
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
-| BI-PF-1567 | Should | feature | Memory Orchestrator: unified memory read/write gateway, multi-tenant isolation, ACL enforcement, and scope filtering | Build the central Memory Orchestrator as the single governed gateway for all memory operations with strict ten... |
 
 **Specs / cache / context / artifacts** (14)
 | ID | MoSCoW | Type | Title | Objective |
