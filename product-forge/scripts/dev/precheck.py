@@ -258,6 +258,7 @@ _GATES = [
     # BI-PF-1428: Gate 2.5 is a HARD rule - code/schema/security changes need a committed architect-review
     # evidence file (deterministic/offline check; the review itself is run separately, see docs/REVIEW-GATES-LIFECYCLE.md).
     ("architect-review", ["scripts/dev/architect_review_check.py"], "fast", None),
+    ("recurring-findings", ["scripts/dev/recurring_findings_check.py"], "fast", None),
     ("review-churn", ["scripts/dev/review_churn_check.py"], "fast", ["data/backlog"]),
     ("execution-trail", ["scripts/dev/execution_trail_check.py"], "fast", ["data/backlog"]),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
