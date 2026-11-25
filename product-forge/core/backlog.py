@@ -197,6 +197,22 @@ def _edp_token() -> str:
     return ""
 
 
+import urllib.request as _ur_mod
+_ORIG_URLOPEN = _ur_mod.urlopen
+
+
+def _edp_urlopen(req, timeout: int = 30):
+    """Open an EDP HTTP request, bypassing local ambient proxies for loopback destinations."""
+    import urllib.request as _ureq
+    if _ureq.urlopen is not _ORIG_URLOPEN:
+        return _ureq.urlopen(req, timeout=timeout)
+    url = getattr(req, "full_url", str(req))
+    if "127.0.0.1" in url or "localhost" in url:
+        opener = _ureq.build_opener(_ureq.ProxyHandler({}))
+        return opener.open(req, timeout=timeout)
+    return _ureq.urlopen(req, timeout=timeout)
+
+
 def _load_all_from_db(scope: str, project: str | None):
     """BI-PF-1399 Phase 3 (read-switch): read items from the DB SoR (via the Go edpsvc /backlog)."""
     import json as _json
@@ -209,7 +225,7 @@ def _load_all_from_db(scope: str, project: str | None):
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
     req.add_header("Authorization", f"Bearer {_edp_token()}")
     try:
-        with _ureq.urlopen(req, timeout=30) as r:
+        with _edp_urlopen(req, timeout=30) as r:
             payload = _json.loads(r.read().decode("utf-8"))
     except _uerr.HTTPError as e:
         if e.code in (401, 403):
@@ -389,11 +405,11 @@ def _mirror_item_to_db(item: dict) -> None:
     req.add_header("Authorization", f"Bearer {_edp_token()}")
     if mode == "on":
         # DB SoR: propagate every failure; never acknowledge a lost authoritative write.
-        with _ureq.urlopen(req, timeout=5):
+        with _edp_urlopen(req, timeout=5):
             pass
         return
     try:
-        with _ureq.urlopen(req, timeout=5):
+        with _edp_urlopen(req, timeout=5):
             pass
     except Exception as e:  # noqa: BLE001
         _logging.getLogger(__name__).warning("backlog best-effort DB write skipped (%s): %s", iid, e)
@@ -406,7 +422,7 @@ def _delete_item_from_db(iid: str, tenant: str) -> None:
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="DELETE")
     req.add_header("Authorization", f"Bearer {_edp_token()}")
-    with _ureq.urlopen(req, timeout=5):
+    with _edp_urlopen(req, timeout=5):
         pass
 
 
@@ -418,7 +434,7 @@ def _fetch_item_from_db(iid: str, tenant: str) -> dict:
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="GET")
     req.add_header("Authorization", f"Bearer {_edp_token()}")
-    with _ureq.urlopen(req, timeout=5) as r:
+    with _edp_urlopen(req, timeout=5) as r:
         return _json.loads(r.read().decode("utf-8"))
 
 

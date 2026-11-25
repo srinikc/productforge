@@ -332,6 +332,38 @@ def enforce_for_instance(group: str) -> None:
     require_entitlement(effective_tier(), group)
 
 
+def action_group_map() -> Dict[str, Dict[str, str]]:
+    """Return the declarative boundary action->group map from config/licensing-tiers.json."""
+    data = _rj(TIERS_FILE, {})
+    return data.get("action_group_map") or {}
+
+
+def action_group(boundary: str, action: str) -> str:
+    """Return the mapped feature group for (boundary, action), defaulting to 'build-products'."""
+    m = action_group_map().get(boundary) or {}
+    return m.get(action) or "build-products"
+
+
+def enforce_action(boundary: str, action: str, tenant: Optional[str] = None) -> None:
+    """Execution-boundary guard for a specific boundary and action (fail-closed).
+
+    If tenant is provided, checks that tenant's tier; otherwise checks effective_tier().
+    """
+    group = action_group(boundary, action)
+    tier = tenant_tier(tenant) if tenant else effective_tier()
+    require_entitlement(tier, group)
+
+
+def enforce_stage(stage_id: str, tenant: Optional[str] = None) -> None:
+    """Execution-boundary guard for pipeline stages."""
+    enforce_action("stages", stage_id, tenant)
+
+
+def enforce_capability(capability_name: str, tenant: Optional[str] = None) -> None:
+    """Execution-boundary guard for capability bridge invocation."""
+    enforce_action("capabilities", capability_name, tenant)
+
+
 def entitlements(tier: str) -> Dict[str, Any]:
     t = tiers().get(tier) or {}
     gi = feature_groups()

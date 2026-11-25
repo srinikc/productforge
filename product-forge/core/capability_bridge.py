@@ -251,12 +251,26 @@ def run_stage_hooks(project_dir: str, stage_id: str, **kw) -> Dict[str, Any]:
         if not fn:
             continue
         try:
+            # BI-PF-1286: capability execution boundary - entitlement check (fail-closed)
+            from core import licensing
+            licensing.enforce_capability(name, tenant=kw.get("tenant"))
             args = {}
             if name == "research_domain":
                 args["domain"] = kw.get("domain", "")
             out[name] = fn(project_dir, **args)
         except Exception as e:
-            out[name] = {"error": str(e)}
+            err_msg = str(e)
+            out[name] = {"error": f"entitlement_refused: {err_msg}" if "tier" in err_msg.lower() or "not entitled" in err_msg.lower() else err_msg}
     if out:
         _save(project_dir, f"capabilities-{stage_id}.json", out)
     return out
+
+
+def invoke_capability(name: str, project_dir: str, tenant: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    """Invoke an individual capability with fail-closed entitlement enforcement (BI-PF-1286)."""
+    from core import licensing
+    licensing.enforce_capability(name, tenant=tenant)
+    fn = REGISTRY.get(name)
+    if not fn:
+        return {"error": f"unknown capability: {name}"}
+    return fn(project_dir, **kwargs)

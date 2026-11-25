@@ -14,6 +14,7 @@ _MAP = {
     "BAD_REQUEST": (400, "client", False),
     "UNAUTHENTICATED": (401, "auth", False),
     "FORBIDDEN": (403, "auth", False),
+    "ENTITLEMENT_REFUSED": (403, "auth", False),
     "NOT_FOUND": (404, "client", False),
     "METHOD_NOT_ALLOWED": (405, "client", False),
     "CONFLICT": (409, "conflict", False),
@@ -66,8 +67,7 @@ def error_response(exc: ApiError, request_id: str = "", correlation_id: str = ""
 def install_handlers(app) -> None:
     """Register FastAPI exception handlers so every error uses the canonical envelope."""
     from fastapi import Request
-    from fastapi.exceptions import RequestValidationError
-    from starlette.exceptions import HTTPException as StarletteHTTPException
+    from fastapi.exceptions import RequestValidationError, StarletteHTTPException
     from .context import ctx_of
 
     @app.exception_handler(ApiError)

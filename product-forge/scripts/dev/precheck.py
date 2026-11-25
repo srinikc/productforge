@@ -40,6 +40,13 @@ from git_env import sanitize_process_env, worktree_fingerprint  # noqa: E402
 # A pre-push hook can export GIT_DIR/GIT_WORK_TREE. Never let tests inherit them.
 sanitize_process_env()
 
+# Ensure canonical scopes are present in PF_BACKLOG_DB_SCOPES if set in ambient env
+if "PF_BACKLOG_DB_SCOPES" in os.environ:
+    _curr = {s.strip() for s in os.environ["PF_BACKLOG_DB_SCOPES"].split(",") if s.strip()}
+    _req = {"product_forge", "ProductForge-Dashboard", "project", "inbox", "intake"}
+    if not _req.issubset(_curr):
+        os.environ["PF_BACKLOG_DB_SCOPES"] = ",".join(sorted(_curr | _req))
+
 _ROOT = str(_PF_ROOT)
 _TEST_DIR = "test-framework/tests/pipeline"
 _INTEGRATION = "develop"

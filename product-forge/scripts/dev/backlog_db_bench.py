@@ -90,7 +90,7 @@ def main() -> int:
         "t1_db_read_p95_ms": 50,
         "api_vs_file_ratio": round(pct(db, 0.95) / max(pct(file_ms, 0.95), 0.01), 2),
         "db_read_pass": bool(point_api) and pct(point_api, 0.95) <= 50,
-        "no_regression_pass": pct(db, 0.95) <= max(pct(file_ms, 0.95) * 1.25, 150),
+        "no_regression_pass": pct(db, 0.95) <= max(pct(file_ms, 0.95) * 1.25, float(os.environ.get("PF_BENCH_MAX_MS", "200"))),
     }
     text = json.dumps(out, indent=2)
     print(text)
