@@ -43,7 +43,7 @@ sanitize_process_env()
 # Ensure canonical scopes are present in PF_BACKLOG_DB_SCOPES if set in ambient env
 if "PF_BACKLOG_DB_SCOPES" in os.environ:
     _curr = {s.strip() for s in os.environ["PF_BACKLOG_DB_SCOPES"].split(",") if s.strip()}
-    _req = {"product_forge", "ProductForge-Dashboard", "project", "default", "inbox", "intake"}
+    _req = {"product_forge", "ProductForge-Dashboard", "project", "inbox", "intake"}
     if not _req.issubset(_curr):
         os.environ["PF_BACKLOG_DB_SCOPES"] = ",".join(sorted(_curr | _req))
 

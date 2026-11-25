@@ -313,9 +313,9 @@ def _backlog_db_scopes() -> set[str]:
     """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
     try:
         from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard,project,default,inbox,intake")
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,inbox,intake,project")
     except Exception:
-        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard,project,default,inbox,intake")
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,inbox,intake,project")
     scopes = {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
     if not scopes and _backlog_db_mode() in ("on", "dual", "shadow"):
         raise RuntimeError("BACKLOG_DB_SCOPES_EMPTY: PF_BACKLOG_DB=on requires an explicit non-empty allowlist")
