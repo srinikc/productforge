@@ -9,6 +9,10 @@ The authoritative gate chain for taking a backlog item from **take-up → merge 
 **Gate 1.5 (design review) → Gate 1 (HIL design approval)**, and **Gate 2.5 (delivery review) → Gate 2 (HIL
 delivery approval)**. HIL always sees the reviewer's findings + recommendation as an input to the decision.
 
+0. **Gate 1.4 — Deterministic Pre-Review Gate (`scripts/dev/design_precheck.py` — BI-PF-1615).**
+   Runs BEFORE any LLM review. Fails closed on multi-capability items, duplicate controls, review_scope parity
+   gaps, and boilerplate dispositions. The LLM reviews judgment, not schema/consistency.
+
 1. **Gate 1.5 — Architect DESIGN review (independent; fresh context; configurable model).**
    Reviews the **design / reconciliation block** *before* HIL approval (see §Gate 2.5 rules). Recommended for
    large/security/schema work. Its findings + recommendation are presented to HIL.

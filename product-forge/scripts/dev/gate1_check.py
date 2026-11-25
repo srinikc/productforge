@@ -71,6 +71,12 @@ def main(argv: list[str] | None = None) -> int:
         }, indent=2))
     else:
         print(ar.render_gate_view(view, "design"))
+        # Stop-and-split rule (BI-PF-1615): more than 2 MAJORs in full review -> halt and split
+        majors = [b for b in view["blocking"] if b[1] == "MAJOR"]
+        if len(majors) > 2:
+            print(f"\n  🛑 STOP-AND-SPLIT RULE TRIGGERED: {len(majors)} MAJOR findings reported.")
+            print("  Item is over-scoped or multi-capability. HIL must split the item rather than looping fixes.")
+            return 1
         if view["blocking"]:
             print(f"gate1: FAIL - {len(view['blocking'])} BLOCKER/MAJOR finding(s) still PENDING "
                   f"(of {view['total']} total) - disposition them before Gate 1")
