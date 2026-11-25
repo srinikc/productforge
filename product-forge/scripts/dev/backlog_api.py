@@ -24,14 +24,22 @@ API = "/api/v1/backlog"
 
 def _token() -> str:
     """Resolve the API token and ensure PF_API_TOKEN is set (the app reads it at request time)."""
+    admin_tok = os.environ.get("PF_ADMIN_TOKEN", "").strip()
     tok = os.environ.get("PF_API_TOKEN", "").strip()
     if not tok:
-        try:
-            tok = (ROOT / "data" / "local" / "dev-api-token").read_text(encoding="utf-8").strip()
-        except Exception:
-            tok = ""
-        if tok:
+        if admin_tok:
+            tok = admin_tok
             os.environ["PF_API_TOKEN"] = tok
+        else:
+            try:
+                tok = (ROOT / "data" / "local" / "dev-api-token").read_text(encoding="utf-8").strip()
+            except Exception:
+                tok = ""
+            if tok:
+                os.environ["PF_API_TOKEN"] = tok
+    elif admin_tok and tok != admin_tok:
+        tok = admin_tok
+        os.environ["PF_API_TOKEN"] = tok
     return tok
 
 

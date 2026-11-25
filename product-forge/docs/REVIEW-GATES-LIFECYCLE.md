@@ -34,6 +34,10 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    OPEN QUESTIONS) and IMPACT REVIEW (LANGUAGE, API, AC). Record it on the item/design/trail and run
    `scripts/dev/gate0_check.py`. Do not design or implement while any row is unresolved.
 
+0.5. **Gate 1.4 — Deterministic Pre-Review Gate (`scripts/dev/design_precheck.py` — BI-PF-1615).**
+   Runs BEFORE any LLM review. Fails closed on multi-capability items, duplicate controls, review_scope parity
+   gaps, and boilerplate dispositions. The LLM reviews judgment, not schema/consistency.
+
 1. **Gate 1.5 — Architect DESIGN review (independent; fresh context; configurable model).**
    Reviews the **design / reconciliation block and the relevant code call sites** *before* HIL approval
    (see §Gate 2.5 rules). It verifies the runtime entrypoint, exact call-site map, production adapter,

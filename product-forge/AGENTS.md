@@ -2,6 +2,59 @@
 
 Rules for every agent and contributor working in this repository.
 
+## BACKLOG ITEM EXECUTION PROTOCOL — READ THIS FIRST (BI-PF-XXXX)
+
+> Authoritative short guide: `docs/BACKLOG-EXECUTION-QUICKREF.md`  
+> Complete gate lifecycle: `docs/REVIEW-GATES-LIFECYCLE.md`
+
+### 4 HARD STOP Rules (non-negotiable)
+1. **Never commit directly to `develop` or `main`.** Always work on a feature branch (`git checkout -b feature/bi-pf-NNNN-short-name`).
+2. **Backlog writes via API only.** Never edit `data/backlog/` files directly.
+3. **Strict scope boundary.** Only modify files listed in `affected_files` / `in_scope`. If an out-of-scope edit is required, stop and obtain HIL approval.
+4. **Hard failure limits:**
+   - Any gate fails > 2 times consecutively → **BLOCKED**. Output `BLOCKED: <gate> - failed after 2 attempts. Needs HIL review.` and STOP.
+   - Gate 2.5 review cycles reach 2 rounds → **STOP**. Remaining findings require HIL disposition. Do NOT run another review cycle autonomously.
+
+### The 6 Ordered Execution Steps
+
+```
+Step 1: Session Kickoff & Design
+  1. Run: python scripts/dev/item_kickoff.py --item <ID>
+  2. Create engineering/designs/<ID>.md using two-phase generation (reasoning first, then extract into sections).
+     Required sections: PRIOR DECISIONS, EXISTING PATH, ASSUMPTIONS, DIVERGENCES, OPEN QUESTIONS, APPROACH.
+     No TBD/None/N/A placeholders (use "INSUFFICIENT_DATA: <missing info>" if data is missing).
+  3. WAIT for operator/HIL confirmation of the design approach before Gate 1.5.
+
+Step 2: Gate 1.5 & Gate 1 Design Approval
+  1. Completeness check: python scripts/dev/design_completeness_check.py --item <ID> (must pass cleanly).
+  2. Guardrails record: python scripts/dev/design_guardrails.py --item <ID> --record
+  3. Gate 1.5 Architect review: python scripts/dev/architect_review.py run --item <ID> --mode design --apply
+  4. Enforce Gate 1: python scripts/dev/gate1_check.py --item <ID> (all BLOCKER/MAJOR must be dispositioned).
+  5. Present consolidated package: python scripts/dev/architect_review.py gate --item <ID> --gate 1
+  6. WAIT for explicit HIL Gate 1 approval. No code before approval.
+
+Step 3: Implementation
+  1. Branch: git checkout -b feature/bi-pf-<NNNN>-<short-name>
+  2. Implement ONLY in affected_files. Wire every module on the runtime path. Add tests that can fail.
+
+Step 4: Gate 2.5 & Gate 2 Delivery Approval
+  1. Delivery review: python scripts/dev/architect_review.py run --item <ID> --mode diff --apply
+  2. Commit evidence: git add engineering/reviews/ && git commit -m "chore: Gate 2.5 review evidence <ID>"
+  3. Record cycle: python scripts/dev/session_state.py record-review-cycle --gate 2.5
+  4. Present to HIL: python scripts/dev/architect_review.py gate --item <ID> --gate 2
+  5. WAIT for HIL Gate 2 approval.
+
+Step 5: Precheck & Hardening
+  1. Run: python scripts/dev/precheck.py
+  2. Fix ONE failing gate at a time. Record attempts: python scripts/dev/session_state.py record-gate-fail --gate <name>.
+  3. NOTE ON RE-REVIEW: Diff changes invalidate prior Gate 2.5 SHA. Re-running architect_review.py --mode diff --apply
+     will inject PRIOR REVIEW HISTORY and check review cycle limits (max 2 delta rounds).
+
+Step 6: Closeout (after merge)
+  1. Run: python scripts/dev/item_closeout.py --item <ID> --branch <B> --sha <S> --pr <PR>
+  2. Harvest recurring learnings: python scripts/dev/review_learnings.py --propose
+```
+
 ## Identity
 - This product is **Product Forge**. The token `factory` must never be stored or surfaced
   (legacy read-compat shims are allowlisted in the audit only).
