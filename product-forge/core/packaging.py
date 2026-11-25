@@ -435,6 +435,73 @@ def eap_load(scope: str = "product_forge", project: str = "") -> dict[str, Any]:
 
 # ── A3 (BI-PF-0398): Compiled Packaging, SBOM/LBOM, Signing & Subsystem Plug/Unplug ──────────────────
 
+def validate_customer_package_node_modules(package_dir: str) -> dict[str, Any]:
+    """Fail closed if node_modules directory is present in customer package (AC-3)."""
+    for root, dirs, _ in os.walk(package_dir):
+        if "node_modules" in dirs:
+            return {"valid": False, "error": "NODE_MODULES_DETECTED", "path": os.path.join(root, "node_modules")}
+    return {"valid": True}
+
+
+def validate_customer_package_sourcemaps(package_dir: str) -> dict[str, Any]:
+    """Fail closed if source maps (*.map) are present in customer package (AC-3)."""
+    for root, _, files in os.walk(package_dir):
+        for f in files:
+            if f.endswith(".map"):
+                return {"valid": False, "error": "SOURCE_MAP_DETECTED", "file": f}
+    return {"valid": True}
+
+
+def validate_customer_package(package_dir: str, edition: str) -> dict[str, Any]:
+    """Fail-closed customer distribution validation (AC-3 / Invariants 3 & 5)."""
+    if str(edition or "").lower() not in CUSTOMER_EDITIONS:
+        return {"valid": True, "edition": edition}
+    nm = validate_customer_package_node_modules(package_dir)
+    if not nm.get("valid"):
+        return {"valid": False, "error": nm["error"], "detail": nm.get("path")}
+    sm = validate_customer_package_sourcemaps(package_dir)
+    if not sm.get("valid"):
+        return {"valid": False, "error": sm["error"], "detail": sm.get("file")}
+    raw_exts = (".ts", ".tsx", ".jsx", ".mts", ".cts", ".py")
+    raw_files = ("package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")
+    for root, _, files in os.walk(package_dir):
+        for f in files:
+            fl = f.lower()
+            if fl.endswith(raw_exts):
+                code = "RAW_PY_DETECTED" if fl.endswith(".py") else "RAW_FRONTEND_SOURCE_DETECTED"
+                return {"valid": False, "error": code, "file": f}
+            if fl in raw_files:
+                return {"valid": False, "error": "NODE_BUILD_ARTIFACT_DETECTED", "file": f}
+    return {"valid": True, "edition": edition}
+
+
+def compile_web_console(source_dir: str, output_dist_dir: str, generate_checksums: bool = True) -> dict[str, Any]:
+    """Bundle compiled web console assets with deterministic SHA256 checksums manifest (AC-1)."""
+    if not os.path.isdir(source_dir):
+        return {"ok": False, "error": "EMBED_DIR_NOT_FOUND", "path": source_dir}
+    os.makedirs(output_dist_dir, exist_ok=True)
+    chk_lines = []
+    for root, _, files in os.walk(source_dir):
+        for f in sorted(files):
+            if f == "checksums.txt":
+                continue
+            src_file = os.path.join(root, f)
+            rel = os.path.relpath(src_file, source_dir).replace("\\", "/")
+            dest_file = os.path.join(output_dist_dir, rel)
+            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+            with open(src_file, "rb") as rf:
+                content = rf.read()
+            with open(dest_file, "wb") as wf:
+                wf.write(content)
+            h = hashlib.sha256(content).hexdigest()
+            chk_lines.append(f"{h}  {rel}\n")
+    if generate_checksums:
+        chk_path = os.path.join(output_dist_dir, "checksums.txt")
+        with open(chk_path, "w", encoding="utf-8") as f:
+            f.writelines(chk_lines)
+    return {"ok": True, "output_dir": output_dist_dir, "file_count": len(chk_lines)}
+
+
 def validate_asset_bundle(asset_bundle: dict[str, Any]) -> dict[str, Any]:
     """Validate a non-code asset bundle (prompts, UI/UX tokens, web console) in EAP."""
     unmet: list[str] = []
@@ -636,10 +703,9 @@ def build_compiled_package(scope: str = "product_forge", project: str = "",
     artifacts.extend(["sbom.json", "lbom.json", "checksums.txt"])
 
     if ed["id"] in CUSTOMER_EDITIONS:
-        for _root, _, files in os.walk(output_dir):
-            for f in files:
-                if f.endswith(".py"):
-                    return {"ok": False, "error": f"RAW_PY_DETECTED_IN_COMPILED_PACKAGE: {f}"}
+        val = validate_customer_package(output_dir, ed["id"])
+        if not val.get("valid"):
+            return {"ok": False, "error": f"{val['error']}: {val.get('detail') or val.get('file')}"}
 
     return {
         "ok": True,
