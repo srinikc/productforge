@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1553",
+  "sha": "2ac95770f151",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-25T15:19:38.429950+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cada800e74e33493b79ea119e1968418f2c552a3",
+  "findings": {
+    "BLOCKER": [
+      "Language rule: design_pack.tooling=false, yet new Python operations (compile_web_console, validate_customer_package) are added to core/packaging.py; new shipped logic must be Go, or the item must be reclassified/dispositioned as tooling before Gate 1.5."
+    ],
+    "MAJOR": [
+      "Runtime gzip + Cache-Control: immutable with no declared Vary: Accept-Encoding (or ETag/If-None-Match strategy) risks shared-proxy cache misdelivery/poisoning and full re-downloads; no test asserts Vary.",
+      "IP guard misses source maps: vite *.map files embed original TS/JSX source and bypass the .ts/.tsx/.jsx extension scan; design must pin build.sourcemap=false and fail closed on *.map (AC-3).",
+      "Rollback flag (\"serve external static directory\") is absent from config_contract (only eap_registry, embed_fs_seach, console_dist_dir); the approved rollback cannot be configured or verified as specified."
+    ],
+    "MINOR": [
+      "Scope drift: affected_files lists go/web/console_test.go but design_pack.scope omits it (CL-016 scope separation).",
+      "Determinism (NFR) incomplete: no pinning of Node/vite toolchain versions or lockfile for reproducible content hashes.",
+      "Guard data_rules cover only .ts/.tsx/.jsx and node_modules; AC-3 \"zero Node.js runtime dependencies\" also implies package.json, lockfiles, .tgz/.pnpm artifacts, and .mts/.cts/.mjs/.cjs extensions.",
+      "Traversal boundary protection claimed in design security but has no negative test in test_matrix/implementation_controls.",
+      "Checksum manifest verification point versus go:embed build order is unspecified; a stale dist could embed if pipeline ordering is not enforced.",
+      "AC-1 negative test test_web_console_corrupt_hash_fails appears in implementation_controls but not in traceability/test_matrix, leaving the AC-1 failure path untraceable."
+    ],
+    "NIT": [
+      "Per-request gzip may challenge the sub-ms NFR for large bundles; consider precompressed assets, a minimum-size threshold, and skipping already-compressed types (images, woff2).",
+      "Consider standard security headers (CSP, X-Content-Type-Options: nosniff) for the embedded SPA in the same handler."
+    ],
+    "SUMMARY": [
+      "Design is structurally sound with fail-closed guards, hashed immutable caching, and AC\u2194test traceability, but the language-rule disposition on core/packaging.py and the Vary/sourcemap correctness gaps must be resolved before approval.",
+      "Top risks: source-map IP leakage defeating AC-3, intermediary cache misdelivery from missing Vary: Accept-Encoding, and an undeclared rollback configuration path."
+    ]
+  }
+}

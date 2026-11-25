@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1553",
+  "sha": "9d5da7232a6c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-25T18:16:34.395999+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "937b4dd44a6505d6a226b1cb3ac9306e1ed7721c",
+  "findings": {
+    "BLOCKER": [
+      "AC-2 unmet: no `//go:embed` directive, no `embed` import, no embedded FS anywhere in the diff; `NewConsoleHandler` only accepts an `fs.FS` supplied by a caller, and no platform-server call site wires `ServeConsoleMux`/`NewConsoleHandler` in. Design in_scope (\"Go server asset embedding via embed.FS\"), DEC-1553-01, and config_contract `embed_fs_seam: go/web/console.go` all point at this file as the embed seam \u2014 it does not embed."
+    ],
+    "MAJOR": [
+      "AC-1 not demonstrably met: `compile_web_console` is a file copy + SHA256 manifest; it never compiles a SPA, never invokes a build (vite/npm per design approach), and never produces content-hashed filenames \u2014 it assumes pre-hashed input, so \"compiles \u2026 with content hashing\" is unproven.",
+      "Integrity attestation fails open: `VerifyAssetIntegrity` returns `nil` when `checksums.txt` is absent, and files present in the FS but unlisted in the manifest are served unverified \u2014 violates the design invariant \"failing closed on tampering\".",
+      "Cache invariant violated: `serveFileContent` grants `public, max-age=31536000, immutable` to any filename containing a dot, not just content-hashed assets; non-hashed files (e.g. `logo.png`) become un-revalidatable for a year, breaking the `PF_CONSOLE_STATIC_DIR` rollback path and the invariant \"Hashed static chunks receive immutable cache headers\".",
+      "Design-mandated tests missing from diff: `test_go_embedded_server_uncompressed_client` (C-3), `test_go_embedded_server_invalid_external_dir_fails` (C-8), `test_console_tenant_neutrality` (C-9), `test_eap_asset_bundle_invalid_fails` (C-9) are referenced in test_matrix/controls but not implemented.",
+      "FR-2/AC-2 traceability evidence `test_go_embedded_server_headers_and_gzip` (and 4 sibling \"tests\") only grep `console.go` source for substrings \u2014 they pass without exercising the server and provide no behavioral AC-2 verification in the Python gate."
+    ],
+    "MINOR": [
+      "`ConsoleConfig.SkipGzipCompressed` is declared but never read; no precompressed-asset path exists despite the config contract implying one (dead config surface).",
+      "`NODE_BUILD_ARTIFACT_DETECTED` checks only `package.json`/lockfiles; `.mjs`/`.cjs` listed in the approved failure matrix are not rejected.",
+      "`compile_web_console` never cleans `output_dist_dir`; stale files from prior builds persist (unmanifested yet served), undermining the NFR determinism/reproducibility claim.",
+      "packaging.py grows ~66 net new lines, exceeding the 60-line growth threshold cited as the DEC-1553-03 language-rule compliance evidence.",
+      "No logging/metrics emitted on `ASSET_INTEGRITY_MISMATCH`, 404s, or validation failures \u2014 observability guardrail 9 (structured failure codes + HTTP access metrics) is only partially honored.",
+      "API 404-JSON response block duplicated in `ServeConsoleMux` and `ConsoleHandler.ServeHTTP` (single-writer/reuse concern)."
+    ],
+    "NIT": [
+      "`ValidateConsoleRoutePath` rejects any path containing the substring `..`, so legitimate names like `/assets/foo..bar.js` return 400.",
+      "`IsAPIRoute` uses `HasPrefix(\"/health\")`/`\"/metrics\"`, over-broadly capturing paths like `/healthz` or `/metrics-exporter`.",
+      "Source-map rejection (step 2) runs before the security headers (step 3), so `.map` 404s lack `nosniff`/`Vary`.",
+      "Python contract tests resolve `Path(\"go/web/console.go\")` relative to CWD \u2014 brittle across pytest rootdirs."
+    ],
+    "SUMMARY": [
+      "The Go serving layer and the Python IP guard are well-structured and covered by real Go unit tests, but the headline AC-2 (\"embeds via go:embed\") is absent entirely \u2014 no embed directive or server wiring exists in the declared files.",
+      "AC-1's \"build pipeline with content hashing\" reduces to a copy-and-checksum step, and the startup integrity attestation fails open on a missing manifest.",
+      "Top risks before Gate 2.5: implement/wire go:embed, close the fail-open integrity path, restrict `immutable` caching to hashed assets, and replace grep-based \"tests\" with behavioral coverage plus the four missing design-mandated tests."
+    ]
+  }
+}
