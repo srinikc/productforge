@@ -59,7 +59,7 @@ def build(item_id: str) -> dict:
             "gate_metrics": tr.gate_metrics(evs),
             "usage": u, "started_at": start, "finished_at": end,
             "disposition_problems": bad,
-            "dispositions": {m: {k: v for k, v in ((it.get("review_dispositions") or {}).get(m) or {}).items()
+            "dispositions": {m: {k: v for k, v in dp._rows(it, m).items()
                                  if str((v or {}).get("status") or "").upper() in ("ACCEPTED", "DEFERRED")}
                              for m in ("design", "diff")},
             "gate_decisions": gate_decisions,

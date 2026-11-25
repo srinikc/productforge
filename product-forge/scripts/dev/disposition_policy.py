@@ -39,7 +39,10 @@ def cfg() -> dict:
 
 
 def _rows(item: dict, mode: str) -> dict:
-    return ((item.get("review_dispositions") or {}).get(mode) or {})
+    val = (item.get("review_dispositions") or {}).get(mode) or {}
+    if isinstance(val, list):
+        return {f"sig:{r.get('finding_digest') or r.get('sha') or i}": r for i, r in enumerate(val)}
+    return val
 
 
 def _approvals(item: dict, mode: str) -> list[dict]:

@@ -42,6 +42,8 @@ def test_backlog_add_uses_allocator(tmp_path, monkeypatch):
 def test_api_reserve_endpoint(tmp_path, monkeypatch):
     monkeypatch.setattr(ia, "OUT", str(tmp_path / ("b" + ".json")))
     monkeypatch.setenv("API_ALLOW_ANON", "1")
+    monkeypatch.delenv("PF_API_TOKEN", raising=False)
+    monkeypatch.delenv("API_TOKEN", raising=False)
     from fastapi.testclient import TestClient
     from api.app import app
     c = TestClient(app)

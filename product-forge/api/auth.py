@@ -142,3 +142,41 @@ def require_tenant(request: Request, x_tenant_id: str = Header(default=""),
 auth = Depends(authenticate)
 operator_guard = Depends(require_operator)
 tenant_guard = Depends(require_tenant)
+
+
+def require_feature_group(group: str):
+    """FastAPI dependency factory: enforce feature-group entitlement (fail-closed, BI-PF-1286)."""
+    def _guard(request: Request, x_tenant_id: str = Header(default=""),
+               authorization: str = Header(default=""), x_roles: str = Header(default="")) -> dict:
+        auth_hdr = authorization if isinstance(authorization, str) else ""
+        roles_hdr = x_roles if isinstance(x_roles, str) else ""
+        tenant_hdr = x_tenant_id if isinstance(x_tenant_id, str) else ""
+        ctx = authenticate(request, auth_hdr, roles_hdr)
+        roles = ctx.get("roles") or []
+        if "operator" in roles:
+            return ctx
+        from core import licensing
+        tenant = (tenant_hdr or ctx.get("tenant_id") or "").strip()
+        tier = licensing.effective_tier()
+        if not os.getenv("PF_INSTANCE_TIER") and tenant:
+            tier = licensing.tenant_tier(tenant)
+        decision = licensing.enforcement(tier, group)
+        if not decision.get("allowed"):
+            raise ApiError("ENTITLEMENT_REFUSED", decision.get("reason", f"not entitled to {group}"))
+        return ctx
+    return _guard
+
+
+def require_route_entitlement(request: Request, x_tenant_id: str = Header(default=""),
+                              authorization: str = Header(default=""), x_roles: str = Header(default="")) -> dict:
+    """FastAPI dependency: dynamically resolve and enforce the mapped feature group for this route (BI-PF-1286)."""
+    from core import licensing
+    path = request.url.path
+    api_map = (licensing.action_group_map().get("api_routes") or {})
+    matched_group = "build-products"
+    for prefix, grp in api_map.items():
+        if path.startswith(prefix):
+            matched_group = grp
+            break
+    guard = require_feature_group(matched_group)
+    return guard(request, x_tenant_id=x_tenant_id, authorization=authorization, x_roles=x_roles)
