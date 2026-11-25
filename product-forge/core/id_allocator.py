@@ -305,12 +305,73 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
         return {"start": start, "end": end, "session": session, "size": size}
 
 
+def _db_enabled(scope: str | None = None, project: str | None = None) -> bool:
+    from core import backlog
+    return backlog.db_authority_enabled(scope, project)
+
+
+def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
+    """Reserve from the PostgreSQL backlog authority through edpsvc (one writer)."""
+    import logging
+    import time
+    import urllib.error
+    import urllib.request
+    import uuid
+
+    base = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
+    token = str(os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN") or "pf-edp-local-token-32-chars-long")
+    reservation_id = f"pf-sb:{scope}:{project or ''}:{session_id()}:{uuid.uuid4().hex}"
+    body = json.dumps({"scope": scope, "project": project or "",
+                       "reservation_id": reservation_id, "size": int(size)}).encode("utf-8")
+    for attempt in range(2):
+        req = urllib.request.Request(f"{base}/backlog/ids:reserve", data=body, method="POST",
+                                     headers={"Content-Type": "application/json",
+                                              **({"Authorization": f"Bearer {token}"} if token else {})})
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                payload = json.loads(r.read().decode("utf-8") or "{}")
+            if payload.get("start") and payload.get("end"):
+                return {"start": int(payload["start"]), "end": int(payload["end"])}
+            return None
+        except Exception as e:
+            logging.getLogger(__name__).warning("backlog id reserve attempt %d failed (%s): %s", attempt, reservation_id, e)
+            if attempt == 0:
+                time.sleep(0.5)
+                continue
+            return None
+    return None
+
+
+def reserve_shared(scope: str, project: str | None = None, size: int = 0,
+                   session: str = "") -> dict:
+    """API authority: DB-only block reservation; never Git/local fallback."""
+    if not _db_enabled(scope, project):
+        raise RuntimeError("PF_BACKLOG_DB=on is required for shared DB id reservation")
+    size = size or block_size()
+    blk = _reserve_db(scope, project, size)
+    if not blk:
+        raise RuntimeError("PostgreSQL backlog id authority unavailable; refusing fallback")
+    return {"start": blk["start"], "end": blk["end"], "session": session or session_id(),
+            "size": size, "source": "db"}
+
+
 def _mint(scope: str, project: str | None, existing_max: int, reserved_up_to: int) -> dict:
     """Get a fresh block for this session: the shared git remote (CAS) first, then the API, then a local block.
 
     In ``strict`` mode (opt-in) only the git-CAS is allowed; if it fails we RAISE (never self-reserve).
     """
     size = block_size()
+    if _db_enabled(scope, project):
+        cand = _reserve_db(scope, project, size)
+        # Self-heal stale sequence: if the DB sequence was behind existing_max, advance it until clean
+        while cand and int(cand["start"]) <= int(existing_max):
+            advance_by = int(existing_max) - int(cand["start"]) + size
+            _reserve_db(scope, project, advance_by)
+            cand = _reserve_db(scope, project, size)
+        if not (cand and int(cand["start"]) > int(existing_max)):
+            raise RuntimeError("PF_BACKLOG_DB=on: the PostgreSQL backlog authority is unavailable - "
+                               "refusing a Git/local id fallback")
+        return {"start": cand["start"], "end": cand["end"], "next": cand["start"], "source": "db"}
     cand = _reserve_git(scope, project, size, existing_max)
     if strict():
         if not (cand and int(cand["start"]) > int(existing_max)):
@@ -334,7 +395,7 @@ def alloc(scope: str, project: str | None, existing_max: int = 0, session: str =
         if int(st.get("reserved_up_to") or 0) < int(existing_max or 0):
             st["reserved_up_to"] = int(existing_max or 0)
         blk = st.setdefault("sessions", {}).get(session)
-        if not blk or int(blk.get("next", 0)) > int(blk.get("end", 0)):
+        if not blk or int(blk.get("next", 0)) > int(blk.get("end", 0)) or int(blk.get("next", 0)) <= int(existing_max or 0):
             blk = _mint(scope, project, existing_max, int(st.get("reserved_up_to") or 0))
             st["sessions"][session] = blk
             st["reserved_up_to"] = max(int(st.get("reserved_up_to") or 0), int(blk["end"]))

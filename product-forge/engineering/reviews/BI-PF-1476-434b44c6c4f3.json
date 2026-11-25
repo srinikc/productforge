@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "434b44c6c4f3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:32:28.824316+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "ADR numbering inconsistency: in_scope lists \"ADR-0007 (decision, rationale, supersede trigger, index row)\" while all ACs require ADR-0009; unresolved ambiguity risks a wrong index row, cross-referenced gate assertion, and future supersede-chain drift \u2014 pin the ADR id in the design before Gate 2.",
+      "Gate design hard-codes a single store path/tuple in a \"generic\" invariant script; with ~60 retained config stores and an audit follow-up queued, this invites one bespoke assert per store. Prefer a generic invariant (any entry with status=retained \u21d2 non-empty retained_reason + decision_ref + resolvable ADR id) plus one pinned parity check."
+    ],
+    "MINOR": [
+      "retained_reason text is duplicated in ADR-0009 and the registry entry with no stated authority for which is canonical; divergence is likely over time \u2014 declare the ADR authoritative and the registry field a pointer/summary.",
+      "Guardrail checklist (reversibility, observability, invariants, tests) is not explicitly answered in the design; CL-008 expects dispositions pre-1.5, and observability of gate failure (exit codes, structured findings, docs-fresh wiring) is unspecified.",
+      "Negative self-test placement is unstated (in-script mutation harness vs. tests/ module); confirm it is fail-able, CI-invoked, and does not mutate the real config/store-registry.json in place.",
+      "Rollback plan omits restoring store-registry.json glossary/description wording and the required STORE-DATAFLOW regeneration ordering after revert."
+    ],
+    "NIT": [
+      "target.related_item=BI-PF-1476 hard-codes a ticket id into a permanent registry record; consider whether a durable \"decision provenance\" convention outlives ticket lifecycle better.",
+      "\"Auditing the other 60 retained config stores\" being out-of-scope is fine, but record the follow-up explicitly so the glossary's retained-by-decision vs retained-by-pending-migration distinction doesn't silently rot."
+    ],
+    "SUMMARY": [
+      "The item is low-risk and appropriately documentation/tooling-only; the rollback story and language rule (Python tooling edits) are satisfied.",
+      "Top risks: the ADR-0007 vs ADR-0009 numbering contradiction must be resolved before Gate 2, and the gate invariant should be made generic over retained stores rather than pinned per-store to remain maintainable at 60+ scale.",
+      "Verdict: approve after correcting the ADR id ambiguity and generalizing (or explicitly justifying) the pinned invariant; nothing here blocks data integrity or security."
+    ]
+  }
+}

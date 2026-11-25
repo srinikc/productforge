@@ -1,7 +1,7 @@
 ---
 description: Content reader agent. Reads and extracts text from various file formats (txt, pdf, epub, docx) for further processing.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: content-reader
 version: 1.0.0
 spec_version: "1.0"

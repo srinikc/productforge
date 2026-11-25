@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "51cf2a0d3319",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T07:50:09.100299+00:00",
+  "review_scope": "delta",
+  "base_sha": "30b41eb48443d368db580bf9d6179f7e0293b66c",
+  "head_sha": "47ab983e49795c94f4b6ac029cf6c84cf8755152",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`authorityReasonCode` default branch removes the `\"57014\"`/`\"timeout\"` string fallbacks: a Postgres statement timeout (`*pgconn.PgError` SQLSTATE 57014, not a `net.Error`) now reports `internal_error`, dropping the timeout diagnostic that CL-012 and AC-1 depend on. Add explicit 57014 mapping + test.",
+      "`errors.As(err, &netErr)` precedes any `Timeout()` check, so a non-deadline net timeout (custom dialer) is reported `db_unavailable`; order/guard on `netErr.Timeout()` to keep `timeout` distinct from `db_unavailable`.",
+      "`checkBacklogAuthority` now writes `edp_backlog_authority_last_request_ok`: a transient DB blip at boot pins the \"last request\" gauge to 0 with no request made, so a `== 0` alert fires on deploy and clears only after a manual operator call \u2014 same false-alarm shape the prior MAJOR asked to remove."
+    ],
+    "MINOR": [
+      "`backlogFor(tenant string, reserve bool)` silently discards `tenant` when `reserve` is true: a future caller passing a real tenant gets an unbound (no-RLS) store \u2014 the exact seam hazard this refactor closed for the factory. Prefer two named constructors.",
+      "Dropping the `\"connection\"`/`\"refused\"`/`\"closed\"`/`\"driver\"` markers narrows `db_unavailable`: pgconn \"conn closed\"/unexpected EOF, TLS and auth errors now surface as `internal_error`, under-reporting availability in the bounded reason set.",
+      "AC-1 evidence only proves the `last_request_ok == 0` case; no test asserts the gauge returns to 1 on a subsequent success, nor that the startup write does not leak into request semantics.",
+      "The new rules-file assertion is a substring check only (could match a comment) and no equivalent assertion covers the `endpoint_ok` \u2192 `last_request_ok` rename, so a stale rule name would silently never fire."
+    ],
+    "NIT": [
+      "Reading `../../ops/prometheus/backlog-authority.rules.yml` by relative path couples a unit test to repo layout; breaks under alternate working dirs or packaging.",
+      "`hasTenantKey` treats any key containing \"tenant\" as a leak and inspects keys only, not values \u2014 over-broad false positives, blind to `{\"owner\": \"tenant-a\"}`."
+    ],
+    "SUMMARY": [
+      "Net improvement: factory seam unified, gauge renamed with startup/request parity, recursive tenant-leak check, and alarm-rule evidence added.",
+      "Top risks: the reason-code rewrite regresses timeout classification (PG 57014 and net timeouts), and the shared request/startup gauge can page on deploy.",
+      "Recommend fixing reason precedence/57014 mapping and separating startup vs request gauges before merge; remaining items are coverage polish."
+    ]
+  }
+}

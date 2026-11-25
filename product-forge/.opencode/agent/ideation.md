@@ -1,7 +1,7 @@
 ---
 description: Ideation agent. Discovery process — explores, challenges, discovers what user actually needs.
 mode: primary
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: ideation
 version: 1.0.0
 spec_version: "1.0"

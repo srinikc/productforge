@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1317",
+  "sha": "8289d0f57f79",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T06:44:48.268440+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "be3ee3d9bd5ab0b3cbea0ba2adf4e664bb3527c7",
+  "findings": {
+    "BLOCKER": [
+      "AC1\u2013AC4 are unimplemented: no isolation-tier field/policy routing, no per-environment read-replica pool with failover, no declarative partitioning, no cell registry/migration workflow \u2014 the diff is docs-only, with no feature flags or rollback wiring per the approved design.",
+      "AC5 is not satisfiable as written: the gate cites only a local performance baseline (`engineering/benchmarks/BI-PF-1314/db/local/baseline.json`) that is not in this diff, and contains zero security benchmarks (e.g. RLS/cross-tenant isolation proof) despite AC5 requiring \"performance/security benchmarks\".",
+      "Merging this as BI-PF-1317 falsely closes an implementation item; it requires explicit re-scoping/split into sub-items (or an approved descope) recorded in the backlog before merge."
+    ],
+    "MAJOR": [
+      "The deferral decision is not reproducible: no commit SHA, artifact hash, or command to regenerate the baseline, so the \"no saturation\" conclusion cannot be independently verified.",
+      "No automated detection of the stated re-open triggers (p95/p99 over 7 days, hot-table row/GB thresholds); without dashboards/alerts or an owning check, the gate will silently never re-open.",
+      "Phase 1 requires decomposition into sub-capabilities; the diff records no sub-items/IDs for isolation tiers, replicas, partitioning, or region cells, so the gated phases have no tracked successors (CL-001 ownership not established).",
+      "Gate doc is not referenced from `docs/EDP-EXECUTION-ORDER.md` or `docs/ARCHITECTURE-DECISIONS.md`, leaving the wave ordering and decision record out of sync with the SSOT chain."
+    ],
+    "MINOR": [
+      "\"p99 latency: same order of magnitude\" is not evidence; no numeric p99 or sample size/duration is given.",
+      "No owner, approver, decision date, or review-by date in the gate doc, so the decision cannot be audited or revisited on schedule.",
+      "Encoding corruption in the range (\"1.5?3.6 ms\") \u2014 artifact of a non-UTF-8 write; suggests the doc pipeline is not validated.",
+      "No definition of what security evidence would satisfy the gate, so re-opening criteria are asymmetric (performance-only)."
+    ],
+    "NIT": [
+      "Index entry uses priority 100 like all top-tier docs with no stated ordering rationale; consider tier metadata instead.",
+      "Doc title/ID (`EDP-24`) is mapped to BI-PF-1317 only in the index description, not in the document itself."
+    ],
+    "SUMMARY": [
+      "Verdict: the change is a correct-shaped evidence gate but delivers none of the item's acceptance criteria; it should ship as a re-scoped decision record, not as closure of BI-PF-1317.",
+      "Top risks: false completion of an implementation epic; unverifiable and non-reproducible benchmark evidence; no security dimension in the gate; no mechanism to detect when the gate should re-open.",
+      "Recommend: split into sub-items with IDs, add benchmark artifact provenance, add security benchmark criteria, and wire trigger detection/alerting before merge."
+    ]
+  }
+}

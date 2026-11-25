@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "ef8643b7f620",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:28:27.950304+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Rollback story conflicts with AC: `PF_EDP_ENFORCE_LIMITS=0` is refused in production, so the stated production rollback (set flag to 0) is impossible; production rollback requires a code revert/redeploy \u2014 document this explicitly and define the redeploy rollback runbook + lead time before Gate 1.5.",
+      "Graceful-shutdown drain (30s) is shorter than the upload budget (120s `/artifacts`) and equal to the 30s JSON request timeout; in-flight uploads will be force-canceled at shutdown. Define shutdown deadline >= max handler budget (or explicitly accept aborted uploads) and test it.",
+      "Per-tenant attribution from client-supplied `X-Tenant-Id` under a single admin principal is advisory only: any authorized caller can rotate tenant keys to reset per-tenant buckets. Global bucket is the sole real control \u2014 state this as a security limitation in `PF-API-SERVICE-OR-SERVER.md` and require the per-tenant-auth follow-up to be tracked with an ID, not just prose.",
+      "Runtime DB role (superuser/BYPASSRLS) is validated only at startup; a role grant after boot silently violates the fail-closed invariant. Add periodic/on-pool-reconnect revalidation or an explicit documented \"startup-only\" decision with an alert.",
+      "Tenant IDs \"validated against the tenant query **where present**\" leaves unvalidated paths accepting arbitrary bucket keys; unbounded key cardinality is only mitigated by max-tenant cap. Specify exactly which routes perform lookup and fail closed (403/404) on unresolvable tenant, not just cap.",
+      "Middleware ordering is unspecified: quota must be acquired/released around the whole request (with `defer` release on panic), and 413 body-limit rejections must not permanently consume concurrency slots or unfairly drain tenant tokens. State the chain order and test slot release on panic/cancel."
+    ],
+    "MINOR": [
+      "DB 5s deadline vs pool wait: with global concurrency near MaxConns, requests can block in pool acquire beyond 5s; decide whether `dbCtx` covers pool-acquire wait and confirm saturation surfaces as 503/504 rather than hung requests.",
+      "`/metrics` exposure: \"internal like /health\" is not an authz control if the port is reachable; require at minimum network binding documentation and no tenant-labeled series (already counters-only) \u2014 confirm authn decision explicitly.",
+      "Observability gap: counters only (413/429/504, denials, evictions, saturation) with no latency histogram per path class (JSON vs upload); diagnosis of timeout regressions will be hard. Add minimal request-duration buckets or state the deferral.",
+      "Startup validation should also reject obviously inconsistent combos (e.g., request timeout > read/write server timeout, upload cap > 1 MiB default without explicit opt-in) to avoid silent truncation via `http.Server` limits.",
+      "Redaction rule for messages: define a fixed allowlist of safe message templates rather than ad-hoc redaction, so the \"stable code + redacted message\" contract is testable and doesn't leak DSN/SQL text.",
+      "Tests should assert `Retry-After` correctness across bucket refill boundaries with the injected clock, including clock skew, not just a single deny case."
+    ],
+    "NIT": [
+      "`X-Request-ID` inbound validation should cap length and charset to prevent log/metrics cardinality abuse; state the regex in the doc.",
+      "`/admin/limits` response should document whether it exposes tenant-level state (cardinality) or only aggregate counters, to avoid it becoming an enumeration oracle.",
+      "Env-flag naming consistency: `PF_EDP_ENFORCE_LIMITS` vs `PF_ALLOW_SUPERUSER_DSN` prefix conventions should be pinned in `config/env-flags.json` descriptions."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped hardening design with correct language-rule compliance, no schema change, and good fail-closed posture. Top risks: (1) production rollback contradiction with the limits kill-switch, (2) shutdown drain (30s) < upload budget (120s) causing aborted work, and (3) per-tenant quota enforceability under a single admin principal plus startup-only DB-role validation. Resolve these and pin middleware ordering/metrics authz before Gate 1.5."
+    ]
+  }
+}

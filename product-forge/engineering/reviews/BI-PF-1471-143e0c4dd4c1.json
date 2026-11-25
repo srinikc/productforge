@@ -1,0 +1,46 @@
+{
+  "item": "BI-PF-1471",
+  "sha": "143e0c4dd4c1",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T11:13:16.840859+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC \"gate 1/2 decisions ... validates accepted_risks {owner, until, rationale}\" is entirely absent: no schema, validation, or persistence of accepted_risks anywhere in the diff.",
+      "AC \"refuses in CI\" is unimplemented: `gate_decide.py`/`gate_decisions.py` have no CI environment detection; any CI job can pass `--hil-confirmed`.",
+      "AC \"approval treats SCOPE findings as resolved only with a follow-up item\" / \"SCOPE findings are non-blocking and must reference a follow-up item\": only `DISPOSITION_STATUSES` gained \"SCOPE\"; `gate2_status()` and approval logic are untouched, so SCOPE has no semantics, no follow-up linkage, and no non-blocking behaviour.",
+      "Required tests are missing: no gate0 positive/negative test, no SCOPE-resolution test, no accepted-risk validation test, no duplicate-review-refusal test (`architect_review.py` change is untested).",
+      "Traceability/integrity: the diff for BI-PF-1471 delivers a large, unrelated BI-PF-1308 object-lifecycle/signed-URL change (Go packages, ADR EDP-16) with no corresponding AC; two work items are conflated in one change."
+    ],
+    "MAJOR": [
+      "`gate0_check.py` fails open: if `git merge-base develop HEAD` or `origin/develop` is unavailable (shallow CI clone), `_git` returns \"\", diff yields zero transitions, and the blocking gate prints `gate0: OK` \u2014 a vacuous pass for a blocking gate.",
+      "`go_modules_check.py::_git_changed` swallows all exceptions and returns `[]`, so a git failure makes `_changed_modules` empty and the gate reports \"no Go changes\", skipping formatting/vet/tests for all modules (fail-open).",
+      "AC \"gate-brief renders the same for HIL\" is not implemented: `gate0_check.render()` is only used by the precheck path; no gate-brief integration exists.",
+      "Precheck test-selection regression: `_steps` now runs no Python tests at all when `_python_impact` is false and removes the previous \"no scope match \u2192 full suite\" fallback, reducing coverage for transitive breakage.",
+      "Parallelising gates (`ThreadPoolExecutor`, `parallel_safe`) is risky: the set includes gates (e.g. `docs-fresh`, `wired-audit`) that may emit/write derived artifacts; concurrent writers and interleaved output undermine the \"read-only\" claim and observability.",
+      "`LocalStore.keyLocks` grows unboundedly per key for the process lifetime (no eviction), a slow memory leak in a long-lived service.",
+      "Duplicate-review guard in `architect_review.py` checks existence of `EVID/{item}-{sha}.json` before writing; correctness depends on the (unshown) writer using the identical naming and on `design_sha`/`diff_sha` being the same immutable inputs \u2014 no test guards the invariant."
+    ],
+    "MINOR": [
+      "Gate0 claim detection uses substring matching (`\"api\" in claims`, `\"ac\" in claims`) against free-text claims \u2014 words containing \"api\"/\"ac\" satisfy the requirement; also `language_rule` accepted without any verdict row, weakening the \"impact-review incl. language decision\" rule.",
+      "`--hil-confirmed` as a `required=True` store_true is trivially satisfiable by any automation; the actor binding (`--by hil:<actor>`) is self-asserted, so human-only intent is convention, not control.",
+      "Gate0 transition detection treats any prior-status\u2260in_progress as a transition (e.g. blocked\u2192in_progress), broader than the AC's new\u2192in_progress; document or narrow.",
+      "`S3Store.Capabilities()` acquires the mutex twice, yielding a non-atomic snapshot of `objectLock`/`versioned`; fold into one critical section.",
+      "New `errors.Is` usage in `objstore.go` \u2014 the import line is not shown in the diff; confirm compilation (no `errors` import added).",
+      "`deny()`'s overflow bucket overwrites an existing `_overflow|reason` key semantics; counters are process-local only \u2014 no metrics export, so \"denials counted per tenant+reason\" is not operationally observable.",
+      "`TestScanAbortsOnTransientHeadError` contains dead setup (`st` assigned then discarded), hurting test readability/maintenance."
+    ],
+    "NIT": [
+      "`log.Printf` inside library packages (`objpolicy`, `objreconcile`, `s3store`) bypasses structured logging conventions; consider an injected logger.",
+      "Trailing blank line added at EOF of `go_modules_check.py`.",
+      "`gate_decisions.record_gate_decision` hard-codes `\"hil_confirmed\": True` in the record rather than recording who/what confirmed, reducing audit fidelity.",
+      "objreconcile `Entry.Checksum` empty means \"size-only\"; a manifest typo silently downgrades verification \u2014 consider flagging it instead of accepting."
+    ],
+    "SUMMARY": [
+      "The delivered diff does not satisfy BI-PF-1471: accepted-risk validation, CI refusal, and the SCOPE scope-guard semantics are missing, and all AC-required tests are absent; the substantial Go object-lifecycle work (BI-PF-1308) is unrelated scope bundled into this item.",
+      "The pieces that exist (gate0 check + precheck wiring, duplicate-review refusal, `--hil-confirmed`) are sound in shape but fail open under git/CI conditions and lack tests.",
+      "Top risks: blocking gates that pass vacuously, reduced precheck test coverage plus concurrent gate execution, and an unenforced SCOPE disposition that could silently let unaddressed findings through Gate 2."
+    ]
+  }
+}

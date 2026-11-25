@@ -13,8 +13,13 @@ This module **orchestrates and validates**; it does not reimplement SBOM, entitl
 and it makes no commercial decision — licensing/pricing stays human-governed (plan section 25).
 Output is a single derived manifest (``packaging-manifest.json``; owner = this module).
 """
+import hashlib
 import json
 import os
+import re
+import shutil
+import subprocess
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -29,11 +34,18 @@ EDITIONS: dict[str, dict[str, Any]] = {
     "oem": {"tier": "enterprise", "target": "command", "distribution": "white-label"},
 }
 
+CUSTOMER_EDITIONS: tuple[str, ...] = ("enterprise", "on-prem", "saas", "oem")
+COMPILED_BINARY_MAGIC = b"\x7fELF\x02\x01\x01_COMPILED_PF_BINARY_A3"
+
 # the build-pipeline distinctions REL-0 must keep separate (plan section 25)
 DISTINCTIONS = ("source", "build", "artifact", "package", "license", "entitlement",
                 "configuration", "deployment_target", "runtime_policy")
 
 MANIFEST = "packaging-manifest.json"
+RESIDENCY_DEFAULT = os.path.join(str(ROOT), "config", "residency-manifest.json")
+PROFILE_DIR = os.path.join(str(ROOT), "config", "residency-profiles")
+RESIDENCY_GROUPS = ("data_classes", "home_region", "allowed_regions", "backup", "kms", "egress", "retention")
+FREQUENCIES = ("hourly", "daily", "weekly", "monthly")
 
 
 def _scope_dir(scope: str, project: str) -> str:
@@ -52,6 +64,106 @@ def _resolve_edition(edition: str) -> dict[str, Any] | None:
     if e in EDITIONS:
         return dict(EDITIONS[e], id=e)
     return None
+
+
+def residency_path(scope: str = "product_forge", project: str = "") -> str:
+    """Product override first, then the shipped IN template (explicit, never silent)."""
+    if project:
+        p = os.path.join(str(PRODUCTS_DIR), project, "residency-manifest.json")
+        if os.path.exists(p):
+            return p
+    return RESIDENCY_DEFAULT
+
+
+def _load_json(path: str) -> dict:
+    if os.path.getsize(path) > 64 * 1024:
+        raise ValueError("residency file exceeds 64KB")
+    with open(path, encoding="utf-8-sig") as f:
+        d = json.load(f)
+    return d if isinstance(d, dict) else {}
+
+
+def residency_profiles_dir() -> str:
+    return os.environ.get("PF_RESIDENCY_PROFILES") or PROFILE_DIR
+
+
+def validate_residency(section: dict) -> dict:
+    """Profile-bounded, fail-closed residency validation (Go is the deploy authority)."""
+    unmet: list[str] = []
+    sec = section or {}
+    for k in RESIDENCY_GROUPS:
+        if k == "egress":
+            if "egress" not in sec or sec.get("egress") is None:
+                unmet.append("RESIDENCY_MISSING_GROUP:egress")
+            continue
+        if k not in sec or sec.get(k) in (None, "", [], {}):
+            unmet.append(f"RESIDENCY_MISSING_GROUP:{k}")
+    if str(sec.get("schema_version") or "") != "1.0":
+        unmet.append("RESIDENCY_SCHEMA_VERSION")
+    home = str(sec.get("home_region") or "").upper()
+    prof = {}
+    profile_path = ""
+    if not home or not re.match(r"^[A-Z0-9-]+$", home):
+        unmet.append("RESIDENCY_UNKNOWN_HOME")
+    else:
+        profile_path = os.path.join(residency_profiles_dir(), f"{home.lower()}-v1.json")
+        if not os.path.exists(profile_path):
+            unmet.append("RESIDENCY_UNKNOWN_HOME")
+        else:
+            try:
+                prof = _load_json(profile_path)
+            except Exception:
+                unmet.append("RESIDENCY_PROFILE_UNREADABLE")
+    allowed = {str(x).upper() for x in (prof.get("allowed_regions") or [])}
+    if prof and (not prof.get("id") or not prof.get("allowed_regions")):
+        unmet.append("RESIDENCY_PROFILE_UNREADABLE")
+    if prof and home and home not in allowed:
+        unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
+    sec_allowed = {str(x).upper() for x in (sec.get("allowed_regions") or [])}
+    if not sec_allowed or home not in sec_allowed:
+        unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
+    if prof.get("allowed_regions") and not sec_allowed <= allowed:
+        unmet.append("RESIDENCY_REGION_NOT_ALLOWED")
+    b = sec.get("backup") or {}
+    k = sec.get("kms") or {}
+    e = sec.get("egress") or {}
+    if not b.get("regions"):
+        unmet.append("RESIDENCY_BACKUP_REGION")
+    if not str(k.get("region") or "").strip():
+        unmet.append("RESIDENCY_KMS_REGION")
+    for code, regions in (("BACKUP", b.get("regions") or []),
+                          ("KMS", [k.get("region")] if k.get("region") else []),
+                          ("EGRESS", e.get("allowed_regions") or [])):
+        if not set(str(x).upper() for x in regions) <= allowed:
+            unmet.append(f"RESIDENCY_{code}_REGION")
+    if not str(k.get("provider") or "").strip():
+        unmet.append("RESIDENCY_INVALID_FIELD:kms.provider")
+    if b.get("encrypted") is not True:
+        unmet.append("RESIDENCY_BACKUP_UNENCRYPTED")
+    if str(b.get("frequency") or "").lower() not in FREQUENCIES:
+        unmet.append("RESIDENCY_UNKNOWN_FREQUENCY")
+    rot = k.get("rotation_days")
+    if not isinstance(rot, int) or isinstance(rot, bool) or rot <= 0:
+        unmet.append("RESIDENCY_KMS_ROTATION")
+    r = sec.get("retention") or {}
+    days = r.get("days")
+    max_days = prof.get("retention_days") or 0
+    if (not isinstance(days, int) or isinstance(days, bool) or days <= 0
+            or (max_days and not r.get("legal_hold") and days > int(max_days))):
+        unmet.append("RESIDENCY_RETENTION")
+    return {"valid": not unmet, "unmet": unmet, "home_region": home, "profile": prof.get("id") or ""}
+
+
+def residency_section(scope: str = "product_forge", project: str = "") -> dict:
+    """Load the manifest and attach the profile-bounded validation result."""
+    try:
+        sec = _load_json(residency_path(scope, project))
+    except Exception:
+        return {"error": "RESIDENCY_MANIFEST_UNREADABLE"}
+    sec.pop("notes", None)
+    sec.pop("template", None)
+    sec["validation"] = validate_residency(sec)
+    return sec
 
 
 def build(scope: str = "product_forge", project: str = "", edition: str = "community") -> dict[str, Any]:
@@ -120,6 +232,9 @@ def build(scope: str = "product_forge", project: str = "", edition: str = "commu
     except Exception as e:
         out["upgrade_rollback"] = {"error": type(e).__name__}
 
+    out["residency"] = residency_section(scope, project)
+    if (out["residency"].get("validation") or {}).get("valid") is not True:
+        out["residency_warning"] = "RESIDENCY_POLICY_VIOLATION"
     out["distinctions"]["source"] = {"source_dir": d}
     out["distinctions"]["configuration"] = {"edition": ed["id"], "tier": ed["tier"]}
     return out
@@ -137,6 +252,9 @@ def validate(manifest: dict[str, Any]) -> dict[str, Any]:
     # edition-specific entitlement must exist
     if not (manifest.get("entitlement") or {}).get("tier"):
         unmet.append("entitlement:tier")
+    rv = validate_residency(manifest.get("residency") or {})
+    if not rv["valid"]:
+        unmet.extend(f"residency:{e}" for e in rv["unmet"])
     return {"valid": not unmet, "unmet": unmet, "edition": manifest.get("edition"),
             "evaluated_at": datetime.now().isoformat()}
 
@@ -211,13 +329,17 @@ def _compat_covers(ranges: list, version: str) -> bool:
     return False
 
 
-def eap_build(scope: str = "product_forge", project: str = "", edition: str = "community") -> dict[str, Any]:
+def eap_build(scope: str = "product_forge", project: str = "", edition: str = "community",
+              exclude_subsystems: list[str] | None = None,
+              asset_bundles: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Compose the EAP for an edition from the canonical owners (build-time)."""
     ed = _resolve_edition(edition)
     if ed is None:
         return {"ok": False, "error": f"unknown edition {edition!r}", "editions": list(EDITIONS)}
     reg = eap_registry()
     versions = reg.get("versions") or {}
+    exclusions = list(exclude_subsystems or [])
+    bundles = list(asset_bundles or [])
     eap: dict[str, Any] = {
         "schema": EAP_SCHEMA,
         "eap_version": EAP_VERSION,
@@ -227,6 +349,9 @@ def eap_build(scope: str = "product_forge", project: str = "", edition: str = "c
         "deploy_target": ed["target"],
         "contracts": list(EAP_CONTRACTS),
         "compatible_with": list((versions.get(EAP_VERSION) or {}).get("compatible_with") or ["1.x"]),
+        "subsystem_exclusions": exclusions,
+        "workers_included": "workers" not in exclusions,
+        "asset_bundles": bundles,
         "generated_at": datetime.now().isoformat(),
         "ok": True,
     }
@@ -306,3 +431,238 @@ def eap_load(scope: str = "product_forge", project: str = "") -> dict[str, Any]:
             return json.load(f) or {}
     except Exception:
         return {}
+
+
+# ── A3 (BI-PF-0398): Compiled Packaging, SBOM/LBOM, Signing & Subsystem Plug/Unplug ──────────────────
+
+def validate_asset_bundle(asset_bundle: dict[str, Any]) -> dict[str, Any]:
+    """Validate a non-code asset bundle (prompts, UI/UX tokens, web console) in EAP."""
+    unmet: list[str] = []
+    if not isinstance(asset_bundle, dict) or not asset_bundle:
+        return {"valid": False, "unmet": ["INVALID_ASSET_BUNDLE"]}
+    if not asset_bundle.get("id"):
+        unmet.append("MISSING_ASSET_ID")
+    if not asset_bundle.get("checksum"):
+        unmet.append("MISSING_ASSET_CHECKSUM")
+    return {"valid": not unmet, "unmet": unmet, "id": asset_bundle.get("id")}
+
+
+def apply_subsystem_exclusions(modules: list[str], exclude_subsystems: list[str]) -> list[str]:
+    """Prune optional subsystems (e.g. workers) from modules. Fails closed on mandatory subsystems."""
+    mandatory = {"licensing", "auth", "packaging", "core"}
+    excl = {str(s).strip().lower() for s in (exclude_subsystems or [])}
+    forbidden = excl & mandatory
+    if forbidden:
+        raise ValueError(f"Cannot exclude mandatory subsystem: {sorted(forbidden)}")
+    if not excl:
+        return list(modules)
+    out = []
+    for m in modules:
+        m_lower = m.lower()
+        if "workers" in excl and any(w in m_lower for w in ("worker", "workergrid")):
+            continue
+        out.append(m)
+    return out
+
+
+def validate_package_sbom(sbom_data: dict) -> dict[str, Any]:
+    """Fail-closed validation of package SBOM and LBOM data against CycloneDX/SPDX schemas."""
+    unmet: list[str] = []
+    if not isinstance(sbom_data, dict) or not sbom_data:
+        return {"valid": False, "unmet": ["MISSING_SBOM"]}
+    # Validates standard CycloneDX (bomFormat=CycloneDX) or SPDX or legacy schema
+    if not (sbom_data.get("bomFormat") == "CycloneDX" or sbom_data.get("spdxVersion") or sbom_data.get("schema")):
+        unmet.append("INVALID_SBOM_SCHEMA")
+    if not (sbom_data.get("components") or sbom_data.get("dependencies")):
+        unmet.append("MISSING_DEPENDENCIES")
+    if not sbom_data.get("licenses"):
+        unmet.append("MISSING_LICENSES")
+    return {"valid": not unmet, "unmet": unmet}
+
+
+def attach_sbom_and_signatures(scope: str = "product_forge", project: str = "",
+                               edition: str = "community", package_dir: str = "") -> dict[str, Any]:
+    """Produce CycloneDX/SPDX compliant SBOM, LBOM, and cryptographic checksum manifest in package_dir."""
+    if not os.path.isdir(package_dir):
+        return {"ok": False, "error": f"package directory does not exist: {package_dir}"}
+    d = _scope_dir(scope, project)
+    try:
+        from core import bom
+        b = bom.build(d)
+        sbom_data = {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.5",
+            "serialNumber": f"urn:uuid:productforge-sbom-{edition}",
+            "version": 1,
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "component": {
+                    "type": "application",
+                    "name": "product-forge",
+                    "edition": edition
+                }
+            },
+            "dependencies": b.get("dependencies", {}),
+            "licenses": b.get("licenses", []),
+            "components": [
+                {"name": k, "version": v, "type": "library"}
+                for k, v in sorted((b.get("dependencies") or {}).items())
+            ]
+        }
+        lbom_data = {
+            "spdxVersion": "SPDX-2.3",
+            "dataLicense": "CC0-1.0",
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "name": f"Product Forge License BOM - {edition}",
+            "generated_at": datetime.now().isoformat(),
+            "licenses": b.get("licenses", []),
+            "governance": b.get("governance", [])
+        }
+        sbom_path = os.path.join(package_dir, "sbom.json")
+        lbom_path = os.path.join(package_dir, "lbom.json")
+        with open(sbom_path, "w", encoding="utf-8") as f:
+            json.dump(sbom_data, f, indent=2)
+        with open(lbom_path, "w", encoding="utf-8") as f:
+            json.dump(lbom_data, f, indent=2)
+
+        checksum_lines = []
+        for root, _, files in os.walk(package_dir):
+            for fname in sorted(files):
+                if fname == "checksums.txt":
+                    continue
+                fpath = os.path.join(root, fname)
+                h = hashlib.sha256()
+                with open(fpath, "rb") as fp:
+                    h.update(fp.read())
+                rel = os.path.relpath(fpath, package_dir).replace("\\", "/")
+                checksum_lines.append(f"{h.hexdigest()}  {rel}\n")
+
+        chk_path = os.path.join(package_dir, "checksums.txt")
+        with open(chk_path, "w", encoding="utf-8") as f:
+            f.writelines(checksum_lines)
+
+        from core import signing
+        sig_info = signing.resolve(d)
+        return {
+            "ok": True,
+            "sbom_path": sbom_path,
+            "lbom_path": lbom_path,
+            "checksums_path": chk_path,
+            "signing": sig_info
+        }
+    except (IOError, OSError, ValueError, KeyError) as e:
+        return {"ok": False, "error": str(e)}
+
+
+def build_compiled_package(scope: str = "product_forge", project: str = "",
+                           edition: str = "community", output_dir: str = "",
+                           dry_run: bool = False,
+                           exclude_subsystems: list[str] | None = None) -> dict[str, Any]:
+    """Execute A3 compiled packaging (Nuitka for Python + go build for Go core)."""
+    ed = _resolve_edition(edition)
+    if ed is None:
+        return {"ok": False, "error": f"unknown edition {edition!r}", "editions": list(EDITIONS)}
+    if not output_dir:
+        output_dir = os.path.join(_scope_dir(scope, project), "dist", ed["id"])
+    os.makedirs(output_dir, exist_ok=True)
+
+    artifacts = []
+    compiled_ext = ".pyd" if os.name == "nt" else ".so"
+    bin_name = "pf-core.exe" if os.name == "nt" else "pf-core"
+
+    if dry_run:
+        # Dry-run mode for lightweight test/CI environments
+        mock_binaries = ["core_runtime" + compiled_ext, "api_runtime" + compiled_ext, bin_name]
+        for bname in mock_binaries:
+            bpath = os.path.join(output_dir, bname)
+            with open(bpath, "wb") as f:
+                f.write(COMPILED_BINARY_MAGIC)
+            artifacts.append(bname)
+    else:
+        # Production build: execute genuine compilation pipeline
+        go_bin = shutil.which("go")
+        if not go_bin:
+            return {"ok": False, "error": "COMPILER_UNAVAILABLE: Go compiler ('go') not found in PATH."}
+
+        # Check for Go entrypoint or sources
+        go_built = False
+        go_src = os.path.join(ROOT, "cmd", "pf-core")
+        if os.path.isdir(go_src):
+            res = subprocess.run([go_bin, "build", "-o", os.path.join(output_dir, bin_name), "./cmd/pf-core"],
+                                 cwd=ROOT, capture_output=True, text=True)
+            if res.returncode != 0:
+                return {"ok": False, "error": f"GO_BUILD_FAILED: {res.stderr or res.stdout}"}
+            artifacts.append(bin_name)
+            go_built = True
+
+        # Check for Nuitka for Python modules
+        nuitka_bin = shutil.which("nuitka")
+        if not nuitka_bin:
+            import importlib.util
+            if importlib.util.find_spec("nuitka") is not None:
+                nuitka_bin = sys.executable
+
+        if not nuitka_bin and not go_built:
+            return {
+                "ok": False,
+                "error": "COMPILER_UNAVAILABLE: Neither Nuitka nor Go sources found for production build. "
+                         "Use dry_run=True for CI/test simulation."
+            }
+
+        if nuitka_bin:
+            core_dir = os.path.join(ROOT, "core")
+            if os.path.isdir(core_dir):
+                shipped_modules = [
+                    f for f in sorted(os.listdir(core_dir))
+                    if f.endswith(".py") and not f.startswith("__")
+                ]
+                for mod_file in shipped_modules:
+                    mod_path = os.path.join(core_dir, mod_file)
+                    cmd = [nuitka_bin, "-m", "nuitka"] if nuitka_bin == sys.executable else [nuitka_bin]
+                    cmd.extend(["--module", f"--output-dir={output_dir}", mod_path])
+                    res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+                    if res.returncode != 0:
+                        return {"ok": False, "error": f"NUITKA_BUILD_FAILED: Module {mod_file} compilation failed: {res.stderr or res.stdout}"}
+                    mod_base = os.path.splitext(mod_file)[0]
+                    artifacts.append(mod_base + compiled_ext)
+
+    eap = eap_build(scope, project, edition=edition, exclude_subsystems=exclude_subsystems)
+    eap_path = os.path.join(output_dir, "eap.json")
+    with open(eap_path, "w", encoding="utf-8") as f:
+        json.dump(eap, f, indent=2)
+    artifacts.append("eap.json")
+
+    sb = attach_sbom_and_signatures(scope, project, edition=edition, package_dir=output_dir)
+    artifacts.extend(["sbom.json", "lbom.json", "checksums.txt"])
+
+    if ed["id"] in CUSTOMER_EDITIONS:
+        for _root, _, files in os.walk(output_dir):
+            for f in files:
+                if f.endswith(".py"):
+                    return {"ok": False, "error": f"RAW_PY_DETECTED_IN_COMPILED_PACKAGE: {f}"}
+
+    return {
+        "ok": True,
+        "edition": ed["id"],
+        "compiled": True,
+        "dry_run": dry_run,
+        "artifacts": artifacts,
+        "output_dir": output_dir,
+        "subsystems_excluded": list(exclude_subsystems or []),
+        "sbom": sb
+    }
+
+
+def rdc_compose(eap: dict[str, Any] | None = None, target_os: str = "linux",
+                target_arch: str = "amd64", edition: str = "community",
+                license_tier: str = "", dry_run: bool = False) -> dict[str, Any]:
+    """Invoke the Runtime Dependency Compiler (A5) via native Go seam."""
+    from core import rdc
+    return rdc.compose(eap=eap, target_os=target_os, target_arch=target_arch,
+                       edition=edition, license_tier=license_tier, dry_run=dry_run)
+
+
+def rdc_validate_ip(edition: str = "community", files: list[str] | None = None) -> dict[str, Any]:
+    """Validate zero raw .py sources for customer editions via the authoritative Go IP guard."""
+    from core import rdc
+    return rdc.validate_ip(edition=edition, files=files)

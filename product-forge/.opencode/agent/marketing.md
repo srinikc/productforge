@@ -1,7 +1,7 @@
 ---
 description: marketing agent
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: marketing
 version: 1.0.0
 spec_version: "1.0"

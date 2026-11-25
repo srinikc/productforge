@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "30fe34ce43c9",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T07:54:59.348456+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "816bae271b5dc514b483330410f037139c06df4a",
+  "findings": {
+    "BLOCKER": [
+      "Declared AC-5/CTL-SCOPE artifacts `scripts/dev/pf_sb_scope_guard.py` and `test-framework/tests/test_pf_sb_scope_guard.py` are absent from the diff; AC-5 evidence cites a test that does not exist, so the scope control cannot run.",
+      "`migrations/0016_backlog_db_authority.up.sql` grants only `SELECT, INSERT` on `backlog_id_reservations` to `pf_runtime`, but `Reserve`/cleanup DELETE rows and the DELETE trigger path requires that privilege; runtime-role deletes fail with permission denied (integration/counter tests and runbook reconciliation break)."
+    ],
+    "MAJOR": [
+      "`BacklogStore.Authority` schema probe verifies 0016 tables and the 0018 column but not migrations 0019/0020, so a partially-applied set returns a 200 contrary to AC-4 (\"missing 0016-0020 ... 503\").",
+      "Authority validates `pg_policies` existence but never `pg_class.relrowsecurity/relforcerowsecurity`; on an owner or BYPASSRLS connection the probe would return a cross-tenant `item_count` labelled `item_scope=tenant` (design non-goal).",
+      "[OUT_OF_SCOPE] `migrations/0017_backlog_tenant_alignment.up.sql` bulk-rewrites `tenant_id` for every non-PF-SB row with a no-op down migration; irreversible, un-batched, no dry-run, and contradicts the \"no backlog item data rewrite\" invariant.",
+      "[OUT_OF_SCOPE] `core/backlog.py`/`core/id_allocator.py` add new shipped logic (`reserve_shared`, `_reserve_db`, `_delete_item_from_db`, `_db_for`) in Python outside the approved scope, and the `PF_BACKLOG_DB` default contradicts itself across `env-flags.json` (off), `BACKLOG-DB-SSOT.md` (\"defaults to on\"), and the docstring."
+    ],
+    "MINOR": [
+      "`ops/prometheus/backlog-authority.rules.yml` pages twice on the same counter (`increase>=3/10m` and `rate>0.05/10m`); the `startup_ok==0` rule lacks `absent()`, so a missing target is invisible to it.",
+      "Runbook asserts `prometheus.yml` loads the rules while `ops/prometheus/README.md` calls it an example only; the runbook reason_code list also omits the emitted `canceled`.",
+      "The endpoint success path updates the timestamp but never sets `edp_backlog_authority_startup_ok=1`, so after recovery the page persists until the 5-minute recheck (up to ~15m).",
+      "AC-4 is only evidenced by fake-store unit tests; no test exercises timeout\u2192`reason_code=timeout` classification or the low-cardinality reason log through the real handler."
+    ],
+    "NIT": [
+      "`/backlog/ids:reserve` (new admin POST surface) is not listed in the design `api_contract`, which names only the GET authority endpoint \u2014 contract drift.",
+      "`test-framework/tests/test_backlog_migrations.py` and `test_backlog_db_authority.py` are added although not in the declared `review_scope.files`/affected_files."
+    ],
+    "SUMMARY": [
+      "Core endpoint behavior (401/405/400/200/503, fixed message, bounded reason labels) matches the design contract and fails closed.",
+      "Tenancy guarantee is weaker than claimed: RLS is assumed via policy existence, not FORCE-RLS, and 0019/0020 absence is undetected despite AC-4.",
+      "Migration grant omission on `backlog_id_reservations` will break runtime deletes; the AC-5 scope guard test/script is missing entirely.",
+      "Undeclared Python ID/DB authority and a bulk tenant rewrite land outside approved scope and need explicit design sign-off before merge."
+    ]
+  }
+}

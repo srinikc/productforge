@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "1a196ef6b7bb",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T06:09:51.816339+00:00",
+  "review_scope": "delta",
+  "base_sha": "1d83dfc27bfa99dde31aeaf1e122f4f819c07d06",
+  "head_sha": "082eae5921b88a1437c0879916b68b76719d7c7a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-2's \"SQL/storage filters guarantee zero cross-tenant and cross-project leakage\" is only controlled at the storage layer for Delete (C-10/C-11/C-12); no control row covers scoped Get/Search predicates in go/dualvec or go/edpdata, so read/search leakage guarantees rest solely on orchestrator post-read revalidation (C-2), not on storage filters as the AC states.",
+      "C-7 (bypass enforcement) is owned by and lives in go/pfmemory/bypass_test.go but its control targets go/edpsvc call sites; a static check inside the pfmemory module cannot reliably see edpsvc's repository usage, and it will not run on edpsvc-only changes, weakening AC-1's \"intercepts all operations\" proof."
+    ],
+    "MINOR": [
+      "C-8 check is `go test ./...` while its failure_behavior requires CI failure when PF_TEST_MEMORY_DSN is missing or role posture fails; the stated check does not encode that DSN/CI gate, so the role-posture invariant (CL-011) can pass vacuously outside CI.",
+      "AC-3 coverage row's `tests` is bare `go test -race ./...` with no package scope, unlike AC-1/AC-2 rows which specify \"in go/pfmemory\"/\"in go/edpsvc\"; ambiguous which module the race gate covers.",
+      "The prior NIT disposition \"go/pfmemory tests run on any edpsvc change \u2014 Resolved in revised design\" has no corresponding evidence in the delta design_pack; disposition appears unsubstantiated."
+    ],
+    "NIT": [
+      "Delta still carries `controls` and `implementation_controls` as byte-identical full duplicates despite the prior disposition \"Resolved in revised design\"; drift risk persists \u2014 derive one at render time."
+    ],
+    "SUMMARY": [
+      "Delta correctly actioned the component-scope, C-2 symbol, C-11/C-12 storage-delete, and AC-3 failure_cases findings; no blockers in the changed fields.",
+      "Top risks: AC-2 storage-level guarantee is delete-only (read/search storage filters uncontrolled), and the AC-1 bypass control is positioned where it cannot observe edpsvc call sites.",
+      "controls/implementation_controls duplication remains despite its \"resolved\" disposition; re-verify role-posture DSN gating and race-test package scope at Gate 2."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-0508383ba60f; reconciled scope and scoped-delete controls",
+  "rereview_reason_sha256": "9e412eda5b1e8395de64faf7a3da54efed97f4f27c4d4dc8124cbbb5c49d2f14"
+}

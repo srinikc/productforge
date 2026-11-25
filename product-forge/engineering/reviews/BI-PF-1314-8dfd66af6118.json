@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "8dfd66af6118",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-05T11:02:40.646576+00:00",
+  "review_scope": "delta",
+  "base_sha": "68394ca053c3b94cffdaf9c48b488b49d02d53b1",
+  "head_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+  "findings": {
+    "BLOCKER": [
+      "none (this delta is metadata-only; it removes no AC evidence and adds no shipped logic). Prior BLOCKERs on `degrade/policy.go` remain unaddressed by this delta and still gate the item."
+    ],
+    "MAJOR": [
+      "`store-registry.json`: `ops/prometheus/edp-slo.rules.yml` and `ops/grafana/edp-slo-dashboard.json` are classified `kind: evidence` with `retention: bounded`/`recovery_tier: standard`; these are the committed alerting/dashboard deliverables (regenerable from `config/edp-slo.json`), not ephemeral audit evidence \u2014 bounded retention would allow their deletion and silently disable alerting (breaks AC-3/design invariant \"rules/dashboard generated + drift-validated\").",
+      "All three new entries carry `\"ref\": \"\"` on a `file` target, so ownership/retention/lifecycle checks cannot resolve the actual path (`audit.jsonl` has no directory qualifier); empty refs also make the registry entry unverifiable \u2014 populate the concrete path and validate it exists."
+    ],
+    "MINOR": [
+      "`audit.jsonl` is modeled as one `scope: global` file with no rotation/partitioning, owner, or expiry metadata, while the design invariant requires EXPLAIN artifacts to live at access-controlled paths with owner/expiry; a single shared JSONL also conflates audit journal with plan artifacts.",
+      "The three new entries share identical boilerplate (`retained_reason: \"EDP-22 generated/audit evidence.\"`); `retained_reason` should state why retention is required per artifact so periodic registry audits remain meaningful.",
+      "`gen_docs_index.py`: the new `\"Tooling\"` category for `EDP-22-RUNBOOK.md` is unverified against the generator's accepted category set \u2014 if closed, the index renders an unexpected grouping; add the value to the allowed set or reuse an existing one.",
+      "`gen_docs_index.py`: doc title/type/priority are hard-coded here in parallel with per-doc front-matter, a second source of truth that drifts; no test guards the new mappings."
+    ],
+    "NIT": [
+      "AC-1 baseline artifacts under `engineering/benchmarks/BI-PF-1314/db/local/` are still unregistered while lower-value files were; register them in the same pass to avoid a fourth follow-up."
+    ],
+    "SUMMARY": [
+      "Delta is registry + docs-index metadata only: no AC-1..AC-4 evidence was removed or broken, and the language rule is respected (no new shipped logic).",
+      "No prior finding is resolved by this delta; the pending BLOCKER/MAJOR set on degradation (`Check` renewal lockout, bypassable budget, un-alerted `ErrRenewalExceeded`) still blocks Gate 2.5.",
+      "Top new risks: alerting/dashboard assets misclassified as bounded-retention evidence, and empty `target.ref` values that make the new registry entries unenforceable."
+    ]
+  }
+}

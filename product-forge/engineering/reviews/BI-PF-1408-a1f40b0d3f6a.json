@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1408",
+  "sha": "a1f40b0d3f6a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`apply()` silently reverses a recorded architectural decision: ~15 tenant-scoped config stores move from `kind=table, status=exists, ref=tool_settings` to `kind=file, status=retained` via a hard-coded `if kind==\"config\" and backend==\"file\"` override inside a reconciliation script, with no EDP owner_item or evidence that the data actually lives in files. If `tool_settings` is real, the registry now misstates where project data resides.",
+      "The `reason` rationale for every file-retained store (e.g. \"project/tenant-scoped config -> DB settings table\") is deleted and replaced with empty strings (`ref: \"\"`, `owner_item: \"\"`) \u2014 documented intent is destroyed to satisfy a uniform schema, with no compensating decision record in the diff."
+    ],
+    "MAJOR": [
+      "Acceptance criterion not enforced: the gate never requires `owner_item` on `planned` targets (`if owner and ...` silently passes an empty owner), so \"planned targets name the owning EDP item\" can regress without detection.",
+      "Dual source of truth: the canonical edge list is duplicated as `SEED`/`REQUIRED` in shipped Python *and* in `relationships` in the JSON. `check()` validates against the code constant, not the registry, so the registry is not the SSOT its docstring claims; adding an edge requires editing and re-shipping tooling code.",
+      "The `migration_status` check is circular: `check()` compares against `_expected_status()`, the same function `apply()` just used to write the value, and `apply()` itself flips `planned\u2192exists` first. \"237 migrated\" is inferred from schema existence plus backlog item status \u2014 there is no data-migration verification, so the gate certifies its own output.",
+      "`_item_status()` swallows all exceptions returning `\"\"`, so a missing or unreadable backlog item for a `planned` target passes the staleness check \u2014 the gate fails open exactly where traceability to an EDP item matters most.",
+      "SQL is parsed by regex (`_statements_after`, `^\\s*\"?(col)\"?\\s+[a-z]`): quoted/mixed-case columns, CTEs, `LIKE`/`ALTER TABLE ADD COLUMN`, and `.down.sql`-only schemas are invisible, so \"table/column does not exist\" and \"trigger missing\" verdicts can be wrong in both directions.",
+      "Acceptance says new shipped logic goes to Go; this is a 306-line shipped gate with schema parsing, reconciliation, and self-test in Python. Defensible only if explicitly classified as tooling under the language rule \u2014 that classification is not evidenced in the diff."
+    ],
+    "MINOR": [
+      "`invariants are weakened`: `kind=table` is accepted with `backend in {postgres, file}` and `kind in {file,view,derived}` with `backend in {file,derived}`, allowing classification/target contradictions the gate was built to catch.",
+      "`_expected_status()` returns `\"retained\"` for `kind in {view, derived}`, conflating \"derived data\" with \"file intentionally retained\" \u2014 lossy semantics.",
+      "`OBJECT_META = {\"artifacts\", \"stored_objects\"}` is a hard-coded allowlist inside tooling; a legitimate new object-store backend fails the gate until code ships.",
+      "Audit triggers are policed by the store-registry relationship gate; this cross-domain responsibility belongs with the audit/migration gate and will cause confusing failures.",
+      "Negative self-test covers only 3 scenarios; it never tests missing `relationships` array, missing required trigger, `planned` with empty owner, or object-store/`exists` mismatch \u2014 the exact paths most likely to drift.",
+      "Docstring says `--apply` \"only seeds relationships when they are absent\"; implementation upserts and overwrites `kind`/`owner_item`/`note` on every run \u2014 docs and behavior disagree."
+    ],
+    "NIT": [
+      "`--verbose` is accepted, threaded into `_report`, and then ignored \u2014 `_report` always prints every problem; dead flag.",
+      "`check()` accepts an unused `table_cols` position in `apply()`'s call contract asymmetry (4 vs 5 args) \u2014 minor API inconsistency between the two functions.",
+      "`_self_test`'s `first = next(iter(stores.values()))` assumes the first store has a `classification` dict; a malformed registry crashes the self-test with `KeyError` instead of reporting findings."
+    ],
+    "SUMMARY": [
+      "Structurally sound direction (one gate, both precheck and ci-cd wiring, self-test in the fast tier, fail-closed printing), but the slice ships a data-integrity regression: it rewrites ~15 stores' declared data location and deletes all rationale text to make a uniform schema pass, and the \"237 migrated\" evidence is the tool validating its own output rather than independent proof.",
+      "Top risks before merge: restore/justify the `tool_settings` reversal via an explicit EDP decision, make the registry (not a Python SEED) the authoritative edge list, enforce `owner_item` on planned targets, and fix the fail-open `_item_status` path."
+    ]
+  }
+}

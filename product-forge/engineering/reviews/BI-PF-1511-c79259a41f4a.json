@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "c79259a41f4a",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T08:15:22.055334+00:00",
+  "review_scope": "delta",
+  "base_sha": "29c6b9d270c1483c158383c36856d4cba4b9fcb9",
+  "head_sha": "f9ef9de10d4e251a88531ab6403e0809adf4ad98",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Disposition for prior MINOR is not fully supported by this delta: `authorityReasonBounded` remains a second hardcoded allowlist in `edpsvc`, so a new `edpdata` reason is silently rewritten to `internal_error` and AC-1 can misclassify new endpoint failures.",
+      "Disposition for prior NIT is not fully supported: the new sanitizer rewrites unbounded reasons without a dedicated counter or explicit log field, so allowlist drift is not observable to operators."
+    ],
+    "NIT": [
+      "The delta\u2019s test addition covers double-wrapped classification only; it does not directly exercise the new emit-time sanitizer branch where an unbounded reason becomes `internal_error`."
+    ],
+    "SUMMARY": [
+      "Delta correctly replaces the mutable reason map with an immutable switch and adds double-wrap regression coverage.",
+      "Residual risk is duplicate reason ownership and silent downgrade to `internal_error`, which can hide new failure classes from metrics.",
+      "No data-loss, security, or blocking regression observed in this delta."
+    ]
+  }
+}

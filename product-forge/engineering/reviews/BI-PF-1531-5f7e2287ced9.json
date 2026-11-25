@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "5f7e2287ced9",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-10T08:46:00.070266+00:00",
+  "review_scope": "delta",
+  "base_sha": "9d5eac50c87493aa2fd6b642d7c8996a518f0a7a",
+  "head_sha": "a01b9132e8dbce5583c8a465feb6b4ff3291af7c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`architect_review.py` EXCLUDE now drops `**/config/**` from the reviewed diff, but the new `_docs_body` only re-reads `.md` refs, so config changes get neither diff nor read-back. `config/env-flags.json` is the AC-1 flag and is in the approved `review_scope.files`, so a future default-flip regression becomes invisible to the architect gate with no compensating evidence.",
+      "Same EXCLUDE change removes `**/docs/**` from the diff; defensible for docs because current content is re-read, but config has no equivalent substitute \u2014 the rationale comment covers only docs, leaving config exclusion unjustified and unreviewed."
+    ],
+    "MINOR": [
+      "`backlog_write_guard.py`: the `# BI-PF-1399 demotion\u2026` provenance comment was moved onto the new `backlog_db_export.py` line (producing two `#` comments on one line), so `backlog_rebuild_projections.py` loses its justification and the export entry carries a garbled comment in a security-guard file.",
+      "`_docs_body` is new gate logic with no test (guardrail 6: fail-able tests), and `ROOT / ref` accepts `..` refs \u2014 `affected_files` already contains `../.github/workflows/structure.yml`, so any `.md` ref can read outside ROOT.",
+      "[OUT_OF_SCOPE] `gen_docs_index.py` adds SPEC-CHAIN/FIX-IMPACT-CONTRACT entries unrelated to BI-PF-1531, and `main_test.go` is gofmt-only churn; both widen revert scope and muddy item traceability."
+    ],
+    "NIT": [
+      "`_docs_body` magic limits (5000 chars/doc, 18000 total) are undocumented and the `sum(len(x) for x in out)` check is recomputed on every append.",
+      "The `backlog_db_export.py` allowlist justification (\"uses derived projection helpers\") is imprecise \u2014 it writes the projections that become authority after rollback, not merely derived helpers."
+    ],
+    "SUMMARY": [
+      "Delta is largely tooling/formatting and does not itself break the five ACs; no blocker.",
+      "Top risk: `architect_review.py` silently widens its diff exclusion to `config/**` with no read-back substitute, permanently reducing review coverage for exactly the flag this item governs (`config/env-flags.json`) and conflicting with the approved review scope.",
+      "Secondary: comment/provenance corruption in the backlog write guard and untested new gate logic in `_docs_body`."
+    ]
+  },
+  "rereview_reason": "fix 81e8e8c2f8af blockers/majors",
+  "rereview_reason_sha256": "bb108672845f0058aa092227c1fb9055b5c70eafc3197e64b32d308cb1dbcc81"
+}

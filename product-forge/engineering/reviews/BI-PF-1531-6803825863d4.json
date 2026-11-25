@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "6803825863d4",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T15:21:58.960867+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cbe6655b456be8fd877df1b7d0e314177dc448b0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`_scope_key` lowercases every non-`product_forge` scope while `_load_all_from_db`/`_save_item`/`delete` keep the raw `project|scope` case as the DB tenant: the allowlist admits `PRODUCT_FORGE`/`productforge-dashboard` variants that then write to a differently-cased, never-parity-verified tenant.",
+      "No eager validation of the new contract: `BACKLOG_DB_MODE_INVALID` and `BACKLOG_DB_SCOPES_EMPTY` raise only on the first backlog operation, so a fleet can deploy green and fail on first read/write with no startup check or alert lead time (guardrail 2).",
+      "No evidence of a repo-wide sweep for callers relying on the old `off` default (scripts, docs projections, other suites): with the new default they now attempt `http://127.0.0.1:8030` with a 30 s timeout instead of file mode, i.e. silent hangs rather than explicit `off`.",
+      "`.github/workflows/backlog-db.yml`, `structure.yml`, `full-sweep.yml` are asserted by the new tests but have no hunk in this diff; the design also names `pf-gates.yml` as pinning `off`, yet `test_file_mode_workflows_pin_off` checks only two files.",
+      "`backlog_db_backfill.py` sleeps on the server-supplied `Retry-After` unbounded and retries exactly once, so a large/looping 429 stalls the migration job with no cap; also confirm the `urllib.error.HTTPError` path is reachable (if `_mirror_item_to_db` wraps errors it is dead code and 429 handling never runs)."
+    ],
+    "MINOR": [
+      "`_save_item` defaults an item carrying neither `project` nor `scope` to tenant `product_forge`, silently attributing an unidentified item to the DB-authoritative tenant instead of failing.",
+      "`id_allocator._db_enabled` now depends on private `backlog._db_for` and dropped its defensive `try/except`; mode/allowlist errors surface from the allocator path as backlog-shaped `RuntimeError`s that callers cannot distinguish.",
+      "Dev tooling (`bench.py`, `export.py`, `parity.py`) accepts any `PF_DB_DSN` with no check that the role is the RLS-bound runtime role; a BYPASSRLS/superuser DSN reads tenant rows outside RLS (guardrail 3).",
+      "Parity's `canon()` rewrites integral floats to ints recursively, so AC-3 \"full JSON equality\" evidence can mask genuine numeric type drift between file and DB.",
+      "`backlog_db_bench.py` sets `db_read_pass=bool(point_api)`, so it exits non-zero whenever `PF_DB_DSN` is unset \u2014 the documented bench command cannot run in an API-only environment, weakening evidence reproducibility.",
+      "`backlog_db_export.py` prunes projections before validating each row (`id` mismatch aborts mid-run), so a failed export can leave deletions without replacements; validate first, then prune."
+    ],
+    "NIT": [
+      "`requireTenant` ignores `rows.Err()` after iteration; a query failure would be reported as missing tenant context rather than an infrastructure error.",
+      "The `ErrTenantContext \u2192 503` mapping is copy-pasted in four handler sites; one shared mapper would keep the failure taxonomy in a single owner.",
+      "`_load_all_from_db` logs `tenant=<id>` plus raw exception text on every failure \u2014 confirm this matches the \"no tenant data in logs/evidence\" statement in the security model.",
+      "`.env.example` documents `PF_BACKLOG_DB_SCOPES` as an active setting while the switch itself stays commented out, so copy-paste users get a scopes list with no mode line."
+    ],
+    "SUMMARY": [
+      "Directionally correct: default `on`, explicit allowlist, fail-closed reads/writes, tenant-bound Go store, 0021/0022 with guards, and rollback tooling all match the approved design; nothing here contradicts the accepted decisions.",
+      "Top residual risks: allowlist matching is case-insensitive while tenancy is case-sensitive (unverified scope variants admitted), configuration errors fail late instead of at start-up, and the CI workflow edits that AC-2 depends on are asserted by tests but absent from this diff.",
+      "Second-order risks: unverified non-`off` default for unset-env callers, unbounded `Retry-After` handling in the backfill, and tooling DSNs that may bypass RLS.",
+      "Verdict: not merge-blocking on new evidence, but MAJOR items above should be resolved or explicitly dispositioned before flipping the default in shared environments."
+    ]
+  }
+}

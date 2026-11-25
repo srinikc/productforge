@@ -42,11 +42,12 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 
 import contextlib
 import json
+import logging
 import os
 import re
 import time
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, NoReturn
 
 _REPO = str(_PF_ROOT)
 _PRODUCTS = os.path.join(_REPO, "products")
@@ -105,11 +106,21 @@ def _default_readiness(reasons: list[str] | None = None) -> dict:
 _DASHBOARD_PROJECT = "ProductForge-Dashboard"   # dashboard scope for the reciprocity REVIEW rule
 
 
-_LEGACY_FORGE_SCOPE = "fac" "tory"   # legacy scope alias found in early stored data
+_LEGACY_FORGE_SCOPE = "fac" + "tory"
+_DB_VALID_MODES = ("off", "on", "dual", "shadow")
 
 
 def _norm_scope(scope: str) -> str:
-    return "product_forge" if scope in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
+
+
+def _db_tenant(scope: str | None, project: str | None = None) -> str:
+    raw = str(project or scope or "product_forge")
+    return "product_forge" if raw in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else raw
+
+
+def _scope_key(scope: str | None) -> str:
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else str(scope or "")
 
 
 def _dir(scope: str, project: str | None = None) -> str:
@@ -167,20 +178,76 @@ def _index_row(it: dict) -> dict:
     return row
 
 
+def _edp_token() -> str:
+    """Return EDP bearer token from env, .env file, or local dev fallback (BI-PF-1556 RCCA)."""
+    tok = os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")
+    if tok:
+        return tok
+    try:
+        from core.credentials import _load_env_files
+        _load_env_files()
+        tok = os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")
+        if tok:
+            return tok
+    except Exception:
+        pass
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030"))
+    if "127.0.0.1:8030" in api or "localhost:8030" in api:
+        return "pf-edp-local-token-32-chars-long"
+    return ""
+
+
+import urllib.request as _ur_mod
+_ORIG_URLOPEN = _ur_mod.urlopen
+
+
+def _edp_urlopen(req, timeout: int = 30):
+    """Open an EDP HTTP request, bypassing local ambient proxies for loopback destinations."""
+    import urllib.request as _ureq
+    if _ureq.urlopen is not _ORIG_URLOPEN:
+        return _ureq.urlopen(req, timeout=timeout)
+    url = getattr(req, "full_url", str(req))
+    if "127.0.0.1" in url or "localhost" in url:
+        opener = _ureq.build_opener(_ureq.ProxyHandler({}))
+        return opener.open(req, timeout=timeout)
+    return _ureq.urlopen(req, timeout=timeout)
+
+
 def _load_all_from_db(scope: str, project: str | None):
     """BI-PF-1399 Phase 3 (read-switch): read items from the DB SoR (via the Go edpsvc /backlog)."""
     import json as _json
+    import logging as _logging
+    import urllib.error as _uerr
     import urllib.request as _ureq
 
-    tenant = str(project or scope or "product_forge")
-    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    tenant = _db_tenant(scope, project)
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
-    with _ureq.urlopen(req, timeout=30) as r:
-        payload = _json.loads(r.read().decode("utf-8"))
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
+    try:
+        with _edp_urlopen(req, timeout=30) as r:
+            payload = _json.loads(r.read().decode("utf-8"))
+    except _uerr.HTTPError as e:
+        if e.code in (401, 403):
+            code = "BACKLOG_DB_AUTH"
+        elif e.code in (500, 503):
+            code = "BACKLOG_DB_UNAVAILABLE"
+        else:
+            code = "BACKLOG_DB_HTTP_ERROR"
+        _logging.getLogger(__name__).error("%s tenant=%s status=%s", code, tenant, e.code)
+        raise RuntimeError(f"{code}: status={e.code}") from e
+    except (_uerr.URLError, OSError) as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_UNAVAILABLE tenant=%s: %s", tenant, e)
+        raise RuntimeError(f"BACKLOG_DB_UNAVAILABLE: {e}") from e
+    except ValueError as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_INVALID_RESPONSE tenant=%s: %s", tenant, e)
+        raise RuntimeError(f"BACKLOG_DB_INVALID_RESPONSE: {e}") from e
     op: list[dict] = []
     cl: list[dict] = []
-    for row in (payload.get("items") or []):
+    items = payload.get("items") or []
+    if len(items) >= 100000:
+        raise RuntimeError("BACKLOG_DB_TRUNCATED: result reached the 100000 item limit")
+    for row in items:
         data = row.get("Data") if isinstance(row, dict) else None
         if not (isinstance(data, dict) and data.get("id")):
             continue
@@ -195,7 +262,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _backlog_db_mode() == "on":
+    if _db_for(scope, project):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -230,12 +297,88 @@ def _load_all(scope: str, project: str | None):
 
 
 def _backlog_db_mode() -> str:
-    """BI-PF-1399: files->DB cutover mode. off (default) | dual (write-through, best-effort) | on (DB truth)."""
-    return str(os.environ.get("PF_BACKLOG_DB", "off")).strip().lower()
+    """BI-PF-1399: files->DB cutover mode. on is the default for PF-SB/PF-GP; tests may override."""
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB", "on")
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB", "on")
+    mode = str(value or "on").strip().lower()
+    if mode not in _DB_VALID_MODES:
+        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
+    return mode
+
+
+def _backlog_db_scopes() -> set[str]:
+    """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,inbox,intake,project")
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,inbox,intake,project")
+    scopes = {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
+    if not scopes and _backlog_db_mode() in ("on", "dual", "shadow"):
+        raise RuntimeError("BACKLOG_DB_SCOPES_EMPTY: PF_BACKLOG_DB=on requires an explicit non-empty allowlist")
+    return scopes
+
+
+class BacklogScopeUnlisted(RuntimeError):
+    """DB-enabled mode rejected a scope absent from PF_BACKLOG_DB_SCOPES."""
+
+    code = "BACKLOG_DB_SCOPE_UNLISTED"
+
+    def __init__(self, scope: str):
+        self.scope = scope
+        super().__init__(f"{self.code}: scope={scope!r} is not in PF_BACKLOG_DB_SCOPES")
+
+
+def _raise_unlisted(key: str) -> NoReturn:
+    logging.getLogger(__name__).error("%s scope=%s", BacklogScopeUnlisted.code, key,
+                                      extra={"code": BacklogScopeUnlisted.code})
+    raise BacklogScopeUnlisted(key)
+
+
+def _db_for(scope: str | None, project: str | None = None) -> bool:
+    """DB authority is explicit; unlisted scopes fail closed in DB-enabled modes."""
+    mode = _backlog_db_mode()
+    if mode == "off":
+        return False
+    if (project and str(project).startswith(("_test_", "test_"))) or (scope and str(scope).startswith(("_test_", "test_"))):
+        return False
+    scopes = _backlog_db_scopes()
+    kp = _scope_key(project) if project else ""
+    ks = _scope_key(scope) if scope else ""
+    if (kp and kp in scopes) or (ks and ks in scopes):
+        return mode == "on"
+    if not project and not scope and "product_forge" in scopes:
+        return mode == "on"
+    _raise_unlisted(kp or ks or "product_forge")
+
+
+def db_tenant(scope: str | None, project: str | None = None) -> str:
+    """Public canonical DB tenant resolver (single owner)."""
+    return _db_tenant(scope, project)
+
+
+def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
+    """Public resolver used by ID allocation and tooling (on/dual/shadow keep DB IDs)."""
+    mode = _backlog_db_mode()
+    if mode not in ("on", "dual", "shadow"):
+        return False
+    if (project and str(project).startswith(("_test_", "test_"))) or (scope and str(scope).startswith(("_test_", "test_"))):
+        return False
+    scopes = _backlog_db_scopes()
+    kp = _scope_key(project) if project else ""
+    ks = _scope_key(scope) if scope else ""
+    if (kp and kp in scopes) or (ks and ks in scopes):
+        return True
+    if not project and not scope and "product_forge" in scopes:
+        return True
+    _raise_unlisted(kp or ks or "product_forge")
 
 
 def _mirror_item_to_db(item: dict) -> None:
-    """BI-PF-1399 Phase 1 (dual-write): mirror a saved item to the Go backlog SoR over HTTP (Option B).
+    """BI-PF-1399: write a saved item to the Go backlog SoR over HTTP (DB mode on = authoritative).
 
     Thin client only - the DB logic lives in the Go service (edpsvc /backlog); language rule respected.
     In 'dual' the call is best-effort (files stay the source of truth); in 'on' failure propagates.
@@ -251,21 +394,36 @@ def _mirror_item_to_db(item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
-    tenant = str(item.get("project") or item.get("scope") or "product_forge")
-    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    tenant = _db_tenant(str(item.get("scope") or ""), str(item.get("project") or ""))
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     body = _json.dumps({"ID": iid, "Tenant": tenant, "Type": str(item.get("type") or "feature"),
                         "Status": str(item.get("status") or "new"), "Title": str(item.get("title") or ""),
-                        "Body": str(item.get("body") or ""), "Data": item}).encode("utf-8")
+                        "Body": str(item.get("body") or ""), "Scope": str(item.get("scope") or "product_forge"),
+                        "Project": str(item.get("project") or ""), "Data": item}).encode("utf-8")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}", data=body, method="POST")
     req.add_header("Content-Type", "application/json")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
+    if mode == "on":
+        # DB SoR: propagate every failure; never acknowledge a lost authoritative write.
+        with _edp_urlopen(req, timeout=5):
+            pass
+        return
     try:
-        with _ureq.urlopen(req, timeout=5):
+        with _edp_urlopen(req, timeout=5):
             pass
     except Exception as e:  # noqa: BLE001
-        if mode == "on":
-            raise
-        _logging.getLogger(__name__).warning("backlog dual-write skipped (%s): %s", iid, e)
+        _logging.getLogger(__name__).warning("backlog best-effort DB write skipped (%s): %s", iid, e)
+
+
+def _delete_item_from_db(iid: str, tenant: str) -> None:
+    """Delete through the Go DB writer (DB SoR mode only)."""
+    import urllib.request as _ureq
+
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
+    req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="DELETE")
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
+    with _edp_urlopen(req, timeout=5):
+        pass
 
 
 def _fetch_item_from_db(iid: str, tenant: str) -> dict:
@@ -273,10 +431,10 @@ def _fetch_item_from_db(iid: str, tenant: str) -> dict:
     import json as _json
     import urllib.request as _ureq
 
-    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="GET")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
-    with _ureq.urlopen(req, timeout=5) as r:
+    req.add_header("Authorization", f"Bearer {_edp_token()}")
+    with _edp_urlopen(req, timeout=5) as r:
         return _json.loads(r.read().decode("utf-8"))
 
 
@@ -303,13 +461,25 @@ def _shadow_compare(item: dict) -> bool:
     return True
 
 
+def store_item_to_db(item: dict) -> None:
+    """Public DB-only item write; refuses scopes not enabled for DB authority."""
+    if not _db_for(item.get("scope"), item.get("project")):
+        raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
+    _mirror_item_to_db(item)
+
+
 def _save_item(d: str, item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
-    _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
     mode = _backlog_db_mode()
-    _mirror_item_to_db(item)
+    if _db_for(item.get("scope"), item.get("project")):
+        # DB SoR: the Go writer is the only item writer. Never write authoritative file state.
+        _mirror_item_to_db(item)
+        return
+    _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
+    if mode in ("dual", "shadow"):
+        _mirror_item_to_db(item)
     if mode == "shadow":
         _shadow_compare(item)
 
@@ -709,6 +879,26 @@ def unscoped_children(scope: str, project: str | None = None) -> list:
     return out
 
 
+def get_execution_mode(item: dict | None) -> str:
+    """Return execution mode for item: 'auto' or 'hil' (default)."""
+    env_mode = str(os.environ.get("PF_GATE_MODE") or os.environ.get("PF_EXECUTION_MODE") or "").strip().lower()
+    if env_mode in ("auto", "hil"):
+        return env_mode
+    if not isinstance(item, dict):
+        return "hil"
+    mode = str(item.get("execution_mode") or "").strip().lower()
+    return "auto" if mode == "auto" else "hil"
+
+
+def set_execution_mode(scope: str, project: str | None, item_id: str, mode: str, note: str = "") -> dict:
+    """Set execution_mode ('hil' or 'auto') on a backlog item (single writer)."""
+    mode = str(mode or "").strip().lower()
+    if mode not in ("hil", "auto"):
+        raise ValueError(f"Invalid execution_mode '{mode}'; must be 'hil' or 'auto'")
+    return update(scope, project, item_id, execution_mode=mode,
+                  _note=note or f"set execution_mode to {mode}")
+
+
 def move_to_epic(scope: str, project: str | None, item_id: str, epic_id: str, note: str = "") -> dict:
     """Re-home an item to a real epic (single writer; BI-PF-1251). Re-syncs both epics' children."""
     scope = _norm_scope(scope)
@@ -999,6 +1189,34 @@ def ensure_item(scope: str, project: str | None, external_id: str, title: str,
                     external_id=external_id, tag=tag, **fields)
 
 
+def _gate2_tooling():
+    """Load the scripts/dev gate tooling by path (keeps core free of dev imports at import time)."""
+    import importlib.util
+    from pathlib import Path as _Path
+    path = _Path(__file__).resolve().parents[1] / "scripts" / "dev" / "gate_decisions.py"
+    spec = importlib.util.spec_from_file_location("pf_gate_decisions", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"gate tooling unavailable at {path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _gate2_status(item: dict, eid: str) -> tuple[bool, str]:
+    """Shared Gate 2 predicate (BI-PF-1469): the same code path as gate2_completion_check."""
+    try:
+        return _gate2_tooling().gate2_status(item, eid)
+    except Exception as e:  # fail closed
+        return False, f"GATE_ERROR:{e}"
+
+
+def record_gate_decision(scope: str, project: str | None, eid: str, gate: int, decision: str,
+                         by: str, note: str = "", hil_confirmed: bool = False) -> dict | None:
+    """Record a Gate 1/2 decision via the gate tooling (validates evidence + findings)."""
+    import sys as _sys
+    return _gate2_tooling().record_gate_decision(_sys.modules[__name__], scope, project, eid, gate, decision, by, note, hil_confirmed)
+
+
 def set_status(scope: str, project: str | None, eid: str, status: str, note: str = "",
                force: bool = False) -> dict | None:
     # RCCA gate (1:1 with the issue tracker): a backlog item linked to an issue may only
@@ -1017,7 +1235,23 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
             if not ok:
                 print(f"[Backlog] refusing to close {eid}: {reason}")
                 return it
-    return update(scope, project, eid, status=status, _note=note)
+    # Gate 2 is enforced at the precheck/CI boundary (gate2_completion_check) for every completion
+    # transition: the control-plane write path stays usable for library callers and epic rollups.
+    res = update(scope, project, eid, status=status, _note=note)
+    if str(status).lower() in {"completed", "closed", "done"}:
+        try:
+            from core import execution_trail as trail
+            exec_usage = ((res or {}).get("execution") or {}).get("usage") or {}
+            trail.record(eid, "completion", "pass", summary=note or "completed",
+                         refs={"status": status}, usage=exec_usage)
+        except Exception as e:
+            try:
+                from core import execution_trail as _t
+                _t.write_failure("completion", e, eid)
+            except Exception:
+                pass
+            print(f"[Backlog] WARNING execution trail completion write failed: {e}")
+    return res
 
 
 _BARE_BI_RE = re.compile(r"^BI-(?:[A-Za-z0-9]+-)?\d+$")
@@ -1201,8 +1435,20 @@ def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
                 # BI-PF-1423: surface the recorded usage/time with the delivery provenance.
                 "usage": (item.get("execution") or {}).get("usage") or {},
                 "duration_seconds": int((item.get("execution") or {}).get("duration_seconds") or 0)}
-    return update(scope, project, eid, links=_merge_links(item.get("links"), delivery=delivery),
-                  _note="delivery recorded")
+    res = update(scope, project, eid, links=_merge_links(item.get("links"), delivery=delivery),
+                 _note="delivery recorded")
+    try:
+        from core import execution_trail as trail
+        trail.record(eid, "delivery", "pass", summary=f"PR {pr or '-'} merged {merge_sha or '-'}",
+                     refs={"branch": branch, "merge_sha": merge_sha, "pr": pr, "pr_url": pr_url})
+    except Exception as e:
+        try:
+            from core import execution_trail as _t
+            _t.write_failure("delivery", e, eid)
+        except Exception:
+            pass
+        print(f"[Backlog] WARNING execution trail delivery write failed: {e}")
+    return res
 
 
 def set_execution_order(scope: str, project: str | None, epic_id: str, order: list) -> dict | None:
@@ -1602,11 +1848,14 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
             return None
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
-        for p in (os.path.join(_items_dir(d), f"{eid}.json"),
-                  os.path.join(d, "history", f"{eid}.jsonl")):
-            with contextlib.suppress(Exception):
-                os.remove(p)
-        _write_indexes(scope, project, op, cl)
+        if _db_for(scope, project):
+            _delete_item_from_db(eid, _db_tenant(scope, project))
+        else:
+            for p in (os.path.join(_items_dir(d), f"{eid}.json"),
+                      os.path.join(d, "history", f"{eid}.jsonl")):
+                if os.path.exists(p):
+                    os.remove(p)
+            _write_indexes(scope, project, op, cl)
     finally:
         _unlock(lp)
     if parent:
@@ -2031,6 +2280,78 @@ def _cli(argv=None) -> int:
 
     p.print_help()
     return 0
+
+
+def latest_review_sha(item_id: str, mode: str) -> str:
+    """Latest review evidence sha for an item+mode (BI-PF-1540)."""
+    import json as _json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    best = ("", "")
+    for rp in (root / "engineering" / "reviews").glob(f"{item_id}-*.json"):
+        if "-prev-" in rp.name:
+            continue
+        try:
+            d = _json.loads(rp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if str(d.get("mode") or "") != mode:
+            continue
+        at = str(d.get("at") or "")
+        if at >= best[0]:
+            best = (at, str(d.get("sha") or ""))
+    return best[1]
+
+
+def material_change_errors(item_id: str, body: dict) -> list[str]:
+    """Validate a MATERIAL_CHANGE decision (BI-PF-1540)."""
+    import json as _json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    decision = str(body.get("decision") or "").strip().upper()
+    mode = str(body.get("mode") or "").strip()
+    reason = str(body.get("reason") or "").strip()
+    by = str(body.get("by") or "").strip()
+    bad = []
+    if decision != "MATERIAL_CHANGE":
+        bad.append("decision must be MATERIAL_CHANGE")
+    if mode not in ("design", "diff"):
+        bad.append("mode must be design or diff")
+    if len(reason) < 20:
+        bad.append("reason must be concrete (>=20 chars)")
+    if body.get("hil_confirmed") is not True:
+        bad.append("hil_confirmed=true required")
+    actor = ""
+    try:
+        actor = str(_json.loads((root / "config" / "review-material-change.json").read_text(encoding="utf-8")).get("hil_actor") or "")
+    except Exception:
+        bad.append("HIL actor config unreadable")
+    if not actor or by != actor:
+        bad.append("by must match the configured HIL actor bound to the authenticated token")
+    latest = latest_review_sha(item_id, mode)
+    if not latest:
+        bad.append(f"no {mode} review evidence for item")
+    elif latest not in reason:
+        bad.append(f"reason must cite latest review sha {latest}")
+    return bad
+
+
+def review_material_change_config_errors() -> list[str]:
+    """Startup validation for the material-change HIL config (BI-PF-1540)."""
+    import json as _json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    try:
+        cfg = _json.loads((root / "config" / "review-material-change.json").read_text(encoding="utf-8"))
+    except Exception as e:
+        return [f"review-material-change config unreadable: {e}"]
+    out = []
+    if not str(cfg.get("hil_actor") or "").strip():
+        out.append("review-material-change config: hil_actor missing")
+    import os
+    if not os.environ.get("PF_HIL_TOKEN", "").strip():
+        out.append("PF_HIL_TOKEN missing/blank: set it in the deployment secret store for X-HIL-Token auth")
+    return out
 
 
 if __name__ == "__main__":

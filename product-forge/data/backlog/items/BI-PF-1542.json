@@ -1,0 +1,1063 @@
+{
+  "id": "BI-PF-1542",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 676",
+  "title": "Prompt mandate wiring for design and implementation agents",
+  "body": "Add the five design/spec mandates to design prompts and the five implementation mandates plus item control contract to implement/fix prompts. No matrix checker or API in this item.",
+  "source": "api",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-17T23:21:47.773618",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Add the five design/spec mandates to design prompts and the five implementation mandates plus item control contract to implement/fix prompts. No matrix checker or API in this item.",
+    "what_adds": "Prompt mandate wiring for design and implementation agents",
+    "why": "Add the five design/spec mandates to design prompts and the five implementation mandates plus item control contract to implement/fix prompts. No matrix checker or API in this item.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Prompt mandate wiring for design and implementation agents",
+  "acceptance_criteria": [
+    "Design/spec prompts include all five mandate areas and a test asserts each mandate is present.",
+    "Implement/fix prompts include all five implementation mandates, the item control contract when present, fail-closed warning when absent, and a test asserts the prompt content."
+  ],
+  "in_scope": [
+    "Prompt mandate wiring for design and implementation agents"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/orchestrator/prompt_builder.py",
+    "core/orchestrator/agent_runner.py",
+    "tests/test_prompt_mandates.py",
+    "docs/PROMPT-MANDATES.md",
+    "test-framework/tests/test_prompt_mandates_wrapper.py",
+    "scripts/dev/gen_docs_index.py"
+  ],
+  "approach": "Prompt mandate wiring for design and implementation agents",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 1, 'NIT': 3}"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1542): sig:5f901988d8381cd8 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=9292bc4a8f79\nBLOCKER:\n  - none\nMAJOR:\n  - Failure semantics conflict: design_pack.failure_matrix says missing mandate = \"prompt build blocked / MANDATE_MISSING\", runtime_contract.failure_behavior says \"fails test\", AC-2 requires a \"fail-closed warning when absent\". Three incompatible contracts; AC-2 cannot be verified against a single defined behavior.\n  - Ownership contradiction (CL-001): functional_spec assumes \"prompt_builder is the prompt owner\" while operation_matrix.owner = 'agent_runner' and runtime_contract.entrypoint = 'agent_runner._build_agent_prompt'; no single-writer statement for who owns mandate injection.\n  - AC evidence not pinned to a candidate SHA (CL-015): ac_evidence/coverage/traceability carry file paths only, so Gate 2 cannot bind evidence to a change.\n  - Design does not answer the DESIGN GUARDRAILS checklist (CL-008): reversibility/backup, availability/SPOF, authz, blast-radius/dry-run, invariants, and reuse/observability are unstated (implicitly N/A but not declared), so the pre-Gate-1.5 contract is incomplete.\nMINOR:\n  - Design scope fields are placeholders: in_scope/out_of_scope/affected_components/risks = \"Not specified\", and prerequisites are not separated from changed files (CL-016).\n  - Traceability drift: functional_spec.traceability/design_ref point to docs/IMPLEMENTATION-CONTROLS-DESIGN.md while affected_files/spec_pack use docs/PROMPT-MANDATES.md; two design sources for the same mandate set.\n  - Observability is test-only (\"prompt content tests\"); no runtime signal (log/metric) when mandate injection is skipped or contract absent, despite observability_runbook marked APPLICABLE.\n  - Rollback stated as \"Revert the change / remove mandate injection\" with no verified restore path or pre-change snapshot (guardrail 1).\n  - security_threat_model APPLICABLE but reduced to a single prompt-doc section with no threat/abuse cases for mandate bypass (guardrail 3/9 largely N/A yet undeclared).\nNIT:\n  - config_contract uses literal key 'N/A' instead of an empty/omitted contract object; weakens machine checks.\n  - 'learnings': ['1538 split'] is an opaque cross-reference with no link to the learning artifact.\nSUMMARY:\n  - Verdict: Gate-1 design is directionally right (prompt-owned mandates with tests) but the approved contract is not yet unambiguous: failure behavior, ownership, and evidence pinning are contradictory or missing.\n  - Top risks: (1) three divergent failure semantics make AC-2 untestable as written; (2) no single owner declared for mandate injection; (3) no SHA-pinned AC evidence for Gate 2; (4) guardrail checklist unanswered.\n  - Language rule is satisfied (edits to shipped Python + Python tests/docs); no blocker-level security or data issue identified.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=62a3306a405c\nBLOCKER:\n  - Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.\n  - No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet — deleting the injection wiring in `agent_runner` still passes the suite.\nMAJOR:\n  - Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.\n  - Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.\n  - Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix.\nMINOR:\n  - Tech-stack checks read from `config/implementation-controls.json` are wrapped in `except Exception: pass`; \"binding\" checks can vanish with no log/metric — weak observability for a fail-closed contract.\n  - `design_spec_mandates(agent_id)` / `implementation_mandates(agent_id)` accept an ignored parameter, an API surface implying per-agent variation that never exists; callers pass it for nothing.\n  - New shipped logic (`_implementation_controls_block`, mandate rendering) added in Python; sanctioned by the approved affected_files but in tension with the \"new shipped logic -> Go\" rule — keep this layer thin.\n  - Local imports (`re` assumed module-level, `from core import backlog`, `import json`) inside the prompt hot path; a `NameError` would be swallowed by the same broad `except`, silently dropping content.\nNIT:\n  - `docs/PROMPT-MANDATES.md` duplicates the mandate wording verbatim; declare `prompt_builder` constants as the source of truth to prevent doc/code drift.\n  - `.format(id=...)` shadows the builtin `id` and uses a different string style than the adjacent f-string.\n  - `test_code_prompt_stops_without_control_matrix` relies on `BI-PF-9999` never resolving in any backlog backend (file or `PF_BACKLOG_DB=on`); a task string with no ID would be deterministic by construction.\n  - Control-matrix fields are interpolated raw into the prompt with no sanitization; fine today (internally authored), but it contradicts the \"no caller-controlled inputs\" security claim if design-pack content ever becomes externally sourced.\nSUMMARY:\n  - Mandate text and the fail-closed warning exist and are partly tested, but the wiring is conditional and untested: implement/fix prompts on non-directive/template paths omit mandates entirely, and no test builds an actual prompt, so both ACs are only partially demonstrable.\n  - Top risks: silent exception handling masking contract absence, brittle agent-id matching for design mandates, and zero coverage of the contract-present rendering path.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=8ebe8223c591\nBLOCKER:\n  - none\nMAJOR:\n  - Test proxy re-exports any `test_*` name and asserts only `_loaded > 0`; nothing pins the AC-1/AC-2 tests, so renaming/removing the mandate tests in `tests/test_prompt_mandates.py` keeps the suite green while AC evidence silently disappears.\nMINOR:\n  - Wrapper (`test-framework/tests/test_prompt_mandates_wrapper.py`) and `gen_docs_index.py` are not in the approved `affected_files`; harmless tooling/test support, but the scope ledger should be updated (CL-016).\n  - Cross-root `exec_module` loading of a `product-forge/tests` module from `test-framework/tests` depends on that tree's conftest/sys.path side effects, and the module is never registered in `sys.modules` (dataclass/typing edge failures possible); a load error surfaces as collection failure rather than a clear diagnostic.\n  - If any runner also collects `product-forge/tests`, both the proxy and the original tests execute (double collection) with no de-duplication or marker.\nNIT:\n  - Load guards use module-level `assert`, which is stripped under `python -O`, silently disabling the wrapper's coverage guard.\n  - `gen_docs_index.py` entry for `IMPLEMENTATION-CONTROLS-DESIGN.md` presumes the file exists; the diff adds no existence check, so a missing doc yields a dangling index link.\nSUMMARY:\n  - Delta is narrow and in-language (tooling/tests/docs Python): two docs-index registrations plus a test proxy that routes AC evidence into the test-framework runner; no blocker.\n  - Top risk is AC-evidence fragility: the proxy proves \"some tests loaded\", not that the five-mandate design test and prompt-content implementation test are the ones running.\n  - Secondary risk is undeclared-file drift and cross-tree import fragility; keep the proxy thin or collect the canonical file directly.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=8bb7fb94a490\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Guard failure raises at module import, so a missing/renamed mandate test surfaces as an opaque collection error rather than a named test failure; consider reporting which required name is absent (observability of the AC-evidence guard).\nNIT:\n  - `_loaded >= len(_required)` is redundant: the `_required <= {...}` subset assertion already implies it.\n  - The hard-coded `_required` set duplicates test names from `tests/test_prompt_mandates.py`; a rename now breaks two files, but that coupling is the intended pin — keep in sync deliberately.\n  - Prior NIT still applies to the changed lines: guards remain module-level `assert`, stripped under `python -O`.\nSUMMARY:\n  - Delta resolves the prior MAJOR: the wrapper now pins the three AC-mandate test names instead of asserting `_loaded > 0`, so renaming/removing them fails the suite.\n  - No new blockers or contract regressions in this delta; scope/`-O`/double-collection concerns from the prior review remain as previously filed.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "PR #363 merged to develop at 1c01cd4194fffd21199f43d735b071cd48045c28"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-17T23:21:47.531711",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_spec.py, core/change_spec.py, core/design_critic.py, core/design_guardrails.py",
+    "existing_components": [
+      "core/agent_spec.py",
+      "core/change_spec.py",
+      "core/design_critic.py",
+      "core/design_guardrails.py",
+      "core/design_tokens.py",
+      "core/product_design_spec.py",
+      "core/prompt_overlays.py",
+      "core/spec_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}/status",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/priority",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/groom/decide"
+    ],
+    "existing_modules": [
+      "config/design-completeness.json",
+      "config/design-contract.json",
+      "config/design-pack.json",
+      "config/functional-spec.json",
+      "config/implementation-controls.json",
+      "config/spec-id-families.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "6ef474970e322194"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-17T23:21:47.643088"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-17T23:21:43.644134",
+  "updated_at": "2026-11-19T10:32:13.291319",
+  "score": 0.75,
+  "_note": "Delivered via PR #363",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1542",
+    "outcome": "Implementation and design agents receive binding mandates in their actual prompts.",
+    "actors": [
+      "implementer",
+      "designer"
+    ],
+    "scope": [
+      "prompt wiring"
+    ],
+    "non_goals": [
+      "checker",
+      "API"
+    ],
+    "assumptions": [
+      "prompt_builder is the prompt owner"
+    ],
+    "dependencies": [
+      "core.orchestrator"
+    ],
+    "domain": "delivery process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Design/spec mandates",
+        "priority": "P0",
+        "source": "BI-PF-1542",
+        "preconditions": "Agent prompt is assembled.",
+        "trigger": "design/spec agent builds prompt",
+        "inputs": [
+          "backlog item"
+        ],
+        "outputs": [
+          "prompt with five design mandates"
+        ],
+        "errors": [
+          "missing mandate blocks prompt"
+        ],
+        "auth": "prompt assembly only",
+        "idempotency": "prompt build read-only",
+        "data_rules": [
+          "all five mandates present"
+        ],
+        "edge_cases": [
+          "no design pack"
+        ],
+        "acceptance": [
+          "Given a design agent prompt, when assembled, then all five design mandates are present."
+        ],
+        "verification": [
+          "pytest tests/test_prompt_mandates.py"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Implementation mandates",
+        "priority": "P0",
+        "source": "BI-PF-1542",
+        "preconditions": "Agent prompt is assembled.",
+        "trigger": "implement/fix agent builds prompt",
+        "inputs": [
+          "backlog item",
+          "control matrix"
+        ],
+        "outputs": [
+          "prompt with five implementation mandates and control contract"
+        ],
+        "errors": [
+          "missing mandate blocks prompt"
+        ],
+        "auth": "prompt assembly only",
+        "idempotency": "prompt build read-only",
+        "data_rules": [
+          "all five mandates present"
+        ],
+        "edge_cases": [
+          "no design pack"
+        ],
+        "acceptance": [
+          "Given an implement prompt, when assembled, then five implementation mandates and control contract are present."
+        ],
+        "verification": [
+          "pytest tests/test_prompt_mandates.py"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "prompt build",
+        "owner": "agent_runner",
+        "failure": "missing mandates"
+      }
+    ],
+    "config_contract": {
+      "N/A": "no new config"
+    },
+    "nfr": [
+      "no runtime latency"
+    ],
+    "data_lifecycle": "prompt text only",
+    "compatibility": "no change to callers",
+    "rollback": "remove mandate injection",
+    "observability": "prompt content tests",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_prompt_mandates.py",
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "tests/test_prompt_mandates.py",
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: mandates are fixed in prompt_builder."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "23564c321174"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1542.md",
+    "design_ref": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1542",
+        "reason": "prompt design",
+        "artifact": "docs/PROMPT-MANDATES.md",
+        "sections": [
+          "mandates"
+        ],
+        "evidence": [
+          "docs/PROMPT-MANDATES.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "no API change"
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "no data change"
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "no new config"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "prompt only"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1542",
+        "reason": "prompt injection of security rules",
+        "artifact": "docs/PROMPT-MANDATES.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/PROMPT-MANDATES.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "prompt revert only"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1542",
+        "reason": "prompt assertions",
+        "artifact": "tests/test_prompt_mandates.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "No user interface exists in this prompt-only change."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1542",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1542",
+        "reason": "prompt plan",
+        "artifact": "core/orchestrator/prompt_builder.py",
+        "sections": [
+          "mandates"
+        ],
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1542",
+        "reason": "tests verify",
+        "artifact": "tests/test_prompt_mandates.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "Design/spec mandates",
+      "Implementation mandates"
+    ],
+    "invariants": [
+      "mandates always present"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": "N/A",
+      "files": {
+        "prompt": "core/orchestrator/prompt_builder.py",
+        "design": "docs/PROMPT-MANDATES.md"
+      },
+      "config": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "mandate missing",
+        "behavior": "prompt build blocked",
+        "code": "MANDATE_MISSING"
+      }
+    ],
+    "dependencies": [
+      "core.orchestrator"
+    ],
+    "security": "security mandates included",
+    "observability": "prompt tests",
+    "performance": "no runtime impact",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "tests/test_prompt_mandates.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "tests/test_prompt_mandates.py"
+      }
+    ],
+    "rollout": "with next deploy",
+    "rollback": "revert prompt file",
+    "decisions": [
+      "prompts are the primary wiring"
+    ],
+    "guardrails": [
+      "no runtime store"
+    ],
+    "learnings": [
+      "1538 split"
+    ],
+    "design_areas": [
+      {
+        "area": "prompting",
+        "status": "APPLICABLE",
+        "reason": "prompt scope",
+        "sections": [
+          "mandates"
+        ],
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1542.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "tests/test_prompt_mandates.py",
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "tests/test_prompt_mandates.py",
+        "evidence": [
+          "tests/test_prompt_mandates.py"
+        ]
+      }
+    ],
+    "scope": [
+      "prompt wiring"
+    ],
+    "non_goals": [
+      "checker",
+      "API"
+    ],
+    "runtime_contract": {
+      "trigger": "prompt build",
+      "entrypoint": "agent_runner._build_agent_prompt",
+      "call_sites": [
+        "design",
+        "implement",
+        "fix"
+      ],
+      "adapter": "prompt_builder",
+      "contract": "mandates injected",
+      "failure_behavior": "prompt lacks mandates fails test",
+      "observable_result": "prompt content"
+    },
+    "proof_plan": {
+      "failing_test": "tests/test_prompt_mandates.py",
+      "red_evidence": "mandates absent",
+      "green_evidence": "mandates present"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "tests/test_prompt_mandates.py"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "tests/test_prompt_mandates.py"
+      }
+    ],
+    "stop_conditions": [
+      "missing mandate"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Prompt-only change; no API surface.",
+    "routes": []
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "review_sha": "9292bc4a8f79",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-17T18:00:32.300744+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Failure semantics conflict: design_pack.failure_matrix says missing mandate = \"prompt build blocked / MANDATE_MISSING\", runtime_contract.failure_behavior says \"fails test\", AC-2 requires a \"fail-closed warning when absent\". Three incompatible contracts; AC-2 cannot be verified against a single defined behavior.",
+          "Ownership contradiction (CL-001): functional_spec assumes \"prompt_builder is the prompt owner\" while operation_matrix.owner = 'agent_runner' and runtime_contract.entrypoint = 'agent_runner._build_agent_prompt'; no single-writer statement for who owns mandate injection.",
+          "AC evidence not pinned to a candidate SHA (CL-015): ac_evidence/coverage/traceability carry file paths only, so Gate 2 cannot bind evidence to a change.",
+          "Design does not answer the DESIGN GUARDRAILS checklist (CL-008): reversibility/backup, availability/SPOF, authz, blast-radius/dry-run, invariants, and reuse/observability are unstated (implicitly N/A but not declared), so the pre-Gate-1.5 contract is incomplete."
+        ],
+        "MINOR": [
+          "Design scope fields are placeholders: in_scope/out_of_scope/affected_components/risks = \"Not specified\", and prerequisites are not separated from changed files (CL-016).",
+          "Traceability drift: functional_spec.traceability/design_ref point to docs/IMPLEMENTATION-CONTROLS-DESIGN.md while affected_files/spec_pack use docs/PROMPT-MANDATES.md; two design sources for the same mandate set.",
+          "Observability is test-only (\"prompt content tests\"); no runtime signal (log/metric) when mandate injection is skipped or contract absent, despite observability_runbook marked APPLICABLE.",
+          "Rollback stated as \"Revert the change / remove mandate injection\" with no verified restore path or pre-change snapshot (guardrail 1).",
+          "security_threat_model APPLICABLE but reduced to a single prompt-doc section with no threat/abuse cases for mandate bypass (guardrail 3/9 largely N/A yet undeclared)."
+        ],
+        "NIT": [
+          "config_contract uses literal key 'N/A' instead of an empty/omitted contract object; weakens machine checks.",
+          "'learnings': ['1538 split'] is an opaque cross-reference with no link to the learning artifact."
+        ],
+        "SUMMARY": [
+          "Verdict: Gate-1 design is directionally right (prompt-owned mandates with tests) but the approved contract is not yet unambiguous: failure behavior, ownership, and evidence pinning are contradictory or missing.",
+          "Top risks: (1) three divergent failure semantics make AC-2 untestable as written; (2) no single owner declared for mandate injection; (3) no SHA-pinned AC evidence for Gate 2; (4) guardrail checklist unanswered.",
+          "Language rule is satisfied (edits to shipped Python + Python tests/docs); no blocker-level security or data issue identified."
+        ]
+      },
+      "evidence": "BI-PF-1542-9292bc4a8f79.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "review_sha": "62a3306a405c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T04:18:52.806379+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "findings": {
+        "BLOCKER": [
+          "Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.",
+          "No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet — deleting the injection wiring in `agent_runner` still passes the suite."
+        ],
+        "MAJOR": [
+          "Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.",
+          "Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.",
+          "Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix."
+        ],
+        "MINOR": [
+          "Tech-stack checks read from `config/implementation-controls.json` are wrapped in `except Exception: pass`; \"binding\" checks can vanish with no log/metric — weak observability for a fail-closed contract.",
+          "`design_spec_mandates(agent_id)` / `implementation_mandates(agent_id)` accept an ignored parameter, an API surface implying per-agent variation that never exists; callers pass it for nothing.",
+          "New shipped logic (`_implementation_controls_block`, mandate rendering) added in Python; sanctioned by the approved affected_files but in tension with the \"new shipped logic -> Go\" rule — keep this layer thin.",
+          "Local imports (`re` assumed module-level, `from core import backlog`, `import json`) inside the prompt hot path; a `NameError` would be swallowed by the same broad `except`, silently dropping content."
+        ],
+        "NIT": [
+          "`docs/PROMPT-MANDATES.md` duplicates the mandate wording verbatim; declare `prompt_builder` constants as the source of truth to prevent doc/code drift.",
+          "`.format(id=...)` shadows the builtin `id` and uses a different string style than the adjacent f-string.",
+          "`test_code_prompt_stops_without_control_matrix` relies on `BI-PF-9999` never resolving in any backlog backend (file or `PF_BACKLOG_DB=on`); a task string with no ID would be deterministic by construction.",
+          "Control-matrix fields are interpolated raw into the prompt with no sanitization; fine today (internally authored), but it contradicts the \"no caller-controlled inputs\" security claim if design-pack content ever becomes externally sourced."
+        ],
+        "SUMMARY": [
+          "Mandate text and the fail-closed warning exist and are partly tested, but the wiring is conditional and untested: implement/fix prompts on non-directive/template paths omit mandates entirely, and no test builds an actual prompt, so both ACs are only partially demonstrable.",
+          "Top risks: silent exception handling masking contract absence, brittle agent-id matching for design mandates, and zero coverage of the contract-present rendering path."
+        ]
+      },
+      "evidence": "BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "559460ee03c8cf3a70bde24d6219c025ee96d695",
+      "review_sha": "8ebe8223c591",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T04:46:17.638916+00:00",
+      "review_scope": "delta",
+      "base_sha": "36494ddb522bd7cf0657654eebcd78fc4fe4a936",
+      "head_sha": "559460ee03c8cf3a70bde24d6219c025ee96d695",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Test proxy re-exports any `test_*` name and asserts only `_loaded > 0`; nothing pins the AC-1/AC-2 tests, so renaming/removing the mandate tests in `tests/test_prompt_mandates.py` keeps the suite green while AC evidence silently disappears."
+        ],
+        "MINOR": [
+          "Wrapper (`test-framework/tests/test_prompt_mandates_wrapper.py`) and `gen_docs_index.py` are not in the approved `affected_files`; harmless tooling/test support, but the scope ledger should be updated (CL-016).",
+          "Cross-root `exec_module` loading of a `product-forge/tests` module from `test-framework/tests` depends on that tree's conftest/sys.path side effects, and the module is never registered in `sys.modules` (dataclass/typing edge failures possible); a load error surfaces as collection failure rather than a clear diagnostic.",
+          "If any runner also collects `product-forge/tests`, both the proxy and the original tests execute (double collection) with no de-duplication or marker."
+        ],
+        "NIT": [
+          "Load guards use module-level `assert`, which is stripped under `python -O`, silently disabling the wrapper's coverage guard.",
+          "`gen_docs_index.py` entry for `IMPLEMENTATION-CONTROLS-DESIGN.md` presumes the file exists; the diff adds no existence check, so a missing doc yields a dangling index link."
+        ],
+        "SUMMARY": [
+          "Delta is narrow and in-language (tooling/tests/docs Python): two docs-index registrations plus a test proxy that routes AC evidence into the test-framework runner; no blocker.",
+          "Top risk is AC-evidence fragility: the proxy proves \"some tests loaded\", not that the five-mandate design test and prompt-content implementation test are the ones running.",
+          "Secondary risk is undeclared-file drift and cross-tree import fragility; keep the proxy thin or collect the canonical file directly."
+        ]
+      },
+      "evidence": "BI-PF-1542-8ebe8223c591.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5cec9014f6176ee65c1bb95f5d970d8984f158d5",
+      "review_sha": "8bb7fb94a490",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T04:47:02.257204+00:00",
+      "review_scope": "delta",
+      "base_sha": "559460ee03c8cf3a70bde24d6219c025ee96d695",
+      "head_sha": "5cec9014f6176ee65c1bb95f5d970d8984f158d5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Guard failure raises at module import, so a missing/renamed mandate test surfaces as an opaque collection error rather than a named test failure; consider reporting which required name is absent (observability of the AC-evidence guard)."
+        ],
+        "NIT": [
+          "`_loaded >= len(_required)` is redundant: the `_required <= {...}` subset assertion already implies it.",
+          "The hard-coded `_required` set duplicates test names from `tests/test_prompt_mandates.py`; a rename now breaks two files, but that coupling is the intended pin — keep in sync deliberately.",
+          "Prior NIT still applies to the changed lines: guards remain module-level `assert`, stripped under `python -O`."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior MAJOR: the wrapper now pins the three AC-mandate test names instead of asserting `_loaded > 0`, so renaming/removing them fails the suite.",
+          "No new blockers or contract regressions in this delta; scope/`-O`/double-collection concerns from the prior review remain as previously filed."
+        ]
+      },
+      "evidence": "BI-PF-1542-8bb7fb94a490.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:cb5850b175b3b0c3": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:8ec81f4792b1a26f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:f250c08bfed0a3f5": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:a4f80a8c2e95029f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:9ca045a3ff00b803": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:fe56ebfa152644d8": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:158c253fd880bc64": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:0b63d294c2419f27": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:db0ba837b3a091d8": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:4052fb6a73c90286": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      },
+      "sig:da8848563323ce8e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted as out of scope for the prompt-only deliverable; broader guardrail policy tracked separately."
+      }
+    },
+    "diff": {
+      "sig:c823bc16f929ac62": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:4b4c5036867e3d73": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:d7995804b04e5daf": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:152010406c329dd3": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:1c89e966a268ae0e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:d00e24e29226df0b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:cf7f6ad6b2eeea28": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:2d1fefb910f924db": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:54570e4b444e6e9a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:3ea380569ffb36bf": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:2dcae12b6b856f1a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:ad13de8cf96d9306": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:a9d58b8fffe1a180": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the prompt-only deliverable; broader policy tracked separately."
+      },
+      "sig:6a1431252daf3667": {
+        "status": "SCOPE",
+        "note": "Test wrapper support detail; HIL-accepted."
+      },
+      "sig:d263ec5688d3604a": {
+        "status": "SCOPE",
+        "note": "Test wrapper support detail; HIL-accepted."
+      },
+      "sig:cac2633d62508d6d": {
+        "status": "SCOPE",
+        "note": "Test wrapper support detail; HIL-accepted."
+      },
+      "sig:8f5400ac5056f22a": {
+        "status": "SCOPE",
+        "note": "Test wrapper support detail; HIL-accepted."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:c823bc16f929ac62",
+      "finding": "Implement/fix prompts receive `implementation_mandates` + `_implementation_controls_block` only when `_tool_directive` returns non-empty; the `else` and template branches build implement/fix prompts with no mandates and no control contract, so AC2 (\"implement/fix prompts include all five\") fails on those paths.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4b4c5036867e3d73",
+      "finding": "No test assembles a real prompt: tests call `implementation_mandates()`/`design_spec_mandates()` directly, so the design_pack failure_behavior (\"prompt lacks mandates fails test\") is unmet — deleting the injection wiring in `agent_runner` still passes the suite.",
+      "severity": "BLOCKER",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:d7995804b04e5daf",
+      "finding": "Control contract \"when present\" is untested: only the absent/STOP path is asserted; no test renders `_implementation_controls_block` with rows, so regressions in the binding contract formatting are invisible to AC2.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:152010406c329dd3",
+      "finding": "Design mandates are gated by brittle agent-id heuristics (`startswith(\"design\")`, `\"spec\" in agent_id`) and only in the `spec.instructions` branch; design/spec agents reaching the template branch get no mandates, leaving AC1 path-dependent.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:1c89e966a268ae0e",
+      "finding": "Bare `except Exception: item = None` around the backlog lookup silently disables contract lookup (e.g. missing `re`, DB outage) and the resulting warning falsely reports \"no rows found\", conflating infrastructure failure with a genuinely missing matrix.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json",
+      "files": [
+        "core/orchestrator/prompt_builder.py",
+        "core/orchestrator/agent_runner.py",
+        "tests/test_prompt_mandates.py"
+      ],
+      "rollback": "Revert BI-PF-1542.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:c823bc16f929ac62",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:4b4c5036867e3d73",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:d7995804b04e5daf",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:152010406c329dd3",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:1c89e966a268ae0e",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:d00e24e29226df0b",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:cf7f6ad6b2eeea28",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:2d1fefb910f924db",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:54570e4b444e6e9a",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:3ea380569ffb36bf",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:2dcae12b6b856f1a",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:ad13de8cf96d9306",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    },
+    {
+      "finding_sig": "sig:a9d58b8fffe1a180",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "tests/test_prompt_mandates.py",
+      "controls_rerun": [
+        "pytest -q tests/test_prompt_mandates.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1542-62a3306a405c.json"
+    }
+  ],
+  "verified_by": "Srinikc HIL"
+}

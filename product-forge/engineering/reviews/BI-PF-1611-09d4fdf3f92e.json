@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "09d4fdf3f92e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T16:33:01.990781+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "00cbda78f2ea77b49fc17a1c1f06d5db5e07e23f",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`# noqa: E402` was moved (not duplicated) off `from core import backlog` in design_pack.py, functional_spec.py, and spec_pack.py; both imports sit after the sys.path loop, so the backlog import is now an unmarked E402. In spec_pack.py the sibling `from functional_spec import iter_items  # noqa: E402` still carries its marker, confirming the omission is accidental. This risks a lint/precheck failure that defeats the item's \"precheck green\" DoD."
+    ],
+    "MINOR": [
+      "Terminal skip is not unconditional: `if id in cfg[\"enforce_items\"]: return True` still precedes `gate_status.should_skip`, so a rejected/cancelled/won't_do item listed there remains enforced and can re-break the baseline. Design contract states \"rejected status returns not-enforced\"; no test covers this precedence.",
+      "The live/unknown assertions call `mod._cfg()` and depend on repo config (`enforce_from: 2026-11-07`, `enforce_items`), so a config date bump or adding `BI-TEST-0001` silently flips `test_live_statuses_still_enforced`/`test_unknown_status_still_enforced`. Synthetic cfg fixtures would make the regression self-contained.",
+      "AC-4 proof is a source-string grep (`\"gate_status.should_skip\" in Path(mod.__file__).read_text()`); it passes if the token appears in a comment/docstring and does not demonstrate runtime invocation. A monkeypatch/identity assertion on the imported callable would be behavioral.",
+      "Diff modifies `scripts/dev/gen_docs_index.py`, which is not in the approved `affected_files` / `review_scope.files` list \u2014 an undeclared change relative to the approved contract."
+    ],
+    "NIT": [
+      "`should_skip` strips and lowercases while the sibling `(\"new\", \"draft\", \"triaged\")` check is case-sensitive, so `\"Rejected\"` skips but `\"New\"` does not; the normalization asymmetry is undocumented.",
+      "No log/metric distinguishes a terminal-skipped item from an absent one; design C-4 promises only \"checked count\", so a silently skipped item is not diagnosable from gate output.",
+      "Design doc `### Tests` section lists only 3 of the 5 test functions; `test_gates_share_the_terminal_predicate` and `test_terminal_status_set_is_explicit` are referenced only in the controls table."
+    ],
+    "SUMMARY": [
+      "Implementation satisfies AC-1 through AC-4 at face value: one shared `gate_status.should_skip` predicate, four explicit terminal statuses, and tests spanning all three gates for terminal/live/unknown plus predicate reuse.",
+      "Top risks are the E402 noqa regression across three gate files (may break the very precheck baseline this item exists to restore) and the `enforce_items` override that can still force terminal items through enforcement.",
+      "Secondary gaps: config-coupled tests, source-string-based AC-4 proof, and an undeclared `gen_docs_index.py` edit; no blocker-level security, data, or language-rule violation."
+    ]
+  }
+}

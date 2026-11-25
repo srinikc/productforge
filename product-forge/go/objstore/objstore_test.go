@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"productforge/datastore"
 )
@@ -81,5 +82,45 @@ func TestSignedURLUnsupported(t *testing.T) {
 	s, _ := NewLocalStore(t.TempDir(), 0)
 	if _, err := s.SignedURL(context.Background(), "k", "GET", 0); !errors.Is(err, ErrNotSupported) {
 		t.Fatalf("want ErrNotSupported, got %v", err)
+	}
+}
+
+func TestPutRetentionFailsClosed(t *testing.T) {
+	st, err := NewLocalStore(t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Put(context.Background(), "k", bytes.NewReader([]byte("x")), 1,
+		datastore.PutOptions{Retention: time.Hour, Immutable: true}); err == nil {
+		t.Fatal("local store must refuse retention")
+	}
+}
+
+func TestLifecycleUnsupported(t *testing.T) {
+	st, err := NewLocalStore(t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := datastore.Lifecycle(st); ok {
+		t.Fatal("local store must not advertise lifecycle capability")
+	}
+	if err := st.ApplyLifecycle(context.Background(), "k", "", datastore.LifecyclePolicy{Mode: "GOVERNANCE"}); !errors.Is(err, datastore.ErrUnsupported) {
+		t.Fatalf("ApplyLifecycle: want ErrUnsupported, got %v", err)
+	}
+	if _, err := st.ObjectLifecycle(context.Background(), "k", ""); !errors.Is(err, datastore.ErrUnsupported) {
+		t.Fatalf("ObjectLifecycle: want ErrUnsupported, got %v", err)
+	}
+}
+
+func TestImmutableRejectsDifferentContent(t *testing.T) {
+	st, err := NewLocalStore(t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Put(context.Background(), "k", bytes.NewReader([]byte("a")), 1, datastore.PutOptions{Immutable: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Put(context.Background(), "k", bytes.NewReader([]byte("b")), 1, datastore.PutOptions{Immutable: true}); !errors.Is(err, datastore.ErrImmutable) {
+		t.Fatalf("want ErrImmutable, got %v", err)
 	}
 }

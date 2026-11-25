@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "4dbda4027d78",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-11T14:07:16.022778+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "7e1afe7881b6e53f4869e80763fde1a32aabc695",
+  "head_sha": "c6b38b17c13c9c3ad4bcbc23c4984ef6e9c02eaf",
+  "findings": {
+    "BLOCKER": [
+      "ac_evidence for AC-5 cites `go/edpsvc/main_test.go`, but coverage/traceability/FR-5 cite `test-framework/tests/test_pf_sb_scope_guard.py`; AC-5 (scope guard) has no attached matching evidence, so CL-010/AC-5 is unverifiable from the delta pack.",
+      "All five `ac_evidence` entries share one identical sha `7e1afe78`, including the AC-5 entry whose file is wrong; a single blanket sha cannot substantiate per-AC current-run proof."
+    ],
+    "MAJOR": [
+      "The delta `design_pack` omits keys that `spec_pack.applicability` still references: `contracts` (api/db/config), `runtime_contract`, `test_matrix`, `performance`, `security`, `rollout`, `rollback`, `observability` \u2014 dangling section references break spec-pack/Gate verification if this object is the authoritative value.",
+      "Delta `design_pack` also drops `version` (was 4) and the `invariants`/`guardrails`/`failure_matrix` rows; if the delta replaces the pack, invariant and rollback traceability for AC-4/AC-5 is lost.",
+      "`design_pack.controls` CTL check is `go test ./...` only, while AC-5's verification is the Python scope-guard test; the control row does not exercise the guard it claims to fail on."
+    ],
+    "MINOR": [
+      "`design_pack.review_scope.files`/`components` were not updated in the same delta as `affected_files` (still omits `.github/workflows/pf-sb-scope-guard.yml`, `engineering/trails/\u2026`, `engineering/evidence/\u2026`), violating the \"matching rows update in same delta\" rule.",
+      "`coverage` rows show `runtime_capability: true` only for AC-1 and `false` for AC-2\u2013AC-5 \u2014 inconsistent capability claim for endpoints covered by the same route handler.",
+      "`functional_spec` and `spec_pack` are listed as changed fields but retain `version: 1` and `functional_sha: 9599611f9678`; no re-hash accompanies the change."
+    ],
+    "NIT": [
+      "Evidence artifacts (`red-proof.txt`, `scope-baseline.txt`) are placed inside `affected_files`, blurring CL-016's separation of prerequisites/evidence from code-change scope; consider a distinct evidence list.",
+      "Prior dispositions (workflow file, non-empty shas, review provenance) are now reflected in the delta; no reopen \u2014 but the AC-5 evidence row shows the fix was applied incorrectly rather than fully verified."
+    ],
+    "SUMMARY": [
+      "Delta correctly wires the scope-guard workflow and red-proof into `affected_files` and fills review provenance, addressing the prior BLOCKER/MAJORs in intent.",
+      "Top risks: AC-5 evidence misattribution plus a blanket identical sha undermine the CL-010 fail-before/pass-after proof, and the reduced `design_pack` leaves multiple `spec_pack` section references dangling.",
+      "Resolve evidence/section integrity before Gate 1.5; remaining items are row-consistency hardening."
+    ]
+  },
+  "rereview_reason": "fix 2bdd5b85ce64 blocker/majors/minors",
+  "rereview_reason_sha256": "fe6b7947beb9ea94e3ad35b6442e8e93d09c25bc6876d1754295c843a5a31a08"
+}

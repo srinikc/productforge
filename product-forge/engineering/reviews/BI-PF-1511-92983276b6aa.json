@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "92983276b6aa",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T08:12:08.597964+00:00",
+  "review_scope": "delta",
+  "base_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+  "head_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`authorityReasonCode` now relies on string-marker matching alone to distinguish exhaustion/timeout/schema failure; the delta hardens matching for `x509:` but adds no structured `errors.As`/SQLSTATE-based classification, so reason codes remain sensitive to driver message wording changes (AC-1 bounded-reason integrity at risk over time)."
+    ],
+    "MINOR": [
+      "The new test cases (`result/x509:`, `result=x509:`, `X509: uppercase`) assert classification only via the bounded-reason helper; no test asserts the resulting gauge label set stays bounded/low-cardinality, leaving the AC-1 cardinality guarantee unpinned by the delta.",
+      "Adding broader `x509` substring matching risks classifying unrelated errors containing that token as `db_unavailable`, masking genuine `internal_error` conditions and weakening failure diagnosis."
+    ],
+    "NIT": [
+      "Consider naming the marker table/constant so future marker additions are reviewed in one place rather than inline regex/substring checks."
+    ],
+    "SUMMARY": [
+      "Delta is a small, safe hardening of reason-code normalization; prior uppercase-`X509` blocker appears resolved via explicit lowercasing.",
+      "Residual risk: classification remains message-string dependent (brittle across driver/version changes) and the low-cardinality gauge guarantee is not directly asserted.",
+      "No new data-loss, security, or tenant-isolation defects introduced in this delta."
+    ]
+  }
+}

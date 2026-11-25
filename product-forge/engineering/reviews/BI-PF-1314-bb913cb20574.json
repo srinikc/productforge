@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "bb913cb20574",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-05T09:35:00.692920+00:00",
+  "review_scope": "delta",
+  "base_sha": "4e86eed3eff15334e775a8932fe35582d7c5e42b",
+  "head_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "**AC-4 / `go/edpsvc/internal/degrade/policy.go`**: the new `renewals[store] > 3` gate fails closed for a store that is not currently degraded, and the counter is never time-windowed or reset; with `max_duration<=15m` a legitimate sustained incident needs >3 renewals, so the store locks out indefinitely until process restart or config toggle.",
+      "**AC-4 / `degrade/policy.go`**: `delete(p.renewals, store)` on any `!ok || !nr.Enabled` makes the \"bounded\" invariant defeatable \u2014 flipping the switch off/on silently resets renewals to 0, so the bound is not enforceable and the reset is unaudited/unalerted contrary to \"renewals are alerted and bounded\".",
+      "**AC-4 / `degrade/policy.go`**: the delta adds the bound but emits no metric/alert for renewal count or threshold crossings; failure-matrix `DEGRADED_EXPIRED -> fail closed + alert` is only half met, and `ErrDegradedExpired` conflates true-expiry with renewal-limit so operators cannot distinguish causes.",
+      "**AC-2 / `scripts/dev/db_explain_capture.py`**: only the audit *key* is renamed to `statement_label`; the value is still `a.query` (raw statement text), so the prior redaction concern is relabelled not remediated \u2014 disposition \"ACTIONED\" is not evidenced by this hunk."
+    ],
+    "MINOR": [
+      "**`scripts/dev/db_explain_capture.py`**: renaming `query` -> `statement_label` is an unversioned schema change to persisted audit records; existing/retained audit logs and any consumer parsing `query` break, and runbook/docs in the delta are not updated.",
+      "**AC-4 / `degrade/policy.go`**: renewal threshold `3` is a hardcoded magic number decoupled from `config/edp-degradation.json` / `max_duration`, so it cannot be tuned per environment without a code change.",
+      "**AC-4 tests**: the delta adds renewal-reset and `>3` fail-closed semantics without corresponding changes to `policy_test.go`, so the new behavior is not fail-ably pinned."
+    ],
+    "NIT": [
+      "**`test-framework/tests/test_db_explain_capture.py`**: assertion still only checks `\"captured\" in text`; it does not assert the `statement_label` key is present or that raw text is absent, so the rename is untested.",
+      "**`degrade/policy.go`**: `> 3` (fourth renewal) vs `>= 3` boundary is undocumented and off-by-one ambiguous for reviewers/ops."
+    ],
+    "SUMMARY": [
+      "Prior MAJOR (renewal bound) and audit-label findings are only partially addressed: the bound was re-added but is unbounded-lifetime, resettable, and unalerted; the audit change is a key rename, not redaction.",
+      "Top risks: indefinite store lockout during legitimate extended incidents, silent bound bypass via switch toggle, and unversioned audit schema drift with raw statement text still persisted.",
+      "Verdict: not ready \u2014 AC-4 bounding is not robust/observable and AC-2 redaction is not demonstrably fixed by this delta."
+    ]
+  }
+}

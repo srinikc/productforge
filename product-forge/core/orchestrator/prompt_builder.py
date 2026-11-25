@@ -351,3 +351,54 @@ def scope_guard(tech_stack: Optional[Dict], requested_tech_stack: Optional[List[
     hints = ", ".join(requested_tech_stack or []) or "unspecified"
     return ("\n\nSCOPE & TECH STACK (MUST follow): " + hints +
             ". Do NOT introduce frameworks/DB/auth/UI beyond the request unless the brief requires it.")
+
+
+_DESIGN_MANDATES = (
+    "\n\nDESIGN & FUNCTIONAL SPEC MANDATES (binding, five):\n"
+    "1. REQUIREMENT UNDERSTANDING: analyse objective, problem, users, requirements, ACs, existing behaviour, "
+    "architecture, dependencies; record gaps, ambiguities, assumptions, constraints and implicit requirements; "
+    "define WHAT, WHY and outcomes.\n"
+    "2. COMPLETE FUNCTIONAL & TECHNICAL DESIGN: journeys, workflows, rules, UI/UX where applicable, architecture, "
+    "components, APIs, data, integrations, config, permissions, errors, notifications, dependencies and end-to-end interaction.\n"
+    "3. 360 SCENARIO & IMPACT: normal, alternative, negative, boundary, edge, exception, failure, recovery, "
+    "concurrency, security, performance, scalability, accessibility, backward compatibility; impacts and regression risks/mitigations.\n"
+    "4. IMPLEMENTATION & VALIDATION READINESS: component responsibilities, behaviours, interfaces, dependencies, "
+    "sequencing, ACs; testable unit/API/integration/functional/e2e/regression/security/non-functional validation.\n"
+    "5. QUALITY & COMPLETENESS REVIEW: independent product-owner/architect/developer/QA/security/end-user review; "
+    "find gaps, contradictions, ambiguity, broken workflows, disconnected components, dependencies and untestable ACs; "
+    "full traceability; assumptions, decisions, risks, open questions and completion status.\n"
+    "Never produce superficial, generic, abbreviated or half-baked specs. Never invent requirements or silently "
+    "assume missing decisions; label assumptions and ask for clarification."
+)
+
+_IMPLEMENTATION_MANDATES = (
+    "\n\nIMPLEMENTATION MANDATES (binding, five - no shortcuts):\n"
+    "1. UNDERSTAND COMPLETELY: read backlog requirements, ACs, architecture, dependencies, workflows, integrations "
+    "and affected components; identify functional, technical, operational, security, performance, data, UI/UX and "
+    "compatibility implications; resolve ambiguity instead of assuming.\n"
+    "2. IMPLEMENT COMPLETELY: production-quality, fully integrated end to end; all applicable scenarios, components, "
+    "APIs, data flows, config, errors, edge cases and dependent workflows; no placeholders, stubs, hardcoding, "
+    "workarounds, partial implementations, disconnected components or deferred requirements disguised as complete.\n"
+    "3. 360 IMPACT & REGRESSION PREVENTION: assess upstream/downstream dependencies, shared modules, existing features, "
+    "integrations, concurrent operations and failure modes; preserve compatibility; no regressions or unrelated changes.\n"
+    "4. COMPREHENSIVE VALIDATION: validate every AC and applicable positive, negative, boundary, edge, failure, recovery, "
+    "concurrency, integration and e2e scenario; run unit/API/integration/functional/regression/security/performance/"
+    "deployment tests; verify actual execution; fix and revalidate.\n"
+    "5. INDEPENDENT QUALITY REVIEW & CLOSURE: review as architect, developer, QA, security and end user; challenge "
+    "assumptions; find missed requirements, hidden defects, incomplete wiring and unintended impacts; close only with "
+    "requirements traceability, changed components, impact, tests/results, regression assessment, limitations and risks.\n"
+    "Quality and completeness outrank speed, tokens and task closure. If anything cannot be implemented or validated, "
+    "report INCOMPLETE with reason and impact. Never silently skip, downgrade, bypass or mark unverified work complete.\n"
+    "Delivery states: CODE COMPLETE -> INTEGRATION COMPLETE -> VALIDATION COMPLETE -> QUALITY APPROVED -> DELIVERY "
+    "COMPLETE. Only the last satisfies Gate 2/merge; merged code alone is not delivered."
+)
+
+
+def design_spec_mandates(agent_id: str = "") -> str:
+    """Five design/spec mandates injected into design and specification prompts."""
+    return _DESIGN_MANDATES
+
+
+def implementation_mandates(agent_id: str = "") -> str:
+    """Five implementation/fix mandates injected into code-writing prompts."""
+    return _IMPLEMENTATION_MANDATES

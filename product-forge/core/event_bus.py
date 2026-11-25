@@ -37,35 +37,42 @@ def on(kind: str, fn: Callable) -> None:
 
 
 def emit(kind: str, **payload) -> Dict:
-    """Append one event and dispatch in-process handlers (never raises)."""
+    """Append one event via canonical core.events and dispatch in-process handlers (never raises)."""
     ev = {"kind": kind, "at": datetime.now().isoformat(), **payload}
+
+    # 1. Canonical emission via core.events (thin client over Go event authority)
+    _proj = str(payload.get("project") or "")
+    target_dir = os.path.join(_REPO, "products", _proj) if _proj else os.path.join(_REPO, "products", ".orchestration")
+    try:
+        from core import events as _ev
+        _extra = {k: v for k, v in payload.items()
+                  if k not in ("project", "run_id", "stage", "agent")}
+        canon = _ev.emit(target_dir, kind,
+                         run_id=str(payload.get("run_id") or ""),
+                         stage=str(payload.get("stage") or ""),
+                         agent=str(payload.get("agent") or ""), **_extra)
+        if isinstance(canon, dict):
+            ev.update(canon)
+            ev["kind"] = kind
+    except Exception:
+        pass
+
+    # 2. Local compatibility projection for products/.orchestration/events.jsonl
     try:
         os.makedirs(os.path.dirname(_EVENTS), exist_ok=True)
         with open(_EVENTS, "a", encoding="utf-8") as f:
             f.write(json.dumps(ev, ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass
-    # BI-PF-0233: mirror project-scoped bus events into the canonical per-project
-    # stream (products/<project>/events.jsonl) so the live feed + analytics read ONE
-    # store per project instead of a diverging global file.
-    _proj = str(payload.get("project") or "")
-    if _proj:
-        try:
-            from core import events as _ev
-            _extra = {k: v for k, v in payload.items()
-                      if k not in ("project", "run_id", "stage", "agent")}
-            _ev.emit(os.path.join(_REPO, "products", _proj), kind,
-                     run_id=str(payload.get("run_id") or ""),
-                     stage=str(payload.get("stage") or ""),
-                     agent=str(payload.get("agent") or ""), **_extra)
-        except Exception:
-            pass
+
+    # 3. Dispatch to in-process handlers registered via on() with exception isolation
     for fn in _HANDLERS.get(kind, []) + _HANDLERS.get("*", []):
         try:
             fn(ev)
         except Exception:
             pass
-    # Coordinator routing (policy-first) for actionable signals — lazy import avoids a cycle.
+
+    # 4. Coordinator routing (policy-first) for actionable signals — lazy import avoids a cycle.
     if kind in ("stuck", "anomaly", "compliance_exhausted", "agent_conflict",
                 "coverage_gap", "scope_change", "escalation"):
         try:

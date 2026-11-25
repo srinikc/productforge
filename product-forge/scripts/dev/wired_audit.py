@@ -25,6 +25,11 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 import os
 import sys
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError) as exc:
+    print(f"wired-audit: stdout UTF-8 setup skipped: {exc}", file=sys.stderr)
+
 sys.path.insert(0, os.getcwd())
 
 import os as _os
@@ -69,7 +74,7 @@ ALLOWLIST = {
 # Naming: "factory" is never stored/surfaced — it is "Product Forge".
 # These tokens are legitimate (stdlib/3rd-party or explicit legacy read-compat shims).
 NAMING_ROOTS = ("core", "scripts", "dashboard")
-NAMING_ALLOW = ("default_factory", "artifactory", "factory_state", "factory_improvement",
+NAMING_ALLOW = ("_LEGACY_FORGE_SCOPE", "default_factory", "artifactory", "factory_state", "factory_improvement",
                 "factory_improvements", "FACTORY_IMPROVEMENT", "factory_supervisor",
                 "factory_constitution", "send-to-factory",
                 # upstream reference doc FILENAMES (quoted verbatim; not our surface)

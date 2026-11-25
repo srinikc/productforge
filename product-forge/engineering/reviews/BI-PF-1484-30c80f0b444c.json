@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "30c80f0b444c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:37:15.492152+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`scripts/dev/disposition_decide.py` inserts only `ROOT` on `sys.path`, but `from disposition_policy import cfg` lives in `scripts/dev`; running the tool raises ImportError and HIL disposition approval cannot be recorded at all, deadlocking the DEFERRED flow.",
+      "`gate_decisions.record_gate_decision` now hard-refuses any gate not in `(\"1\",\"2\")`; existing callers recording gates 1.5/2.5 (documented in REVIEW-GATES-LIFECYCLE) will be silently refused \u2014 verify all call sites before merge."
+    ],
+    "MAJOR": [
+      "AC deviation: AC says ACCEPTED is \"capped at 2 per review mode\"; config sets `accepted_allowed: false` / `max_accepted_per_mode: 0`, and `disposition_policy.py` never reads either field \u2014 the cap concept is unimplemented and the config keys are dead, so the policy cannot be adapted back to a cap without code change.",
+      "`gate2_completion_check.check` does not enforce disposition policy; `completion_gaps` only checks ACs + report presence. AC requires enforcement at \"Gate 1, Gate 2 and completion\" \u2014 completion via the merge gate currently skips disposition violations (only the separate `execution_trail_check` catches them).",
+      "`completion_gaps` claims \"complete and current\" but never compares `final_report.item_revision` to the item's revision, so a stale final report passes merge \u2014 the test named `..._require_ac_and_current_report` doesn't exercise staleness either.",
+      "`finalize_item.build` writes `\"item_revision\": revision + 1` speculatively, then `backlog.update` bumps revision again \u2014 the persisted report's revision is systematically off-by-one, undermining any future staleness check.",
+      "`_severity_map` keys findings as `\"sig:\" + digest(...)`, but disposition rows are keyed by bare sigs (per tests/decide flow); the severity fallback will almost never match and non-NIT severities default to `\"MAJOR\"`, wrongly refusing legitimate NIT deferrals.",
+      "`record_gate_decision` change is a behavior change to a shared gate helper with no test coverage of the new refusal paths (non-1/2 gate, AC gap, disposition problem)."
+    ],
+    "MINOR": [
+      "`test_kind` classification is brittle string sniffing (`\"/go/\"`, `\" db\" in f\" {cmd}\"`, `\"pipeline\"` \u2192 api); misclassification silently corrupts the persisted final report and the trail's by-kind totals.",
+      "`trail.show` \"Accepted / deferred dispositions\" table renders only Mode/Status/Note \u2014 AC requires accepted/deferred \"with ids\"; the follow-up backlog ids are only visible by parsing free-text notes.",
+      "`finalize_item.main` prefixes every AC problem with \"AC not PASS: \" even when the message is \"no ac_verification recorded\", producing misleading failure output.",
+      "`FOLLOW_UP` regex duplicated in `disposition_policy.py`, `execution_trail_check.py`, and `deferred_problems` \u2014 three sources of truth for backlog-id syntax.",
+      "`disposition_policy.problems` re-reads config and re-globs `engineering/reviews/*.json` per item per mode; called for every item on every `execution_trail_check` run \u2014 cache or pass in.",
+      "`disposition_decide` does an unguarded read-modify-write of `decisions` with no revision/locking check; concurrent sessions can drop approvals.",
+      "`ac_policy.problems` compares only AC counts against `acceptance_criteria`, with no AC-to-criteria matching; extra/duplicated `ac_verification` entries with PASS satisfy Gate 2 without covering the actual criteria text."
+    ],
+    "NIT": [
+      "`finalize_item` `dispositions` output always has an empty \"accepted\" side (policy forbids ACCEPTED), yet AC asks the report to carry \"accepted/deferred with ids\"; add an explicit empty-accepted field for schema clarity.",
+      "`config/review-dispositions.json` is `scope: global` while the AC expresses the cap per review mode \u2014 a per-mode config shape would be more adaptable.",
+      "Missing tests for `finalize_item.main` persist path, `test_kind` db/other branches, and `disposition_decide` argument validation."
+    ],
+    "SUMMARY": [
+      "Solid scaffolding (policy module, final-report builder, trail rendering, tests), but the HIL approval tool is dead on arrival (ImportError) and the merge gate can accept a stale final report, so the core AC guarantees (approval recordable, completion-time enforcement, non-stale report) are not actually met.",
+      "The shipped policy also contradicts the AC (ACCEPTED banned outright vs capped at 2) with dead config knobs, and the gate-decision helper gained a hard gate-1/2 restriction that risks regressing 1.5/2.5 flows.",
+      "Top risks: unrecordable dispositions, stale/off-by-one final_report revisions, severity-key mismatch silently refusing NIT deferrals, disposition enforcement missing from the completion merge gate."
+    ]
+  },
+  "rereview_reason": "prior sha db03426f4ae3; all 12 deferred findings fixed/actioned; HIL-attested churn",
+  "rereview_reason_sha256": "1f213e0646096d0ed02441b0d9a4ece1c4d128cd055fe7fb8332973b8fe82e23"
+}

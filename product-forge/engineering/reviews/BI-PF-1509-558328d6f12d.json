@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "558328d6f12d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-29T15:26:33.709506+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "CTL-RLS-TENANT and CTL-TIMEOUT declare cwd=go/edpsvc but owner=edpdata / applies_to=go/edpdata/backlog.go; `go test ./...` in the edpsvc module never executes the edpdata fail-closed tests, so AC-3/AC-4 enforcement and its evidence are structurally unverifiable."
+    ],
+    "MAJOR": [
+      "Rollback is stated twice and inconsistently: top-level `rollback` says \"remove route, then 0019/0018 down\" while `design_pack.rollback`/`rollback_recovery` include 0020; ambiguous recovery order is an operational hazard.",
+      "`requirements` restates AC-4 as \"Missing migration 0016/0018\" instead of AC-4's \"0016-0020\", silently dropping 0019/0020 from the fail-closed contract; the design contract and AC are out of sync.",
+      "Evidence artifacts required by controls and proof (`engineering/trails/BI-PF-1509-*.txt`, `BI-PF-1509-red.txt`) are not in `review_scope.files`/`affected_files`; the scope guard will flag them as stray paths or their evidence is out of scope \u2014 CL-010 and CL-016 enforcement contradict each other.",
+      "All five ACs share one identical evidence SHA (5adc48bf\u2026), yet evidence spans Go svc tests, Go edpdata tests, and a Python guard; a single commit SHA cannot be current-run proof per AC (CL-010).",
+      "0020 index cleanup has no AC, no dedicated test reference, and no stated rationale beyond \"in scope for rollback\"; bundling an index drop into an admin-readiness item widens blast radius \u2014 prove the dropped index is not the access path for the tenant `item_count` query.",
+      "Counter recovery is under-specified: \"interrupted apply = re-run\" does not address a stale counter after partial apply/restore; no reconciliation-from-`backlog_id_reservations` step is defined for the restore-then-redeploy path."
+    ],
+    "MINOR": [
+      "`failure_taxonomy` (8 reasons incl. conflict/exhausted, which this endpoint cannot emit) is wider than the pinned 5-label metric set; keep the metric label enum separately pinned to prevent cardinality drift.",
+      "`affected_components` includes `test-framework/tests` while the binding component list is [go/edpsvc, go/edpdata, migrations, ops, scripts]; align component allowlist with the scope guard or CI will reject declared paths.",
+      "Both transaction-local `statement_timeout=5s` and `PF_EDP_DB_TIMEOUT` bound Authority; document precedence so timeout classification (reason=timeout vs db_unavailable) is unambiguous.",
+      "Exact `count(backlog_items)` runs on every admin poll with no caching/ETag; poll frequency \u00d7 large-tenant scan cost is unbounded beyond statement_timeout.",
+      "Single shared `PF_ADMIN_TOKEN` with constant-time compare is fine, but logs record `principal=admin` for all callers \u2014 no rotation/expiry or per-principal attribution for audit of an admin surface.",
+      "`api_contract` adds `Retry-After` on 503 while AC-4 mandates only a fixed safe message; pin the exact status/body/headers in a contract test to prevent drift.",
+      "CL-001 ownership is stated, but no `config/ownership.json` registration step is listed for the new route/metrics despite being referenced in `ownership`."
+    ],
+    "NIT": [
+      "Alert expression `rate(...[10m]) > 0.05 for 5m` should state rate units and window semantics explicitly in the rules file.",
+      "`success_timestamp_seconds` gauge and `startup_ok` gauge partially overlap; name one as the alert source of truth in the runbook.",
+      "Failure matrix duplicates `failure_taxonomy`/`failure_matrix`/observability sections; consolidate to one source to avoid future divergence."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound: fail-closed 401/400/405/503, tenant-required queries, constant-time token compare, NOSUPERUSER/NOBYPASSRLS evidence, bounded metrics, and a rehearsed rollback are all present.",
+      "Top risks: two enforced controls run against the wrong Go module (AC-3/AC-4 evidence invalid), a rollback order contradiction, and AC-contract drift on the migration fail-closed set (0016/0018 vs 0016-0020).",
+      "Resolve the control cwd/ownership mismatch, split evidence SHAs per AC, and reconcile scope-guard allowlist with evidence-trail paths before Gate 1.5."
+    ]
+  }
+}

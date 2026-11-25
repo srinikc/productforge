@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "b27d8838253f",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T07:59:03.346323+00:00",
+  "review_scope": "delta",
+  "base_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+  "head_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Test coverage gap: the delta replaces the only bare `\"x509: ...\"` case with `\"prefix x509: ...\"`, so the `^` branch of `x509StringMarker` is no longer exercised; dropping `^` would silently misclassify leading x509 errors.",
+      "The new `tls_error` check in `TestAuthorityFailureMetricUsesBoundedReasons` is a source grep of `main.go`, not a runtime assertion; it can miss constructed or other-file emitters and can false-fail on unrelated comments."
+    ],
+    "NIT": [
+      "The regex boundary `[^a-z0-9]` also treats `_`, `-`, and `.` as separators, so `not_x509:`/`not.x509:` still map to `db_unavailable`; the anchor only fixes alphanumeric prefixes.",
+      "The runbook note states cert failures collapse to `db_unavailable` but gives no concrete log field/query to separate identity/CA from endpoint outages, leaving manual triage underspecified."
+    ],
+    "SUMMARY": [
+      "Delta is small and addresses the prior x509 anchoring and retired `tls_error` literal concerns; no blockers or majors found.",
+      "Main residual risk is test evidence quality: leading `x509:` classification and runtime absence of `tls_error` are not actually pinned.",
+      "Minor regex-boundary and runbook specificity issues remain; AC-2/3/4 are untouched by this delta."
+    ]
+  }
+}

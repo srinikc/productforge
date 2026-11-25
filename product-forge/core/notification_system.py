@@ -61,6 +61,7 @@ class NotificationSystem:
         return []
     
     def _save_notifications(self):
+        self.notifications_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.notifications_file, 'w') as f:
             json.dump([asdict(n) for n in self.notifications], f, indent=2)
     

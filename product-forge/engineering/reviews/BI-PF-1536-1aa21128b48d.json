@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "1aa21128b48d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T11:16:57.861254+00:00",
+  "review_scope": "delta",
+  "base_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+  "head_sha": "0be35f8983b47eb7296987831ec1e74631b12a7b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`is_closed` now delegates to `backlog.section({\"status\": ...}) == \"done\"` (review_select.py delta); equivalence to the prior CLOSED_STATUSES set is unproven and untested \u2014 if section() maps only literal \"done\", previously-closed statuses stop being skipped and get enforced (AC-1 regression); if it maps broadly, open items could be silently skipped (gate bypass).",
+      "No delta test exercises the changed `is_closed` authority path or asserts the new fix-guard `mtime_fallback=<n>` output; the only added test covers `review_select.latest_review` meta, so the closed-skip semantics change ships without a fail-able test (design guardrail: no silent behaviour change without a test)."
+    ],
+    "MINOR": [
+      "`--all` invokes `latest_review` twice per item (once discarded, solely to populate `meta`) instead of threading `meta` through `problems()`; duplicated file reads and the counter could diverge from the selection actually enforced.",
+      "mtime-fallback observability exists only on `--all` and in architect_review; the fix-guard `--item`/single-item path remains silent, extending the prior pending `--item` observability gap to AC-3 fallback.",
+      "`problems()`'s selection call still never passes `meta`, so the enforcement path itself emits no fallback marker \u2014 observability depends on the parallel counting call, not the used result."
+    ],
+    "NIT": [
+      "`import logging` inside `_latest_review` runs on every call; module-level import matches the `fix_guard` pattern (extends the prior import-placement NIT).",
+      "prefer_sha early-return sets `mtime_fallback=True` when `at` is empty even though mtime did not participate in that selection, conflating \"degraded record\" with \"mtime used\"."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior unconditional `status=ok` bug and makes closed-skip + mtime fallback explicit on the `--all` path and via architect_review's warning; language rule respected (tooling Python) and the shared-selector/`core/backlog` authority direction matches the approved contract.",
+      "Top risks: untested `is_closed` semantics change against the backlog status authority (could flip AC-1 skip behavior) and the redundant per-item double selection used only for fallback counting."
+    ]
+  },
+  "rereview_reason": "Delta diff fixes for prior fee0b3e04294 findings",
+  "rereview_reason_sha256": "8efd44b0ec39ca77025a39ac1f4fb2a6929874a6df2ebfae0a9874e74735bcf3"
+}

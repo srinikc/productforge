@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "3ca3570efee5",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:16:45.061525+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`diff_reviews(committed=True)` treats an empty `ls-tree` as \"unreadable or empty\" and raises; a branch with no committed reviews (a legitimate state) is indistinguishable from a git failure and hard-exits 2, making the gate fail-always rather than fail-closed.",
+      "Attestation fails open when evidence has no/empty `sha`: `latest = max(...)[\"sha\"]` can be `\"\"`, and `churn_attested` skips the citation check via `if latest_sha and ...`, so an over-budget item is allowed by an attestation that cites nothing.",
+      "precheck groups `review-churn` under \"backlog\" while its sibling Gate 2.5 gate `architect-review` is \"quality\"; if group determines which precheck runs where, the churn budget may not run on the path that enforces Gate 2.5/completion.",
+      "`redact_reason` has no generic secret patterns (`sk-\u2026`, private-key-less high-entropy tokens, `--token <val>` form); the redacted-but-partial reason is persisted into `engineering/reviews` evidence that is committed to git \u2014 secret residue can ship.",
+      "Re-review archive (`-prev-<ms>.json`) makes one physical review count as two evidence rows for the same sha, inflating churn counts and triggering the warn budget on a legitimate, reasoned re-review (enshrined by `test_archived_rereview_counts_as_a_run` but contradicting \"one diff review per freeze\" counting integrity)."
+    ],
+    "MINOR": [
+      "`--json` combined with `--report` writes a non-JSON `REPORT` line to stdout after the JSON document; and scan errors in `--json` mode emit no structured output at all, breaking machine consumers.",
+      "`review_guard` returns the redacted reason but `main` discards it and re-redacts the raw input; if the cited sha falls past the 500-char cap the stored `rereview_reason` omits the very sha it was validated against.",
+      "`--reason` without `--rereview` is only rejected in diff mode (`reason_flag_error` inside `if a.mode == \"diff\"`); design-mode `--rereview --reason` silently stores `rereview_reason` with no validation.",
+      "The committed git path (`ls-tree`/`show` in `diff_reviews` and `_item_committed`) has zero test coverage \u2014 fail-closed tests only exercise the working-tree corrupt-file path.",
+      "Threshold defaults `2`/`4` are duplicated as code fallbacks in `review_budget()` and hardcoded again in `docs/REVIEW-GATES-LIFECYCLE.md` prose, risking drift from `config/architect-review.json`.",
+      "`redact_reason` is invoked twice per run (guard + main) with different inputs/outputs discarded, an avoidable divergence point for future edits."
+    ],
+    "NIT": [
+      "Unrelated reformat of `blocking_findings`/`skip_globs` in `architect-review.json` adds config churn orthogonal to BI-PF-1480.",
+      "`churn_verdict` computes `allowed = not (over and not attested)` alongside `fail = over and not attested`; one expression should derive from the other.",
+      "Docs line renders an ASCII `-` where an arrow/em-dash is intended, and the pre-existing binding-order line uses `?` placeholders."
+    ],
+    "SUMMARY": [
+      "Solid single-owner design: thresholds, epoch, counting and attestation are correctly centralized in `architect_review.py` and consumed by both entry points, with boundary/HIL/fail-closed tests largely present.",
+      "Top risks: fail-always (not fail-closed) on an empty committed review tree, fail-open attestation when `sha` is empty, possible churn-count inflation from `-prev-` archives, and incomplete secret redaction before evidence is committed.",
+      "Secondary: precheck group placement may silently skip the gate, machine output purity under `--json --report`, and the untested committed-git read path."
+    ]
+  },
+  "rereview_reason": "supersedes 92f2a86a5671; inclusive epoch, latest-by-time",
+  "rereview_reason_sha256": "fc72f73bfa3c739eb4b875cecb545ed52e8d981edd463d17e0bf8712d94c049b"
+}

@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "c6d8972bde94",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-05T10:47:20.107828+00:00",
+  "review_scope": "delta",
+  "base_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+  "head_sha": "68394ca053c3b94cffdaf9c48b488b49d02d53b1",
+  "findings": {
+    "BLOCKER": [
+      "AC-4 `degrade/policy.go` `Check`: the renewal budget is evaluated regardless of whether any switch is active, so after the limit is crossed the (now healthy, switch-cleared/expired) store returns 503 \"store unavailable\" until entries age out of `renewal_window_seconds` (1h in config) \u2014 a self-inflicted outage with no reset path.",
+      "Fix must key the bound to an active degradation (and clear/decay the ledger when the switch is cleared/expired), otherwise \"bounded, fail-closed degradation\" becomes \"deny a healthy store for an hour\"."
+    ],
+    "MAJOR": [
+      "`degrade.Load` now hard-requires `renewal_limit>=1`/`renewal_window_seconds>=60` while `version` stays `1` and the schema file is unchanged: any operator-supplied `PF_EDP_DEGRADATION_CONFIG` without the new keys fails `log.Fatalf` at boot (missing migration/defaulting + no version bump).",
+      "`reload()` increments the ledger only when `old.Enabled && nr.Enabled && expiry extended`; disable\u2192re-enable (or shorten-then-extend) yields a fresh 900s without consuming the budget, so `RenewalLimit` remains bypassable and total degraded time is unbounded.",
+      "`RenewalCount()` returns the raw slice length without window pruning (diverges from `Check`), and the prune logic is duplicated in `reload` and `Check` \u2014 two sources of truth for the same invariant.",
+      "Observability gap: `ErrRenewalExceeded` denials emit no counter/log and collapse to the same 503 \"store unavailable\" as a real outage; the alert watches renewals only, so the failure-matrix case `DEGRADED_EXPIRED -> fail closed + alert` is still un-alerted.",
+      "`ops/prometheus/edp-slo.rules.yml` + `gen_edp_slo.py`: `increase(edp_store_degradation_renewals_total[15m]) > 0` has no `by (store)`/`{{ $labels.store }}`, so on-call cannot identify the store; no corresponding panel was added to `edp-slo-dashboard.json` (rules/dashboard drift).",
+      "[OUT_OF_SCOPE] `config/file-manifest.json` is rewritten wholesale (~2k lines) and now enumerates `data/licensing/.dev-private-key`, `data/local/dev-api-token`, `data/logs/*.log`, `data/control-plane/control-plane.db` while dropping prior entries (`core/pipeline_engine.py`, `core/git_manager.py`, `core/human_controls.py`, `.opencode/package.json`); unrelated to BI-PF-1314, unverifiable here, and risks shipping secret/credential paths and an incomplete package."
+    ],
+    "MINOR": [
+      "Prior NIT marked ACTIONED but `kept := p.renewals[store][:0]` aliasing the map value's backing array is still present in `reload()`.",
+      "Prior MINOR marked ACTIONED but exported mutable `Policy.Metrics` assigned post-construction remains (nil-checked at two sites); prefer a constructor option/injected sink set before the policy is published.",
+      "`reload()` uses wall-clock `time.Now()` while `Check` uses the caller's `now`; no clock injection, so window behaviour is time-dependent in tests and ops replays are not reproducible.",
+      "`test_db_explain_capture` still calls `audit()` with no query/plan, so the added `\"SELECT\" not in text` assertion is vacuous and the redaction path stays untested (ACTIONED disposition does not hold).",
+      "`test_edp_degrade_config` only asserts the new keys exist; no fail-able test for missing-key startup failure, window-boundary pruning, or the disable\u2192re-enable counting path.",
+      "`store-registry.json`: only the three config files are classified; the AC-1 baseline artifacts and EXPLAIN audit/plan artifacts produced by the new tooling have no retention/backup classification despite the stated retention invariant."
+    ],
+    "NIT": [
+      "`len(kept) > p.cfg.RenewalLimit` allows `limit+1` renewals before failing; `renewal_limit: 3` therefore means 3, not \"max 3 entries\" \u2014 document or use `>=`.",
+      "`make([]time.Time, 0, len(...))` allocates on every `Check` for every store on the request hot path; prune only when the slice is non-empty/periodically.",
+      "`Metrics.Inc` runs under `p.mu` inside `reload`; harmless today but a slow sink would stall all store checks.",
+      "Renewal alert is `severity: ticket` with no warning tier before the hard lockout; consider a nearing-limit warning so on-call has lead time."
+    ],
+    "SUMMARY": [
+      "Directionally correct fix: per-check window pruning removes the indefinite lockout, the alert and generator are updated together, and the 503 body is now generic.",
+      "Remaining risks: the budget is still enforced against a healthy store (availability), the bound is still bypassable via enable/disable transitions, and the customer-facing failure mode is neither labelled per store nor observable as a denial.",
+      "Config compatibility was broken silently (new required fields, `version` unchanged, no schema/runbook migration), and the unrelated file-manifest rewrite should be split out and reviewed for secret/artifact leakage."
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "0971493c6c8f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:56:42.250993+00:00",
+  "base_sha": "191b9e61cd8d455f2d0a937db7c011e75d20281c",
+  "head_sha": "5033286e376d1099bf61a63a56d6dc099a71eda1",
+  "findings": {
+    "BLOCKER": [
+      "- none"
+    ],
+    "MAJOR": [
+      "`architect_review_check.py`: `valid_bases = {mb, latest_head}` where `latest_head` can equal the current HEAD (from the evidence being validated). A self-referential record (`base_sha == head_sha == HEAD`) then passes merge-gate evidence validation with no lineage back to merge-base \u2014 exclude the current head from `latest_head`, and reject `base == head`.",
+      "`architect_review_check.py`: `latest_head` is taken from the most recent `mode == \"diff\"` evidence regardless of item/branch. Any unrelated or stale head still satisfies the base check, so the prior \"evidence matches any past commit\" MAJOR is only narrowed, not fixed \u2014 scope the chain to evidence for this item (and same base lineage), not a global max.",
+      "`finalize_item.py`: the `gate_decisions` whitelist drops non-enumerated gate outcomes (e.g., REJECT / CHANGES_REQUESTED) into `other_decisions`. The immutable final report can therefore render an all-green `gate_decisions` trail while negative gate decisions are reclassified as \"other\" \u2014 an integrity/observability inversion; classify by gate membership, not by positive-value allowlist."
+    ],
+    "MINOR": [
+      "`finalize_item.py`: the dual \"total time\" definitions persist \u2014 `total_time_ms` is wall-clock span on success but `sum(duration_ms)` on fallback, under one field. Clamp added but the contract ambiguity the prior review flagged is not actually resolved; document one definition or split fields.",
+      "`finalize_item.py`: `max(0, ...)` clamping silently converts corrupt/negative durations into a plausible zero total instead of surfacing invalid evidence; validate and fail/warn on negative durations rather than masking.",
+      "`finalize_item.py`: new `other_decisions` field added to `pf.final-report/1` without a schema version bump or mention in the final-report contract/docs; downstream consumers keyed on the schema id get an unannounced shape change."
+    ],
+    "NIT": [
+      "`finalize_item.py`: `from datetime import datetime as _dt` still imported inside the function shadowing/duplicating the module-level `datetime` import \u2014 prior disposition claimed a move to top-level that the diff does not deliver.",
+      "No tests are added anywhere in this diff for evidence-path validation, base-chain restriction, total-time sorting/clamping, or gate/other decision separation, despite the prior NIT being dispositioned ACTIONED and the AC explicitly requiring coverage.",
+      "`architect_review.py` `_prior_context` now parses every evidence JSON twice (once in the sort key, once downstream); the check script already uses a cached `(path, dict)` pattern \u2014 reuse it for consistency and cost."
+    ],
+    "SUMMARY": [
+      "Remediation direction is right (real evidence paths, guarded sort key, sorted/clamped totals, decision split) and stays within the tooling-Python language allowance, but two prior MAJORs are only partially actioned: base-chain validation still admits stale/self-referential heads, and the dual total-time semantics remain.",
+      "Top risk: the merge-gate evidence check and the final report's `gate_decisions` filter can both produce a falsely clean audit trail (self-referential evidence passing; negative gate decisions reclassified) \u2014 these directly undermine the disposition/AC enforcement the item exists to guarantee.",
+      "Zero test coverage in the diff leaves the AC's coverage clause unverified; require tests before closing."
+    ]
+  },
+  "rereview_reason": "prior sha 3005b2a575cc; delta review of guard fixes",
+  "rereview_reason_sha256": "d0e033fa71a0772482c73b3ced41426e44e90830aed74d7b58bf1debccbb2e88"
+}

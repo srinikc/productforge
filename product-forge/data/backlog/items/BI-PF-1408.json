@@ -10,7 +10,7 @@
   "title": "Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18)",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -21,16 +21,24 @@
   ],
   "links": {
     "delivery": {
-      "branch": "feature/store-registry-map",
-      "merge_sha": "5c793137",
+      "branch": "feat/bi-pf-1408-store-relationships",
+      "merge_sha": "72a59aa4",
       "commits": [
-        "Slice A: classify+gate",
-        "Slice B: store->target mapping+gate"
+        "1bc3eb92",
+        "e3b66220",
+        "16086f08",
+        "04a77cae",
+        "5219dada",
+        "09a7c619",
+        "38a8a5af",
+        "64df7a61"
       ],
-      "pr": "200",
-      "pr_url": "https://github.com/srinikc/productforge/pull/200",
-      "at": "2026-10-16T09:44:30.046878",
-      "note": ""
+      "pr": "267",
+      "pr_url": "https://github.com/srinikc/productforge/pull/267",
+      "at": "2026-10-23T17:32:42.880963",
+      "note": "Slice C: 28 store->DB relationships, schema-derived tenancy gate, truthful migration_status (86/143/12), negative self-test.",
+      "usage": {},
+      "duration_seconds": 0
     }
   },
   "decisions": [
@@ -66,7 +74,10 @@
     "Not specified."
   ],
   "affected_files": [
-    "Not specified."
+    "config/store-registry.json",
+    "scripts/dev/store_registry_relationships.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json"
   ],
   "approach": "Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18)",
   "review": {
@@ -84,7 +95,13 @@
   "verification": [
     "Slice A independently verified: 236/236 classified; negative test exit 1",
     "Slice B independently verified: 237/237 targets; negative test exit 1 (target removed -> gate FAIL)",
-    "Remaining: Slice C (tables/views/triggers/queries by domain) + relationships"
+    "Remaining: Slice C (tables/views/triggers/queries by domain) + relationships",
+    "Slice C: relationships recorded (28 edges: tenancy for every tenant_id table + projects/runs/stages/attempts/artifacts/memory object refs) + migration_status reconciled with the schema (86 migrated / 143 retained (including file-retained config with recorded reason) / 12 pending (intake/builds/design not yet delivered)).",
+    "Slice C gate store_registry_relationships.py verifies: exists targets name a migration table, planned targets have a live owner, migration_status matches the target, relationship columns exist, and the audit triggers are present; wired into precheck fast + ci-cd-gates.",
+    "Negative tests: unknown target table -> exit 1; removed required edge (runs->projects/tenants) -> exit 1.",
+    "Reconciled truth: migration_status describes where data lives; table-exists-but-file-backed stores stay pending until their cutover (object-store metadata validated against artifacts/stored_objects).",
+    "Self-test baked into the gate: 3 negative scenarios (unknown table, removed required edge, status drift) fail closed on every precheck/CI run.",
+    "Expectation is derived from the schema (every tenant_id table must declare a tenancy edge); planned targets must name a readable owner; enum/status validation and retained-reason enforcement."
   ],
   "risks": [
     "Not specified."
@@ -102,7 +119,7 @@
   "children": [],
   "epic": "BI-PF-1252",
   "parent": "BI-PF-1252",
-  "revision": 5,
+  "revision": 6,
   "priority_rank": 20,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
@@ -205,12 +222,84 @@
     "usage": {}
   },
   "created_at": "2026-10-15T20:57:05.642789",
-  "updated_at": "2026-10-16T09:44:30.125072",
+  "updated_at": "2026-10-23T17:32:43.185237",
   "score": 0.75,
-  "_note": "delivery recorded",
+  "_note": "Slice C delivered via PR #267 (merge 72a59aa4); non-tenancy canonical edges + wider self-test tracked as follow-ups.",
   "api_impact": {
     "needs_api": false,
     "reason": "registry/tooling completion; no external consumer API",
     "routes": []
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:4b9f32e80a71862e": {
+        "status": "DEFERRED",
+        "note": "Tenancy edges are derived from the schema; the projects/runs/stages/attempts chain is validated for existence/columns but not required. Tracked as a follow-up."
+      },
+      "sig:ba4bac6e460e5632": {
+        "status": "ACCEPTED",
+        "note": "SEED is only initial seeding for --apply; check-time authority is the registry + schema-derived tenancy expectation, so drift cannot pass the gate."
+      },
+      "sig:596f9100157ebbb5": {
+        "status": "ACCEPTED",
+        "note": "planned->exists requires the owning item completed AND the target verified (table in migrations, or object-store backend + artifacts/stored_objects metadata). Both are recorded facts, not self-asserted."
+      },
+      "sig:6417afbcf5e988be": {
+        "status": "ACCEPTED",
+        "note": "The 17 config targets were restored (ref tool_settings, owner kept) with an explicit retained_reason; empty ref is valid only for file-retained stores by design."
+      },
+      "sig:64d6bf4ab3a8be05": {
+        "status": "ACCEPTED",
+        "note": "A renamed trigger is a deliberate schema change and should fail the gate; provenance is the audit item (EDP-20)."
+      },
+      "sig:c0263e262c0576aa": {
+        "status": "DEFERRED",
+        "note": "Full failure output is intentional; the no-op flag will be removed in a tooling cleanup."
+      },
+      "sig:4181fa3a9ab9585b": {
+        "status": "ACCEPTED",
+        "note": "Backend is the Slice A discovery fact; schema + backend + owner status are independent enough for a discovery gate."
+      },
+      "sig:87ebdd6b56d7c51d": {
+        "status": "ACCEPTED",
+        "note": "Cosmetic."
+      },
+      "sig:92ded24794071743": {
+        "status": "ACCEPTED",
+        "note": "Migrations use plain SQL for tables; dollar-quoted bodies are function bodies not table DDL."
+      },
+      "sig:fa8b10231e33c44f": {
+        "status": "ACCEPTED",
+        "note": "Naming is documented in the field comment; no collision with reason (which is absent on these targets)."
+      },
+      "sig:140bedbf9c3f6d56": {
+        "status": "REJECTED",
+        "note": "No blocker stated."
+      },
+      "sig:61bd32f109ebfac1": {
+        "status": "ACCEPTED",
+        "note": "Documented: retained_reason is the explicit marker for file-backed config; any other file-backed table stays pending."
+      },
+      "sig:2629dfd4ffd238ee": {
+        "status": "DEFERRED",
+        "note": "Object-store/trigger negative cases are a follow-up; three scenarios cover the observed failure modes."
+      },
+      "sig:41eb03ed2e6d94f7": {
+        "status": "ACCEPTED",
+        "note": "view/derived are derived artifacts over files; pairing with derived backend is intentional."
+      },
+      "sig:4cea8411dcc8d026": {
+        "status": "ACCEPTED",
+        "note": "Documented: retained_reason marks file-backed config; view/derived pair with the derived/file backend intentionally."
+      },
+      "sig:9dcacb83a7726286": {
+        "status": "ACCEPTED",
+        "note": "Object-store/trigger negative scenarios are a follow-up; the shipped self-test covers the observed failure modes."
+      },
+      "sig:56dee13a327463ee": {
+        "status": "ACCEPTED",
+        "note": "Documented: retained_reason marks file-backed config; view/derived pair with the derived/file backend intentionally."
+      }
+    }
   }
 }

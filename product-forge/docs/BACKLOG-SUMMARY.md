@@ -1,18 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T22:33:01 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-25T18:17:15 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 139  |  **Closed:** 571
+- **Open:** 133  |  **Closed:** 658
 - `blocked`: 1
-- `executing`: 3
-- `in_progress`: 3
-- `new`: 132
+- `in_progress`: 1
+- `new`: 131
 
-### new, by category (132)
-**API / reports / HIL / misc** (16)
+### new, by category (131)
+**API / reports / HIL / misc** (13)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -20,8 +19,6 @@
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 | BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
 | BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
-| BI-PF-1274 | Should | feature | Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision) | SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1. |
-| BI-PF-1286 | Should | change | Entitlement enforcement: cover remaining boundaries (pipeline/capability/API) + action->group mapping (beyond the worker-claim wired by A2) | Extend entitlement enforcement to the remaining execution boundaries with per-action group mapping. |
 | BI-PF-1291 | Should | bug | Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4) | Keep epic.children[] in sync on every epic/parent membership change so the backlog-residue gate never drifts. |
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
@@ -29,7 +26,6 @@
 | BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
-| BI-PF-1409 | Must | defect | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping... |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
 
 **Bug fixes** (1)
@@ -37,7 +33,7 @@
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (9)
+**Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -46,8 +42,6 @@
 | BI-PF-1216 | Should | feature | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve) | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve... |
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
-| BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
-| BI-PF-1408 | Must | defect | Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18) | Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_stat... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
 
 **Dynamic pipeline / agents** (5)
@@ -59,7 +53,7 @@
 | BI-PF-1406 | Must | feature | API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces | API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build miss... |
 | BI-PF-1444 | Should | feature | Accessibility engine + fail-closed gate + templates | WCAG 2.2 AA becomes a real fail-closed ship gate. |
 
-**Knowledge / KB** (6)
+**Knowledge / KB** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
@@ -68,32 +62,43 @@
 | BI-PF-1436 | Should | epic | Design System & UI/UX Knowledge (framework-agnostic) | Merge the UIUX/ corpus and the OpenCode skills into a PF-owned framework-agnostic knowledge+skills base, and l... |
 | BI-PF-1438 | Should | feature | UIUX knowledge ingestion (guidelines, design-systems, samples) | Distill UIUX/ into PF guidelines + reference baselines the existing loader already injects. |
 | BI-PF-1443 | Should | feature | Agent skill & knowledge-layer bindings | Bind the 8 skills + ui-ux/design-systems layers to the right agents. |
+| BI-PF-1557 | Must | epic | EPIC: RAG, CAG & Governed Knowledge Fabric (Unified Retrieval & Context Substrate) | Implement the unified, governed Knowledge Fabric, Cache-Augmented Generation (CAG), and hybrid RAG architectur... |
+| BI-PF-1558 | Should | feature | Context & Knowledge Router: query intent classification, retrieval mode selection, and budget routing | Build the Context/Knowledge Router that analyzes incoming agent queries and dynamically routes between prompt ... |
+| BI-PF-1559 | Should | feature | Governed Knowledge Fabric & Registry: asset registration, schema validation, authority tiers, and SHA-256 provenance tracking | Implement the Knowledge Fabric registry inside Product Forge to register, validate, version, and trace all aut... |
+| BI-PF-1560 | Should | feature | Pluggable Hybrid Retrieval Engine: Reciprocal Rank Fusion (RRF), BM25 keyword scoring, and semantic reranking over MemoryRepository | Implement hybrid retrieval combining dense vector embeddings (via datastore.MemoryRepository) with BM25 full-t... |
+| BI-PF-1561 | Should | feature | CAG Context Cache: pre-computed static context caching, prefix KV-cache reuse, and deterministic invalidation hooks | Deliver Cache-Augmented Generation (CAG) with pre-computed prefix caching and deterministic invalidation hooks... |
+| BI-PF-1562 | Should | feature | Context & Prompt Compiler: dynamic budget allocation, sliding token budgets, section prioritization, and truncation defense | Implement the Context and Prompt Compiler enforcing strict token budgets per agent and stage, with determinist... |
+| BI-PF-1563 | Should | feature | Knowledge Authority & Conflict Resolution: hierarchy enforcement, contradiction detection, and fail-closed HIL escalation | Enforce strict authority ordering (SSOT > ADR > Decision > Learned) and fail-closed contradiction detection be... |
+| BI-PF-1564 | Should | feature | Retrieval & Context Evaluation: Precision@k, Recall@k, faithfulness scoring, ground-truth benchmark suite, and latency observability | Build an automated evaluation harness measuring retrieval precision, recall, faithfulness, and latency across ... |
 
-**Licensing / tenancy** (6)
+**Licensing / tenancy** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-1287 | Should | change | License issuance production: vendor keypair management + signing-env integration (A3 packaging) | Provision a vendor signing keypair for production issuance; ship only the public key with the product; integra... |
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
-| BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
-| BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
-| BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
+| BI-PF-1547 | Should | feature | Canonical specification contract, compiler and cross-document consistency gate | Canonical specification contract, compiler and cross-document consistency gate |
+| BI-PF-1553 | Should | task | Next-Gen Web Console Packaging Specification: embed pre-compiled SPA distribution assets into Go platform server binary | Define and automate the web console compilation pipeline to produce an embedded static SPA distribution served... |
+| BI-PF-1554 | Should | feature | Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation | Specify and package the Sovereign Edition distribution capable of operating with 100% network isolation and lo... |
+| BI-PF-1568 | Should | feature | Memory Compiler: persona-specific retrieval profiles (Coding, QA, Security), relevance ranking, and context injection | Implement the Memory Compiler to assemble persona-specific memory contexts (Coding, QA, Security) under strict... |
+| BI-PF-1571 | Should | feature | Prospective Memory Engine: tracking deferred actions, future stage obligations, scheduled triggers, and cross-stage handoff notes | Deliver the Prospective Memory engine to track deferred actions, trigger conditions, and cross-stage obligatio... |
+| BI-PF-1572 | Should | feature | Memory Graph & Observability: relationship linking (derived_from, contradicts, reinforces), memory audit trail, and retrieval inspection API | Build the Memory Graph and observability API providing full inspection of memory relationships, retrieval reas... |
 
-**Wiring / tech-debt / API** (79)
+**Wiring / tech-debt / API** (72)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -103,11 +108,7 @@
 | BI-PF-0331 | Should | chore | OS/shell neutrality: remove PowerShell-only scripting/doc workarounds | Make every scripted workflow and documented command cross-platform: pure Python entrypoints, a single shell-ne... |
 | BI-PF-0360 | Must | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable... |
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
-| BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value ->... |
-| BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
-| BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBO... |
-| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime pac... |
 | BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7 — vertical slice: Requirement -> Tech -> Factory -> EAP -> RDC -> compiled + signed package, containing no ... |
 | BI-PF-0401 | Should | feature | B2: gateways (Model/Tool/Memory/Infrastructure) | B2 — gateways for Model / Tool / Memory / Infrastructure so core depends on ports, not concrete providers. |
 | BI-PF-0402 | Should | feature | B3: persistence adapters (SQLite/JSON/PostgreSQL) | B3 — persistence adapters (SQLite / JSON / PostgreSQL) behind one persistence port. |
@@ -136,20 +137,11 @@
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
-| BI-PF-1265 | Should | epic | EPIC: Eventing & Alerting SSOT - Go-first event bus + subscriber/alert transports | One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable contracts ... |
-| BI-PF-1269 | Should | feature | Eventing SSOT (Go): subscriber registry + dispatcher (cursor, at-least-once, dedupe, retry->DLQ) | Persisted subscriber registry (single writer, store-registry entry) + a dispatcher that fans out with at-least... |
-| BI-PF-1270 | Should | feature | Eventing SSOT (Go): transports - inproc callbacks, webhook (HMAC+idempotency), notify/email | Pluggable transports behind one interface: inproc (callbacks), webhook (HTTP POST, HMAC signature, idempotency... |
-| BI-PF-1271 | Should | feature | Eventing SSOT (Go): alert policy - rules, throttle, escalation | A policy engine mapping event type/severity -> channels with throttle and escalation (reusing the policy map). |
-| BI-PF-1272 | Should | feature | Eventing SSOT: Python thin-client cutover of core/events.py over the A1 wire seam (edit-only) | core/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its pub... |
-| BI-PF-1275 | Should | feature | Eventing SSOT: bus daemon/service run model + ops (start/stop/status) | A Go bus daemon run model with start/stop/status (reuse the portfolio supervisor pattern) invoked via API. |
-| BI-PF-1276 | Should | feature | Eventing SSOT: retire legacy websocket push (frozen dashboard -> SSE) | Stop extending the legacy WS; migrate its consumers to SSE; retain (never delete) until the new UI lands. |
 | BI-PF-1277 | Should | epic | EPIC: Product-generation run (dogfood) execution + monitoring correctness | dogfood drives the same engine to completion (all stages/agents), then validates the generated product and ret... |
 | BI-PF-1278 | Should | feature | dogfood: drive pipeline to completion + correct post-run validation + fail-closed verdict | Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed. |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1281 | Should | task | core/contracts.py imports jsonschema but it was not a declared dependency | core/contracts.py imports jsonschema but it was not a declared dependency |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
-| BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
-| BI-PF-1308 | Must | feature | EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation | Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/... |
 | BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
 | BI-PF-1324 | Should | chore | Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision) | Concurrent sessions never collide on scratch files. |
 | BI-PF-1326 | Must | feature | WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread | Add a start wrapper (sync + token + start) and a periodic fetch-only background thread. |
@@ -168,20 +160,26 @@
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
 | BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
-| BI-PF-1433 | Should | feature | ObjectStore adapter: Azure Blob (on go/objstorerest) | ObjectStore adapter: Azure Blob (on go/objstorerest) |
-| BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
-| BI-PF-1435 | Should | feature | GCS ObjectStore adapter: streaming/resumable upload + wire buildObjectStore (production-qualification) | Remove the GCS adapter's memory buffering/5 MB ceiling and wire it on the runtime path. |
 | BI-PF-1437 | Should | feature | Framework-agnostic skills home + resolver | PF owns the skill bodies; .opencode is a legacy fallback only. |
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
 | BI-PF-1445 | Should | feature | design_critic / visual_qa integration (anti-patterns + catalog + aesthetics) | QA validates against the chosen direction, non-negotiables and anti-patterns. |
+| BI-PF-1526 | Should | epic | EPIC: Scalability & Capacity Tiers (T1-T4) - capacity model, load evidence, and scale triggers | EPIC: Scalability & Capacity Tiers (T1-T4) - capacity model, load evidence, and scale triggers |
+| BI-PF-1527 | Should | task | T1: validate team-scale capacity and guardrails | T1: validate team-scale capacity and guardrails |
+| BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
+| BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
+| BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
+| BI-PF-1551 | Should | feature | Universal Model Gateway and Dynamic Router: unified provider adapter with token budgeting and fallback chains | Implement an extensible multi-model gateway and dynamic router supporting multi-provider fallback chains, quot... |
+| BI-PF-1565 | Must | epic | EPIC: Unified Agent Memory Platform (6-Type Memory Model, Lifecycle, and Consolidation) | Implement the Unified Agent Memory Architecture from docs/Product_Forge_Agent_Memory_Architecture_Integration.... |
+| BI-PF-1569 | Should | feature | Memory Consolidator: post-execution distillation, episodic trace distillation into semantic/procedural patterns, and failure promotion guards | Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memo... |
+| BI-PF-1570 | Should | feature | Memory Governance & Lifecycle: explicit supersession tracking, temporal expiration, validity windows, and audit logging | Implement full lifecycle governance for memory records with explicit supersession, temporal expiration, and co... |
 
 ---
 
 ## Dashboard (ProductForge-Dashboard) (`project:ProductForge-Dashboard`)
 
-- **Open:** 146  |  **Closed:** 3
-- `new`: 141
+- **Open:** 147  |  **Closed:** 3
+- `new`: 142
 - `parked`: 5
 
 ### parked (5)
@@ -193,7 +191,7 @@
 | BI-0014 | Could | feature | Deferred: ops / post-production console (stage 13 + incidents) | Deferred: ops / post-production console (stage 13 + incidents) |
 | BI-0022 | Could | enhancement | Deferred (designed): reply-by-email control actions (approve / answer / act) | Deferred (designed): reply-by-email control actions (approve / answer / act) |
 
-### new, by category (141)
+### new, by category (142)
 **API / reports / HIL / misc** (18)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -287,10 +285,11 @@
 | BI-0085 | Should | feature | Run view: concurrent/parallel agent execution + speedup indicator | Run view: concurrent/parallel agent execution + speedup indicator |
 | BI-0144 | Should | feature | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) |
 
-**Wiring / tech-debt / API** (80)
+**Wiring / tech-debt / API** (81)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0001 | Must | feature | Project creation workflow | a user can create a project that enters the pipeline with its idea captured |
+| BI-DASH-CI-1 | None | feature | PF-GP parity fixture |  |
 | BI-0002 | Must | feature | Multi-project portfolio view | Multi-project portfolio view |
 | BI-0004 | Must | feature | Model tier selection and customization | Model tier selection and customization |
 | BI-0005 | Must | feature | Pipeline monitoring and logging | Pipeline monitoring and logging |
@@ -374,5 +373,5 @@
 ---
 
 ## Totals
-- backend: 139 open / 571 closed
-- dashboard: 146 open / 3 closed
+- backend: 133 open / 658 closed
+- dashboard: 147 open / 3 closed

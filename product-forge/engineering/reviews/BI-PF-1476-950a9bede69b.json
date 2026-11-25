@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "950a9bede69b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:37:10.292839+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Diff adds index rows for ADR-0007 and ADR-0008 but appends only the ADR-0009 section; the doc context shows it ends at ADR-0006, so the new index links are dead anchors (broken doc integrity, and `adr_ids` would never resolve those two).",
+      "No gate verifies the ADR actually contains the supersede/revisit trigger; a later edit can silently delete the trigger while `decision_ref` still resolves, so the core revisit guarantee is unguarded."
+    ],
+    "MINOR": [
+      "Generic retained rule is opt-in only (decision_ref present): a retained store that drops both `decision_ref` and `retained_reason` is never flagged unless it is in the pinned `FORMALLY_RETAINED` set, so un-audited retained stores can drift indefinitely with no signal.",
+      "`retained_audit` plus its `--retained-audit` flag are new unused surface (\"future audit input\") \u2014 dead code in the shipped gate, not required by the AC.",
+      "Self-test never asserts the pinned parity for `related_item=BI-PF-1476` or `classification.backend`/`migration_status` in isolation messages, so a partial drift could be attributed to the wrong check during triage.",
+      "`adr_ids` matches `[ADR-NNNN]` anywhere in prose, not just index-table rows; a mention in body text plus an unrelated section could falsely satisfy referential integrity."
+    ],
+    "NIT": [
+      "`FORMALLY_RETAINED` comment invites future one-off entries without defining the audit criteria for adding them.",
+      "Self-test output string (\"status/target/retained-decision negatives\") drops the scenario count, making run-to-run output comparison less precise.",
+      "Registry `description` rationale text is long for a schema'd config field; consider a pointer to ADR-0009 instead of inlined prose."
+    ],
+    "SUMMARY": [
+      "Solid, fail-closed implementation: pinned tuple, generic decision_ref resolution requiring both index row and section, ADR-unreadable failure path, and in-memory-only negative self-tests all match the AC.",
+      "Top risks: dangling ADR-0007/0008 index links introduced in this diff, and the supersede trigger existing only as prose with no gate coverage."
+    ]
+  }
+}

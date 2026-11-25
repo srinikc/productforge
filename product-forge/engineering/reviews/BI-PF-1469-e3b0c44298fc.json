@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "e3b0c44298fc",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "CL-006 violation: the ordering predicate binds Gate 1 approval to design_sha only. CL-006 requires the approval to embed the latest Gate 1.5 findings + dispositions and be invalid while any BLOCKER/MAJOR is PENDING; with no findings-set sha in the decision, findings added after approval leave the approval valid.",
+      "affected_files is provably incomplete for a gate that hashes that field: it omits the new `core/gate_predicates.py`, `config/gate-baseline.json`, the required edits to `scripts/dev/gate1_check.py` and `architect_review` (gate_view), and the negative self-test files that the ACs mandate. Design evidence would certify an incomplete change surface."
+    ],
+    "MAJOR": [
+      "Design-evidence sha canonicalization is unspecified (field set/order, whitespace, JSON canonical form, handling of absent fields). Different clients can compute different shas from the same design, producing false STALE_APPROVAL \u2014 this contradicts the \"deterministic/offline\" claim.",
+      "Design does not answer checklist guardrails 1, 2, 4, 5, 6, 10 (reversibility/backup, availability & SPOF of the precheck/ci-cd-gate path, blast radius and dry-run bounds, ordering/key invariants, fail-able tests + interrupted-recovery, observability). CL-008 requires these at design time, not at Gate 1.5.",
+      "Force is granted by an ambient env var (`PF_GATE_FORCE`) plus a self-asserted `by`; with signatures explicitly out of scope, the \"audited gate_override\" is forgeable by any local run. The design must state plainly that force is a convenience override, not an authorization control (guardrail 3).",
+      "Time-based predicates are not deterministic: `decision.at >= evidence.at` uses wall clocks (skew, back-dating within one commit) and baseline `until` ISO dates have no stated timezone or inclusive/exclusive rule. Define ordering via evidence sequencing (e.g., monotonic evidence id / commit order) instead of timestamps.",
+      "`config/gate-baseline.json` is a permanent, cheaply renewable bypass: no cap on entries, no mandatory owner, no alarm/alert on renewal, and nothing forbids repeatedly extending `until`. Baseline governance needs limits or it becomes the backdoor the gates exist to close.",
+      "Rollback is only \"Revert the change\": no account of items already transitioned under the new rule, decisions already appended to items, or developer-flow outage if the precheck fast tier fails closed (availability + blast radius unanswered)."
+    ],
+    "MINOR": [
+      "Self-test matrix does not cover several deny reason codes: stale-ordering (decision.at < evidence.at), expired baseline entry, unknown baseline entry, `--report` exit 0, and force-with-PF_CI-set refusal. deny x5 is narrower than the stated reason-code space.",
+      "\"Decisions are committed to git (append-only)\" is asserted without any hash chain or verification step; tampering with a prior decision is caught only by human diff review.",
+      "The contract change to `gate1_check.evaluate` (returning parseable evidence + sha) is not specced, risking two divergent evidence shapes between the Gate 1.5 and Gate 2.5 paths despite the reuse requirement.",
+      "No rule defines what counts as a material design edit: trivial whitespace changes re-sha the design and re-approve churn, inviting reviewers to rubber-stamp."
+    ],
+    "NIT": [
+      "Structured reason codes are printed but no metric/log sink (e.g., deny-by-reason counters) is specified for observability of gate health over time.",
+      "The `by` field format is unspecified (free text vs canonical actor id); define it to keep audit records queryable.",
+      "Record the exact tooling/shipped boundary in the item (new `scripts/dev/*` + tests are tooling; `core/backlog.py` is an edit to existing Python) so the language-rule exemption cannot drift later."
+    ],
+    "SUMMARY": [
+      "Verdict: do not approve at Gate 1.5 as written \u2014 two blockers: approval is not bound to the Gate 1.5 findings set (CL-006), and the affected-files evidence omits modules the ACs require.",
+      "Top risks: non-canonical sha computation breaking determinism, env-var \"force\" mistaken for authorization, baseline file evolving into a permanent bypass, and unanswered availability/observability guardrails (CL-008).",
+      "After amending the design body to close the blockers and answer checklist items 1/2/4/5/6/10, re-run Gate 1.5 and re-approve against the new design sha."
+    ]
+  }
+}

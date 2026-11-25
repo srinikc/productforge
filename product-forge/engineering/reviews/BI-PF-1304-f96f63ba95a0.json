@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "f96f63ba95a0",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T08:57:42.383273+00:00",
+  "base_sha": "7c3eed2456c71b1de66cbc25c220703c1b0134f4",
+  "head_sha": "c6db825eb33b37a67d9dcdb7fe52b755dab32364",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`tests_by_kind` (all-events variant) still sums every occurrence, so any caller passing the full event list double-counts retried/repeated runs; the delta flips `latest_tests` semantics to cross-event aggregation but does not audit remaining callers of the sum-everything path for that semantic mismatch (prior MAJOR on double-counting remains unaddressed in this delta).",
+      "No caller-level test was added: `finalize_item.build` (and `gate_package.py`, listed as changed but absent from this delta's hunks) now emit the aggregated `latest_tests` output in the final/gate report, yet coverage still only exercises the `execution_trail` helpers \u2014 the actual report payload is unverified.",
+      "`latest_tests` now merges across all events by `(command, kind)`; callers that implicitly assumed \"only the most recent event's tests\" (e.g., per-stage views) will silently get historical data. The behavior change is not documented beyond a one-line docstring and not surfaced in the AC evidence."
+    ],
+    "NIT": [
+      "`tests_by_kind_tests` is a near-identical public alias of the list-based core; the confusing name and dual API surface (`tests_by_kind` vs `tests_by_kind_tests`) invite future misuse \u2014 consider a clearer name or a parameterized single entry point."
+    ],
+    "SUMMARY": [
+      "The delta correctly resolves the prior report-level data-loss MAJOR: `latest_tests` now retains earlier commands and picks the newest result per `(command, kind)`, and `finalize_item` uses the new list-based `tests_by_kind_tests` helper, with an updated test asserting the merged ordering.",
+      "Residual risks are the unaudited sum-everything `tests_by_kind` path (double-count for retried runs), missing report-level test coverage, and an under-documented cross-event semantic change in `latest_tests`."
+    ]
+  },
+  "rereview_reason": "prior sha b403079a15ef; latest per command+kind",
+  "rereview_reason_sha256": "4cb8015e00787afc178952cea16df785fe194acf160b0d8d40bfeb598b3dd78f"
+}

@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1477",
+  "sha": "ff5527df58b0",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:10:34.772050+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`_git` now hard-raises on any non-zero rc, and `transitions()` calls `_git(\"diff\", \"--name-only\", f\"{base}..HEAD\")` without `allow_fail`; when `merge-base develop HEAD` fails (shallow clone, no local `develop`) the fallback `\"origin/develop\"` also frequently fails, so the whole gate crashes instead of degrading as before. This is a new CI-fatal path not covered by the regression tests.",
+      "Module docstring now promises \"JSON report on stdout plus structured JSON event lines on stderr\", but the diff contains no corresponding change to `main()`/report emission. If false, doc/behavior mismatch; if true, an unannounced output-contract change that any CI consumer parsing the single stderr line will break on.",
+      "`product-forge/config/store-registry.json` adds a bare `\"BI-TEST-*.json\"` glob to a shipped registry path list, yet the new tests write fixtures only under `tmp_path`. Either the entry is dead config, or it mutates production sync/ignore semantics for every repo-root `BI-TEST-*.json` \u2014 test scaffolding leaked into shipped configuration.",
+      "`id-blocks.json` jumps `reserved_up_to` from 1469 to 1477 while the only new session claims 1477; IDs 1470\u20131476 are reserved but owned by no session, i.e. silently leaked or allocated elsewhere without a recorded reservation."
+    ],
+    "MINOR": [
+      "Acceptance criterion says `JSONDecodeError` propagates; the implementation wraps it in `RuntimeError`. Fail-closed behavior holds, but the AC's literal contract (and any caller catching the original exception type) is not met.",
+      "`transitions()` performs I/O side effects (`print` to stderr) inside what is otherwise a pure library function; test runs emit noise and callers cannot suppress it. Observability belongs at the report layer.",
+      "The `_git` fail-closed change applies to every call site in the module, including `audit()`/`--report` paths not covered by the new tests; a previously-tolerated failure there now becomes fatal without test coverage.",
+      "`--self-test` negative matrix was not extended for the new failure modes (malformed item, non-object item, repo-root escape), so the escape hatch self-verification is stale.",
+      "Broken symlinks raise `FileNotFoundError` and are silently classified as \"deleted in the diff\", weakening the fail-closed guarantee for an unreadable-but-present path."
+    ],
+    "NIT": [
+      "`functools.lru_cache` on `_repo_root()` is fine for a CLI but couples a stateful global to tests that must monkeypatch the symbol rather than the cache; consider injecting the root for clarity.",
+      "`rel.replace(\"\\\\\", \"/\")` normalization is applied in `transitions()` but not in `_load()`, so an escape check could be bypassed differently on Windows-path inputs; harmless today, worth a comment."
+    ],
+    "SUMMARY": [
+      "The core fix (resolve changed items under `git rev-parse --show-toplevel`, fail closed on malformed input, skip only deleted paths) is sound, well-tested for the main paths, and satisfies the language rule (tooling Python). Top risks are the new unguarded `git diff` hard-fail crash path, an unverified stdout/stderr contract change in the docstring, test-fixture globs and ID reservations polluting shipped config, and the AC's literal `JSONDecodeError`-propagation requirement being met only semantically."
+    ]
+  }
+}

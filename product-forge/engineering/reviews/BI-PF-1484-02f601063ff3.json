@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "02f601063ff3",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T12:40:28.228338+00:00",
+  "base_sha": "b2bc86b309c1319306631b30697cdb00c6268721",
+  "head_sha": "b56118f5fca3050f8abafab4b46b51bb723a7692",
+  "findings": {
+    "BLOCKER": [
+      "- none"
+    ],
+    "MAJOR": [
+      "New REQUIRED sections (security/observability/performance/decisions) are enforced via a blocking gate, but the diff ships no backfill/migration for existing items on/after `enforce_from`; any already-created item lacking them will hard-fail Gate 1/precheck on every branch until edited.",
+      "`encoding_check.changed()` now includes deleted paths; `problems()` on a removed file raises, `main()` collapses it into `cannot compute changed files` and exits 1 \u2014 deleting a code file blocks the whole encoding gate with no actionable diagnostic.",
+      "`enforce_from` still falls back to `\"9999-12-31\"` when the config key is absent (fail-open gate), and `_cfg()`'s new `RuntimeError` is uncaught in `main()`'s `--all` path, surfacing a raw traceback instead of structured gate output.",
+      "Item ACs (disposition policy, AC verification, final report, show trail) are not evidenced anywhere in this diff; traceability between the item's acceptance criteria and the shipped design-pack/encoding changes is unverifiable from the change itself."
+    ],
+    "MINOR": [
+      "Gate definitions are duplicated in `config/ci-cd-gates.json` and `precheck._GATES`; no validator asserts they stay in sync \u2014 drift will silently disable one enforcement path.",
+      "`--all` skips items whose `created_at` is missing/empty (`\"\" < enforce_from`), a fail-open subset; consider flagging items with no timestamp rather than ignoring them.",
+      "`--all` combined with `--render`/`--item` is accepted and silently ignored; ambiguous flag combinations should be rejected like the no-flag case.",
+      "`test_architect_review_delta.py` builds fixture filenames via string concatenation (`\"BI-PF-9000-old\" + \".json\"`), which reads as evasion of a literal-detection rule and obscures intent without changing behavior."
+    ],
+    "NIT": [
+      "`--all` rescans the full backlog on every fast-tier precheck/CI run; consider a cached index or path-scoped subset as the store grows.",
+      "`_cfg()` is now invoked only in the `--all` path; the per-item `--check` path still ignores config entirely, so config and `REQUIRED` can drift apart unnoticed."
+    ],
+    "SUMMARY": [
+      "Prior blockers (BOM, unwired gate, fail-open git handling, registry pollution, no-op exit) are genuinely fixed; the change is directionally right and closes the earlier gaps.",
+      "Top risks: unproven backfill against newly required sections on a blocking gate, and encoding gate brittleness around deletions \u2014 both will bite unrelated branches in CI.",
+      "Remaining hygiene: duplicated gate sources of truth, fail-open `enforce_from` default, and unclear AC-to-diff traceability for BI-PF-1484."
+    ]
+  },
+  "rereview_reason": "prior sha 37bf8bcfec4c; design-pack/encoding fixes",
+  "rereview_reason_sha256": "5978b58fd31137b7b5fff26758cf0f1ff961eb67aaa3b222b13b341e04982651"
+}

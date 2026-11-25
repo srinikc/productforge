@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "447aa695d95b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:23:12.430108+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC5's required single conformance fixture set (valid + every RESIDENCY_* code incl. schema/invalid-field/toolchain/profile, identical pass/block from core.packaging.validate and cmd/pfresidency) is absent \u2014 only per-language tests exist; nothing pins cross-implementation parity per error code.",
+      "Go Validate never checks the egress group (no RESIDENCY_MISSING_GROUP:egress path) while Python does \u2014 the two authorities disagree on \"all six groups\"; a manifest without egress fails Python, passes Go, and trips the gate's parity path as an execution failure.",
+      "residency_gate.py returns `0 if a.report else 2` on validator-unavailable / no-JSON / parity failures \u2014 --report downgrades execution failures to pass, violating AC5 \"warn only downgrades policy violations, never execution failures\"; a broken Go toolchain silently passes CI."
+    ],
+    "MAJOR": [
+      "`_policy()` swallows any residency-policy.json read error and defaults gate_mode to \"warn\" \u2014 unreadable/missing policy silently weakens the gate, contradicting the doc's \"unreadable policy always blocks\" and fail-closed intent.",
+      "Undetected parity divergences: Go lowercases backup.frequency before lookup, Python does not (\"DAILY\" passes Go, fails Python); Go checks kms.provider without TrimSpace, Python strips; backup MISSING_GROUP heuristics differ (all-zero struct vs empty dict). The gate compares only booleans, so code-set drift is invisible.",
+      "cmd/pfresidency exits 2 (stderr text, no JSON) for missing/unknown home via LoadProfile \u2014 a policy violation is misclassified as an execution failure and RESIDENCY_UNKNOWN_HOME never reaches a structured report, contrary to the frozen-code/report AC.",
+      "core/packaging.py implements the full policy engine (subsets, retention bound, frequency, provider) rather than a shape/home pre-check \u2014 a second source of truth for policy semantics shipped in Python, widening the language-rule exemption beyond \"emit/validate the section\"."
+    ],
+    "MINOR": [
+      "RESIDENCY_MANIFEST_UNREADABLE:{exception text} embeds volatile detail into the error code, breaking the \"stable error codes\" contract for reports, fixtures, and greps.",
+      "HOME_NOT_ALLOWED fires when home_region is merely missing (empty), conflating missing with not-allowed; Python additionally attempts to load \"-v1.json\" for empty home.",
+      "gate_mode=warn with expiry 2027-01-31 leaves a compliance gate non-blocking for a year with no enforcement beyond a ticket string.",
+      "`go run ./cmd/pfresidency` recompiles on every fast-tier gate run (120s timeout); build once/cache for latency and offline CI.",
+      "config/residency-policy.json's registered owner is \"go/backupdrill/region.go\" \u2014 an unrelated Go file owning the gate's rollout lever is a weak single-writer story.",
+      "No test updates asserting language_rule_review or the precheck 45+ gate count, both called out in AC4.",
+      "residency_section embeds build-time \"validation\" output into the canonical manifest \u2014 derived, staleable state inside the shipped artifact."
+    ],
+    "NIT": [
+      "id-blocks reserved_up_to jumps to 1190, skipping 1187\u20131189 (gaps permitted, but the block boundary is unexplained).",
+      "Template egress.allowed_regions/subprocessors are empty lists while AC1 asks for all six groups \"populated\".",
+      "Every gate run writes engineering/residency-gate.json/.jsonl; confirm gitignore vs. committed-evidence policy to avoid dirty working trees in CI."
+    ],
+    "SUMMARY": [
+      "Solid skeleton (explicit home_region, profile-bounded subsets, stable-code intent, warn-first lever, evidence events), but the core AC5 promise \u2014 one fixture set proving identical pass/block from both authorities \u2014 is missing, and the two validators already disagree (egress group, frequency casing, provider trimming, missing-home handling).",
+      "The gate's --report path masks execution/toolchain failures and an unreadable policy silently downgrades to warn, undermining the fail-closed posture this feature exists to establish.",
+      "Recommend: land shared conformance fixtures first, close the egress/frequency/missing-home parity gaps, and separate \"report\" from \"non-fatal for policy violations only\" before enabling in CI as blocking."
+    ]
+  },
+  "rereview_reason": "prior sha 447aa695d95b; fail-closed, BOM, conformance fixtures and tests added",
+  "rereview_reason_sha256": "2459d8ef844b2635cdd8a6510579ec1e45e74689b0cbff77416d8676051a63e2"
+}

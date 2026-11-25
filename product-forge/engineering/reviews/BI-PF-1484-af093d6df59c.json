@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "af093d6df59c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:58:19.466407+00:00",
+  "base_sha": "5033286e376d1099bf61a63a56d6dc099a71eda1",
+  "head_sha": "30ac1c5c4d2ab85dcaf9714718368e1306b01998",
+  "findings": {
+    "BLOCKER": [
+      "Diff contains zero tests for the new evidence base-chain logic (`by_item`/`prior_heads`) or the `gate`-based decision split, yet the AC explicitly requires coverage of disposition/final-report/completion guards \u2014 prior NIT was dispositioned ACTIONED but nothing was delivered; unmet AC at merge gate."
+    ],
+    "MAJOR": [
+      "`architect_review_check.py`: `prior_heads` is built from evidence of the same item without filtering to `mode == \"diff\"`; a design-phase (or any-mode) head_sha can validate a diff delta base, weakening the lineage guarantee the fix claims to establish.",
+      "`architect_review_check.py`: the chain only checks recorded heads, not ancestry \u2014 a base that was rebased away or belongs to a diverged branch of the same item still passes; verify `base` is a real ancestor of `head` (e.g., merge-base check) rather than trusting the evidence log alone.",
+      "`finalize_item.py`: switching from decision-name whitelist to `d.get(\"gate\")` truthy means legacy decisions lacking a `gate` field silently fall into `other_decisions` \u2014 historical APPROVE/DISPOSITION_APPROVAL records can vanish from `gate_decisions` in the immutable report. Needs compat fallback (legacy name mapping) plus migration note."
+    ],
+    "MINOR": [
+      "`architect_review_check.py`: `by_item` keys on `str(d.get(\"item\") or \"\")` \u2014 evidence missing the `item` field collapses into one shared bucket, reintroducing cross-item base acceptance for malformed records; skip or separately reject item-less evidence.",
+      "Prior MINORs (dual `total_time_ms` definition wall-clock vs sum-of-durations; `max(0,...)` masking corrupt negative durations) were dispositioned ACTIONED but are absent from this diff \u2014 still unresolved; also the `pf.final-report/1` schema was not bumped for the `other_decisions`/classification change.",
+      "`architect_review.py`: `parse_review` now silently drops any bullet whose text is exactly \"none\"/\"-\"; acceptable for placeholder convention but the literal is inlined and duplicated in spirit across scripts \u2014 extract a shared constant/helper so the \"none = empty section\" semantic stays consistent."
+    ],
+    "NIT": [
+      "Prior NIT (double JSON parse of evidence in `_prior_context`, and the shadowed/duplicated `datetime` import) claimed ACTIONED but neither is touched in this diff \u2014 verify the disposition records actually match delivered commits."
+    ],
+    "SUMMARY": [
+      "The three structural fixes (none-placeholder filtering, per-item delta base without self-reference, gate-membership decision split) are directionally right and close the prior integrity MAJORs, but each carries an unhandled edge: unfiltered prior-head sources, no real ancestry verification, and legacy decisions with missing `gate` fields silently reclassified.",
+      "Biggest risk: another round ships dispositioned-ACTIONED fixes that are not in the diff (tests, total-time semantics, schema bump) \u2014 disposition-to-commit traceability itself needs enforcement at Gate 1."
+    ]
+  },
+  "rereview_reason": "prior sha 0971493c6c8f; delta lineage fixes",
+  "rereview_reason_sha256": "11591bf532945dc3869213807078d466a1885d56bffa64711a53f743600e90ac"
+}

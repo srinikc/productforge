@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "ebb7ab0b5d44",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T13:16:02.475850+00:00",
+  "review_scope": "delta",
+  "base_sha": "ac1eb39f73e42f967095c8d0d1ea3ef9e495ffff",
+  "head_sha": "f3847eb1745d32c8527601ac531bf2809f9317b9",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`validType` defaults to `return true` for any unrecognized `want` spec: a typo in `eventContractTypes` (e.g. `\"interger\"`) silently disables that check, failing open on the exact drift the map exists to prevent.",
+      "Type/enum metadata is split into a new `eventContractTypes` map parallel to the existing `contractShapes` inside `pfcore.go`; two Go sources of truth for one contract invite intra-file drift \u2014 consider one canonical structure.",
+      "New `for field, want := range types` in `Validate` iterates a map, so multi-error output ordering is nondeterministic \u2014 same diagnostics-stability class as the prior `eventContractFields` finding, newly introduced by this hunk.",
+      "`TestEventingTypeAndEnumParity` exercises only 4 of the declared fields; the `object`/`array`/`boolean` branches (`payload`, `extensions`, `channels`, `filter`, `enabled`, `attempts`, `throttle_window`) are unexercised, so type parity for those shapes remains unproven in Go.",
+      "Numeric check accepts only `int`/`float64`: a valid integer carried as `int64` (hand-built Go payloads) or `json.Number` (decoder with `UseNumber`) is falsely rejected as invalid \u2014 brittle for future callers.",
+      "Non-string `event_version` now yields two errors for one defect (`\"must be string\"` from the envelope block and `\"invalid type\"` from the types loop), duplicating diagnostics."
+    ],
+    "NIT": [
+      "Test resolves the contract name via label-string equality (`if label == \"bad transport\"`); a label edit silently changes the contract under test \u2014 a small `label \u2192 name` table would be self-describing.",
+      "`\"seq string\"` case name says \"string\" while asserting integer enforcement; pairing label with expected error message would make failures self-explanatory."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves both prior MAJORs: non-string `event_version` is now rejected, and Go type/enum validation plus a parity test were added \u2014 AC-1 evidence for this delta is sound and tests are fail-able.",
+      "Remaining risk is fail-open validation semantics (unknown type spec passes, split metadata map) and partial branch coverage of `validType`, which leaves part of the shape-parity obligation unproven.",
+      "No blockers; ship after hardening the default case and extending the parity test to object/array/boolean fields."
+    ]
+  },
+  "rereview_reason": "Delta type parity fix for prior 0b854fbc08f1 and aa6c871b510a",
+  "rereview_reason_sha256": "a387d000b439c89829f1017f510d9c9ca8c203c669b18bbecbeb3d5871fce8c5"
+}

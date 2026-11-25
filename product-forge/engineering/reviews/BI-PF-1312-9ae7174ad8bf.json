@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "9ae7174ad8bf",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "AC-mandated fresh-install case (\"empty audit, setval to 1\") has no test in the diff, and 0014 \u00a717 computes `GREATEST(0, last_value=1)+1 = 2`, so the shadow sequence starts at 2, not 1 \u2014 untested, unverified divergence from the stated AC."
+    ],
+    "MAJOR": [
+      "`AuditStore.Append` passes `e.At` verbatim with no `now()` fallback: a zero-value or >horizon timestamp that the flat table previously accepted now fails 23514 after 3 retries \u2014 live audit writes can start failing in production.",
+      "`pfaudit-swap backup` can deadlock: if `obj.Put` returns early (e.g. SSE rejected by the adapter), the `io.Pipe` reader is never closed, `age`/`pg_dump` block writing, and `dump.Wait()` hangs with no timeout or kill.",
+      "Retention is not resumable after a partial export: `audit_mark_archived` is committed before the partition drop; if the drop fails the month stays a candidate, re-export fails \"already archived\", the cron `fail()`s and all later months are wedged until manual repair.",
+      "Legal-hold integrity: `0014 down` drops `audit_legal_hold_events` whenever the archive table is empty (holds on empty/released months), erasing the record that a hold ever existed; Go `--down --force-with-reason` likewise proceeds with active holds.",
+      "Fragile error-string coupling: `PlaceHold` detects spoliation via `strings.Contains(err,\"purged\")` and purge-blocking via `\"active legal hold\"` \u2014 a SQL message rewording silently disables `ErrHoldAfterPurge`/`audit_hold_after_purge_total` and `MetricPurgeBlockedHold`.",
+      "Applied migration `0004` was edited in place (role-existence guard); this breaks migration immutability and will show as checksum drift on checksum-tracking runners.",
+      "AC requires the resume path be exercised by a Postgres-16 integration suite; the tests only gate on `server_version >= 14` and no PG16 CI wiring appears in the diff.",
+      "Append-only guarantee is incomplete for privileged roles: no TRUNCATE deny trigger on the monthly leaves and `pf_owner` is not revoked TRUNCATE on partitions, so an owner-level `TRUNCATE` of a leaf bypasses the journal protection."
+    ],
+    "MINOR": [
+      "`MetricSwapFreeze` is measured from before `pool.Acquire` and includes lock waits/retries, overstating the ACCESS EXCLUSIVE window it is compared against `PF_AUDIT_FREEZE_BUDGET_SECONDS`.",
+      "A rejected spoliation attempt leaves no durable DB record (the RAISE rolls back its own journal insert); only a process-local metric survives.",
+      "`backup()` prefers the `pg_dump` error over `putErr`, masking the real object-store failure cause.",
+      "`RestoreMonth`'s scratch inherits `nextval('audit_id_seq')`; a forensic insert into it advances the live sequence.",
+      "Retention cron uses `${PF_OPERATOR:-retention}`, but cron.d does not import `/etc/environment` without PAM; the recorded actor may silently be \"retention\".",
+      "`CheckConfig`'s \"update the tool\" error fires on"
+    ],
+    "NIT": [],
+    "SUMMARY": []
+  }
+}

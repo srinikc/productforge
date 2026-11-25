@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "84e5ec0043f4",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T13:59:28.849957+00:00",
+  "base_sha": "b99912f4d3ef1cb113e2208742080c8949ef43c0",
+  "head_sha": "dbaa9349be7ed0f25077ec2be45542c798834727",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`_validate_cfg` findings are now appended instead of short-circuiting, so `_date_problems(item, cfg)` executes against a config already known to be malformed (e.g. `enforce_items` as an int/string). Iterating or `in`-testing that value can raise TypeError or emit substring false-positives, turning a gate report into a crash or noise \u2014 the exact fail-closed class this guard targets.",
+      "The three new config-shape branches (`enforce_items`, `required_sections`, `required_contracts`) have no test coverage; the only test change is a temp-filename tweak. Regressions in the new guard pass silently."
+    ],
+    "MINOR": [
+      "`evaluate(item_id, item=None)` lets any caller supply an item without verifying `item.get(\"id\") == item_id`, so a mismatched dict silently drives Gate 1 verdicts for a different id \u2014 integrity now depends on caller discipline rather than the gate.",
+      "`_validate_cfg` still reports only the first config defect (`return` on first failure), so operators iterating config repair see one error per run despite the \"combined diagnostics\" intent applied to config+date."
+    ],
+    "NIT": [
+      "`main()` still fetches the item with `or {}`; an empty dict is passed into `evaluate`, which then hits the `if not item` path and reports \"item not found\" \u2014 correct outcome, but the sentinel obscures the intent for maintainers."
+    ],
+    "SUMMARY": [
+      "The prior snapshot/diagnostic findings are addressed, but the fix now runs item date checks on a known-bad config (crash/false-positive risk) and ships three untested validation branches.",
+      "Top risks: gate robustness against malformed config, and unverified `evaluate(item=...)` input identity."
+    ]
+  },
+  "rereview_reason": "prior sha 15d634f16939; config/snapshot fixes",
+  "rereview_reason_sha256": "1640660cfa85b2875d5bb1fdebfa64ac0872fee87b623d1023cae16aebe7786a"
+}

@@ -5,7 +5,7 @@ name: full-sweep
 # change does not have to pay the full cost, and unrelated/pre-existing red does not block PRs.
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes (adjust cadence as needed)
+    - cron: "0 * * * *"   # every 1 hour (BI-PF-1548)
   workflow_dispatch:
 
 jobs:
@@ -14,6 +14,7 @@ jobs:
     env:
       PF_ID_ALLOC: "on"
       PF_LEASE_REMOTE: "on"
+      PF_BACKLOG_DB: "off"
     defaults:
       run:
         working-directory: product-forge
@@ -24,11 +25,11 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       # Go toolchain: the Go engine + wg-go / artifact-contracts checks need `go` on PATH.
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.25.x"
           cache: false
 
       - name: Configure git identity
@@ -42,6 +43,9 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov fastapi uvicorn pydantic ruff
           pip install httpx requests pyyaml jsonschema
 
+      - name: Assert file-mode backlog
+        run: test "$PF_BACKLOG_DB" = "off"
+
       - name: Precheck gates (FULL)
         run: python scripts/dev/precheck.py --full
 
@@ -54,4 +58,8 @@ jobs:
       - name: Review learnings (advisory)
         run: python scripts/dev/review_learnings.py --write --check
         continue-on-error: true
+
+      - name: Report failure to issues infra
+        if: failure()
+        run: python scripts/dev/report_ci_sweep_failure.py
 

@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "e3b0c44298fc",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "RLS on dynamically created child partitions is not addressed: the design only says \"ENABLE+FORCE RLS tenant_isolation on the partitioned table\". Row-security policies/flags are not automatically replicated to each leaf partition, and every partition minted by `audit_ensure_partitions` (or the insert-time auto-provision path) must carry ENABLE+FORCE + the `tenant_isolation` policy (and be verified per PG version). As written, a cross-tenant SELECT against a leaf partition \u2014 or a plan shape that scans leaves directly \u2014 can leak rows, failing AC #3 and the tenant-isolation invariant.",
+      "Legal holds are stated as a retention guard, but `audit_apply_retention` drops whole partitions. Row-level legal holds are physically unrepresentable at partition granularity \u2014 dropped partitions would take held evidence with them. The hold scope/semantics (table/tenant-level hold, or \"skip any partition containing a hold\" with a stated marker/index) must be defined and enforced before this function is scheduled, otherwise this is compliance-grade, irreversible data loss (AC #5).",
+      "Reversibility/backup guardrail (checklist 1) is unmet: `up.sql` ends by DROP-ing `audit_legacy` after COPY, and retention later drops partitions, yet no verified backup/restore point (or retained snapshot window) is specified before either destructive step. \"Structural rollback only\" cannot reconstruct row history; a defined, rehearsed backup + restore procedure must precede Gate 1."
+    ],
+    "MAJOR": [
+      "Write-freeze availability & interrupted-migration recovery: no bound on freeze duration, no stated client-failure behaviour during the window, and no recovery path for a migration interrupted mid-swap (renamed to `audit_legacy`, copy incomplete, sequence not yet setval'ed). `down.sql` must also define the data path (rebuild non-partitioned `audit` from surviving partitions), not just \"structural\".",
+      "Insert-time auto-provisioning races: a BEFORE-insert provisioning path concurrently executing `CREATE TABLE` with the scheduled job can fail with duplicate-catalog/DDL conflicts; a failed insert-time provision = lost audit event, violating the core \"no lost events\" invariant. Requires an advisory lock + unique-violation retry, and an explicit test for concurrent provisioning.",
+      "Defence-in-depth for scheduler/worker downtime is deferred: coverage alerting is parked in EDP-22 and no on-startup \"ensure partitions \u2265 N\" check is described. With only a scheduled job standing between the system and insert failures, you need an explicit startup check + lead-time SLO now, not when the alert lands.",
+      "Append-only reach: `deny_mutation` is placed on the parent, but direct DML against leaf partitions (or COPY into a partition) bypasses parent triggers. The design must state that app/tenant roles get INSERT/SELECT only on `audit` and are REVOKE'd from all partitions, plus a test that proves child-level UPDATE/DELETE is denied.",
+      "Primary-key shape change to `PK(id, at)`: any FK, unique constraint, index, or code (AuditStore, tool_cache, evidence APIs, `/audit`) assuming single-column `audit(id)` uniqueness must be enumerated and proven; \"Append works unchanged\" only covers the write path, not uniqueness/lookup assumptions.",
+      "Grace/overflow partition lifecycle undefined: a \"named grace partition\" with no bounded upper bound or rotation rule becomes an unbounded bucket that defeats partition-level retention (it can never be \"fully older than the window\"), and retention rules for it are unstated.",
+      "`setval` continuity during the swap ordering: setval happens after COPY but the exact pre-unfreeze ordering, plus behaviour if the migration is re-run after a partial failure (nextval collisions with copied ids), is not specified \u2014 AC #5's monotonic-unique invariant depends on it."
+    ],
+    "MINOR": [
+      "Minimum PostgreSQL version not pinned (row-level triggers on partitioned tables, PK-must-contain-partition-key, policy behaviour on partitions all version-sensitive); should be captured in the ADR addendum alongside RANGE(at)/UTC.",
+      "`PF_AUDIT_RETENTION_MONTHS` needs validation semantics (0/negative/clamped to \u22651, and how \"current month\" boundary is computed in UTC) to prevent a misconfig from dropping current data.",
+      "Dry-run report output channel (log line, metric, structured report row?) and its observability owner are unspecified; retention outcome metrics are mentioned but not the dry-run variant.",
+      "Explicit view recreation: the exact list of dependent views must be enumerated and asserted by a test (a missed view breaks silently at first query); \"no CASCADE\" protects against drops, not against misses.",
+      "`needs_api` decision not explicitly recorded (no API change \u2192 should be stated as \"not needed\"), per checklist 8.",
+      "Down migration must also drop all leaf partitions, reset/drop the new sequence, and re-grant the legacy shape \u2014 verify LoadDir pairing test covers this, not just file existence."
+    ],
+    "NIT": [
+      "Grace partition naming convention (e.g. `audit_grace_YYYYMM` vs a fixed name) should be pinned in the ADR so retention and coverage code agree.",
+      "Consider a comment/`at` timezone assertion in tests (UTC bounds) so an accidental `timestamptz` local-session-timezone regression fails the test rather than silently shifting month boundaries.",
+      "Ensure only the migration (`pf_owner`) holds BYPASSRLS for the swap duration and that this is stated as an audited, time-boxed privilege."
+    ],
+    "SUMMARY": [
+      "Verdict: not approvable yet \u2014 the swap mechanics are sound, but three guardrail failures are blocking: RLS/append-only enforcement on dynamically created leaf partitions, legal-hold vs whole-partition-drop incompatibility, and no verified backup/restore before the destructive DROP of legacy data.",
+      "Top risks: tenant leakage through partitions, irreversible loss of legally-held audit evidence, and insert-time provisioning races causing lost audit events.",
+      "Secondary concerns: write-freeze/interrupted-migration recovery, scheduler-down defence-in-depth (alert deferred to EDP-22), and PK(id, at) ripple effects beyond the write path."
+    ]
+  }
+}

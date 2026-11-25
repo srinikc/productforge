@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "7aed4fdd42cd",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:09:00.095363+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC requires an unreadable base ref to exit 2 fail-closed; `review_churn_check.py` returns 0 with `skipped`/`base_unavailable` (and the new doc legitimizes it), so the gate silently no-ops whenever `merge-base develop` is unavailable \u2014 fail-open.",
+      "No tests at all exercise `review_churn_check.py` CLI behavior (`--json`, `--report`, exit codes, fail-closed git/evidence path), all explicitly required by the AC."
+    ],
+    "MAJOR": [
+      "Rows are printed in `g2.transitions(base)` order with no sort; the AC mandates a deterministically sorted table, so output ordering is an unstated dependency on ledger/git traversal order.",
+      "`base = a.base or ar._git_text([...])` runs outside the `try`; if `_git_text` raises on a missing ref the process dies with an uncaught traceback (exit 1) instead of the specified exit 2.",
+      "With the default path yielding `skipped` \u2192 exit 0, and `--report` also exit 0, there is no reachable local configuration where the churn budget ever fails \u2014 the gate only works when `--base`/full history is passed, but nothing enforces that.",
+      "`--reason` supplied without `--rereview` is silently ignored (guard returns early), so an operator gets no feedback that their rationale was discarded."
+    ],
+    "MINOR": [
+      "`evaluate()` calls `ar._get_item` per item with no per-row error isolation; one malformed/missing item aborts the whole scan (exit 2) instead of surfacing as a row-level failure.",
+      "`attesters` allowlist is a single hardcoded principal (`hil:srinikc`) baked into a committed config \u2014 no environment/rotation story, and an org-wide escape hatch tied to one account.",
+      "`review_guard` recomputes `churn_verdict` (git ls-tree + item read) inside `main` which then separately recomputes `diff_sha`/`_get_item` \u2014 duplicated I/O on the hot review path.",
+      "Redaction regex only covers `key/token/secret/password/authorization` and `bearer`; URLs with embedded credentials or PEM blocks in a reason are stored unredacted."
+    ],
+    "NIT": [
+      "Unrelated reflow of `blocking_findings`/`skip_globs` arrays adds pure diff noise to an otherwise scoped change.",
+      "The `review_budget.note` in config restates `2`/`4` as literals, a textual duplication of the thresholds the AC says must have one owner.",
+      "`getattr(a, \"reason\", \"\")` is defensive noise \u2014 the parser always defines `--reason`.",
+      "Doc line \"Reviews are counted from committed `HEAD` evidence; a missing base ref reports `skipped`\" documents the fail-open behavior as intended, locking in the blocker above."
+    ],
+    "SUMMARY": [
+      "The single-owner budget/diff-review/churn-verdict layering and reuse of `g2.transitions` are the right shape, and boundary/epoch/attestation/redaction tests are solid.",
+      "However the gate's fail-closed contract is inverted for the default base-ref path, CLI-level tests required by the AC are entirely absent, and output ordering is not deterministic \u2014 these must land before this can be trusted as a Gate 2.5 control."
+    ]
+  }
+}

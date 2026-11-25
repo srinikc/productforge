@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "ecea6eb5d02c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T11:48:01.548153+00:00",
+  "review_scope": "delta",
+  "base_sha": "4442430d772200bfe0bbc20a0fc35fd2b2bf05f1",
+  "head_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`\u2192`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).",
+      "The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.",
+      "Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.",
+      "`test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority\u2192skip wiring is only indirectly covered."
+    ],
+    "NIT": [
+      "`test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.",
+      "Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.",
+      "Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge."
+    ]
+  },
+  "rereview_reason": "Current-SHA delta for prior fee0b3e04294 and ac58c94a8886",
+  "rereview_reason_sha256": "7f7467ca6d51b4a3db09eabf3f3f5542aa8c1e7db0eb458be18aeace3d7d59b9"
+}

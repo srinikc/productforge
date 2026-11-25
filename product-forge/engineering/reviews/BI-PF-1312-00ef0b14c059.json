@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "00ef0b14c059",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`audit_harden_partition` creates only `tenant_isolation`; leaves never get the `pf_owner owner_bypass` policy the parent has. Under FORCE RLS a non-superuser pf_owner sees **0 rows** in a leaf: `ExportMonth` then records a `row_count=0` manifest, and `audit_drop_partition`'s count cross-check also reads 0 (SECURITY DEFINER, non-superuser owner) \u2192 the check \"passes\" and the month is dropped with all its data. Silent destruction of audit evidence in the exact deployment model the code comments describe (\"pf_owner ... NOT superuser\"). The integration tests pass only because the harness connects as superuser."
+    ],
+    "MAJOR": [
+      "`audit_hold_extract` joins `audit_legal_hold_events` with no `a.tenant_id = e.tenant_id` predicate: it copies **every row of the month** into `audit_legal_hold_archive` for each active hold. Unheld data is retained forever in a table retention can never drop \u2014 a retention/privacy compliance failure, and it contradicts \"copies ONLY held rows\".",
+      "The append-only journal has only `FOR EACH ROW` triggers; there is no `BEFORE TRUNCATE` statement trigger. Table owners ignore REVOKE (ownership grants all privileges implicitly), so pf_owner can `TRUNCATE audit_migration_state_events`/`audit_legal_hold_events` and erase the audit trail. The AC explicitly requires revokes **plus** a deny trigger for TRUNCATE.",
+      "`audit_provision` (BEFORE INSERT) provisions *any* missing month with no window bound, unlike `audit_ensure_partitions` which enforces 24-months-back/horizon-ahead. A tenant-controlled `at` can create unbounded partitions (resource exhaustion) \u2014 the test inserting `now() + 8 months` confirms the unbounded behaviour.",
+      "The AC's \"EDP service startup check and the ops cron both emit `audit_partition_months_ahead` / `audit_partition_low_coverage_total` non-fatally and raise a stale-job alert\" is not implemented anywhere in the diff; only the two CLIs emit the metrics.",
+      "`audit_hold_after_purge_total` (and `audit_insert_out_of_range_total`, `audit_provision_seconds`, `audit_late_insert_total`, `audit_hold_extract_failed_total`) are defined but never incremented by any code path; the SQL spoliation guard only writes a state event, so the required metric is never emitted.",
+      "`Down` re-grants app roles on the restored flat `audit` but never revokes them from the leftover shadow `audit_partitioned`, leaving the split-brain write path the Swap explicitly closed. `Down` also takes `LOCK TABLE audit IN ACCESS EXCLUSIVE` without `SET LOCAL lock_timeout`, so a rollback can block production writes indefinitely.",
+      "`backupRetention()` (default 30d, `PF_AUDIT_BACKUP_RETENTION_DAYS`) is decoupled from `rollback_days` (default 14, operator-tunable to 90+). Object-store lifecycle can destroy the only pre-swap dump before the rollback window closes \u2014 `close` then has nothing to restore from.",
+      "`RestoreMonth`'s scratch table gets only `tenant_isolation` under FORCE RLS (no owner_bypass), so when run as non-superuser pf_owner every restore INSERT violates `WITH CHECK` (app.tenant_id unset). The round-trip test passes only because the harness is superuser \u2014 the feature is broken in the intended deployment role."
+    ],
+    "MINOR": [
+      "The retention CLI's `fail()` exits **without** `emitMetrics`, so the failure-path signals it increments (`MetricHoldUnarchived`, `MetricPurgeBlockedHold`) are never printed \u2014 precisely the alerts that matter. `pfaudit-swap`'s `fail()` does emit; the two binaries diverge.",
+      "`s3store.Put` with `size < 0` returns an empty `Checksum`/`Version`; the backup caller receives `ObjectInfo.Checksum == \"\"`, so no client-side integrity signal exists for streamed (pipe) uploads.",
+      "Migration `0004_runtime_role.up.sql` was edited after being applied in existing environments; any checksum-validating migration runner will now reject those databases.",
+      "`close` derives the rollback window from `max(at)` of `to_state='swapped'` events; the resume path re-records `'swapped'` on every re-run, silently resetting the rollback clock.",
+      "`AuditStore.Append` classifies 23514 by `strings.Contains(err.Error(), \"no partition of relation\")` \u2014 brittle across PG versions/locales; a named CHECK constraint on the partition bound would give a stable identifier.",
+      "The \"active hold\" NOT EXISTS predicate is duplicated three times (SQL `audit_drop_partition`, `audit_approve_purge`, Go `PurgeMonth`/`VerifyHoldExtraction`). Extract one `audit_active_holds(month)` helper to prevent drift."
+    ],
+    "NIT": [
+      "`architect-review.json` is reformatted (arrays exploded to multi-line) alongside the functional `max_tokens` addition \u2014 unrelated churn in a config file.",
+      "`TestUnhardenedLeafDetected` attaches a random month in 2100\u20132300 and hardens it in place, permanently mutating the shared test database's catalog.",
+      "`activeMetrics`/`metricsEmitted` package-level globals in `pfaudit-swap` main are avoidable state; pass `*pfaudit.Metrics` through like the retention CLI does."
+    ],
+    "SUMMARY": [
+      "Direction is right: SQL owns single-purpose primitives, Go owns orchestration/state/retries, the swap is catalog-driven and resumable, and SSE fails closed on adapters that cannot honour it. The critical risk is the leaf hardening gap: no `pf_owner owner_bypass` on partition leaves means a non-superuser operator exports an empty manifest and the drop count-check agrees \u2014 a silent, full loss of a month's audit evidence. Compounding that, hold extraction copies unheld rows (retention never really prunes), the append-only journal is TRUNCATE-able by its owner, on-demand provisioning is unbounded, and several required emissions (EDP startup coverage check, `audit_hold_after_purge_total`) are absent. Fix the leaf RLS/owner model and the hold filter before this can ship."
+    ]
+  }
+}

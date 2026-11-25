@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "a45feac15cf2",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:57:27.587164+00:00",
+  "findings": {
+    "BLOCKER": [
+      "s3store.ApplyLifecycle returns nil without applying anything when RetainUntil is set but Mode is empty (`if mode != \"\"` guard): a caller requesting retention gets success and no retention \u2014 silent fail-open of a compliance control."
+    ],
+    "MAJOR": [
+      "objreconcile.notFound classifies errors via substring matching (\"not found\", \"nosuchkey\"); a permission/transient error containing those words is reported as `missing` instead of failing the scan \u2014 corrupts drift reports, and datastore exposes no typed NotFound to use instead.",
+      "objpolicy.Mint takes `tenantPrefix` as an untrusted parameter while the doc claims it \"comes from the authenticated tenant context\"; nothing enforces that \u2014 the central tenant guard is convention-only and trivially bypassed by passing a broad prefix.",
+      "S3 Capabilities advertises `ObjectLock: true` unconditionally even for buckets without object-lock; `datastore.Lifecycle()` then hands out a capability that fails at runtime with an untyped provider error instead of ErrUnsupported \u2014 no probe or ErrUnsupported mapping in ObjectLifecycle/GetRetention.",
+      "The single privilege boundary for signed URLs emits denials via stdlib `log.Printf` with no structured fields, request/tenant identity, or metrics \u2014 insufficient audit/observability for an authz decision point.",
+      "No docs/ARCHITECTURE-DECISIONS or EDP-16 doc update accompanies the new central policy and reconciliation modules, despite the standards requiring decision records for shipped architectural boundaries."
+    ],
+    "MINOR": [
+      "Scan's prefix guard is a raw `strings.HasPrefix(e.Key, prefix)`: an unprefixed/loose prefix (e.g. \"p\") admits cross-prefix keys (\"px/\u2026\") into the manifest and masks them as valid.",
+      "Manifest entries flagged `Invalid` are excluded from `want`, so their corresponding store objects are additionally reported as `Orphaned` \u2014 the same manifest defect is double-counted as store drift.",
+      "S3 integration test defers `Delete` on an object still under 1h GOVERNANCE retention; the delete always fails silently and leaks a locked object into the bucket.",
+      "ApplyLifecycle applies retention then legal hold with no rollback on partial failure; `LegalHold && ReleaseLegalHold` silently resolves to release.",
+      "ObjectLifecycle issues a GetBucketVersioning call on every read (extra round-trip per object) and swallows the error.",
+      "Checksum comparison uses `strings.EqualFold` with no format/algorithm validation, so \"sha256:aa\" vs \"aa\" or wrong-length digests are classified as mismatches rather than invalid manifest input."
+    ],
+    "NIT": [
+      "cleanPath rejects any key containing \"..\" after path.Clean (e.g. \"a..b\") \u2014 false denials for legitimate keys.",
+      "Mint checks the provider capability before method/TTL/tenant validation, so unsupported providers mask policy violations with ErrUnsupported.",
+      "`Schema = \"pf.objreconcile/2\"` starts at version 2 for a brand-new module; stub/fake ObjectStore implementations are duplicated across test packages.",
+      "Key equals tenantPrefix exactly is accepted (`k == prefix`), minting URLs for the tenant root itself."
+    ],
+    "SUMMARY": [
+      "Solid structural fit: optional capability interface, typed ErrUnsupported, read-only deterministic reconcile report, and Go-only new logic all align with the acceptance criteria and standards.",
+      "Top risks: a fail-open retention path in S3 ApplyLifecycle, substring-based not-found classification corrupting drift reports, and a tenant guard that depends on caller discipline rather than authenticated context.",
+      "Secondary gaps: unprobed ObjectLock capability advertisement, weak audit logging at the signed-URL policy boundary, and missing ADR/doc updates for the new modules."
+    ]
+  }
+}

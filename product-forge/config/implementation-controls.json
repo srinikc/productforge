@@ -1,0 +1,105 @@
+{
+  "$schema": "implementation-controls-v1",
+  "description": "Executable coding and tech-stack checks injected into implementation prompts and verified by implementation_readiness_check.py.",
+  "checks": [
+    {
+      "id": "go-format",
+      "stack": "Go",
+      "check": "gofmt -l on changed Go files is empty",
+      "signal": "gofmt output",
+      "mandatory_when": "go"
+    },
+    {
+      "id": "go-vet",
+      "stack": "Go",
+      "check": "go vet ./... passes for each changed module",
+      "signal": "vet exit code",
+      "mandatory_when": "go"
+    },
+    {
+      "id": "go-race",
+      "stack": "Go",
+      "check": "go test -race ./... for shared/concurrent state",
+      "signal": "race test result",
+      "mandatory_when": "go-concurrency"
+    },
+    {
+      "id": "go-context-pool",
+      "stack": "Go",
+      "check": "context propagated; DB pools/connections reused; no per-call pool creation",
+      "signal": "code inspection + integration test",
+      "mandatory_when": "go-io"
+    },
+    {
+      "id": "go-errors",
+      "stack": "Go",
+      "check": "errors wrapped/classified; no string matching for control flow except documented DB constraint names",
+      "signal": "code inspection + failure test",
+      "mandatory_when": "go"
+    },
+    {
+      "id": "pg-transactions",
+      "stack": "PostgreSQL",
+      "check": "transaction boundaries explicit; uniqueness enforced by constraint/index; rollback tested",
+      "signal": "migration + integration test",
+      "mandatory_when": "postgres"
+    },
+    {
+      "id": "pg-rls",
+      "stack": "PostgreSQL",
+      "check": "FORCE RLS; runtime role NOSUPERUSER/NOBYPASSRLS; cross-tenant read/write rejected",
+      "signal": "RLS integration test",
+      "mandatory_when": "postgres"
+    },
+    {
+      "id": "pg-migration",
+      "stack": "PostgreSQL",
+      "check": "up/down migration applied on disposable DB; backup marker recorded before destructive change",
+      "signal": "migration status + backup artifact",
+      "mandatory_when": "postgres"
+    },
+    {
+      "id": "object-store",
+      "stack": "Object store",
+      "check": "tenant-scoped keys; sha256/ref validation; atomic write; bounded GC with grace; no orphan on failure",
+      "signal": "unit + failure/recovery test",
+      "mandatory_when": "object-store"
+    },
+    {
+      "id": "api-auth-tenant",
+      "stack": "API",
+      "check": "authn/authz at boundary; tenant scope server-resolved; no caller-controlled tenant/path/DSN/limits",
+      "signal": "negative API tests",
+      "mandatory_when": "api"
+    },
+    {
+      "id": "api-validation",
+      "stack": "API",
+      "check": "input validation and fail-closed config; negative and API contract tests",
+      "signal": "API test result",
+      "mandatory_when": "api"
+    },
+    {
+      "id": "config-fail-closed",
+      "stack": "Config",
+      "check": "invalid enum/missing required config fails closed and is tested",
+      "signal": "config negative test",
+      "mandatory_when": "config"
+    },
+    {
+      "id": "observability",
+      "stack": "All",
+      "check": "each failure mode has an owner signal/threshold or explicit N/A reason",
+      "signal": "metric/log test + design row",
+      "mandatory_when": "all"
+    },
+    {
+      "id": "no-dead-code",
+      "stack": "All",
+      "check": "no dead/unused/unwired controls; self-review removes unused imports, vars and duplicate logic",
+      "signal": "diff review + linter",
+      "mandatory_when": "all"
+    }
+  ],
+  "enforce_from": "2026-11-18"
+}

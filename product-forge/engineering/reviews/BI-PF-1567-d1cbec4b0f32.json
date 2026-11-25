@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "d1cbec4b0f32",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T09:16:38.318672+00:00",
+  "review_scope": "delta",
+  "base_sha": "e76fbc45c6e3b80e6359819631595dd927fe7a85",
+  "head_sha": "479a89c1d991b28849c23ea125459c661abbb64d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`Audit` now silently drops events on a full channel (`default:` branch); a burst of /memory ops loses security audit records with only a counter/log, trading the prior unbounded-goroutine finding for audit-integrity loss against the AC-1 structured-audit contract.",
+      "`Audit` after `Close` sends on a closed channel and panics; there is no closed-state guard, and the diff does not show the HTTP server draining before `Close()`, so in-flight requests during shutdown can crash the process or lose their audit events.",
+      "The async worker holds no reference to stop accepting once shutdown begins: `Close()` waits for drain but any late `Audit` either panics (closed channel) or is dropped, so shutdown-time audit completeness is not guaranteed."
+    ],
+    "MINOR": [
+      "No test covers the new worker/drop/Close paths: `memory_audit_dropped_total`, channel-full behavior, and drain-on-close are all untested, so the delta's core observability/reliability change can regress undetected.",
+      "`defer s.memoryAuditor.Close()` is registered early; any later-registered `st.Close()` (or equivalent) runs first under LIFO, so the final audit batch may flush against an already-closed PgStore and be lost \u2014 shutdown ordering should be explicit.",
+      "Dropped-event log omits `actor`/`record` fields present in the sibling audit logs, hindering correlation when auditing is degraded (the exact condition where it matters most).",
+      "[OUT_OF_SCOPE] `write` still silently skips when `e.TenantID == \"\"` with no metric \u2014 pre-existing behavior carried over, not introduced by this delta."
+    ],
+    "NIT": [
+      "Channel capacity `256` is a hard-coded magic number with no rationale or configurability; document or derive it from expected burst sizing.",
+      "`closeOnce` guards double-`Close` but does nothing for the concurrent `Audit`-during-`Close` race, giving a false sense of shutdown safety."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior unbounded-goroutine, shutdown-drain, and half-finished role-posture findings (super/bypassrls now asserted), which is the right direction.",
+      "Top risks introduced: audit events dropped under load and a send-on-closed-channel panic during shutdown \u2014 both weaken the AC-1 audit evidence the item relies on.",
+      "Ship only after adding a non-panicking close path, a defined drop/fallback policy (or blocking with bounded timeout), and tests for the worker lifecycle."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-8e78149685b1; bounded audit worker, full role bypass proof",
+  "rereview_reason_sha256": "50b3119af941b4a0f33564c3cc9c522a16d898cf6005220ad13eb27abe7b272d"
+}

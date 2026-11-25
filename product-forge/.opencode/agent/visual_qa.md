@@ -1,7 +1,7 @@
 ---
 description: Verify rendered UI against the design spec.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: visual_qa
 version: 1.0.0
 spec_version: "1.0"

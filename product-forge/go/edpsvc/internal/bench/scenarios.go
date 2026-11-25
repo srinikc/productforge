@@ -60,10 +60,10 @@ func scenarios() []scenario {
 		// memory: retrieval (insert + scoped read)
 		{"memory", "memory.retrieval", seedProject, func(ctx context.Context, tx datastore.Tx, t string, _ int) error {
 			if err := exec(ctx, tx, `INSERT INTO memory (id, tenant_id, project_id, kind, acl_scope, payload)
-				VALUES ($1,$2,$3,'note','team','{}'::jsonb) ON CONFLICT (id) DO NOTHING`, t+"-mem", t, p); err != nil {
+				VALUES ($1,$2,$3,'semantic','project','{}'::jsonb) ON CONFLICT (id) DO NOTHING`, t+"-mem", t, p); err != nil {
 				return err
 			}
-			return drain(ctx, tx, `SELECT id FROM memory WHERE tenant_id=$1 AND acl_scope='team' LIMIT 10`, t)
+			return drain(ctx, tx, `SELECT id FROM memory WHERE tenant_id=$1 AND acl_scope='project' LIMIT 10`, t)
 		}},
 		// job: claim + lease
 		{"job", "job.claim_lease", nil, func(ctx context.Context, tx datastore.Tx, t string, _ int) error {

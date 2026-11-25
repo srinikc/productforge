@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1544",
+  "sha": "1f2db2909976",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-19T08:05:01.422844+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "84fd0e2f757a52d2cf47179b9c23397dcef912f0",
+  "findings": {
+    "BLOCKER": [
+      "AC-1 requires persistence but design_pack.contracts.db = 'N/A' and api = 'N/A'; no store, owner, or write path is specified, so the AC cannot be met as designed.",
+      "AC-2 requires the endpoint in OpenAPI, yet api_contract spec_pack is marked 'N/A' ('no API change') \u2014 contract and AC directly contradict; needs_api is undecided.",
+      "Design leaves in_scope/affected_components/affected_files/risks as 'Not specified.' \u2014 no declared files to review against; scope guard and CL-016 cannot pass."
+    ],
+    "MAJOR": [
+      "Language rule unresolved: new shipped endpoint logic must be Go, but test plan only names 'pytest focused tests'; design never states implementation language for the write API.",
+      "Authorization is only 'tooling-only' / 'operator role' prose; no authn mechanism, authz enforcement point, tenant scoping, or RLS posture (CL-011 unaddressed).",
+      "No idempotency/concurrency design for 'stale revisions' handling (optimistic concurrency, revision key, ordering invariant) despite FR-1 naming it; checklist item 5 unmet.",
+      "'does not introduce a duplicate store' AC has no named existing owner/port to reuse; reuse decision (checklist 10) is unspecified.",
+      "Observability reduced to 'tests'; no metrics/logs/trace signals to diagnose write failures at runtime (checklist 10).",
+      "Reversibility/rollback is only 'revert branch'; no statement on persisted data written by the endpoint if the change is reverted (checklist 1)."
+    ],
+    "MINOR": [
+      "failure_matrix has a single case ('missing evidence' \u2192 EVIDENCE_MISSING); malformed pack, missing role, and stale revision failures are not enumerated (checklist 6/8).",
+      "All traceability/evidence points at one doc (docs/IMPLEMENTATION-CONTROLS-DESIGN.md) for design, test, and evidence \u2014 weak separation of proof artifacts (CL-010).",
+      "spec_pack marks rollback_dr, migration_backfill, and observability_runbook as N/A despite an endpoint that writes data; migration/backup path unaddressed (checklist 1/6)."
+    ],
+    "NIT": [
+      "FR titles are truncated mid-sentence ('rejects malformed packs, missing operator ro'), reducing review clarity.",
+      "functional_spec assumptions reference 'develop has shared review decisions API' as an undeclared dependency risk (risks = 'Not specified.')."
+    ],
+    "SUMMARY": [
+      "Design is a placeholder shell: contracts say API/DB are 'N/A' while the ACs demand a persisted, OpenAPI-published endpoint \u2014 the approved AC cannot be met from this design.",
+      "Top risks: undefined store and API contract, unspecified language (Go rule), absent authz/tenant/RLS posture, and no reuse/observability/rollback design for a data-writing endpoint.",
+      "Recommend Gate-1 rejection until scope, affected files, API/DB contracts, auth boundary, and red proof for the real entrypoint are filled in."
+    ]
+  }
+}

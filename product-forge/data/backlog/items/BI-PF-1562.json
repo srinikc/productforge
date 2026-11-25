@@ -1,0 +1,195 @@
+{
+  "id": "BI-PF-1562",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:context-prompt-compiler",
+  "label": "PF Backlog 697",
+  "title": "Context & Prompt Compiler: dynamic budget allocation, sliding token budgets, section prioritization, and truncation defense",
+  "body": "## Problem / why\nAd-hoc string concatenation of prompts causes context window overflow, silent truncation of critical rules, and high token costs.\n\n## Goal & value\nImplement the Context and Prompt Compiler enforcing strict token budgets per agent and stage, with deterministic prioritization and truncation defense.\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-12`\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-17`\n\n## In scope\n- Token budget manager allocating budget across System, CAG Prefix, Memory/RAG, and Scratchpad.\n- Priority-ranked context section assembler.\n- Truncation defense strictly protecting non-negotiable rules and task objectives.\n\n## Out of scope\n- Arbitrary unbudgeted prompt expansion.\n\n## Definition of Done\n- Compiler tests prove context never exceeds configured token limits under high payload volume.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1558"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:10:07.072700",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Ad-hoc string concatenation of prompts causes context window overflow, silent truncation of critical rules, and high token costs.",
+    "what_adds": "Implement the Context and Prompt Compiler enforcing strict token budgets per agent and stage, with deterministic prioritization and truncation defense.",
+    "why": "Ad-hoc string concatenation of prompts causes context window overflow, silent truncation of critical rules, and high token costs.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Implement the Context and Prompt Compiler enforcing strict token budgets per agent and stage, with deterministic prioritization and truncation defense.",
+  "acceptance_criteria": [
+    "AC-1: Every prompt assembly runs under an explicit token budget ceiling.",
+    "AC-2: Lower-priority historical context is truncated before core rules or task objectives are affected.",
+    "AC-3: Produces audit metadata detailing token allocations per section."
+  ],
+  "in_scope": [
+    "Token budget manager allocating budget across System, CAG Prefix, Memory/RAG, and Scratchpad.",
+    "Priority-ranked context section assembler.",
+    "Truncation defense strictly protecting non-negotiable rules and task objectives."
+  ],
+  "out_of_scope": [
+    "Arbitrary unbudgeted prompt expansion."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/prompt_compiler.py",
+    "go/pfrag/compiler.go",
+    "go/pfrag/compiler_test.go"
+  ],
+  "approach": "Token budget manager allocating budget across System, CAG Prefix, Memory/RAG, and Scratchpad.; Priority-ranked context section assembler.; Truncation defense strictly protecting non-negotiable rules and task objectives.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Compiler tests prove context never exceeds configured token limits under high payload volume.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1562): sig:57008aa3b06d2d88 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:10:06.721348",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/budget.py, core/budget_allocator.py, core/budget_conservation.py, core/budget_planner.py",
+    "existing_components": [
+      "core/budget.py",
+      "core/budget_allocator.py",
+      "core/budget_conservation.py",
+      "core/budget_planner.py",
+      "core/budget_protection.py",
+      "core/budget_tracker.py",
+      "core/context_discipline.py",
+      "core/context_engine.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/context",
+      "/api/v1/validation/artifact-contracts/budget"
+    ],
+    "existing_modules": [
+      "config/context-policy.json",
+      "config/review-budget.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.33",
+      "components=8",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1558",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:10:06.898320"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:10:02.030629",
+  "updated_at": "2026-11-22T14:10:36.668646",
+  "score": 1.33,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal agent runner prompt compilation API"
+  }
+}

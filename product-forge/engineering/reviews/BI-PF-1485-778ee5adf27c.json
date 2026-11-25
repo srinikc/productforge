@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "778ee5adf27c",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T13:07:47.441264+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "e18e72c9db8baf05c2b7ee983060190979127895",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`architect_review.review_is_current()` is defined and unit-tested but no gate/CLI path calls it; AC1's \"data-only commit does not invalidate the review\" still rests entirely on the pre-existing evidence scan, and the new tests exercise this dead helper instead of `--since`/`_ingest` `review_scope` binding.",
+      "Risk-tier gate selection (declared scope item; design invariant \"T2/T3 require 1.5/1/2.5/2\") is not implemented: `biis_tier_check` only stores/validates a number, no gate reads `item.tier`, and the design's `config/risk-tiers.json`/`risk_tier` do not exist \u2014 shipped config is `biis-tiers.json` with `tier`.",
+      "`control_runner` derives the evidence filename from `sha[:12]` where sha is `<HEAD>-<diffhash>`; two runs at the same HEAD (different worktree) resolve to the same path and `write_text` silently overwrites, breaking the stated \"append-only / deleting evidence is forbidden\" invariant.",
+      "`control_gate`/`control_runner.current_sha()` keys on `git diff HEAD`, which excludes untracked files: adding a brand-new untracked source file leaves the SHA unchanged, so stale PASS control evidence still satisfies Gate 2 for a changed candidate.",
+      "The new blocking gates (`control_gate`, `control_runner`, `framework_ref_check`, `self_review_check`, `biis_*`, `review_ledger`) each re-implement `subprocess.run([\"git\", ...])` with ambient `os.environ`, bypassing the `scripts/dev/git_env.py` policy introduced in the same candidate; `_git` in `framework_ref_check`/`self_review_check` raises uncaught `RuntimeError` when `origin/develop` is absent, so those gates exit with a traceback instead of the required explicit reason."
+    ],
+    "MINOR": [
+      "`config/design-completeness.json`, `config/biis-tiers.json` (`universal_dimensions`) and `config/design-contract.json` each restate the same dimension list and placeholder tokens (three copies, no single source) \u2014 guaranteed drift.",
+      "`biis_tier_check.computed_tier` substring-matches tier tokens against title/objective, so \"auth\" matches \"author/authored\" and path prefixes like `core/` never match free text; `tiers.*.depth`/`evidence` are never read, so tiering affects only a counter.",
+      "`biis_completeness_check.problems` re-invokes the full `design_contract_check` and re-emits its failures under a `BIIS:` prefix; gate1/gate2 then report one root cause under two namespaces, doubling maintenance with no new signal.",
+      "`design_pack.render` pipes `ac_evidence` through `_join_mapping`, but the contract and tests define it as a list of rows, so generated `engineering/design/<ID>.md` will contain a raw Python list literal instead of the AC evidence table.",
+      "`guideline_compliance_check` selects findings by substring (\"guideline\"/\"review_scope\") over `design_contract_check` messages; any message rewording silently turns it into a passing no-op.",
+      "AC3's worktree/untracked coverage is evidenced only by a test that monkeypatches `ec._git`; `scripts/dev/encoding_check.py` itself is absent from the candidate, so this diff shows a test contract but no implementation delta for the new change-set semantics.",
+      "`docs/BIIS-LEARNING.md` embeds the author's local absolute path `C:\\Users\\ADMIN\\...\\opencode\\pf-probe` and cites probe evidence no other reader can reach, yet `gen_docs_index.py` indexes it as \"Implemented\" authority.",
+      "`docs/AGENT-ROLE-CONTRACTS.md` / `AGENT-RUNTIME-ADAPTERS.md` restate the concrete model id in policy text that simultaneously claims provider neutrality; it will drift from `config/model-tier.json` with no check."
+    ],
+    "NIT": [
+      "`excluded_content_check` now accepts either `## 1`/`## 2` and `## 3`/`## 4`, so a hand-written doc using the new numbering satisfies the \"generated design\" content-class check without being generated.",
+      "`pf_process_check` hardcodes a hand-maintained `FILES` list and the `\"pf-gates\" + \".yml\"` concatenation, so every future checker needs a manual edit here to be protected.",
+      "`architect_review._ingest` returns 2 on ledger-write failure, discarding the \"blockers found\" (0/1) result the caller relies on.",
+      "`review_attribution_check` demands `origin_class` on every dispositioned diff finding once a second review exists, including findings raised in the first (full) review.",
+      "`precheck._GROUP_OF` maps `\"residency\"` to a group although no `residency` gate exists in `_GATES`, leaving a stale mapping next to the real new entries."
+    ],
+    "SUMMARY": [
+      "The delta-review, design-pack and framework-gate scaffolding is coherent and test-backed, but two advertised behaviours are not actually wired: `review_is_current` is dead code and tier-based gate selection simply does not exist.",
+      "Highest integrity risk sits in the new control-evidence chain: SHA keying ignores untracked files and evidence files are overwritten at a repeated HEAD, so \"current-SHA PASS\" can be satisfied by stale or replaced evidence.",
+      "Consistency risk: the candidate introduces a centralised Git-env policy while five of its own new gates bypass it, and duplicates gate/command policy across four config files.",
+      "Everything else is documentation hygiene, message-fragile filtering, and rendering/format debt; none of it blocks, but the control-evidence issues should be closed before these gates become blocking in CI."
+    ]
+  }
+}

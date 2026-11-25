@@ -1,0 +1,50 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "9eefe39b92d1",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-06T13:36:30.147494+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "06912114159eebe41bdabb969762bcc346af3bc0",
+  "findings": {
+    "BLOCKER": [
+      "Migration 0021 rewrites the `backlog_items` primary key to `(tenant_id,id)` and re-points the traceability FK on a shared table with only `lock_timeout 5s`; design defines no online/expand-contract path, no verified backup gate enforced in code, and no abort criteria \u2014 a failed/locked migration leaves backlog FK integrity broken with no proven recovery.",
+      "Design states legacy cross-tenant duplicate IDs are preserved under scoped uniqueness while AC/invariants also require globally unique IDs from the allocator; the same `id` can therefore mean different items per tenant, yet `core/id_allocator.py` and edpsvc routes are not described as tenant-scoped \u2014 a cross-tenant ID collision/authority split (integrity + isolation risk) has no defined resolution.",
+      "AC-2/AC-3/AC-4 evidence is self-referential: `ac_evidence` for every AC points to `docs/BACKLOG-DB-SSOT.md`, yet the real evidence is `engineering/evidence/BI-PF-1531/*.txt` and `coverage` marks AC-3/AC-4/AC-5 `runtime_capability: false`. Fail-closed and parity are unproven; AC-4 (no Git fallback) is the highest-risk behavior and has no runtime-verified evidence.",
+      "Rollback \"Revert the change\" / \"Set PF_BACKLOG_DB=off\" is not a tested rollback: with default on and DB authority, flipping off after DB-mode writes creates divergence from file projections, and 0021 down is refused for legacy duplicates. No documented, tested reconcile/restore path after a post-cutover rollback \u2192 data reconciliation gap."
+    ],
+    "MAJOR": [
+      "Guardrail 2 (availability/SPOF) unanswered: no on-startup readiness check design, no alert lead-time, no defined behavior for edpsvc-down vs Postgres-down distinction; `BACKLOG_DB_UNAVAILABLE` is defined but no metric/alert/runbook is specified.",
+      "Guardrail 3: `security_model` mentions admin bearer and \"read-only benchmark roles\" but never states the runtime backlog role is non-superuser/non-BYPASSRLS; `requireTenant` is listed but RLS enforcement on the *backfill/parity* scripts (which run as tooling) is unspecified.",
+      "Guardrail 4: `backlog_db_backfill.py` has throttling but no explicit dry-run/report-only mode, no row-count bound, and no \"never touch current/future data\" rule stated; parity gate exists but backfill bounds do not.",
+      "Guardrail 6: all five ACs map to a single test file `test_backlog_db_cutover.py`; DB-mode workflow test (`test_backlog_db_workflow.py`) appears only in `coverage`, not in `review_scope.files` or `affected_files` \u2014 untested/unaudited surface for AC-2.",
+      "Guardrail 7 (language rule) at risk: `core/backlog.py` and `core/id_allocator.py` are shipped Python carrying new authority-resolution and ID-integrity logic; design does not justify why the new mode/allocator logic isn't Go per AGENTS.md, nor bound the Python edit to existing-behavior changes only.",
+      "Guardrail 1/6: \"0021 requires a verified backup before apply\" is asserted but not enforced by any check/control; `controls` has a single CTL covering only AC-2/AC-5 test invocation, not backup verification or migration abort.",
+      "Guardrail 10: observability is one line (\"readiness/errors expose backlog DB state\"); no metrics for DB-mode resolution, parity drift, fallback attempts (should be zero/alerted), or backfill progress.",
+      "Fail-closed AC-4 is scoped only to read (`_load_all_from_db`); write-path fail-closed behavior (`_save_item` with on + DB down) is not mapped to an AC or failure case \u2014 partial fail-closed is a silent-write risk.",
+      "Guardrail 8: \"existing edpsvc backlog API unchanged\" is asserted but no contract/schema test is listed to prove routes and payloads remain compatible after the PK/FK change."
+    ],
+    "MINOR": [
+      "Test matrix lists AC-2/AC-3 against `test_backlog_db_cutover.py` while `coverage` points them at `test_backlog_db_workflow.py` \u2014 inconsistent, unverifiable mapping.",
+      "`rollback` field (top-level) is \"Revert the change,\" contradicting design_pack rollback (flag flip); ambiguity for operators.",
+      "Parity target \"743/743 PF-SB items\" is a hardcoded snapshot with no generated-product (PF-GP) count, though PF-GP is in scope.",
+      "`exclude: generated products without local source files` conflicts with PF-GP backfill/parity being in scope \u2014 parity definition for PF-GP is left implicit.",
+      "`clock`/order invariants (ID ordering, reservation_id idempotency) are asserted but not tested in the listed test files.",
+      "`docs/BACKLOG-DB-SSOT.md` is both the spec and the sole AC evidence; docs/code drift (the stated learning) is not structurally prevented (e.g., no test asserting default matches docs)."
+    ],
+    "NIT": [
+      "Failure codes `TENANT_CONTEXT_MISSING` and `MIGRATION_DUPLICATE_IDS` are declared but not in the failure_matrix.",
+      "`design_areas.security` marked N/A despite RLS/tenant-authority change; `rls_tenant` populated anyway \u2014 contradictory.",
+      "`.github/workflows/structure.yml` and `full-sweep.yml` changes are in scope but no finding-relevant behavior described.",
+      "Evidence filenames are declared but not shown as produced for this SHA."
+    ],
+    "SUMMARY": [
+      "Verdict: not ready for Gate 1.5 \u2014 the design is directionally right (DB authority, fail-closed intent, parity gate) but under-specifies the irreversible parts.",
+      "Top risks: (1) 0021 PK/FK migration on a shared table with no enforced backup gate or interrupted-recovery path; (2) cross-tenant duplicate ID semantics left ambiguous against \"new IDs globally unique\"; (3) fail-closed and parity claimed on docs evidence rather than runtime tests; (4) rollback is a flag flip with no post-cutover reconciliation.",
+      "Guardrail gaps: availability/SPOF, privilege/RLS for tooling, backfill dry-run bounds, and language-rule justification for shipped Python are unanswered.",
+      "Recommend: add enforced backup/abort control, split AC-4 to read+write, produce runtime parity/fail-closed evidence, and define reconcile-on-rollback before re-review."
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "e6906e8f2040",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:38:11.021452+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC5's required single fixture set (\"valid + every RESIDENCY_* error incl. schema/invalid-field/toolchain/profile\") is incomplete: `residency_conformance.json` has no toolchain/`RESIDENCY_VALIDATOR_UNAVAILABLE` case, no `RESIDENCY_MANIFEST_INVALID`/`UNREADABLE` case, and no over-policy retention case; the mandated parity evidence therefore does not exist."
+    ],
+    "MAJOR": [
+      "Three parallel policy implementations (Go `Validate`, Python `packaging.validate_residency`, gate `hard_prefix`) already diverge: Python checks `backup.frequency` case-sensitively while Go lowercases, and Python rejects bool `rotation_days` where Go fails unmarshal \u2014 such input yields parity=false and is reported as exit-2 \"execution failure\", not a policy violation.",
+      "Gate `hard_prefix` omits `RESIDENCY_HOME_NOT_ALLOWED` (and `RESIDENCY_REGION_NOT_ALLOWED`), so with `gate_mode=warn` (default until 2027-01-31) a manifest whose `home_region` is not in `allowed_regions` exits 0 \u2014 a stated AC invariant is unenforced for ~12 months while `ci-cd-gates.json` declares the gate `blocking: true`.",
+      "AC4 requires tests covering `language_rule_review` and precheck (45+ gates); the diff adds no such test/assertion, so the language-rule allow entry for `core/packaging.py` and the new precheck gate are unverified.",
+      "Unknown home maps to `RESIDENCY_PROFILE_UNREADABLE`, never `RESIDENCY_UNKNOWN_HOME` (regex-passing but profileless home, e.g. \"XX\"); `test_unknown_home_fails_closed` locks in the wrong code, breaking the frozen AC error-code contract.",
+      "Adding ~50 lines of shipped policy logic to `core/packaging.py` via language-rule exception duplicates the Go authority rather than reusing it; parity fixtures are the only anti-drift mechanism and are themselves incomplete (see BLOCKER)."
+    ],
+    "MINOR": [
+      "Go CLI `--profiles` defaults to `config/residency-profiles` relative to CWD (`go/residencymanifest/...`), silently resolving to a nonexistent path for direct callers; only the Python wrapper passes an explicit path.",
+      "`cmd/pfresidency` emits report JSON on profile-load failure regardless of `--report`, and its warn mode downgrades every `Validate` error while the gate's warn hard-blocks a subset \u2014 two different warn semantics behind one documented contract.",
+      "`residency-gate` registered with `\"area\": [\"packaging\"]` may not run when `products/*/residency-manifest.json` or `config/residency-profiles/**` change, i.e. exactly the inputs it validates.",
+      "`store-registry` `allow` swallows `test-framework/tests/fixtures/residency_conformance.json` (shipped fixture) instead of registering an owner; the scratch-file entries are unnecessary since tests write to `tmp_path`.",
+      "Evidence write failure blocks only on the first error path; `_event(rec)` results are ignored on the \"no JSON\" and normal paths, so a green run can silently produce no bounded event.",
+      "Gate parses the manifest with no size cap (packaging `_load_json` caps at 64KB), and `--project` flows into `residency_path` unvalidated, allowing `products/../..` style traversal on a local tool.",
+      "`subprocessors` and `legal_hold` field presence are never validated even though AC1 lists them as part of the populated group shape; `egress: {}` passes both validators.",
+      "Warn-mode event records `ok: false` with exit 0, so downstream consumers reading `ok` cannot distinguish \"warned\" from \"failed\"."
+    ],
+    "NIT": [
+      "`residency_path(scope, project)`'s `scope` parameter is unused.",
+      "`build()` emits `residency_warning` as a bare string instead of the stable error-code list used everywhere else.",
+      "Test modules re-import `os` inside function bodies instead of at module scope.",
+      "Go module `productforge/residencymanifest` is added standalone; no `go.work`/build tooling registration appears in the diff."
+    ],
+    "SUMMARY": [
+      "Solid skeleton: explicit `home_region`, profile bounds, frozen codes, bounded event, warn-first lever with expiry \u2014 and fail-closed on toolchain/profile errors.",
+      "Top risks: the mandated cross-language conformance fixture set is incomplete (BLOCKER), warn mode quietly downgrades the home-in-allowed invariant for a year, and three copies of the policy semantics already disagree on case/type edge cases.",
+      "Recommend landing the full AC5 fixture set (incl. toolchain), aligning the gate hard-block list with the frozen-code contract, and de-duplicating policy logic before flipping `gate_mode` to block."
+    ]
+  },
+  "rereview_reason": "prior sha e1e97cb2be85; final fail-open/test-isolation fixes; HIL-attested churn",
+  "rereview_reason_sha256": "95a1460d1ec30986d9db21fd65079523b0879b7ca89fd9538ce1bab52dac4b08"
+}

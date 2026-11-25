@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "fd5330e4b7a2",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:11:16.451527+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`diff_reviews()` fails open, not closed: missing/renamed `engineering/reviews` yields empty `ls-tree`/glob (no error) and corrupt/unreadable JSON is swallowed by `except Exception: continue`, so churn count silently drops to 0 and the gate passes. AC requires an unreadable review dir to exit 2.",
+      "Gate verdict mixes snapshots: reviews are read from committed HEAD (`committed=True`) while `review_epoch`/`churn_attested` read the item from the working tree via `_get_item`. An uncommitted `review_churn` attestation (or Gate 1 decision) flips a committed-diff failure to pass \u2014 an integrity/attestation bypass."
+    ],
+    "MAJOR": [
+      "`redact_reason` is regex heuristics on text that gets committed to git: unlabeled secrets (`ghp_...`, AWS keys, `pwd=`, `X-Api-Key:`, bare tokens) pass through unredacted into permanent evidence. Redaction alone is not sufficient for a committed audit artifact; consider storing a hash/short prefix instead.",
+      "Same-sha re-review overwrites `{item}-{sha}.json`, so repeat reviews of one freeze's diff are never counted \u2014 the \"one diff review per freeze\" budget undercounts exactly the behavior it targets (pre-existing write path, but this feature makes it load-bearing).",
+      "`precheck.py` hard-wires `review-churn` as a fast gate with no `--base` override: on any checkout without a local `develop` ref (main-based branches, shallow CI clones) every precheck fails closed with exit 2. Needs a configurable base or graceful degrade.",
+      "Attestation allowlist is a single hardcoded principal (`hil:srinikc`) in config with no pattern support (`hil:*` implied by AC) \u2014 key-person, non-rotatable, and a config edit silently widens the escape hatch with no schema/validation or audit event."
+    ],
+    "MINOR": [
+      "Tests never exercise the AC-required \"unreadable evidence path exits 2\"; only git/base-ref errors are covered, because the code path in question cannot currently fail.",
+      "`review_churn_check.evaluate()` reaches into `ar._get_item` and `rc.g2` privates across modules; `churn_verdict` returns redundant `fail`/`allowed` fields \u2014 thin public API contract for a \"single owner\".",
+      "Refusal is bypassed entirely once any `review_dispositions.diff` exists, so unlimited reasoned re-reviews remain possible pre-completion; only the completion gate bounds churn \u2014 docs should say the budget is soft in-flight.",
+      "Unparsable review `at` timestamps default to \"counted\" while unparsable Gate 1 `at` yields an empty epoch that counts everything \u2014 behavior is fail-closed but undocumented and untested."
+    ],
+    "NIT": [
+      "Unrelated reformatting of `blocking_findings`/`skip_globs` arrays in `config/architect-review.json` adds diff noise to an audit-sensitive config.",
+      "Missing blank line between `test_bad_budget_config_fails_closed` and `test_reason_flag_requires_rereview` (PEP8 E305); `--json` mode still emits human warn/fail events to stderr.",
+      "Docs mention `--base` escape for missing `develop` but the precheck wiring provides no way to pass it."
+    ],
+    "SUMMARY": [
+      "Sound architecture on the surface: single owner (`architect_review.py`) with config-driven budget, deterministic table/`--json`, and boundary tests at 2/3/4/5 match the AC.",
+      "However the gate is not the fail-closed control the AC requires: unreadable/missing evidence silently passes, and the verdict composes committed reviews with working-tree item state, letting an uncommitted HIL attestation suppress a hard failure.",
+      "Top risks: fail-open evidence handling (BLOCKER), committed-artifact secret leakage via weak redaction (MAJOR), and precheck coupling to a local `develop` ref (MAJOR)."
+    ]
+  },
+  "rereview_reason": "supersedes 7aed4fdd42cd; fail-closed base, CLI tests, deterministic sort"
+}

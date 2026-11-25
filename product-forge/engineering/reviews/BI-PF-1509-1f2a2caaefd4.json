@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "1f2a2caaefd4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-28T05:46:01.840726+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "AC-5/e2e red evidence is only scope-guard (guard) coverage; there is no runtime fail-before-pass evidence listed for the mux wiring in the test_matrix red path beyond a comment \u2014 confirm `TestBacklogAuthorityWithDB` is provably red pre-wire (proof_plan red_evidence says \"route absent returns 404\", but the test itself is in main_test.go which ships with the route; ensure the failing commit exists).",
+      "Design claims RLS is \"enforced\" and runtime role is non-BYPASSRLS, but no test or migration asserts the runtime DB role lacks BYPASSRLS/superuser; checklist item 3 is unproven for an endpoint that reads global authority state."
+    ],
+    "MAJOR": [
+      "Migration gap: AC-4 references migrations 0016/0018, dependencies list 0016\u20130019, but affected_files only include 0018/0019; if 0016/0017 are prerequisites, the scope guard will reject legitimate changes or the AC is unsatisfiable.",
+      "Timeout handling: PF_DB_DSN context timeout alone does not cancel server-side work; without `statement_timeout` (or equivalent) in the session, `count(backlog_items)` can keep running after 503, compounding load during outage.",
+      "`PF_ADMIN_TOKEN` comparison mechanism is unspecified; equality comparison is timing-unsafe \u2014 require `crypto/subtle` constant-time compare in the design contract.",
+      "Tenant query parameterization/`BindTenant` is asserted but not contractually specified (parameterized args, no string interpolation of `tenant`); this is an injection/RLS-bypass surface and must be pinned in the runtime_contract.",
+      "Per-request uncached `count(backlog_items)` scales with tenant size; a large tenant turns a readiness probe into a full scan and a recurring 503 source. Define staleness tolerance and/or an estimated-count or materialized approach.",
+      "No alert lead-time/circuit-breaker: repeated 503s during DB outage will hammer the pool from every probe caller; define backoff/cooldown and a downstream-dependency alert threshold."
+    ],
+    "MINOR": [
+      "`ac_evidence[].sha` is empty for all ACs; evidence is not pinned to a commit, weakening current-run evidence requirements.",
+      "Rollback drops 0018 counter (global authority table) via down migration; state that this is acceptable because the row is derived/reconstructible, and verify down-migration runs without locking writes.",
+      "Endpoint exposes `next_id`/`reservation_count` to any holder of the admin token with no rate limiting or audit log line for admin reads; add an audit log for admin surface access.",
+      "Prometheus rules file is added but no dashboard/alert ownership or `runbook` linkage to on-call rotation is stated (checklist 2/10).",
+      "`needs_api` decision (checklist 8) is not explicitly declared; path is designed but the API-decision record is missing."
+    ],
+    "NIT": [
+      "Route name `authority` at `/admin/backlog/authority` is clear, but consider a versioned path or documenting contract in a shared API spec for reuse by future endpoints (CL-001 ownership registration).",
+      "`item_scope=tenant` / `reservation_scope=global` literal strings should be pinned as an enum in the contract to prevent future drift."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound: fail-closed 503s, admin-only, tenant-forced, Go-shipped logic, and rollback ordering all meet the guardrails. Top risks: unproven non-BYPASSRLS runtime role, migration-scope gap (0016 vs affected_files), unspecified constant-time token compare and tenant parameterization, and an uncached full-table count that can turn a readiness probe into an availability incident."
+    ]
+  }
+}

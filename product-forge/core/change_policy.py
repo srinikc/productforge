@@ -54,6 +54,8 @@ _DEFAULTS: dict[str, Any] = {
                       "templates/", "pipeline_templates/", "security/", "issues/",
                       "engineering/", "pipeline/", "test-framework/"],
     "escape_env": "PF_ALLOW_PY_SHIPPED",
+    "edit_growth": {"max_edit_added_lines": 60, "min_new_defs": 1, "min_new_branches": 5,
+                    "sensitive_edit_added_lines": 20, "allow": []},
 }
 
 _loaded: dict[str, Any] | None = None
@@ -68,9 +70,14 @@ def policy(force_reload: bool = False) -> dict[str, Any]:
     try:
         with open(_CONFIG, encoding="utf-8-sig") as f:
             data = json.load(f)
-        for k in _DEFAULTS:
-            if isinstance(data.get(k), list):
-                p[k] = data[k]
+        for k, dv in _DEFAULTS.items():
+            val = data.get(k)
+            if isinstance(dv, list) and isinstance(val, list):
+                p[k] = val
+            elif isinstance(dv, dict) and isinstance(val, dict):
+                merged = dict(dv)
+                merged.update(val)
+                p[k] = merged
     except FileNotFoundError:
         pass  # defaults remain: fail-closed via shipped_roots, never a crash
     except Exception:

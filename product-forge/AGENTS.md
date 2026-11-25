@@ -59,6 +59,16 @@ Step 6: Closeout (after merge)
 - This product is **Product Forge**. The token `factory` must never be stored or surfaced
   (legacy read-compat shims are allowlisted in the audit only).
 
+## Two delivery planes
+- **Plane A:** an AI coding session builds Product Forge itself. The runtime (OpenCode, Codex,
+  Antigravity, etc.) is an optional adapter.
+- **Plane B:** Product Forge builds another product using its own agents, backlog, scheduler, and gates.
+
+This `AGENTS.md` governs **PF-SB / Plane A** and the Product Forge repository. PF-GP / Plane B
+(generated products) uses the generated product's own AGENTS/backlog and pipeline rules. Both planes
+use the same principles, but they have separate backlog scopes and repositories. See
+`docs/E2E-WORKFLOW.md`.
+
 ## Structure (binding)
 Read and follow `docs/STRUCTURE-CONTRACT.md` + `config/store-registry.json`.
 **Before adding anything (feature, module, store, config, agent, skill, stage, API, test, report): follow
@@ -69,11 +79,61 @@ Route every addition by kind:
 - detail/evidence → attach to the owner store and reference `item_id`
 - new concern → register in `config/store-registry.json` with a single writer
 
+## Canonical documents (SSOT)
+These are the single sources of truth. If an agent prompt or a generated/legacy document conflicts,
+the canonical document wins and the prompt/document is corrected.
+
+- **Gate process:** `docs/REVIEW-GATES-LIFECYCLE.md` (Gate 0, Gate 1.5, Gate 2.5, Gate 1/2).
+- **Design delta review:** scoped to changed design fields only; full design is context, not re-review target. See `docs/REVIEW-GATES-LIFECYCLE.md#design-delta-reviews-fix-verification-only`.
+- **Agent role contracts:** `docs/AGENT-ROLE-CONTRACTS.md`.
+- **End-to-end workflow:** `docs/E2E-WORKFLOW.md` (Product Forge self-build vs generated products).
+- **Runtime adapters:** `docs/AGENT-RUNTIME-ADAPTERS.md` (OpenCode/Codex/Antigravity are optional adapters).
+- **Engineering behavior/tests/evidence:** `docs/ENGINEERING_OPERATING_STANDARD.md` (EOS).
+- **Compact work execution rules:** `docs/WORK-EXECUTION-CONTRACT.md`.
+- **Design/runtime-proof standard:** `docs/DESIGN-QUALITY-RCCA.md`.
+- **Design template/schema:** `templates/DESIGN-PACK.md` + `config/design-pack.json`.
+- **Per-item design:** `engineering/design/<ITEM-ID>.md`.
+- **Per-item review evidence:** `engineering/reviews/<ITEM-ID>-<sha>.json`.
+- **Per-item execution trail:** `engineering/trails/<ITEM-ID>.json`.
+
+Agent prompts are runtime-specific adapters, not policy. For Product Forge gates, the canonical
+role contracts are in `docs/AGENT-ROLE-CONTRACTS.md`; the canonical reviewer is its Architect
+reviewer section. Runtime adapters may map a role to a local file, model, or permission set, but
+must not define a second process. Legacy generated prompt inventories and backup/standard prompt
+trees are not authority.
+
+Reviewers never edit source, tests, design, backlog items, approvals, or gate state. They return
+findings; the worker/orchestrator writes item-bound evidence. Implementers are the only writers of
+implementation files, and only after Gate 1 approval. `docs/review.md` is retired and is never an
+approval artifact.
+
 ## Standards (binding)
 Follow **`docs/ENGINEERING_OPERATING_STANDARD.md` (EOS)** for every change: feature branch (never commit to
 `develop`/`main` directly), 360° dependency analysis, fail-closed gates (unknown ⇒ blocked), run-bound evidence,
 atomic single-writer state, authorization at the boundary, tests that can fail, and the Definition of Done.
 Root-cause every defect via **`docs/RCCA_productForge.md`** (5-Why + a new guard).
+
+## Senior Enterprise Architect & Staff Principal Engineer Operating Standard (binding)
+Every agent, subagent, and contributor working in this repository must operate under these **19 Mandatory Senior Enterprise Architect Guidelines**:
+1. **Guiding Principle:** Think → Design → 360° Systems Check → Backlog (API-only). Every item has context, brief, parent epic, and detailed AC (>= 40 chars). Backlog operations are strictly API-only (`core.backlog` with `$env:PF_EDP_TOKEN`), never direct file edits.
+2. **Feature Branch Isolation:** Strictly 1 item per branch (`feat/<ITEM-ID>-<slug>`). Tooling/process changes belong in a separate branch, backlog item, and PR. Stitched/wired without shortcuts.
+3. **Modular, Scalable & API-First:** Design/implement API endpoints following canonical schemas. Verify E2E against AC before declaring Definition of Done (DoD). Run dedicated tests before merge/push.
+4. **Framework Agnostic & No Legacy Dashboard:** Product Forge is framework agnostic (never reference OpenCode in runtime code). The existing dashboard is legacy/frozen—never depend on it.
+5. **Systemic RCCA (No Band-Aids):** When issues occur: Raise issue → 5-Why RCCA → Backlog item. Extend existing functionality cleanly or obtain approval for new components.
+6. **Plain-Language Summary & Approval:** State Epic #, Backlog #, title, what is changing, why it is needed, and present an Impact-Review table (LANGUAGE, API, AC) for approval before coding.
+7. **Delivery Lane Compliance:** Follow canonical delivery lane (`deliver.py`), merge `--no-ff` to `develop`, and push with delivery provenance stamped.
+8. **Reconciliation Before Implementation:** Mandatory for every change.
+9. **RECONCILIATION Block:** Author `PRIOR DECISIONS`, `EXISTING PATH` (`file:line`), `ASSUMPTIONS`, `DIVERGENCES`, and `OPEN QUESTIONS`.
+10. **Zero Unconfirmed Assumptions:** Every assumption requires explicit operator confirmation before implementation.
+11. **Zero Silent Divergences:** Re-scoping or design changes must amend decision records first.
+12. **Append-Only Decision Ledger:** Implementations cite recorded decision ledgers.
+13. **Zero Extrapolation of Unknowns:** Unknowns are investigated in code (`file:line`), never guessed.
+14. **Explicit Risk & Mitigation:** Plainly state Mitigated vs Open risks with concrete mitigations.
+15. **Reuse & Simplicity:** Reuse existing owners first; scope strictly to the change (no drive-by refactoring); ruthlessly delete dead code/unused imports introduced by the change.
+16. **Stay Close to Develop:** Run `python scripts/dev/sync_develop.py` at task start and fold in develop frequently via merge (never rebase/reset).
+17. **Binding Language Rule:** New shipped/sensitive logic → Go; extending existing shipped Python → Python edits OK (subject to 60-line growth threshold); tooling/tests/CI/docs → Python OK.
+18. **1-Line Plain Language Context:** Always state a 1-line plain language explanation before every shell command, gate, or action.
+19. **Strict Tooling Discipline:** 1. Read file; 2. Edit exact block (or Write new file); 3. Shell only for tests/gates/git; 4. Show `git diff --stat` after changes.
 
 1. **One truth per concern, one writer per file.** Only the owning module writes a store.
 2. **Work items live in the backlog** (`core/backlog.py`) — one backlog per scope
@@ -126,6 +186,21 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   run it automatically. The derived backlog files (history / indexes / counters + the generated docs)
   auto-resolve via the `merge=pf-derived` driver; a **source** conflict aborts cleanly and is resolved by hand.
 
+## Tool usage (binding — BI-PF-1484)
+
+Use the efficient, traceable path:
+
+1. **Existing source/config/test/doc** → `Read` then `Edit` (exact match). Do not blind-overwrite.
+2. **New source/config/test/doc** → `Write`.
+3. **Generated artifacts** (design packs, docs index, derived backlog) → run the **generator**; never hand-edit.
+4. **Shell writes** (`Set-Content`, `write_text`, here-strings) are allowed only for bulk/generated output or
+   when the explicit tool cannot handle the file. Never for `go.mod`, code, config, or tests.
+5. After any shell write: run `git diff --stat`, `python scripts/dev/encoding_check.py`, and the targeted test.
+6. `python scripts/dev/encoding_check.py` fails changed files with a UTF-8 BOM/invalid UTF-8; it is in precheck.
+
+Why: explicit tools are visible, guarded (read-first/exact-match), encoding-safe, and cheaper than re-sending a
+whole file; shell `Set-Content` on PowerShell 5.1 adds a BOM and has already broken `go.mod`.
+
 ## Review & communication standard (binding)
 
 Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Gate 2** = approve delivery),
@@ -141,13 +216,15 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
    sign-off)** · technical details (files/tests) · a **Recommendation** banner (APPROVE / APPROVE WITH
    ATTENTION / NEEDS REVIEW) · the exact decisions requested.
 3. **Language-rule assessment at take-up.** During backlog review / Gate 1 (BEFORE implementing), run
-   `python scripts/dev/language_rule_review.py <item>` and cite the verdict: new logic in **Go** vs **edits**
+   `python scripts/dev/language_rule_review.py <item>` and cite the verdict: new logic in **Go by default** vs **edits**
    to existing shipped Python (allowed) vs **new shipped Python needing an allowlist entry** (needs approval).
    This is the SAME policy precheck enforces (`scripts/dev/language_rule_check.py`, fast band) — decide it once,
    up front, so it is not re-asked during implementation. If the item carries an **approximate**
    `planned_change` = `{path: {added, removed, new_defs, new_branches}}`, the SAME run also gives the **size**
    verdict (a large edit to shipped Python is new logic → Go) — an estimate is fine at Gate 1; the enforcing
    gate still evaluates the real `git diff`.
+4. **Single-pass spec and design authoring.** Functional specs (`engineering/specs/<ID>.md`) and durable
+   design packs (`engineering/design/<ID>.md`) are authored synchronously in a single pass before Gate 1.5.
 
 ## Review gates (binding — full chain in `docs/REVIEW-GATES-LIFECYCLE.md`)
 
@@ -155,11 +232,15 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
 the Gate 1 (design) review**, and the **Gate 2.5 findings + recommendation are part of the Gate 2 (delivery)
 review** — HIL must decide with them visible (never a separate, easily-skipped artifact).
 
+**Gate 0 precedes design review:** the worker/design author records the reconciliation, impact table,
+language/API checks, and AC in the item/design/trail and runs `scripts/dev/gate0_check.py`. Gate 0
+is not an approval.
+
 **Reviews precede HIL at each stage (the review informs the human decision):**
 **Gate 1.5 (design review)** → Gate 1 (design/HIL approval, *informed by 1.5*) → implement →
 **Gate 2.5 (second-model Architect delivery review** — fresh context, configurable model default `mimo-v2.6-flash`/
 rotatable, advisory-vs-blocking split, results stored as evidence) → Gate 2 (delivery review + independent AC
-verification, *informed by 2.5*) → precheck fast → PR/CI → merge gate → **closure guard** → delivery provenance → DoD.
+verification, *informed by 2.5*) → precheck fast (PR CI) → merge gate → **closure guard** → 1-hr develop sweep → DoD.
 
 **Gate 2.5 is a HARD rule (BI-PF-1428):** the *model run* stays out of precheck, but precheck fast runs
 `scripts/dev/architect_review_check.py` (deterministic/offline) — a **code / schema / security** change **fails
@@ -197,8 +278,8 @@ Before implementing **any** new design, flow, review recommendation, or external
 2. Check it against the governing plan
    (`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md`), the canonical
    owners (`config/store-registry.json`), the authoritative API surface (`api/`), and the fixed decisions
-   (one writer per concern; no duplicate engines/stores; legacy dashboard frozen; OpenCode is an adapter, not a
-   dependency; the two independent entry paths).
+   (one writer per concern; no duplicate engines/stores; legacy dashboard frozen; client runtimes are adapters,
+   not dependencies; the two independent entry paths).
 3. Produce an **IMPACT REVIEW** table:
    `claim | verdict (aligned | violates | new-path | derails | stale) | evidence (file:line) | recommendation`.
    The table **MUST** include an **`API CHECK`** row (mirroring the language-rule row): `needs_api` (true/false) +
@@ -236,11 +317,10 @@ For every item, before merge:
 3. **Lint/static** — `python scripts/dev/lint_check.py` clean (ruff, scoped to changed files). It is **advisory**
    today because the legacy tree predates lint; it flips to `--strict` (fatal) once the changed-file debt is
    cleared, and is part of `precheck` either way.
-4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (fast default; `--full` at merge/CI; `--release`
-   for the periodic full-tree secret sweep — the per-merge secret scan is diff-scoped, BI-PF-0385) (compile,
-   wired-audit, api-contract/governance,
-   engineering-flow/task-contract/scheduler/vcs-worktree/worker/github/intent-trace, backlog-e2e, docs-fresh,
-   secret-scan, pipeline tests).
+4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (fast default, diff-scoped; PR CI runs fast tier;
+   exhaustive `--full` runs on a 1-hour scheduled GitHub Actions sweep on `develop` with automated issue logging).
+   Atomic finalization (`python scripts/dev/finalize_item.py --item <ID> --auto-bundle`) stamps AC verification,
+   DoD, and trail milestones in one command.
 5. **Link evidence** on the backlog item (artifact/test descriptors) so `intent_trace_check` verifies it.
 6. **Merge to `develop`** with a controlled merge **immediately** after green — do not leave completed work
    stranded on a side branch.

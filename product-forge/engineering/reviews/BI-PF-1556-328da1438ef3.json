@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1556",
+  "sha": "328da1438ef3",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T10:08:24.323904+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+  "findings": {
+    "BLOCKER": [
+      "The design explicitly excludes \"Database schema backward-incompatible truncation rollback\" from scope. If deployments can include backward-incompatible schema changes, this creates a critical data integrity and system stability risk, as the code rollback would leave the database in an incompatible state. This is a fundamental gap for enterprise-grade automated rollback."
+    ],
+    "MAJOR": [
+      "The `api` contract for `/api/v1/health` specifies `auth: none`, which conflicts with `CTRL-01` requiring \"strict tenant isolation and authentication on post-deploy smoke probe execution\". This ambiguity could lead to inadequate verification of authenticated and tenant-isolated application behavior.",
+      "The design does not explicitly address the availability and resilience of the `rollback_orchestrator` itself. If the orchestrator fails during or after a deployment, the system may be left in an unhealthy state without the ability to automatically roll back.",
+      "The \"Manual operator override to force deployment retention\" lacks specified authorization, auditability, and logging mechanisms, which are critical for security and compliance of such a powerful control."
+    ],
+    "MINOR": [
+      "The design does not explicitly define data retention or redaction policies for the \"comprehensive failure evidence, diagnostic logs, and incident report\" stored in the deployment evidence ledger. This is important for compliance and storage management.",
+      "While `CTRL-04` ensures logging, the design does not explicitly mention emitting metrics (e.g., rollback duration, success/failure rates) to provide quantitative observability for the rollback process."
+    ],
+    "NIT": [
+      "The `files` contract for evidence storage lists \"local / S3 / MinIO\" as options. It is not explicitly stated which storage backend will be used in production or how this choice is configured."
+    ],
+    "SUMMARY": [
+      "The design establishes a solid foundation for automated code rollback, incorporating strong testing and observability for the defined scope.",
+      "The explicit exclusion of database schema rollback for backward-incompatible changes presents a significant enterprise integrity risk if such changes are part of deployments.",
+      "Further clarification is needed on the authentication strategy for smoke tests and the resilience of the rollback orchestrator itself to ensure robust, end-to-end reliability."
+    ]
+  }
+}

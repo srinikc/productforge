@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1477",
+  "sha": "affb1e914d7d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:08:38.156176+00:00",
+  "findings": {
+    "BLOCKER": [
+      "- none"
+    ],
+    "MAJOR": [
+      "`transitions()` calls `_git(\"diff\", \u2026)` without `allow_fail`, so a missing `develop`/`origin/develop` (common in shallow or feature-branch CI checkouts) now raises RuntimeError where it previously returned empty \u2014 this can break the module's documented `--report exits 0` contract unless an unshown entrypoint catches it.",
+      "`_load` reads the working tree (`p.read_text`) while diffing `base..HEAD`: uncommitted edits or local deletions flip the count (locally reverted `completed` \u2192 undercount; file present in HEAD but deleted in worktree \u2192 silently `None`/skipped). Fail-open relative to the AC's fail-closed intent; committed state should be read via `git show HEAD:rel`.",
+      "`store-registry.json` gains a root-level wildcard `BI-TEST-*.json` with no explanation and outside the AC scope; depending on the list's semantics it either ingests test artifacts into an item store or excludes genuine `BI-TEST-*` items from tracking \u2014 needs justification and anchoring to a directory."
+    ],
+    "MINOR": [
+      "`transitions()` emits an extra JSON line on stderr (skip event), violating the module's stated \"Output is one JSON line on stderr\" contract for strict downstream parsers.",
+      "The skip event reports only a count, not the skipped paths; without path-level detail the original \"silently skipped\" problem is only half solved for operators.",
+      "AC states JSONDecodeError propagates, but it is converted to RuntimeError (chained via `from e`); callers or tests matching JSONDecodeError will never observe it.",
+      "`_git` has `timeout=20` but does not catch `subprocess.TimeoutExpired` (only `_repo_root` does); a slow git call produces an uncaught traceback and non-JSON stderr instead of a structured failure.",
+      "`git show base:rel` uses `allow_fail=True`: any failure (invalid base, corrupt object) collapses to `prev={}` \u2192 status not DONE \u2192 item counted as a fresh transition (fail-open on the baseline side).",
+      "id-blocks ledger: `reserved_up_to` jumps 1470\u21921477 with no session recording IDs 1470\u20131476; verify those were reserved by other machines, otherwise the allocation ledger has an unexplained gap (leak, not collision).",
+      "No test covers the new skip event or asserts the printed end-to-end completion count; coverage stops at `_load`/`transitions` units, leaving the AC's \"gate prints the real completion count\" unproven."
+    ],
+    "NIT": [
+      "`import pytest` is added for `pytest.raises` only \u2014 confirm the test-framework runner is pytest, since the file previously had zero third-party deps.",
+      "`functools.lru_cache` on `_repo_root` is process-global; safe today only because tests monkeypatch the name \u2014 a mid-process repo-root change would serve stale data.",
+      "`Path.resolve()` follows symlinks, so a legitimate in-repo symlink pointing to a shared items directory outside the top-level now fails closed as \"escapes the repo root\" \u2014 confirm that layout is impossible.",
+      "Per the language rule, this is tooling Python / an edit to shipped Python; worth stating explicitly in the PR so it isn't later read as \"new shipped logic \u2192 Go\"."
+    ],
+    "SUMMARY": [
+      "Direction is right: git-top-level resolution, fail-closed loading, and focused temp-repo tests directly address the AC and remove the old product-forge/ROOT join bug.",
+      "Top risks are behavioral regressions around git failures (potential `--report exits 0` break), still evaluating working-tree rather than committed HEAD content, and an unjustified out-of-scope store-registry wildcard.",
+      "Before merge: confirm entrypoint exception handling, switch reads to `HEAD:rel`, and justify or drop the `BI-TEST-*.json` registry pattern."
+    ]
+  }
+}

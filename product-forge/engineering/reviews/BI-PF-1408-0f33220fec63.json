@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1408",
+  "sha": "0f33220fec63",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`_expected_status` cannot represent \"exists on file, intentionally retained\": ~15 file-backed stores flipped `retained` \u2192 `pending`, so the registry now asserts outstanding migration work that was deliberately never done; retention/recovery planning data is degraded and the gate now *enforces* that loss.",
+      "Relationship edges ship with `\"verified\": true`, but `check()` only asserts child-table/column existence against regex-parsed SQL; no FK constraint in any migration is ever inspected \u2014 an unverified claim is persisted as fact and gated as evidence.",
+      "Two sources of truth for relationships: `SEED`/`REQUIRED` hard-code edges (with owners BI-PF-1307/1311/1312/1313/1399) while the committed registry lists them all under BI-PF-1309; `--apply` only seeds when empty, so the two drift silently and `owner_item`/`verified` differ from what the code would regenerate.",
+      "Schema ground truth is regex-scraped from `migrations/*.up.sql` only; tables/columns created by any other path (Go migrations, views, programmatic DDL) are invisible, and the column regex matches `PRIMARY KEY`/`FOREIGN KEY`/`CONSTRAINT` lines as columns \u2014 brittle single point of failure for a blocking gate.",
+      "`--apply` both writes the registry and auto-flips `target.status` planned\u2192exists based on backlog item status; a gate script that mutates authoritative data blurs read-only CI semantics and can mark a target delivered without human review."
+    ],
+    "MINOR": [
+      "CI runs `_report(..., verbose=False)`, printing only the first 20 of possibly many failures \u2014 hides root cause in the exact scenario (bulk drift) the gate exists for.",
+      "`_self_test` indexes `stores[\"open.json\"]` and `next(iter(...))` directly; renaming that store turns a negative test into a KeyError traceback rather than a diagnosed failure.",
+      "`OBJECT_META = {\"artifacts\", \"stored_objects\"}` and `REQUIRED_TRIGGERS` hard-code allowlists in the script; any new object bucket or trigger rename breaks the blocking gate with no config-level escape hatch.",
+      "`_counts` silently drops unrecognized `migration_status` values, so the reported `migrated+retained+pending` can be less than `stores=` without any flag.",
+      "Gate id/command duplicated in `ci-cd-gates.json` and `precheck.py` `_GATES` + `_GROUP_OF`; divergence risk as the gate list grows (pre-existing pattern, now extended)."
+    ],
+    "NIT": [
+      "`kind` values checked (`view`) fall outside the acceptance enum `table|file|derived|object-store`; enum should be defined once and shared.",
+      "`copy.deepcopy` of the whole registry per negative scenario is unnecessary; clone only the mutated subtree.",
+      "`retained` target status is accepted by `_expected_status` but no store uses it, and `check()` never validates `target.status` against an enum."
+    ],
+    "SUMMARY": [
+      "Solid wiring (precheck fast + ci-cd-gates + 3 negative self-tests) and the gate fails closed, but the change overwrites curated classification state (`retained`\u2192`pending`) with a lossy derivation and stamps `verified: true` on edges nothing actually verifies against migrations \u2014 integrity of the registry as evidence is the top risk. Secondary risks: regex-only schema parsing as a blocking gate's ground truth, and duplicated relationship truth between `SEED` and the registry data."
+    ]
+  }
+}

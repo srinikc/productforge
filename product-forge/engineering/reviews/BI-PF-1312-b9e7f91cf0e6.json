@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "b9e7f91cf0e6",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`pfaudit-swap backup` runs `pg_dump -t audit -t audit_id_seq`, but 0014 \u00a71 has already renamed the live sequence to `audit_legacy_id_seq`; the encrypted dump therefore omits the real counter and references a sequence it does not contain, so the restore rehearsal (`pg_restore -l` only asserts `audit_id_seq`) passes while the rollback path is actually broken and risks id reuse.",
+      "Migration 0014 is not re-appliable after a committed swap: `CREATE TABLE IF NOT EXISTS audit_partitioned` recreates an empty shadow table that shares the live `audit_id_seq`, and `RestoreMonth` then imports cold months into that non-live table \u2014 a direct violation of the \"safe to re-apply\" AC.",
+      "`ExportMonth` reads leaves through a pool connection, and every leaf has `FORCE ROW LEVEL SECURITY` with only `tenant_isolation` (no `owner_bypass`); a non-superuser operator silently exports 0/filtered rows, records that manifest, and `audit_drop_partition` then drops the hot month \u2014 real data loss with no count cross-check."
+    ],
+    "MAJOR": [
+      "`RestoreMonth` creates the scratch partition on `audit_partitioned`, which no longer exists post-swap (renamed to `audit`); cold restore is dead code exactly when it is needed.",
+      "`Down()` renames tables/sequences back but performs no copy-back of rows written to the partitioned table after the swap; those events are stranded in the shadow while the flat `audit` becomes live again.",
+      "`audit_append_late` creates `audit_late_YYYYMM` over the same `[from,to)` range a later `audit_attach_partition`/`audit_ensure_partitions` pass may claim; the overlap error is not one of the swallowed `42P07/unique_violation` cases, so a later insert path can hard-fail.",
+      "`AuditStore.Append`'s 23514 heal calls `audit_ensure_partitions()` with no argument (current+horizon only); a future-dated or historical-`at` event fails again and is lost, and no `audit_insert_out_of_range_total` metric is emitted on either attempt.",
+      "`audit_attach_unhardened_total` is declared in `metrics.go` but never incremented anywhere; the SQL detection only RAISEs, so the AC-required signal and its alert never fire.",
+      "Both CLIs only construct `objstore.NewLocalStore`; the SSE-KMS `ObjectStore` path required by the AC is unreachable, and `PF_AUDIT_SSE` is unset by default, so cold archives and backups can be stored with no server-side encryption.",
+      "`RestoreMonth` computes and compares the archive SHA-256 only after streaming rows into the live table; a corrupt/truncated object contaminates the hot table before detection.",
+      "The AC-required round-trip restore test (cold re-import into an RLS-protected scratch leaf proving tenant isolation survives) is missing; the suite only asserts restore of a *purged* month fails."
+    ],
+    "MINOR": [
+      "`DetectState`'s `!shadow && !legacy` branch returns `StateNotPrepared` even when `audit` is partitioned, making `StateDone` unreachable and mis-reporting a completed migration as un-prepared.",
+      "Migration 0004 was edited after shipment (role-guard DO block); if `migrate` tracks file checksums this invalidates already-applied databases \u2014 and the same risk applies to any re-application of the rewritten 0014.",
+      "`VerifyHoldExtraction` reports the *total* archive row count as `archived`, so a partial extraction with `missing=0` for the currently-held rows still looks healthy.",
+      "`PurgeMonth` deletes objects before `audit_mark_purged`; a failure between the two leaves the manifest un-purged with the objects already destroyed.",
+      "`CheckConfig` hard-fails on any DB-side config drift, contradicting the \"config update applies immediately\" property for the swap tool.",
+      "`MetricHoldAfterPurge` is incremented for un-archived hold rows \u2014 a different condition than hold-after-purge spoliation, diluting the alert.",
+      "`close` records `swap_closed` before deleting the dump; a delete failure leaves a \"closed\" record with a live backup (or the inverse).",
+      "Swap emits `audit_swap_freeze_seconds` as a gauge but never asserts it against the documented budget, as the AC requires."
+    ],
+    "NIT": [
+      "`audit_drop_partition`'s grace-partition guard compares `relname` against `audit_grace_%` after the name regex has already excluded grace names \u2014 dead code that reads as protection.",
+      "`ExportMonth`/`RestoreMonth` build SQL by string concatenation on validated identifiers; a quoting/identifier helper would make the safety invariant explicit and reusable.",
+      "`Down()` runs its archive/hold gate before `DetectState`, so `--down` can be attempted from an unexpected catalog state and fail mid-transaction with a confusing error."
+    ],
+    "SUMMARY": [
+      "Solid overall shape: catalog-driven resumable swap, privilege-enforced hardening, two-stage retention and append-only state events match the ADRs and the Go-over-SQL rule.",
+      "The three blockers all sit on the rollback/evidence path: the pre-swap backup dumps the wrong sequence, the migration is not safely re-appliable post-swap, and export/drop can silently destroy hot data under FORCE RLS.",
+      "Cold restore is effectively non-functional post-swap (wrong parent, verify-after-write), the unhardened-attach and out-of-range metrics are declared but never emitted, and the required restore round-trip test is absent.",
+      "Recommend: fix blockers, wire the SSE-KMS adapter and missing metrics/tests, then re-run the Postgres-16 integration suite against a post-swap re-application and a real restore round-trip."
+    ]
+  }
+}

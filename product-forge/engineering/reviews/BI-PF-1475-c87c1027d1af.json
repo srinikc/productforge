@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "c87c1027d1af",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:46:26.699361+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Object keys `intake/<sha256>`/`builds/<sha256>` are global, not tenant-prefixed: isolation depends solely on metadata RLS; any actor with raw PF_OBJECT_ROOT read access can cross-tenant read. Need an explicit statement that object-layer access is only via the RLS-bound service, plus a test for direct-key non-leakage.",
+      "Concurrent ingest of the same tenant+logical_name can race on `revision=next per tenant+name` despite ON CONFLICT DO NOTHING (read-max-then-insert isn't atomic); needs SELECT ... FOR UPDATE or a DB-side sequence to keep the idempotency invariant.",
+      "Runtime DB role posture not stated: checklist 3 requires confirming the ingestion role is not BYPASSRLS/superuser and that BindTenant can't be bypassed; design only asserts RLS via the port.",
+      "Observability gap (checklist 10): only a CLI JSON report is specified \u2014 no metrics/log fields (ingest duration, bytes, drift count, failure reason) for the service; failures in scheduled/automated runs would be invisible.",
+      "`Head` checksum comparison assumes the object store surfaces sha256 on HEAD; if it does not (common for S3-compatible stores without checksum headers), `--verify` silently passes on the third leg. Design must specify the checksum source or fail closed when absent."
+    ],
+    "MINOR": [
+      "Registry targets are flipped to `exists`/`migrated` before any bytes are ingested (backfill_status=pending is honest, but `migration_status=migrated` with zero ingested objects over-claims); consider ordering the flip after a successful first `pfingest` run or documenting the semantics explicitly.",
+      "No `--dry-run`/report-only mode for `pfingest` (checklist 4); ingest isn't destructive, but operators need a pre-flight that shows planned writes without mutating.",
+      "Availability path unspecified: behavior when the object store or DB is down (retry/backoff, fail-closed, alert lead-time) is only implied by \"fails closed\" for size caps.",
+      "New standalone `go/intakeingest/go.mod` risks drifting from the repo's shared Go module/dependency pinning; confirm whether it should be a package in the existing module.",
+      "`store-registry` + `STORE-DATAFLOW.md` regeneration and the `gate0_check.py` path fix are two concerns in one item; the note says separate commit, but the design should bind the ordering so a revert doesn't strand generated docs."
+    ],
+    "NIT": [
+      "Content-addressed reuse means a reverted run leaves untracked objects; objreconcile orphan reporting is out of scope \u2014 ensure the report is actually emitted somewhere durable rather than only \"reported\".",
+      "`run_id` generation method (uuid vs timestamp) is unspecified; pin it in the schema doc to keep the pinned contract `pf.intake-ingest/1` stable.",
+      "Per-file status enum `skipped` should explicitly cover \"unchanged + already verified\" vs \"unchanged but unverified\" to avoid conflating idempotent skip with verify-pass."
+    ],
+    "SUMMARY": [
+      "Solid, reversible design that reuses existing ports, honors the language rule, and pre-empts over-claiming via backfill_status=pending.",
+      "Top risks: cross-tenant exposure at the raw object-key layer, a revision-allocation race undermining the idempotency AC, unverified assumptions about Head checksums, and thin observability for an operator-facing tool.",
+      "No blockers; resolve the MAJORs before Gate 1.5 sign-off."
+    ]
+  }
+}

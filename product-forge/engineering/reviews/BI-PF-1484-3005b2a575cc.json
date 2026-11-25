@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "3005b2a575cc",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:54:48.366127+00:00",
+  "base_sha": "426289ce5a2f29598045c6925da72fca080f02f2",
+  "head_sha": "191b9e61cd8d455f2d0a937db7c011e75d20281c",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`architect_review_check.py`: reconstructed evidence path `EVID / f\"{d.get('item')}-{d.get('sha')}.json\"` can be a nonexistent \"None-None.json\" (missing keys), yet the gate prints \"OK\" and exits 0 \u2014 the merge/AC gate passes on a phantom evidence file. Verify file existence before accepting `hits`.",
+      "`architect_review_check.py`: `valid_bases` is seeded with every historical evidence `head_sha`, so any stale/unrelated prior head satisfies the base check \u2014 this materially weakens \"evidence matches this diff\" into \"evidence matches any past commit\". Restrict to merge-base (and explicitly whitelisted re-review chains) with a stated rule.",
+      "`architect_review.py` `_prior_context`: `key=lambda p: json.loads(...)` runs outside the try/except, so a single corrupt/truncated JSON in `engineering/reviews/` now crashes re-review (previously skipped by the loop's try). Restore per-file guard.",
+      "`finalize_item.py` `total_time_ms`: uses `evs[-1][\"at\"] - evs[0][\"at\"]` with no guarantee `evs` is sorted by `at`; a negative or wildly wrong total persists into the immutable final report. Clamp to >=0 and sort or document ordering invariant.",
+      "none"
+    ],
+    "MINOR": [
+      "`architect_review.py` `_prior_context`: leftover `if False: files = []` dead branch shipped \u2014 clear debug residue, signals unreviewed edit and confuses future maintainers.",
+      "`disposition_policy.py`: severity precedence flipped (config `sev` map now overrides the finding's stored `severity`) with no stated rationale or test; this silently changes which findings may be DEFERRED versus the prior behavior.",
+      "`finalize_item.py` `gate_decisions` filter removed \u2014 now persists all `it[\"decisions\"]`, including non-gate/noise entries; the AC asks for gate decisions. Either re-filter by decision kind or document the schema as \"all decisions\".",
+      "`finalize_item.py`: re-imports `datetime` inside the function shadowing the module-level import; move to top-level for clarity.",
+      "`finalize_item.py` `total_ms` fallback (`sum(duration_ms)`) has different units/semantics than the primary calculation \u2014 two subtly different \"total time\" definitions under one field; define one contract."
+    ],
+    "NIT": [
+      "`architect_review_check.py` inner loop recomputes `valid_bases` fully before the second pass; single pass would be simpler and avoid the two-phase divergence risk.",
+      "No test additions accompany any of these behavior changes (severity precedence, base validation, total_time, unfiltered gate_decisions) \u2014 coverage claim in AC remains unverified by this diff."
+    ],
+    "SUMMARY": [
+      "Diff improves re-review delta base handling and adds total_time, but ships real defects: a gate that can return OK on a nonexistent evidence file, an over-broad valid-base set that defeats the evidence-matches-diff invariant, and an unguarded JSON read that can crash re-review. Also carries debug residue (`if False:`) and two divergent \"total time\" semantics. Recommend fixing the false-OK gate and crash path before merge; re-check AC test coverage claims \u2014 none of the changed behaviors have tests here."
+    ]
+  },
+  "rereview_reason": "prior sha 57f02176fdd3; delta review of fixes",
+  "rereview_reason_sha256": "7ebc9e3e52c973d44c1e6ba1fa3a79a9aa885d4e6fa4b5ea5e081fe0ca9e2a26"
+}

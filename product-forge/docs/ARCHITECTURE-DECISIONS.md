@@ -18,6 +18,11 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0004](#adr-0004-feature--epic--children-backlog-model) | Feature ↔ Epic ↔ children (backlog model) | Accepted | 2026-10-08 |
 | [ADR-0005](#adr-0005-eventing--alerting-ssot-go-first-bus-python-thin-client) | Eventing & Alerting SSOT: Go-first event bus; Python thin client | Accepted | 2026-10-12 |
 | [ADR-0006](#adr-0006-enterprise-data-plane-postgresql-system-of-record-object-store-tenant-isolation-residency) | Enterprise Data Plane (PostgreSQL system of record, object store, tenant isolation, residency) | Accepted | 2026-10-13 |
+| [ADR-0007](#adr-0007-api-first---every-capability-is-a-secured-api-surface) | API-first - every capability is a secured API surface | Accepted | 2026-10-24 |
+| [ADR-0008](#adr-0008-service-topology---go-backed-capabilities-are-exposed-by-go-services) | Service topology - Go-backed capabilities are exposed by Go services | Accepted | 2026-10-24 |
+| [ADR-0009](#adr-0009-formal-retention-of-global-config-stores-design-systems) | Formal retention of global config stores (design-systems) | Accepted | 2026-10-24 |
+| [ADR-0010](#adr-0010-control-plane-evidence-tooling-exception-execution-trailcost) | Control-plane evidence tooling exception (execution trail/cost) | Accepted | 2026-10-25 |
+| [ADR-0011](#adr-0011-event-store-authority-postgresql-object-payloads-bus-as-transport) | Event store authority: PostgreSQL + object payloads; bus is transport | Accepted | 2026-11-13 |
 
 ## Template
 ```markdown
@@ -79,6 +84,7 @@ Go ramp cost. *We accept these; mitigated by contract-first + value-driven migra
 - A shipped package contains **no readable `.py`** (release gate).
 - New shipped features land in Go; `work_pull`/`scheduler` unaffected.
 - ADR-0001 is referenced by Epic A items and `BI-PF-0387`.
+- Delivery baseline formally ratified and specified in `docs/PF-DELIVERY-BASELINE.md` (`BI-PF-0387`).
 
 ---
 
@@ -437,3 +443,197 @@ its language, and services should integrate over network APIs.
 - Go-backed endpoints are served by Go services; no Python↔Go bridge exists on a request path.
 - Service-to-service calls are HTTP; the EDP/go capability services share the auth/tenant model.
 
+### ADR addendum: audit partitioning, retention and holds (EDP-20 / BI-PF-1312)
+
+**Decision.** Partition `audit` monthly by `at` (UTC) with a shadow-table swap, and treat retention as a
+two-stage pipeline (hot -> immutable cold archive -> audited purge) with row-level legal holds.
+
+**Why.** A single append-only table cannot be pruned without a full-table `DELETE` (which the append-only
+trigger forbids) and cannot scale indefinitely; partition `DROP` is the only safe prune. Enterprise
+retention requires that a drop is not the end of the data's life.
+
+**Constraints accepted (operator sign-off, Gate 1):**
+- PostgreSQL >= 14 (row-level BEFORE triggers on partitioned tables).
+- A privileged (`pf_owner`/superuser) `ATTACH PARTITION` outside the app boundary is **detected**
+  (`audit_assert_hardened`) and audited, not prevented.
+- Out-of-range writes **fail closed**; `audit_append_late` is the audited correction path.
+- The swap freeze is short but non-zero; the delta bound is enforced, not measured.
+- Evidence purged before a hold is recorded is unrecoverable (rejected at hold insert + spoliation alert).
+
+**SQL vs Go ownership (CL-001).** SQL owns single-purpose, set-based primitives (attach/harden/assert,
+candidates, mark, drop, extract); all orchestration, state machines, retries and object-storage I/O live in
+Go (`go/pfaudit`), which is the single writer for swap and retention.
+
+**Consequences.** New tables are `pf_owner`-only (no blanket RLS policy); `audit_legal_hold_archive` keeps
+tenant `SELECT` under `tenant_isolation`. `audit_id_seq` is the one canonical sequence name; `--down`
+restores the names and is gated on archives/holds plus an audited reason.
+
+## EDP-16 - Object lifecycle, signed URLs, reconciliation (BI-PF-1308)
+
+- **Lifecycle is an optional capability** (`datastore.LifecycleCapable`, found via `datastore.Lifecycle`), never
+  a widened base `ObjectStore`. Providers that cannot lock fail closed with `datastore.ErrUnsupported`.
+- **Retention modes**: `GOVERNANCE` is the default; `COMPLIANCE` requires `LifecyclePolicy.ComplianceOptIn=true`
+  and is a **one-way door** (cannot be shortened or released). Retention at Put is requested via
+  `PutOptions.Retention` + `RetentionMode` and always requires `Immutable`.
+- **Local filesystem** cannot lock: retention/lifecycle return `UnsupportedError`; `Immutable` rejects replacing
+  an existing object with different content (`ErrImmutable`).
+- **Signed URLs have ONE minting boundary** (`go/objpolicy.Mint`): method allowlist, TTL bounds (30s..15m,
+  default 5m), and the tenant taken from the authenticated context (`objpolicy.WithTenant`, wired by
+  `objpolicy.HTTPMiddleware` with a credential-validating resolver) - never a caller argument. Denials are
+  counted per tenant+reason (`objpolicy.Stats()`) with bounded logging.
+- **Immutable semantics**: local rejects replacing different content; S3 requires bucket versioning for
+  `Immutable` without retention (`UnsupportedError` otherwise). Retention at Put defaults to GOVERNANCE;
+  COMPLIANCE requires `ComplianceOptIn=true`.
+- **Reconciliation is read-only** (`go/objreconcile`): manifest vs `List`/`Head`, sha256 comparisons (never
+  ETags), deterministic versioned report; it never deletes or repairs.
+- **Ownership/modules**: each new package is its own module per the one-module-per-directory rule; the
+  `go-modules` gate discovers and tests all modules.
+
+# ADR-0009: Formal retention of global config stores (design-systems)
+
+**Status:** Accepted
+**Date:** 2026-10-24   **Deciders:** architecture + HIL   **Related:** BI-PF-1476, BI-PF-1439, BI-PF-0439
+
+## Context and Problem Statement
+`config/design-systems.json` is registered as a configuration store but had no recorded decision about where
+its data lives. The stale title suggested moving it behind `tool_settings`. The catalog holds global,
+read-only product metadata (product types, style, stack, palette, radius/type/motion dials, component set,
+a11y target); `tool_settings` is tenant-scoped (`tenant_id`), so storing a global catalog there would mix a
+global concern into a tenant partition and force duplicate rows per tenant.
+
+## Decision Drivers
+- One truth per concern; one writer per file (CL-001).
+- Global product metadata is not tenant data and must not be tenant-scoped.
+- Reversibility and no data migration for a store with no runtime rows.
+- Durable rationale that survives the closing of the work item.
+
+## Considered Options
+1. **Move into `tool_settings`** - rejected: tenant-scoped table, wrong ownership and needless duplication.
+2. **Formal retention as a file-backed global catalog** - chosen: matches the existing config pattern and
+   stays swappable when the Go writer lands.
+3. **Retain by default with no rationale** - rejected: the next contributor would re-propose the migration.
+
+## Decision Outcome
+**Chosen option:** "Formal retention as a file-backed global catalog" because the data is global, read-only,
+and not tenant-scoped.
+
+### Consequences
+**Positive:** no schema/data change; the owner remains `core/go_host.py` with the planned Go writer
+`go/pfcore/design_system.go` (BI-PF-1439); the registry carries a durable reason.
+**Negative:** the catalog remains file-backed, so a future multi-writer or tenant-specific requirement needs
+a new ADR. **Risks:** a contributor edits the registry without reading the ADR; mitigated by the gate check.
+
+### Confirmation
+- `python scripts/dev/store_registry_relationships.py` asserts the pinned retained tuple, non-empty
+  `retained_reason`, and a `decision_ref` that resolves to this ADR's index row and section.
+- `python scripts/dev/gen_store_dataflow.py --check` proves the generated inventory is fresh.
+- `python scripts/dev/precheck.py` passes with no schema or data change.
+
+### Supersede trigger
+A new ADR is required if BI-PF-1439 makes the catalog runtime-writable, if the catalog becomes
+tenant-specific, or if a second writer needs shared tenant settings. Re-open via a new backlog item that
+supersedes this ADR; do not silently flip the registry target.
+
+# ADR-0010: Control-plane evidence tooling exception (execution trail/cost)
+
+**Status:** Accepted
+**Date:** 2026-10-25   **Deciders:** architecture + HIL   **Related:** BI-PF-1481, BI-PF-1482, BI-PF-1479
+
+## Context and Problem Statement
+The backlog execution trail, its pricing/cost calculation and its terminal table rendering are control-plane
+evidence tooling. They live in `core/execution_trail.py` and are allowlisted in `config/language-rule.json`
+(`allow_new_python`). The language rule otherwise requires new shipped/sensitive logic to be Go.
+
+## Decision Drivers
+- No customer runtime data or request path is involved (local CLI/gate tooling; `needs_api=false`).
+- The trail is evidence produced by Python gate tools; moving the show/pricing across a Python<->Go bridge
+  would add complexity without a runtime benefit.
+- The HIL explicitly requested the ordered trail, OpenCode Go cost and Cursor-style tables.
+
+## Decision Outcome
+**Chosen option:** Keep the execution-trail/pricing/rendering logic in the allowlisted control-plane Python
+module. The allowlist entry is the recorded governance exception; this ADR is the durable rationale.
+
+### Consequences
+**Positive:** one evidence owner, no bridge, simple gate integration. **Negative:** the tooling remains
+Python. **Risks:** pricing drift (source/fetched_at are recorded; upstream divergence alerts are a follow-up).
+
+### Confirmation
+`python scripts/dev/language_rule_check.py` passes with the allowlist; the trail tests and
+`execution_trail_check` cover the behavior.
+
+---
+
+# ADR-0011: Event store authority: PostgreSQL + object payloads; bus as transport
+
+**Status:** Accepted
+**Date:** 2026-11-13   **Deciders:** architecture + HIL   **Related:** EPIC BI-PF-1265, BI-PF-1266, BI-PF-1267, BI-PF-1268, ADR-0005, ADR-0006
+
+## Context and Problem Statement
+ADR-0005 established one event/alert capability and a Go-first event core, but left the physical store as
+the append-only `events.jsonl` stream. That stream is a single-writer local file, cannot provide durable
+cross-process cursor semantics, tenant isolation, retention, or large-payload handling. We already accepted
+PostgreSQL as the relational system of record and object storage for bytes (ADR-0006), so keeping events in a
+local JSONL file would be a second competing authority.
+
+## Decision Drivers
+- One authoritative event store; no parallel event authority.
+- Durable monotonic ordering and cursor reads across processes and restarts.
+- Tenant isolation and retention controls consistent with the data plane.
+- Bounded DB rows: large payloads belong in object storage, not PostgreSQL.
+- Bus transports (Kafka/NATS/PubSub/webhooks) are delivery mechanisms, never the source of truth.
+- Go-first for new shipped logic; Python remains a thin client behind the A1 seam.
+
+## Considered Options
+1. **Keep `events.jsonl` as authority** - rejected: local single-writer file, weak cursor/tenancy/retention.
+2. **Make a bus the authority** - rejected: transport durability is not domain truth; adds broker dependency.
+3. **PostgreSQL event store + object payloads + optional bus transport** - chosen.
+4. **PostgreSQL rows with full payloads only** - rejected for large payloads: unbounded row sizes, expensive
+   reads, retention/cost pressure.
+
+## Decision Outcome
+**Chosen option:** PostgreSQL is the authoritative event store. The Go event core owns append and cursor
+reads; Python is a thin client. Large payloads are stored in object storage and referenced from PostgreSQL.
+Kafka/NATS/PubSub/webhook delivery is an optional transport over an outbox, not authority.
+
+### Binding contract
+- **Authority:** PostgreSQL table(s) for events and the transactional outbox. `events.jsonl` is at most a
+  compatibility projection/export and is never read as authority.
+- **Identity/order:** `event_id` is globally unique; each tenant has a monotonic `seq`. Cursor reads use
+  `(tenant_id, seq)` and return exactly the events after the cursor.
+- **Payloads:** inline JSON is allowed up to a configured threshold. Above it, bytes go to object storage;
+  PostgreSQL stores an opaque `payload_ref`, `payload_sha256`, `size_bytes`, and content type. Provider URLs
+  are never identity.
+- **Single writer:** the Go event core writes events/outbox. No Python writer and no dual-writer window.
+- **Transport:** at-least-once delivery from the outbox; `event_id` dedupe; retry to DLQ. A broker, when
+  introduced, carries notifications, not truth.
+- **Compatibility:** existing `core/events.py` public API and readers keep working through a thin client and
+  a generated read-only projection during migration.
+- **Tenancy:** server-resolved tenant context and PostgreSQL RLS on every event/outbox read and write.
+- **Retention:** event metadata and payload objects follow explicit retention policy; object deletion is
+  driven by the store contract, never by provider lifecycle guesses.
+
+### Consequences
+**Positive:** one durable authority; reliable cursors; tenant isolation; bounded rows; transport can evolve
+without changing truth. **Negative:** requires migrations, RLS, object-store wiring, and a Go writer before
+production cutover. **Risks:** dual-writer drift during migration (mitigated by single-writer cutover and
+parity checks); object/DB inconsistency (mitigated by sha256 reconciliation); broker mistaken for authority
+(mitigated by this ADR and contract tests).
+
+### Confirmation
+- An event emitted in one process is readable by cursor in another process after restart.
+- `(tenant_id, seq)` is gap-free per tenant and no cross-tenant row is visible.
+- Large payload round-trips via object reference with sha256 verification; DB row stays bounded.
+- Outbox redelivery is deduped by `event_id` and fail-closed on DLQ exhaustion.
+- No code path reads `events.jsonl` as authority; compatibility exports are labeled read-only.
+
+
+## ADR-0012: Event delivery DLQ is owned by the Go event authority
+
+- Status: Accepted (BI-PF-1546)
+- Context: `core/dead_letter_queue.py` is the pipeline-task DLQ (file-backed task records). Event
+  delivery needs transactional state tied to `event_deliveries` and tenant RLS.
+- Decision: `event_delivery_dlq` in PostgreSQL is the DLQ for event delivery. It is owned by
+  `go/edpdata` and is not the pipeline-task DLQ. Do not dual-write or merge the two stores.
+- Consequences: operators have two distinct DLQs with different schemas/owners. Alerting must name
+  the event-delivery DLQ explicitly. Reuse remains prohibited across the two domains.

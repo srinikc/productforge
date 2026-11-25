@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "e0d2395a662e",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-28T09:19:28.426404+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "CL-013 not satisfied: design never pins constant-time comparison for PF_ADMIN_TOKEN; no security test for timing-safe compare appears in test_matrix or coverage (security section only says \"Admin bearer required\").",
+      "CL-011 not satisfied: design asserts \"RLS enforced\" but provides no runtime-role attestation (NOSUPERUSER/NOBYPASSRLS) and no role/RLS test in the matrix; the counter triggers run under the migrating role, whose posture is unstated.",
+      "CL-012 not satisfied: performance section claims \"DB timeout 5s\" via PF_EDP_DB_TIMEOUT but never pins a DB-level statement_timeout/cancellation or a bound (cap/estimate) on the tenant-scoped COUNT(*) over backlog_items \u2014 a client-side ctx timeout alone does not bound DB work."
+    ],
+    "MAJOR": [
+      "CL-010 not yet satisfied: all ac_evidence SHA fields are empty; proof_plan only has prose red/green descriptions. Gate 1.5 requires current-run red proof for the real entrypoint, not prose.",
+      "0018/0019 add INSERT/UPDATE/DELETE/TRUNCATE triggers to the backlog_items write path, contradicting the \"read-only admin path\" rollout claim; a trigger fault can fail or block primary backlog writes. Rollback says \"no item data change\" but does not bound this write-path blast radius.",
+      "No verified backup/restore or migration-interrupted-recovery step is stated before applying 0018/0019 (checklist items 1 and 6); down-migrations exist but no rehearsal/verification is declared.",
+      "Design does not explain the delta between migration 0018 and the extra 0019 \"hardening\" migration; both are in affected_files but only 0016/0018 appear in the AC, risking scope drift.",
+      "Ownership gate is explicitly \"pending\" (CL-001): no single-writer/owner for the global allocation row and counter triggers is named before adding the endpoint."
+    ],
+    "MINOR": [
+      "Dependencies list \"migrations 0016-0019\" (a range) but 0017 is never named, declared, or excluded; prerequisites vs changed files (CL-016) are separated for 0016 but the 0017 position is ambiguous.",
+      "Design does not state whether the 405 and 400 responses reuse the existing edpsvc error-body/redaction helpers or define new ones, risking contract drift with other admin routes.",
+      "Observability section names \"startup/recheck gauge, error counter, success timestamp\" but no metric names, labels (tenant?), or cardinality bounds are pinned; tenant-labeled metrics could explode cardinality."
+    ],
+    "NIT": [
+      "Runbook file is declared but no runbook sections (detection, triage, escalation) are sketched; acceptable at Gate 1 but should be filled before merge.",
+      "Scope-guard test name is long and encodes behavior; consider a data-driven case list for readability."
+    ],
+    "SUMMARY": [
+      "Design direction is sound (fail-closed admin readiness endpoint, reuse of BacklogStore, Prometheus + runbook), but it does not satisfy three correction-ledger requirements that are explicit pre-Gate-1.5 conditions: constant-time token compare (CL-013), runtime-role/RLS posture proof (CL-011), and DB-level statement_timeout plus count bound (CL-012).",
+      "Secondary risks: trigger-based counter adds write-path blast radius to backlog_items while the design still calls the rollout \"read-only\"; no backup/restore or migration-interrupted-recovery step is declared; red-proof evidence SHAs are empty.",
+      "Recommend fixing CL-011/012/013 and attaching current-run red proof before proceeding to Gate 1.5."
+    ]
+  }
+}

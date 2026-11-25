@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "ce50f30150a7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T14:06:06.163096+00:00",
+  "base_sha": "e5b6c7b95f55456b1bb3d1e31a24a39d0aa5071c",
+  "head_sha": "c8d01c64e593a1d183f4a1cc1bc5e1d97521a981",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Prior MINOR \"empty-detection/rendering guard disagree (`- None: None` vs '(none recorded)')\" is dispositioned ACTIONED, but this delta does not touch `acs = ... or []` / `or \"- (none recorded)\"`; the defect still stands and the ACTIONED claim is unbacked by any hunk.",
+      "Prior MINOR on field-name validation/sanitization of AC strings is ACTIONED, yet the new `evidence=` join applies no key or type checking: a string `evidence` iterates per character and non-list evidence corrupts the prompt the same way.",
+      "All seven prior findings carry one identical copy-pasted ACTIONED rationale (\"Delta-scope prompt now cites AC evidence...\") that addresses none of them individually; disposition trail is not auditable per finding."
+    ],
+    "MINOR": [
+      "`'; '.join(a.get('evidence') or [])` splices raw evidence text (may contain newlines, `###`/PROMPT tokens) directly into the reviewer prompt with no delimiter or normalization \u2014 prompt-injection surface into gate-critical reviews.",
+      "Evidence entries are unbounded in length; long evidence lists can bloat the prompt and crowd out the diff, degrading delta-review signal."
+    ],
+    "NIT": [
+      "Test asserts on prose fragments (\"cite the AC\", \"DELTA REVIEW SCOPE\"), so cosmetic rewording of the scope contract breaks the test while a substantive contract regression (e.g. dropping the AC clause entirely) could still pass.",
+      "The new test lacks a blank-line separation style consistent with the file's other tests (single blank line vs double)."
+    ],
+    "SUMMARY": [
+      "Scope-correct prompt change with a matching test, but dispositions for prior findings are marked ACTIONED without corresponding code, so gate integrity claims in this item are overstated.",
+      "Top risks: unvalidated/unbounded evidence splicing into reviewer prompts, and non-per-finding disposition evidence that would fail audit of the HIL/approval contract.",
+      "No language-rule or security blocker in the delta itself."
+    ]
+  },
+  "rereview_reason": "prior sha 6717b68bea7e; precise delta AC scope + test",
+  "rereview_reason_sha256": "e3139e565c4a4527ed61f14365e911582a0964988b3fff4d73e0d482e7017415"
+}

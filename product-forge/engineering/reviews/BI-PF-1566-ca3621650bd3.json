@@ -1,0 +1,26 @@
+{
+  "item": "BI-PF-1566",
+  "sha": "ca3621650bd3",
+  "model": "gemini-3-flash-preview",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T17:04:30.144943+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0580e9515cc6e7e25a183b82dba9d381f4a762a1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "FR-1 fails to define precedence or mutual exclusivity between `Content` (inline) and `PayloadRef` (external). This ambiguity in the data contract risks inconsistent processing, data loss, and cache-coherency issues across distributed agent nodes.",
+      "FR-3 introduces logic drift risk by requiring a Python adapter to mirror Go's authoritative mapping logic via shared JSON. Without a single-source-of-truth code generation step, schema evolution will lead to runtime mismatches and taxonomy misalignment in polyglot environments."
+    ],
+    "MINOR": [
+      "FR-1 `Tags` and `Metadata` keys lack character-set constraints (e.g., alphanumeric regex). Allowing arbitrary strings in indexed fields can lead to storage inefficiencies and potential injection risks in downstream query engines.",
+      "FR-1 `Metadata` scalar validation lacks a defined recursion depth limit. Processing deeply nested structures to identify invalid non-scalars poses a resource exhaustion risk to the stateless validation layer."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "The design successfully formalizes the MemoryRecord contract in Go but introduces architectural ambiguity regarding content storage and logic drift in the polyglot mapping layer. Top risks include data inconsistency between inline/external payloads and taxonomy misalignment during schema evolution."
+    ]
+  }
+}

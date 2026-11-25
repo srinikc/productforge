@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "80a5bc535aaf",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-04T12:52:27.767656+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+  "findings": {
+    "BLOCKER": [
+      "CL-010 unmet: proof plan names only AC-1 as the failing test; no current-run red proof is attached for AC-2 timeout or AC-4 exhaustion at the real runtime entrypoint, so AC-2's failing-then-passing requirement is not demonstrated.",
+      "CL-011 unmet: design asserts tenant binding but provides no proof/test that runtime DB roles are `NOSUPERUSER`/`NOBYPASSRLS`; RLS posture remains prose only.",
+      "AC-4 gap: design specifies fixed 409 plus counter/alarm, but no fixed safe reason code/body is defined or asserted; the acceptance criterion for a safe exhaustion reason is not demonstrably covered."
+    ],
+    "MAJOR": [
+      "`ops/prometheus/backlog-authority.rules.yml` has no promtool validation, alert threshold/`for` duration, or control evidence; the AC-4 alarm path is unproven.",
+      "`PF_EDP_DB_TIMEOUT` wiring is described, but the design lacks an explicit default/range/missing-config contract and startup preflight, so misconfiguration may surface only at request time.",
+      "AC-1 bounded-reason enforcement lacks a single shared allowlist/table tying metric labels, logs, and alert rules together; reason-label drift remains a live risk.",
+      "No on-startup schema/role preflight is defined despite `migration_missing`/`row_missing` being fail-closed taxonomy entries."
+    ],
+    "MINOR": [
+      "`go/edpsvc/go.mod` is listed as affected without dependency rationale; verify no unintended module change.",
+      "Runbook update is planned but has no acceptance check that operators can use the new reason codes and exhaustion alert.",
+      "Coverage uses mixed reservation-echo test names (`TestAuthorityResponseEchoesReservationID` vs `TestBacklogReserveEchoesIDWithDB`), reducing traceability."
+    ],
+    "NIT": [
+      "AC-1 says \"failure gauge\" while coverage describes a reason counter plus `last_request_ok` gauge; align metric naming across design, tests, and docs.",
+      "The proof/evidence entries use `candidate` placeholders and test names rather than attached artifacts; make evidence capture explicit."
+    ],
+    "SUMMARY": [
+      "Direction is sound and scoped, but the design is not Gate-1.5 ready: red proof, runtime RLS role proof, and the AC-4 safe-reason contract are incomplete.",
+      "Top risks are unverified fail-closed exhaustion behavior, unproven RLS posture, and an alert rule that may not fire or route correctly."
+    ]
+  }
+}

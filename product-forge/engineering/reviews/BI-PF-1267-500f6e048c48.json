@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "500f6e048c48",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-14T05:44:08.349094+00:00",
+  "review_scope": "delta",
+  "base_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+  "head_sha": "40e03d5f74cb411d0d00468925034de098f348d6",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "review.reconciliation.existing_path still labels `go/contract/contract.go` and `pfcore.contractShapes` as the \"Go mirror required-field tables\", contradicting the new delta decision that `go/pfcore/contracts.go` is canonical and the others legacy/not extended; stale row should be updated in the same delta to avoid implementers extending the wrong surface.",
+      "test_matrix row 4 (`test_cursor_ordering_contract`) evidence lists only `core/contracts.py` and `go/pfcore/contracts.go`, omitting `test-framework/tests/pipeline/test_contracts.py` where the test itself lives, breaking the evidence-to-file traceability pattern used by the other rows.",
+      "AC \"existing test_api_events stays green\" is not represented in test_matrix or traceability; add a regression row/evidence so the AC is fail-able in CI, not only implied.",
+      "Delta does not explicitly answer the design guardrail checklist items (reversibility/backup, SPOF/startup check, blast-radius/dry-run, tenant isolation, reuse/observability owner) even where they are N/A for a contract-only item; CL-008 requires each item be answered in the design before Gate 1.5 (CL-011/CL-013 are only partially evidenced via security bullets)."
+    ],
+    "NIT": [
+      "functional_spec.observability and design_pack.observability are no longer verbatim duplicates but remain near-duplicative; consider a single canonical row with the other referencing it.",
+      "reconciliation.prior_decisions cites ADR-0005 while assumptions cite ADR-0011 with no cross-reference between the two rows."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior B3 `seq`-writer contradiction, names the canonical Go contract surface, adds the cursor-ordering test row, fixes the HMAC row evidence, and assigns a deferred owner for `WEBHOOK_HMAC_KEY_REF`; prior MAJORs 1-3 and MINORs 4-6 are adequately dispositioned. No blockers: language rule, additive-only invariants, and CI-blocking parity remain intact. Top residual risks are the stale `existing_path` reconciliation row (drift toward legacy Go surfaces) and incomplete guardrail-checklist/AC regression traceability before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "Final design delta for prior 6996429ccf34 and 0003df332381 findings",
+  "rereview_reason_sha256": "abd328438fe07b39823d26121a84535ac3007b6e000c6189d3e5cb4ad9134f27"
+}

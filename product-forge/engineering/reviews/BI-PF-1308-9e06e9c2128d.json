@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "9e06e9c2128d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T04:51:47.156380+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`S3Store.Put` reads `s.objectLock` without taking `lockMu`, while `ApplyLifecycle` writes it under the mutex: data race under `go test -race` and a TOCTOU on capability state; `Capabilities()` locks but `Put`/probe paths do not.",
+      "Local `Immutable` enforcement is a non-atomic check-then-rename (`readMeta` then `os.Rename`) with no per-key serialization: two concurrent Puts of different content can both pass the checksum check, silently violating the immutable contract the docs advertise.",
+      "`PutOptions.Immutable` is silently ignored by the S3 adapter (no versioning enforcement, no error), yet EDP-16 and the field doc claim it means \"keep versions\" on S3 \u2014 this is exactly the \"enforced or explicitly rejected\" case the acceptance criteria calls out, and doc/code disagree.",
+      "`PutOptions.RetentionMode` with `Retention==0` is silently dropped by both adapters (a COMPLIANCE mode with no TTL becomes a no-op instead of `ErrInvalidPolicy`), breaking fail-closed for inconsistent options.",
+      "S3 lifecycle conformance test only exercises legal hold; no test (even the endpoint-gated one) ever applies GOVERNANCE or COMPLIANCE retention end-to-end, so the headline acceptance path has zero execution coverage.",
+      "`objpolicy` denial accounting is process-global mutable state with a hand-rolled mutex map and `log.Printf`; it bypasses whatever metrics/tracing conventions exist, so production dashboards will not see signed-URL denials and `Stats()` has no exporter."
+    ],
+    "MINOR": [
+      "`objreconcile.Scan` returns a partially populated `Report` alongside a hard error on transient `Head` failures; callers may persist/act on partial drift data \u2014 return zero report + error, or a typed partial marker.",
+      "`PartialApplyError{Applied:\"retention\"}` is also produced when no retention was applied (legal-hold-only policies), producing misleading audit/diagnostic output.",
+      "S3 `Delete`'s `NoSuchKey` mapping is dead code for most S3 implementations (RemoveObject is idempotent) and does not handle `NoSuchVersion`, so versioned deletes can return untyped provider errors.",
+      "`objreconcile.normalizePrefix` + `HasPrefix(e.Key, prefix)` means `prefix=\"\"` disables the out-of-prefix guard entirely, and manifest keys are not normalized the same way as the prefix (asymmetric validation).",
+      "`notFound()` is a one-branch wrapper around `errors.Is(err, os.ErrNotExist)`; the abstraction will not scale when a second provider sentinel is needed.",
+      "`objreconcile` and `objpolicy` tests each hand-roll full `ObjectStore` stubs (duplicated ~20 lines); a shared `datastore/dsutil/dstest` fake would be the reuse play for the next capability.",
+      "S3 `New()` performs the object-lock probe (extra network round-trip + unconditional log line) on every construction, including test/dev paths that never use lifecycle."
+    ],
+    "NIT": [
+      "`ErrUnsupported = datastore.ErrUnsupported` re-export alias lacks a doc comment and invites divergence from the canonical sentinel.",
+      "`TestScanAbortsOnTransientHeadError` builds an unused `st` fixture and hides it behind `_ = st`; delete the dead setup.",
+      "`stats.byReason` initialization in `init()` could be a package-level `var` initializer, matching the rest of the package.",
+      "`cleanPath`'s `/../` checks are unreachable after `path.Clean` \u2014 the defensive branches read as if traversal could survive normalization."
+    ],
+    "SUMMARY": [
+      "Solid structural decisions overall: optional capability interface instead of a widened base interface, a single signed-URL minting boundary with typed errors, and a strictly read-only reconciliation scanner with deterministic, versioned reports \u2014 all match EDP-16 and the Go-per-shipped-logic rule.",
+      "Top risks are integrity gaps in the enforcement layer itself: a data race on the S3 object-lock flag, a non-atomic local `Immutable` check, and `Immutable` silently ignored on S3 \u2014 the exact fail-closed guarantees this item exists to establish.",
+      "Coverage is asymmetric: local unsupported paths are well tested, but S3 retention (the compliance-critical path) has no runnable test, and the new denial/observability counters are not wired into any metrics surface."
+    ]
+  }
+}

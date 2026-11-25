@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "63ef05b2af55",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:48:57.994878+00:00",
+  "findings": {
+    "BLOCKER": [
+      "CL-006 not satisfied: the Gate-1 context embeds no Gate 1.5 findings/dispositions, so approval is invalid while any BLOCKER/MAJOR is PENDING (enforced by `gate1_check.py`).",
+      "Cross-tenant RLS test isn't specified to run as a non-superuser/non-BYPASSRLS role; as written it could pass vacuously under the same privileged connection used to seed data."
+    ],
+    "MAJOR": [
+      "Dual conflict-target ambiguity: `ON CONFLICT DO NOTHING` (PK on id) coexists with retry on `uq_artifacts_name_revision`; a re-ingest of a previously-seen payload collides on id, so the computed \"next revision\" never lands \u2014 the returned revision can diverge from the stored row. State the id/revision invariant and add a test (revert-to-old-payload case).",
+      "`--verify` exit semantics incomplete: AC only covers drift; design doesn't state that `failed` (unreadable source, missing object row, Head error) also exits non-zero \u2014 an unreachable/corrupt store could report failure yet exit 0.",
+      "Observability gap (checklist 10): no metrics or structured logs defined (ingest duration, drift count, verify failures, orphan writes); `run_id` exists only in stdout report, so scheduled-run failures are undiagnosable.",
+      "`needs_api` decision (checklist 8) is never stated; explicitly record \"no API surface, operator CLI only\" with rationale in the Gate 1 doc.",
+      "`--allow-bypassrls` is a runtime RLS escape hatch; require it to be denied in test/CI paths and emit a high-severity audit log on use, otherwise the tenant-isolation guarantee is advisory."
+    ],
+    "MINOR": [
+      "AC says \"content-addressed key\" but keys are tenant-prefixed \u2014 wording conflict, and cross-tenant identical content is stored twice; document the trade-off.",
+      "Orphaned objects (object written, metadata failed) rely on a future objreconcile with no retention/reconcile trigger defined in this design \u2014 unbounded garbage risk.",
+      "`pfingest --verify` streaming fallback reads the full object with no stated byte cap; the 256MiB ingest cap doesn't clearly apply.",
+      "`scripts/dev/gate0_check.py` fix is listed in `in_scope` despite \"separate commit\" \u2014 enforce the split so the registry flip stays independently revertable.",
+      "No registry/doc record of which of the 11 targets are multi-file (e.g. `intake-files`) vs single-file \u2014 command template per target should be pinned to avoid operator variance."
+    ],
+    "NIT": [
+      "Add a golden-file test for the pinned `pf.intake-ingest/1` JSON (field names, enum values, UUIDv4 `run_id` format) to prevent silent schema drift.",
+      "Report is stdout + optional `--report-file`; consider failing closed if `--report-file` path is unwritable for scheduled runs."
+    ],
+    "SUMMARY": [
+      "Sound approach: Go ingestion over existing ports, content-addressed immutability, idempotent upserts, honest `backfill_status=pending`, and Gate-1.5 hardening cover most guardrails.",
+      "Top risks: dual conflict-target/revision invariant is under-specified and untested for the revert case; RLS test validity and `--allow-bypassrls` weaken the isolation claim; observability and `needs_api` checklist items are unanswered.",
+      "Verdict: proceed only after CL-006 dispositions are embedded and the MAJOR items are dispositioned; no schema change means rollback risk remains low."
+    ]
+  }
+}

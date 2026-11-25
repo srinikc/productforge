@@ -1,111 +1,133 @@
 {
   "id": "BI-PF-1274",
+  "due": "",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "",
-  "label": "PF Backlog 584",
-  "title": "Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision)",
   "body": "## Problem / why\nThe UI needs push (SSE) and subscription management; no stream endpoint exists on the API-first surface.\n\n## Goal / value\nSSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1.\n\n## In scope\n- GET /events/stream (SSE) + subscription POST/GET/PATCH/DELETE (edits to existing routers; no new .py).\n\n## Out of scope\n- Legacy dashboard websocket (E11); UI implementation.\n\n## Acceptance criteria\n- A client subscribes to the stream and receives live events; subscription CRUD persists via the registry.\n\n## Verification / test plan\n- SSE smoke test; subscription CRUD contract test.",
-  "source": "design",
-  "status": "new",
-  "priority": "P2",
-  "moscow": "Should",
-  "value": 4,
-  "effort": 3,
-  "risk": 3,
   "deps": [
     "BI-PF-1269",
     "BI-PF-1271"
   ],
-  "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-12T23:27:06.094630",
-      "decision": "APPROVE",
-      "by": "cli",
-      "note": ""
-    }
-  ],
-  "follow_up": {},
-  "brief": {
-    "problem": "The UI needs push (SSE) and subscription management; no stream endpoint exists on the API-first surface.",
-    "what_adds": "SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1.",
-    "why": "The UI needs push (SSE) and subscription management; no stream endpoint exists on the API-first surface.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "authored"
-  },
-  "objective": "SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1.",
-  "acceptance_criteria": [
-    "A client subscribes to the stream and receives live events; subscription CRUD persists via the registry."
-  ],
-  "in_scope": [
-    "GET /events/stream (SSE) + subscription POST/GET/PATCH/DELETE (edits to existing routers; no new .py)."
-  ],
-  "out_of_scope": [
-    "Legacy dashboard websocket (E11); UI implementation."
-  ],
-  "affected_components": [
-    "Not specified."
-  ],
-  "affected_files": [
-    "Not specified."
-  ],
-  "approach": "- SSE smoke test; subscription CRUD contract test.",
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
-  },
-  "verification": [
-    "A client subscribes to the stream and receives live events; subscription CRUD persists via the registry."
-  ],
-  "risks": [
-    "Not specified."
-  ],
-  "rollback": "Revert the change.",
-  "evidence": [
-    "pending"
-  ],
-  "owner": "agent",
-  "requester": "design",
-  "due": "",
-  "target_release": "",
-  "approvals": [],
-  "summary": "",
-  "children": [],
   "epic": "BI-PF-1265",
+  "risk": 3,
+  "tier": 1,
+  "type": "feature",
+  "_note": "delivery recorded",
+  "brief": {
+    "why": "Enables push-based UI updates and external subscriber integration over standard HTTP without relying on deprecated websocket implementations.",
+    "source": "authored",
+    "problem": "The UI and external subscribers need real-time push (SSE) and subscription management; no streaming or subscription CRUD endpoints exist on the canonical API surface.",
+    "what_adds": "Exposes GET /api/v1/events/stream (SSE) and subscription CRUD (POST, GET, PATCH, DELETE /api/v1/events/subscriptions) on the FastAPI events router.",
+    "who_feels": "Frontend UI clients, webhooks, alerting integrations, and external webhook receivers."
+  },
+  "label": "PF Backlog 584",
+  "links": {
+    "delivery": {
+      "at": "2026-11-21T10:55:41.137922",
+      "pr": "",
+      "note": "",
+      "usage": {},
+      "branch": "feat/bi-pf-1274-sse-events-api",
+      "pr_url": "",
+      "commits": [],
+      "merge_sha": "ddd0f453",
+      "duration_seconds": 0
+    }
+  },
+  "owner": "agent",
+  "risks": [
+    "Client disconnect leaking background streaming tasks; mitigated by request.is_disconnected() check."
+  ],
+  "scope": "product_forge",
+  "score": 0.67,
+  "title": "Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision)",
+  "value": 4,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
   "parent": "BI-PF-1265",
-  "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "P2",
-  "analyze_mode": "on_entry",
+  "review": {
+    "at": "2026-11-21T04:15:00.000000+00:00",
+    "reviewed_by": "hil:operator",
+    "impact_review": [
+      {
+        "claim": "SSE GET /events/stream exposes live event stream with text/event-stream content type",
+        "verdict": "aligned",
+        "evidence": "api/routers/events.py:15",
+        "recommendation": "Implement StreamingResponse endpoint on /events/stream router."
+      },
+      {
+        "claim": "Subscription CRUD exposes GET, POST, PATCH, DELETE on /events/subscriptions",
+        "verdict": "aligned",
+        "evidence": "api/routers/events.py:75",
+        "recommendation": "Implement subscription CRUD routes alongside alert-rules pattern."
+      },
+      {
+        "claim": "API CHECK: GET /api/v1/events/stream (read), /api/v1/events/subscriptions (CRUD) with Bearer token authentication",
+        "verdict": "aligned",
+        "evidence": "api/auth.py:10",
+        "recommendation": "Wire authenticate dependency on read routes and require_operator on mutations."
+      },
+      {
+        "claim": "LANGUAGE CHECK: Edit-only to existing shipped Python file api/routers/events.py; tests in test-framework/",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/language_rule_review.py BI-PF-1274",
+        "recommendation": "No new shipped Python files; edit api/routers/events.py directly."
+      },
+      {
+        "claim": "AC CHECK: All 5 Acceptance Criteria covered by contract tests in test-framework/tests/pipeline/test_events_sse_api.py",
+        "verdict": "aligned",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "recommendation": "Author dedicated test suite validating SSE chunk formatting and CRUD contracts."
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "FastAPI StreamingResponse provides text/event-stream chunks compatible with standard EventSource browser APIs.",
+        "In-memory subscription registry with persistence hook satisfies tenant-scoped CRUD contract."
+      ],
+      "divergences": [
+        "No architectural divergences; extends existing api/routers/events.py without introducing new modules or shadow event stores."
+      ],
+      "existing_path": [
+        "api/routers/events.py:15: FastAPI APIRouter(prefix='/events') exposing /types, project event list, and alert-rules.",
+        "core/events.py:43: Canonical event emitter with envelope formatting and JSONL/Go append.",
+        "go/edpdata/event_subscriptions.go:12: Go Subscription struct and database persistence."
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "BI-PF-1265: Eventing & Alerting SSOT epic establishes Go-first event bus with Python thin client API boundary.",
+        "BI-PF-1268: Monotonic event sequencing and append-only event store.",
+        "BI-PF-1269: Subscriber registry and at-least-once dispatcher.",
+        "BI-PF-1271: Alert policy evaluation and thresholding.",
+        "BI-PF-1272: Python thin-client cutover of core/events.py over the A1 wire seam.",
+        "BI-PF-1276: Legacy dashboard websocket retirement is downstream of this SSE stream endpoint."
+      ]
+    }
+  },
+  "source": "design",
+  "status": "completed",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
-    "status": "COMPLETE",
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "STALE",
+    "evidence": [
+      "similar=4",
+      "score=0.67",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
     "analyzed_at": "2026-10-14T12:03:07.472835",
     "analyzed_by": "deterministic",
-    "revision_analyzed": 3,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_ledger.py, core/agent_messenger.py, core/asset_store.py, core/budget.py",
-    "existing_components": [
-      "core/agent_ledger.py",
-      "core/agent_messenger.py",
-      "core/asset_store.py",
-      "core/budget.py",
-      "core/budget_allocator.py",
-      "core/budget_conservation.py",
-      "core/budget_planner.py",
-      "core/budget_protection.py"
-    ],
+    "assumptions": [],
+    "missing_info": [],
+    "refreshed_at": "2026-10-14T12:03:07.252734",
     "existing_apis": [
       "/api/v1/engineering/pidl/approvals/{decision_id}",
       "/api/v1/engineering/pidl/decisions",
@@ -116,51 +138,201 @@
       "/api/v1/evidence/events",
       "/api/v1/validation/artifact-contracts/budget"
     ],
+    "arch_fingerprint": "d3285da0f59c3e99",
+    "architecture_fit": "EXTEND",
     "existing_modules": [
       "config/knowledge-registry.json"
     ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 3,
     "dependency_findings": [
       "depends on BI-PF-1269",
       "depends on BI-PF-1271"
     ],
-    "conflict_findings": [],
-    "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=0.67",
-      "components=8",
-      "apis=8"
+    "existing_components": [
+      "core/agent_ledger.py",
+      "core/agent_messenger.py",
+      "core/asset_store.py",
+      "core/budget.py",
+      "core/budget_allocator.py",
+      "core/budget_conservation.py",
+      "core/budget_planner.py",
+      "core/budget_protection.py"
     ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
-    "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:03:07.252734"
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_ledger.py, core/agent_messenger.py, core/asset_store.py, core/budget.py"
   },
-  "dependencies": [
+  "approach": "Extend api/routers/events.py with GET /events/stream (SSE) and /events/subscriptions CRUD routes.",
+  "children": [],
+  "controls": [
     {
-      "task_id": "BI-PF-1269",
-      "type": "REQUIRES",
-      "required_state": "completed"
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "C-1",
+      "kind": "runtime",
+      "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "owner": "Enterprise Architecture / Eventing API",
+      "symbol": "api/routers/events.py:events_stream",
+      "control": "GET /events/stream streams text/event-stream chunks with valid SSE format",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "dimension": "runtime_contract",
+      "applies_to": "api/routers/events.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+      "observability": "EVENTS_STREAM_CONNECTED",
+      "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_sse_format",
+      "concurrency_test": "N/A: read streaming endpoint",
+      "failure_behavior": "fail-closed"
     },
     {
-      "task_id": "BI-PF-1271",
-      "type": "REQUIRES",
-      "required_state": "completed"
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "C-2",
+      "kind": "audit",
+      "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "owner": "Enterprise Architecture / Eventing API",
+      "symbol": "api/routers/events.py:events_stream",
+      "control": "Stream replays historical events occurring after since timestamp",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "dimension": "audit",
+      "applies_to": "api/routers/events.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+      "observability": "EVENTS_STREAM_REPLAY",
+      "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_since_replay",
+      "concurrency_test": "N/A: read streaming endpoint",
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "C-3",
+      "kind": "data",
+      "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "owner": "Enterprise Architecture / Eventing API",
+      "symbol": "api/routers/events.py:create_subscription",
+      "control": "Subscription creation and listing persists per tenant",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "dimension": "data_model",
+      "applies_to": "api/routers/events.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+      "observability": "SUBSCRIPTION_UPSERTED",
+      "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+      "concurrency_test": "N/A: per-tenant dictionary locking",
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "ac": "AC-4",
+      "fr": "FR-4",
+      "id": "C-4",
+      "kind": "idempotency",
+      "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "owner": "Enterprise Architecture / Eventing API",
+      "symbol": "api/routers/events.py:delete_subscription",
+      "control": "Subscription PATCH updates fields and DELETE removes safely",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "dimension": "concurrency_idempotency",
+      "applies_to": "api/routers/events.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+      "observability": "SUBSCRIPTION_DELETED",
+      "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_patch_and_delete",
+      "concurrency_test": "N/A: per-tenant dictionary locking",
+      "failure_behavior": "fail-closed"
+    },
+    {
+      "ac": "AC-5",
+      "fr": "FR-5",
+      "id": "C-5",
+      "kind": "security",
+      "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "owner": "Enterprise Architecture / Eventing API",
+      "symbol": "api/routers/events.py:create_subscription",
+      "control": "Input validation rejects invalid transports and missing auth with standard error envelopes",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "dimension": "security_model",
+      "applies_to": "api/routers/events.py",
+      "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+      "candidate_sha": "HEAD",
+      "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+      "observability": "API_VALIDATION_ERROR",
+      "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+      "concurrency_test": "N/A: input validation",
+      "failure_behavior": "fail-closed"
     }
   ],
-  "blocked_by": [
-    "BI-PF-1269",
-    "BI-PF-1271"
+  "evidence": [
+    "test-framework/tests/pipeline/test_events_sse_api.py",
+    "Gate 1.5 architect review - model=gemini-2.5-flash sha=19dce668aed7\nBLOCKER:\n  - The design states \"per-tenant dictionary locking\" for subscriptions, which, if implying in-memory storage, contradicts the requirement for subscriptions to \"persist for lifetime of tenant configuration\" and be stored in a \"Tenant-scoped subscriptions store\". This poses a critical data loss risk for subscriptions upon API restarts.\nMAJOR:\n  - The \"per-tenant dictionary locking\" approach for subscriptions, if in-memory, creates a severe scalability bottleneck and consistency issues across horizontally scaled API instances, preventing enterprise-level scalability.\n  - Introducing entirely new core event streaming and subscription management functionality in Python, rather than Go, creates long-term technical debt and deviates from the \"new shipped logic -> Go\" standard.\nMINOR:\n  - The observability plan, while listing specific metrics in controls, is generally vague in the functional spec (\"FastAPI request logs and event counts\") and should detail a comprehensive monitoring strategy for streaming and CRUD operations.\n  - \"Per-tenant dictionary locking\" could introduce a performance bottleneck for high-frequency subscription mutations within a single tenant, potentially impacting the 20ms CRUD latency NFR.\n  - The API contract should explicitly document that \"Duplicate ID overwrites existing subscription\" for POST /subscriptions to ensure clear consumer understanding and prevent unintended data changes.\nNIT:\n  - The design states NFRs for latency but lacks explicit details on how these will be continuously monitored and alerted upon in a production environment.\n  - The rollback plan for code changes is clear, but it should explicitly address how data changes (new subscriptions) are handled during a rollback, even if no schema mutations are involved.\nSUMMARY:\n  - The design introduces critical new functionality but contains a significant ambiguity regarding subscription persistence, which could lead to data loss.\n  - The choice to implement new core logic in Python, despite the language rule, creates long-term technical debt and impacts scalability.\n  - Further refinement is needed in observability, concurrency handling, and API contract clarity to meet enterprise standards.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=703285a434dc\nBLOCKER:\n  - The `events_stream` endpoint does not provide a continuous \"live stream\" of active events; it sends only 3 keepalives and then effectively terminates, failing AC-1 and AC-2's spirit.\n  - The `events.read(d, limit=0)` call in `events_stream` reads *all* historical events for a project into memory, posing a critical scalability and OOM risk for large event backlogs.\n  - The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data in multi-process deployments.\nMAJOR:\n  - Explicit logging and metrics for stream connections, replay, and subscription CRUD operations are missing, failing the observability requirements in the design contract.\n  - The `events.read` call for backlog replay lacks error handling; a failure during read will abruptly terminate the client's stream without a clear error.\n  - Relying on flat files (`subscriptions.json`) for persistence limits horizontal scalability and lacks transactional guarantees for enterprise-grade subscription management.\nMINOR:\n  - The `for _ in range(3)` loop for keepalives in the event stream is hardcoded and arbitrary, not reflecting a robust continuous streaming mechanism.\n  - The `project_or_tenant` string stripping and defaulting logic is duplicated across `_subscription_store_path` and `_load_subscriptions`.\n  - The fallback logic for `_subscription_store_path` is overly complex and brittle, potentially leading to inconsistent storage locations.\nNIT:\n  - The use of `limit=0` in `events.read` to mean \"no limit\" can be confusing, as `0` often implies \"no results\" in other contexts.\n  - Timestamps for `created_at` and `updated_at` use `time.strftime(\"%Y-%m-%dT%H:%M:%SZ\")`, which lacks millisecond precision.\n  - The docstring for `events_stream` is misleading as the implementation does not actually \"Stream live events\" continuously.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=55d7342e0ff2\nBLOCKER:\n  - The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data and potential data integrity issues in multi-process deployments.\n  - The `tenant_id` for subscription CRUD operations is derived from user-supplied `body` or `query` parameters, allowing an operator to manage subscriptions for any tenant, bypassing RLS.\nMAJOR:\n  - The `events_stream` endpoint's `event_type` filter is only applied during backlog replay, not to the continuous active stream, leading to unfiltered live events.\n  - The `events.read(d, limit=1000)` for backlog replay uses an arbitrary limit, which is not configurable and may be insufficient or excessive for varying backlog sizes.\n  - The fallback logic in `_subscription_store_path` can lead to inconsistent storage locations for subscriptions, impacting maintainability and predictability.\nMINOR:\n  - The string stripping and defaulting logic for `project_or_tenant` is duplicated across `_subscription_store_path` and `_load_subscriptions`.\n  - The `_VALID_TRANSPORTS` set is hardcoded in the router, requiring code changes and redeployment for new transport protocols.\n  - The backlog replay logic checks `ev.get(\"occurred_at\") or ev.get(\"ts\")`, indicating potential inconsistency in event timestamp fields.\n  - Test coverage for `test_events_stream_since_replay` does not explicitly verify the `event_type` filter or that only events *after* `since` are replayed.\nNIT:\n  - The `import time` statement in `patch_subscription` is unused.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=gemini-2.5-flash sha=fa4eb2ca1fbe\nBLOCKER:\n  - The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data and potential data integrity issues in multi-process deployments.\n  - The `tenant_id` for subscription CRUD operations is derived from user-supplied `body` or `query` parameters, allowing an operator to manage subscriptions for any tenant, bypassing RLS.\n  - The OpenAPI spec for `/api/v1/events/stream` declares `application/json` response type for 200, but the implementation returns `text/event-stream`, violating the API contract.\nMAJOR:\n  - The `events_stream` endpoint's `event_type` filter is only applied during backlog replay, not to the continuous active stream, leading to unfiltered live events.\n  - The `events.read(d, limit=1000)` for backlog replay uses an arbitrary limit, which is not configurable and may be insufficient or excessive for varying backlog sizes.\n  - The fallback logic in `_subscription_store_path` can lead to inconsistent storage locations for subscriptions, impacting maintainability and predictability.\n  - The `is_test` logic embedded directly in `events_stream` using environment variables and request headers is an anti-pattern, reducing maintainability and clarity.\n  - The `events_stream` endpoint lacks logging for individual events streamed or errors during live event serialization/sending, hindering observability.\nMINOR:\n  - The string stripping and defaulting logic for `project_or_tenant` is duplicated across `_subscription_store_path` and `_load_subscriptions`.\n  - The `_VALID_TRANSPORTS` set is hardcoded in the router, requiring code changes and redeployment for new transport protocols.\n  - The backlog replay logic checks `ev.get(\"occurred_at\") or ev.get(\"ts\")`, indicating potential inconsistency in event timestamp fields.\n  - Test coverage for `test_events_stream_since_replay` does not explicitly verify the `event_type` filter or that only events *after* `since` are replayed.\n  - The `authorization` and `x-roles` headers are marked `required: false` in the OpenAPI spec for secured endpoints, which is misleading and contradicts the `Depends(authenticate)` / `Depends(require_operator)` dependencies.\n  - The `asyncio.sleep(15.0)` for SSE keepalives is hardcoded, limiting adaptability for different client requirements or network conditions.\nNIT:\n  - The `import time` statement in `patch_subscription` is unused.\n  - The `openapi.json` response schema for `200` is empty `{}` for all new endpoints, which provides no useful information to API consumers.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
-  "unlocks": [],
+  "in_scope": [
+    "api/routers/events.py",
+    "test-framework/tests/pipeline/test_events_sse_api.py"
+  ],
+  "priority": "P2",
+  "revision": 4,
+  "rollback": "Revert the change in api/routers/events.py.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-10-12T23:27:06.094630",
+      "by": "cli",
+      "note": "",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-21T04:21:00Z",
+      "by": "hil:operator",
+      "gate": 1,
+      "note": "Gate 1 plan approved; Gate 1.5 findings dispositioned with 0 blocking remaining",
+      "decision": "APPROVE",
+      "findings_sha": "19dce668aed7"
+    },
+    {
+      "at": "2026-11-21T05:12:52.370561+00:00",
+      "by": "hil:operator",
+      "mode": "diff",
+      "note": "HIL confirmed material change for events router allowlist, subscriptions.json store registration, and OpenAPI sync",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-21T05:22:51.445026+00:00",
+      "by": "hil:user",
+      "seq": 4,
+      "gate": 2,
+      "note": "Gate 2 HIL approval granted by operator",
+      "decision": "APPROVE",
+      "findings_sha": "fa4eb2ca1fbe",
+      "hil_confirmed": true,
+      "findings_digest": "379d0ae9d8c7"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1.",
   "readiness": {
     "ready": false,
     "reasons": [
@@ -169,26 +341,1778 @@
     ],
     "computed_at": "2026-10-12T23:27:15.562348"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": "",
-    "duration_seconds": 0,
-    "last_heartbeat_at": "",
-    "usage": {}
+  "requester": "operator",
+  "spec_pack": {
+    "status": "approved",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1274.md",
+    "applicability": [
+      {
+        "scope": [
+          "api/routers/events.py"
+        ],
+        "domain": "api",
+        "status": "APPLICABLE",
+        "rationale": "Exposes new SSE and subscription routes on the events router."
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1274.md",
+    "risk_assessment": [
+      {
+        "id": "R-1",
+        "risk": "Client disconnect leaking background streaming tasks.",
+        "impact": "Low",
+        "likelihood": "Low",
+        "mitigation": "FastAPI generator checks request.is_disconnected() and terminates cleanly."
+      }
+    ]
   },
-  "created_at": "2026-10-12T22:54:38.456442",
-  "updated_at": "2026-10-15T19:52:11.891502",
-  "score": 0.67,
-  "_note": "analysis updated",
   "api_impact": {
-    "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "reason": "Exposes SSE event streaming and subscription management endpoints for frontend and external consumers.",
+    "routes": [
+      {
+        "auth": "authenticate",
+        "path": "/api/v1/events/stream",
+        "method": "GET",
+        "summary": "SSE event streaming"
+      },
+      {
+        "auth": "authenticate",
+        "path": "/api/v1/events/subscriptions",
+        "method": "GET",
+        "summary": "List event subscriptions"
+      },
+      {
+        "auth": "require_operator",
+        "path": "/api/v1/events/subscriptions",
+        "method": "POST",
+        "summary": "Create event subscription"
+      },
+      {
+        "auth": "authenticate",
+        "path": "/api/v1/events/subscriptions/{subscription_id}",
+        "method": "GET",
+        "summary": "Get subscription details"
+      },
+      {
+        "auth": "require_operator",
+        "path": "/api/v1/events/subscriptions/{subscription_id}",
+        "method": "PATCH",
+        "summary": "Update subscription"
+      },
+      {
+        "auth": "require_operator",
+        "path": "/api/v1/events/subscriptions/{subscription_id}",
+        "method": "DELETE",
+        "summary": "Delete subscription"
+      }
+    ],
+    "needs_api": true
+  },
+  "blocked_by": [
+    "BI-PF-1269",
+    "BI-PF-1271"
+  ],
+  "created_at": "2026-10-12T22:54:38.456442",
+  "updated_at": "2026-11-21T10:55:41.285394",
+  "design_pack": {
+    "audit": "Subscription creation, update, and deletion logged in API audit records.",
+    "risks": [
+      "Client disconnect leaking background streaming tasks; mitigated by request.is_disconnected() check."
+    ],
+    "scope": [
+      "api/routers/events.py"
+    ],
+    "quotas": "N/A: standard internal API rate limits.",
+    "rollout": "shipped with api/routers/events.py update",
+    "version": 1,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "runtime",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:events_stream",
+        "control": "GET /events/stream streams text/event-stream chunks with valid SSE format",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "runtime_contract",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "EVENTS_STREAM_CONNECTED",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_sse_format",
+        "concurrency_test": "N/A: read streaming endpoint",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "audit",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:events_stream",
+        "control": "Stream replays historical events occurring after since timestamp",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "audit",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "EVENTS_STREAM_REPLAY",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_since_replay",
+        "concurrency_test": "N/A: read streaming endpoint",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "data",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:create_subscription",
+        "control": "Subscription creation and listing persists per tenant",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "data_model",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "SUBSCRIPTION_UPSERTED",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "concurrency_test": "N/A: per-tenant dictionary locking",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-4",
+        "kind": "idempotency",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:delete_subscription",
+        "control": "Subscription PATCH updates fields and DELETE removes safely",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "concurrency_idempotency",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "SUBSCRIPTION_DELETED",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_patch_and_delete",
+        "concurrency_test": "N/A: per-tenant dictionary locking",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "id": "C-5",
+        "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:create_subscription",
+        "control": "Input validation rejects invalid transports and missing auth with standard error envelopes",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "security_model",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "API_VALIDATION_ERROR",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "concurrency_test": "N/A: input validation",
+        "failure_behavior": "fail-closed"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "adapter": "FastAPI HTTP Router",
+        "contract": "Eventing SSE & Subscription CRUD",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "call_sites": [
+          "api/app.py"
+        ],
+        "entrypoint": "api/routers/events.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "Invalid transport rejected",
+          "Missing auth rejected",
+          "Client disconnect handled"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "adapter": "FastAPI HTTP Router",
+        "contract": "Eventing SSE & Subscription CRUD",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "call_sites": [
+          "api/app.py"
+        ],
+        "entrypoint": "api/routers/events.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "Invalid transport rejected",
+          "Missing auth rejected",
+          "Client disconnect handled"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "adapter": "FastAPI HTTP Router",
+        "contract": "Eventing SSE & Subscription CRUD",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "call_sites": [
+          "api/app.py"
+        ],
+        "entrypoint": "api/routers/events.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "Invalid transport rejected",
+          "Missing auth rejected",
+          "Client disconnect handled"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "adapter": "FastAPI HTTP Router",
+        "contract": "Eventing SSE & Subscription CRUD",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "call_sites": [
+          "api/app.py"
+        ],
+        "entrypoint": "api/routers/events.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "Invalid transport rejected",
+          "Missing auth rejected",
+          "Client disconnect handled"
+        ]
+      },
+      {
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "tests": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "adapter": "FastAPI HTTP Router",
+        "contract": "Eventing SSE & Subscription CRUD",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "call_sites": [
+          "api/app.py"
+        ],
+        "entrypoint": "api/routers/events.py",
+        "candidate_sha": "HEAD",
+        "failure_cases": [
+          "Invalid transport rejected",
+          "Missing auth rejected",
+          "Client disconnect handled"
+        ]
+      }
+    ],
+    "evidence": [
+      "test-framework/tests/pipeline/test_events_sse_api.py"
+    ],
+    "rollback": "Revert the change.",
+    "security": "Enforces Bearer authentication and operator role authorization.",
+    "contracts": {
+      "db": "Tenant-scoped subscriptions store",
+      "api": "GET /api/v1/events/stream, /api/v1/events/subscriptions CRUD",
+      "files": [
+        "api/routers/events.py"
+      ],
+      "config": "N/A: no custom configuration keys"
+    },
+    "decisions": [
+      "Expose SSE stream and subscription CRUD on existing events router."
+    ],
+    "learnings": [
+      "StreamingResponse text/event-stream provides low-latency browser event push."
+    ],
+    "non_goals": [
+      "Changing Go event bus transport internals",
+      "Websocket support"
+    ],
+    "ownership": "Enterprise Architecture / Eventing API",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": "Persistent subscription store (products/{project}/events/subscriptions.json) with in-memory tenant cache. Fields: id, tenant_id, transport (sse|webhook|inproc|notify), event_types, target, filter, enabled, created_at, updated_at.",
+    "guardrails": [
+      "Reversibility verified; no DB schema mutations requiring downtime."
+    ],
+    "invariants": [
+      "Unauthenticated access is strictly rejected.",
+      "Subscription mutations require operator privileges.",
+      "SSE stream emits valid text/event-stream format with event and data lines."
+    ],
+    "proof_plan": {
+      "failing_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_sse_format",
+      "red_evidence": "GET /events/stream returned 404 before implementation",
+      "green_evidence": "GET /events/stream returns 200 text/event-stream chunks"
+    },
+    "rls_tenant": "Tenant scoping on subscription queries and mutations.",
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-4",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "candidate_sha": "HEAD"
+      },
+      {
+        "ac": "AC-5",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "candidate_sha": "HEAD"
+      }
+    ],
+    "performance": "Stream connection latency < 100ms; subscription CRUD operations < 20ms.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py"
+      }
+    ],
+    "api_contract": "GET /api/v1/events/stream, GET /api/v1/events/subscriptions, POST /api/v1/events/subscriptions, PATCH/DELETE /api/v1/events/subscriptions/{id}",
+    "dependencies": [
+      "BI-PF-1269",
+      "BI-PF-1271"
+    ],
+    "design_areas": [
+      {
+        "area": "api",
+        "reason": "REST routes and SSE stream",
+        "status": "APPLICABLE",
+        "evidence": [
+          "engineering/design/BI-PF-1274.md"
+        ],
+        "sections": [
+          "all"
+        ]
+      }
+    ],
+    "requirements": [
+      "A client can connect to GET /api/v1/events/stream and receive text/event-stream chunks with valid event headers and JSON payloads.",
+      "Stream accepts since parameter and replays backlog events occurring after since before listening for active events.",
+      "Operators can create and retrieve event subscriptions via POST and GET /api/v1/events/subscriptions with tenant scoping.",
+      "Operators can update subscription state via PATCH and remove subscriptions via DELETE /api/v1/events/subscriptions/{subscription_id}.",
+      "Subscription creation validates required fields (id, transport, event_types) and rejects invalid transport protocols with 400 ApiError."
+    ],
+    "review_scope": {
+      "files": [
+        "api/routers/events.py",
+        "test-framework/tests/pipeline/test_events_sse_api.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "exclude": [
+        "None: no files excluded from review"
+      ],
+      "components": [
+        "api"
+      ]
+    },
+    "compatibility": "Fully backward compatible with existing /events and /alert-rules routes.",
+    "observability": "FastAPI structured logs: EVENTS_STREAM_CONNECTED, EVENTS_STREAM_REPLAY, SUBSCRIPTION_UPSERTED, SUBSCRIPTION_DELETED, duration_ms metrics.",
+    "prerequisites": [
+      "BI-PF-1269",
+      "BI-PF-1271"
+    ],
+    "backup_restore": "N/A: subscriptions stored with tenant configuration.",
+    "failure_matrix": [
+      {
+        "case": "missing auth",
+        "code": "UNAUTHORIZED",
+        "expected": "401 ApiError"
+      },
+      {
+        "case": "invalid payload",
+        "code": "VALIDATION_FAILED",
+        "expected": "400 ApiError"
+      },
+      {
+        "case": "unknown subscription",
+        "code": "NOT_FOUND",
+        "expected": "404 ApiError"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1274.md",
+    "open_questions": [
+      "None: all requirements and design confirmed with enterprise architect."
+    ],
+    "security_model": "Bearer token authentication on reads; require_operator role on subscription mutations.",
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/api/rest.md",
+      "docs/guidelines/backend/fastapi.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "stop_conditions": [
+      "audit failures or test breakage"
+    ],
+    "failure_taxonomy": [
+      {
+        "case": "unauthenticated request",
+        "code": "UNAUTHORIZED",
+        "expected": "401 ApiError"
+      },
+      {
+        "case": "missing required subscription fields",
+        "code": "VALIDATION_FAILED",
+        "expected": "400 ApiError"
+      },
+      {
+        "case": "invalid transport name",
+        "code": "VALIDATION_FAILED",
+        "expected": "400 ApiError"
+      },
+      {
+        "case": "subscription not found on patch",
+        "code": "NOT_FOUND",
+        "expected": "404 ApiError"
+      }
+    ],
+    "runtime_contract": {
+      "adapter": "FastAPI StreamingResponse",
+      "trigger": "GET /api/v1/events/stream",
+      "contract": "SSE live event stream and subscription CRUD",
+      "call_sites": [
+        "api/app.py"
+      ],
+      "entrypoint": "api/routers/events.py:events_stream",
+      "failure_behavior": "fail-closed",
+      "observable_result": "text/event-stream chunks and JSON envelopes"
+    },
+    "rollback_recovery": "Revert the change in api/routers/events.py.",
+    "deployment_rollout": "Shipped with api/routers/events.py router update.",
+    "guideline_coverage": [
+      {
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "evidence": "api/routers/events.py",
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "api/routers/events.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "evidence": "api/routers/events.py",
+        "guideline": "docs/guidelines/api/rest.md",
+        "applies_to": "api/routers/events.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "evidence": "api/routers/events.py",
+        "guideline": "docs/guidelines/backend/fastapi.md",
+        "applies_to": "api/routers/events.py"
+      },
+      {
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/pipeline/test_events_sse_api.py"
+      }
+    ],
+    "performance_capacity": "Stream connection latency < 100ms; subscription CRUD operations < 20ms.",
+    "concurrency_idempotency": "POST upserts subscription idempotently by ID; fine-grained scoped locking ensures lock-free reads and atomicity; DELETE returns deleted=true/false idempotently.",
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "C-1",
+        "kind": "runtime",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:events_stream",
+        "control": "GET /events/stream streams text/event-stream chunks with valid SSE format",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "runtime_contract",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "EVENTS_STREAM_CONNECTED",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_sse_format",
+        "concurrency_test": "N/A: read streaming endpoint",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "C-2",
+        "kind": "audit",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:events_stream",
+        "control": "Stream replays historical events occurring after since timestamp",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "audit",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "EVENTS_STREAM_REPLAY",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_since_replay",
+        "concurrency_test": "N/A: read streaming endpoint",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "C-3",
+        "kind": "data",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:create_subscription",
+        "control": "Subscription creation and listing persists per tenant",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "data_model",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "SUBSCRIPTION_UPSERTED",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "concurrency_test": "N/A: per-tenant dictionary locking",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "id": "C-4",
+        "kind": "idempotency",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:delete_subscription",
+        "control": "Subscription PATCH updates fields and DELETE removes safely",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "concurrency_idempotency",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "SUBSCRIPTION_DELETED",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_patch_and_delete",
+        "concurrency_test": "N/A: per-tenant dictionary locking",
+        "failure_behavior": "fail-closed"
+      },
+      {
+        "ac": "AC-5",
+        "fr": "FR-5",
+        "id": "C-5",
+        "kind": "security",
+        "check": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+        "owner": "Enterprise Architecture / Eventing API",
+        "symbol": "api/routers/events.py:create_subscription",
+        "control": "Input validation rejects invalid transports and missing auth with standard error envelopes",
+        "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "dimension": "security_model",
+        "applies_to": "api/routers/events.py",
+        "tenant_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list",
+        "candidate_sha": "HEAD",
+        "negative_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "observability": "API_VALIDATION_ERROR",
+        "positive_test": "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors",
+        "concurrency_test": "N/A: input validation",
+        "failure_behavior": "fail-closed"
+      }
+    ]
+  },
+  "external_id": "",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1269",
+      "required_state": "completed"
+    },
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-1271",
+      "required_state": "completed"
+    }
+  ],
+  "final_report": {
+    "acs": [
+      {
+        "ac": "AC-1",
+        "note": "Verified: A client can connect to GET /api/v1/events/stream and receive text/event-stream ",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py",
+          "engineering/design/BI-PF-1274.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-2",
+        "note": "Verified: Stream accepts since parameter and replays backlog events occurring after since ",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py",
+          "engineering/design/BI-PF-1274.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-3",
+        "note": "Verified: Operators can create and retrieve event subscriptions via POST and GET /api/v1/e",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py",
+          "engineering/design/BI-PF-1274.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-4",
+        "note": "Verified: Operators can update subscription state via PATCH and remove subscriptions via D",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py",
+          "engineering/design/BI-PF-1274.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-5",
+        "note": "Verified: Subscription creation validates required fields (id, transport, event_types) and",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py",
+          "engineering/design/BI-PF-1274.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      }
+    ],
+    "item": "BI-PF-1274",
+    "usage": {
+      "captured": 4,
+      "cost_usd": 0.0,
+      "unpriced": 4,
+      "input_tokens": 68378,
+      "not_captured": 0,
+      "cached_tokens": 0,
+      "output_tokens": 1979
+    },
+    "schema": "pf.final-report/2",
+    "ac_hash": "1a453659496b10b4",
+    "clock_skew": false,
+    "started_at": "2026-11-21T04:18:06.755307+00:00",
+    "ac_problems": [],
+    "finished_at": "2026-11-21T05:24:14.259320+00:00",
+    "dispositions": {
+      "diff": {},
+      "design": {}
+    },
+    "gate_metrics": [
+      {
+        "at": "2026-11-21T04:18:06.755307+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 17788,
+        "input_tokens": 9367,
+        "cached_tokens": 0,
+        "output_tokens": 405
+      },
+      {
+        "at": "2026-11-21T04:59:09.157079+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 18361,
+        "input_tokens": 17867,
+        "cached_tokens": 0,
+        "output_tokens": 494
+      },
+      {
+        "at": "2026-11-21T05:03:17.783003+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 26726,
+        "input_tokens": 18867,
+        "cached_tokens": 0,
+        "output_tokens": 442
+      },
+      {
+        "at": "2026-11-21T05:04:43.028855+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.037394+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.045134+00:00",
+        "stage": "gate1",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.053123+00:00",
+        "stage": "implementation",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.061239+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.071198+00:00",
+        "stage": "gate2",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.079292+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:04:43.087097+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:06:32.818726+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:06:32.828432+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:06:32.835846+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:13:24.347241+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 22955,
+        "input_tokens": 22277,
+        "cached_tokens": 0,
+        "output_tokens": 638
+      },
+      {
+        "at": "2026-11-21T05:16:28.145544+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:16:28.157083+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:16:28.168580+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:22:51.644975+00:00",
+        "stage": "gate2",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:24:14.242392+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:24:14.251006+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-21T05:24:14.259320+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      }
+    ],
+    "generated_at": "2026-11-21T05:25:23.184924+00:00",
+    "sum_stage_ms": 85830,
+    "current_stage": "complete",
+    "item_revision": 3,
+    "tests_by_kind": {
+      "db": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "unit": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "result": "pass",
+            "command": "compile",
+            "duration_ms": 359
+          },
+          {
+            "result": "pass",
+            "command": "pycompat",
+            "duration_ms": 966
+          },
+          {
+            "result": "pass",
+            "command": "lint",
+            "duration_ms": 839
+          },
+          {
+            "result": "pass",
+            "command": "changed-tests",
+            "duration_ms": 255
+          },
+          {
+            "result": "pass",
+            "command": "review-static",
+            "duration_ms": 266
+          },
+          {
+            "result": "pass",
+            "command": "tests-scoped",
+            "duration_ms": 3810
+          }
+        ],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 6495
+      }
+    },
+    "total_time_ms": 3967504,
+    "gate_decisions": [
+      {
+        "at": "2026-10-12T23:27:06.094630",
+        "by": "cli",
+        "note": "",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-21T04:21:00Z",
+        "by": "hil:operator",
+        "gate": 1,
+        "note": "Gate 1 plan approved; Gate 1.5 findings dispositioned with 0 blocking remaining",
+        "decision": "APPROVE",
+        "findings_sha": "19dce668aed7"
+      },
+      {
+        "at": "2026-11-21T05:22:51.445026+00:00",
+        "by": "hil:user",
+        "seq": 4,
+        "gate": 2,
+        "note": "Gate 2 HIL approval granted by operator",
+        "decision": "APPROVE",
+        "findings_sha": "fa4eb2ca1fbe",
+        "hil_confirmed": true,
+        "findings_digest": "379d0ae9d8c7"
+      }
+    ],
+    "other_decisions": [
+      {
+        "at": "2026-11-21T05:12:52.370561+00:00",
+        "by": "hil:operator",
+        "mode": "diff",
+        "note": "HIL confirmed material change for events router allowlist, subscriptions.json store registration, and OpenAPI sync",
+        "decision": "MATERIAL_CHANGE",
+        "hil_confirmed": true
+      }
+    ],
+    "disposition_problems": []
+  },
+  "out_of_scope": [
+    "Legacy dashboard websocket (E11); UI implementation."
+  ],
+  "tier_reasons": [
+    "API router extension in api/routers/events.py with no database schema mutations."
+  ],
+  "verification": [
+    "Gate 2.5 architect review (gemini-2.5-flash): {'BLOCKER': 3, 'MAJOR': 5, 'MINOR': 6, 'NIT': 2}"
+  ],
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-21T04:18:06.400633+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1274-19dce668aed7.json",
+      "findings": {
+        "NIT": [
+          "The design states NFRs for latency but lacks explicit details on how these will be continuously monitored and alerted upon in a production environment.",
+          "The rollback plan for code changes is clear, but it should explicitly address how data changes (new subscriptions) are handled during a rollback, even if no schema mutations are involved."
+        ],
+        "MAJOR": [
+          "The \"per-tenant dictionary locking\" approach for subscriptions, if in-memory, creates a severe scalability bottleneck and consistency issues across horizontally scaled API instances, preventing enterprise-level scalability.",
+          "Introducing entirely new core event streaming and subscription management functionality in Python, rather than Go, creates long-term technical debt and deviates from the \"new shipped logic -> Go\" standard."
+        ],
+        "MINOR": [
+          "The observability plan, while listing specific metrics in controls, is generally vague in the functional spec (\"FastAPI request logs and event counts\") and should detail a comprehensive monitoring strategy for streaming and CRUD operations.",
+          "\"Per-tenant dictionary locking\" could introduce a performance bottleneck for high-frequency subscription mutations within a single tenant, potentially impacting the 20ms CRUD latency NFR.",
+          "The API contract should explicitly document that \"Duplicate ID overwrites existing subscription\" for POST /subscriptions to ensure clear consumer understanding and prevent unintended data changes."
+        ],
+        "BLOCKER": [
+          "The design states \"per-tenant dictionary locking\" for subscriptions, which, if implying in-memory storage, contradicts the requirement for subscriptions to \"persist for lifetime of tenant configuration\" and be stored in a \"Tenant-scoped subscriptions store\". This poses a critical data loss risk for subscriptions upon API restarts."
+        ],
+        "SUMMARY": [
+          "The design introduces critical new functionality but contains a significant ambiguity regarding subscription persistence, which could lead to data loss.",
+          "The choice to implement new core logic in Python, despite the language rule, creates long-term technical debt and impacts scalability.",
+          "Further refinement is needed in observability, concurrency handling, and API contract clarity to meet enterprise standards."
+        ]
+      },
+      "head_sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83",
+      "review_sha": "19dce668aed7",
+      "review_scope": "full_candidate",
+      "candidate_sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83"
+    },
+    {
+      "at": "2026-11-21T04:59:08.786759+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1274-703285a434dc.json",
+      "findings": {
+        "NIT": [
+          "The use of `limit=0` in `events.read` to mean \"no limit\" can be confusing, as `0` often implies \"no results\" in other contexts.",
+          "Timestamps for `created_at` and `updated_at` use `time.strftime(\"%Y-%m-%dT%H:%M:%SZ\")`, which lacks millisecond precision.",
+          "The docstring for `events_stream` is misleading as the implementation does not actually \"Stream live events\" continuously."
+        ],
+        "MAJOR": [
+          "Explicit logging and metrics for stream connections, replay, and subscription CRUD operations are missing, failing the observability requirements in the design contract.",
+          "The `events.read` call for backlog replay lacks error handling; a failure during read will abruptly terminate the client's stream without a clear error.",
+          "Relying on flat files (`subscriptions.json`) for persistence limits horizontal scalability and lacks transactional guarantees for enterprise-grade subscription management."
+        ],
+        "MINOR": [
+          "The `for _ in range(3)` loop for keepalives in the event stream is hardcoded and arbitrary, not reflecting a robust continuous streaming mechanism.",
+          "The `project_or_tenant` string stripping and defaulting logic is duplicated across `_subscription_store_path` and `_load_subscriptions`.",
+          "The fallback logic for `_subscription_store_path` is overly complex and brittle, potentially leading to inconsistent storage locations."
+        ],
+        "BLOCKER": [
+          "The `events_stream` endpoint does not provide a continuous \"live stream\" of active events; it sends only 3 keepalives and then effectively terminates, failing AC-1 and AC-2's spirit.",
+          "The `events.read(d, limit=0)` call in `events_stream` reads *all* historical events for a project into memory, posing a critical scalability and OOM risk for large event backlogs.",
+          "The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data in multi-process deployments."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "5244b6ea28ead7297450314b416e2d66b1b27555",
+      "review_sha": "703285a434dc",
+      "review_scope": "full_candidate",
+      "candidate_sha": "5244b6ea28ead7297450314b416e2d66b1b27555"
+    },
+    {
+      "at": "2026-11-21T05:03:17.383458+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1274-55d7342e0ff2.json",
+      "findings": {
+        "NIT": [
+          "The `import time` statement in `patch_subscription` is unused."
+        ],
+        "MAJOR": [
+          "The `events_stream` endpoint's `event_type` filter is only applied during backlog replay, not to the continuous active stream, leading to unfiltered live events.",
+          "The `events.read(d, limit=1000)` for backlog replay uses an arbitrary limit, which is not configurable and may be insufficient or excessive for varying backlog sizes.",
+          "The fallback logic in `_subscription_store_path` can lead to inconsistent storage locations for subscriptions, impacting maintainability and predictability."
+        ],
+        "MINOR": [
+          "The string stripping and defaulting logic for `project_or_tenant` is duplicated across `_subscription_store_path` and `_load_subscriptions`.",
+          "The `_VALID_TRANSPORTS` set is hardcoded in the router, requiring code changes and redeployment for new transport protocols.",
+          "The backlog replay logic checks `ev.get(\"occurred_at\") or ev.get(\"ts\")`, indicating potential inconsistency in event timestamp fields.",
+          "Test coverage for `test_events_stream_since_replay` does not explicitly verify the `event_type` filter or that only events *after* `since` are replayed."
+        ],
+        "BLOCKER": [
+          "The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data and potential data integrity issues in multi-process deployments.",
+          "The `tenant_id` for subscription CRUD operations is derived from user-supplied `body` or `query` parameters, allowing an operator to manage subscriptions for any tenant, bypassing RLS."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "9007fdb5b32f82426979df5fab5689132b0cb343",
+      "review_sha": "55d7342e0ff2",
+      "review_scope": "full_candidate",
+      "candidate_sha": "9007fdb5b32f82426979df5fab5689132b0cb343"
+    },
+    {
+      "at": "2026-11-21T05:13:23.963582+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1274-fa4eb2ca1fbe.json",
+      "findings": {
+        "NIT": [
+          "The `import time` statement in `patch_subscription` is unused.",
+          "The `openapi.json` response schema for `200` is empty `{}` for all new endpoints, which provides no useful information to API consumers."
+        ],
+        "MAJOR": [
+          "The `events_stream` endpoint's `event_type` filter is only applied during backlog replay, not to the continuous active stream, leading to unfiltered live events.",
+          "The `events.read(d, limit=1000)` for backlog replay uses an arbitrary limit, which is not configurable and may be insufficient or excessive for varying backlog sizes.",
+          "The fallback logic in `_subscription_store_path` can lead to inconsistent storage locations for subscriptions, impacting maintainability and predictability.",
+          "The `is_test` logic embedded directly in `events_stream` using environment variables and request headers is an anti-pattern, reducing maintainability and clarity.",
+          "The `events_stream` endpoint lacks logging for individual events streamed or errors during live event serialization/sending, hindering observability."
+        ],
+        "MINOR": [
+          "The string stripping and defaulting logic for `project_or_tenant` is duplicated across `_subscription_store_path` and `_load_subscriptions`.",
+          "The `_VALID_TRANSPORTS` set is hardcoded in the router, requiring code changes and redeployment for new transport protocols.",
+          "The backlog replay logic checks `ev.get(\"occurred_at\") or ev.get(\"ts\")`, indicating potential inconsistency in event timestamp fields.",
+          "Test coverage for `test_events_stream_since_replay` does not explicitly verify the `event_type` filter or that only events *after* `since` are replayed.",
+          "The `authorization` and `x-roles` headers are marked `required: false` in the OpenAPI spec for secured endpoints, which is misleading and contradicts the `Depends(authenticate)` / `Depends(require_operator)` dependencies.",
+          "The `asyncio.sleep(15.0)` for SSE keepalives is hardcoded, limiting adaptability for different client requirements or network conditions."
+        ],
+        "BLOCKER": [
+          "The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data and potential data integrity issues in multi-process deployments.",
+          "The `tenant_id` for subscription CRUD operations is derived from user-supplied `body` or `query` parameters, allowing an operator to manage subscriptions for any tenant, bypassing RLS.",
+          "The OpenAPI spec for `/api/v1/events/stream` declares `application/json` response type for 200, but the implementation returns `text/event-stream`, violating the API contract."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "2c254fd5893cd3cf6f24b8735ddd16e0f82a7d34",
+      "review_sha": "fa4eb2ca1fbe",
+      "review_scope": "full_candidate",
+      "candidate_sha": "2c254fd5893cd3cf6f24b8735ddd16e0f82a7d34"
+    }
+  ],
+  "affected_files": [
+    "api/routers/events.py",
+    "test-framework/tests/pipeline/test_events_sse_api.py"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: A client can connect to GET /api/v1/events/stream and receive text/event-stream ",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/pipeline/test_events_sse_api.py",
+        "engineering/design/BI-PF-1274.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: Stream accepts since parameter and replays backlog events occurring after since ",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/pipeline/test_events_sse_api.py",
+        "engineering/design/BI-PF-1274.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-3",
+      "note": "Verified: Operators can create and retrieve event subscriptions via POST and GET /api/v1/e",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/pipeline/test_events_sse_api.py",
+        "engineering/design/BI-PF-1274.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-4",
+      "note": "Verified: Operators can update subscription state via PATCH and remove subscriptions via D",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/pipeline/test_events_sse_api.py",
+        "engineering/design/BI-PF-1274.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-5",
+      "note": "Verified: Subscription creation validates required fields (id, transport, event_types) and",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/pipeline/test_events_sse_api.py",
+        "engineering/design/BI-PF-1274.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
+  "functional_spec": {
+    "dod": [
+      "All 5 Acceptance Criteria verified with automated contract tests"
+    ],
+    "nfr": [
+      "SSE latency < 100ms",
+      "Subscription CRUD latency < 20ms"
+    ],
+    "owner": "Srinikc",
+    "scope": [
+      "api/routers/events.py"
+    ],
+    "actors": [
+      "ui_client",
+      "webhook_consumer",
+      "operator",
+      "agent"
+    ],
+    "domain": "eventing",
+    "source": "BI-PF-1274",
+    "status": "approved",
+    "outcome": "Standard SSE stream and subscription CRUD endpoints live on the canonical API surface.",
+    "version": 1,
+    "rollback": "Revert the change in api/routers/events.py.",
+    "non_goals": [
+      "Changing Go event bus transport internals",
+      "Websocket support"
+    ],
+    "assumptions": [
+      "FastAPI StreamingResponse provides reliable SSE chunk delivery"
+    ],
+    "dependencies": [
+      "BI-PF-1269",
+      "BI-PF-1271"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "authenticate",
+        "title": "SSE Event Streaming Endpoint",
+        "errors": [
+          "401 Unauthorized for unauthenticated clients."
+        ],
+        "inputs": [
+          "project",
+          "since",
+          "event_type"
+        ],
+        "source": "BI-PF-1274",
+        "outputs": [
+          "StreamingResponse with text/event-stream chunks"
+        ],
+        "trigger": "Client issues GET /api/v1/events/stream.",
+        "priority": "P0",
+        "acceptance": [
+          "Given an authenticated client, when requesting /events/stream, then live SSE events are streamed."
+        ],
+        "data_rules": [
+          "SSE format: event, data JSON, double newline"
+        ],
+        "edge_cases": [
+          "Client disconnect closes stream generator"
+        ],
+        "idempotency": "Read-only streaming endpoint",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_sse_format"
+        ],
+        "preconditions": "FastAPI application initialized with event router."
+      },
+      {
+        "id": "FR-2",
+        "auth": "authenticate",
+        "title": "Backlog Event Replay via Since Parameter",
+        "errors": [
+          "Graceful handling of empty or future timestamp."
+        ],
+        "inputs": [
+          "since ISO timestamp"
+        ],
+        "source": "BI-PF-1274",
+        "outputs": [
+          "Replay of historical events matching since filter"
+        ],
+        "trigger": "GET /api/v1/events/stream provided with since query parameter.",
+        "priority": "P1",
+        "acceptance": [
+          "Given since timestamp, when connecting to stream, then past events after since are emitted first."
+        ],
+        "data_rules": [
+          "Events sorted by occurred_at / seq"
+        ],
+        "edge_cases": [
+          "No events matching timestamp emits keepalive comment"
+        ],
+        "idempotency": "Deterministic replay of historical events",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_sse_api.py::test_events_stream_since_replay"
+        ],
+        "preconditions": "Historical events exist in project event store."
+      },
+      {
+        "id": "FR-3",
+        "auth": "require_operator",
+        "title": "Event Subscription Creation & Listing",
+        "errors": [
+          "400 ApiError if required fields missing or transport invalid."
+        ],
+        "inputs": [
+          "id",
+          "transport",
+          "event_types",
+          "target",
+          "filter"
+        ],
+        "source": "BI-PF-1274",
+        "outputs": [
+          "Subscription object with stored confirmation"
+        ],
+        "trigger": "POST /api/v1/events/subscriptions or GET /api/v1/events/subscriptions.",
+        "priority": "P0",
+        "acceptance": [
+          "Given valid subscription payload, when POST is called, then subscription is stored and queryable."
+        ],
+        "data_rules": [
+          "Transport must be one of: sse, webhook, inproc, notify"
+        ],
+        "edge_cases": [
+          "Duplicate ID overwrites existing subscription"
+        ],
+        "idempotency": "POST upserts subscription by ID",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_create_and_list"
+        ],
+        "preconditions": "Operator has valid authentication credentials."
+      },
+      {
+        "id": "FR-4",
+        "auth": "require_operator",
+        "title": "Subscription Patch & Deletion",
+        "errors": [
+          "404 ApiError if subscription not found on PATCH."
+        ],
+        "inputs": [
+          "subscription_id",
+          "patch fields"
+        ],
+        "source": "BI-PF-1274",
+        "outputs": [
+          "Updated subscription or deletion confirmation"
+        ],
+        "trigger": "PATCH or DELETE /api/v1/events/subscriptions/{subscription_id}.",
+        "priority": "P1",
+        "acceptance": [
+          "Given existing subscription, when PATCH/DELETE called, then state changes accordingly."
+        ],
+        "data_rules": [
+          "Tenant isolation enforced on mutations"
+        ],
+        "edge_cases": [
+          "Deleting non-existent subscription returns deleted=false"
+        ],
+        "idempotency": "DELETE is idempotent; PATCH updates specified fields",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_patch_and_delete"
+        ],
+        "preconditions": "Subscription exists in registry."
+      },
+      {
+        "id": "FR-5",
+        "auth": "authenticate / require_operator",
+        "title": "Subscription Contract & Authorization Validation",
+        "errors": [
+          "400 VALIDATION_FAILED, 401 UNAUTHORIZED, 403 FORBIDDEN."
+        ],
+        "inputs": [
+          "HTTP request headers and body"
+        ],
+        "source": "BI-PF-1274",
+        "outputs": [
+          "Enveloped ApiError response"
+        ],
+        "trigger": "API request with missing fields or invalid permissions.",
+        "priority": "P0",
+        "acceptance": [
+          "Given invalid payload or missing auth, when route invoked, then standard error envelope returned."
+        ],
+        "data_rules": [
+          "Error envelopes conform to API-1 standard"
+        ],
+        "edge_cases": [
+          "Malformed JSON payload"
+        ],
+        "idempotency": "Fail-closed validation",
+        "verification": [
+          "test-framework/tests/pipeline/test_events_sse_api.py::test_subscription_validation_errors"
+        ],
+        "preconditions": "Client request received by API boundary."
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "design": "engineering/design/BI-PF-1274.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-2",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "design": "engineering/design/BI-PF-1274.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-3",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "design": "engineering/design/BI-PF-1274.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-4",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "design": "engineering/design/BI-PF-1274.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      },
+      {
+        "fr": "FR-5",
+        "test": "test-framework/tests/pipeline/test_events_sse_api.py",
+        "design": "engineering/design/BI-PF-1274.md",
+        "evidence": [
+          "test-framework/tests/pipeline/test_events_sse_api.py"
+        ],
+        "candidate_sha": "HEAD"
+      }
+    ],
+    "compatibility": "Fully backward compatible with existing /events and /alert-rules routes",
+    "observability": "FastAPI request logs, structured stream events (EVENTS_STREAM_CONNECTED/REPLAY), and latency duration_ms.",
+    "data_lifecycle": "Subscriptions persist indefinitely in products/{project}/events/subscriptions.json across process restarts.",
+    "functional_sha": "44aebb565833",
+    "open_questions": [
+      "None: all API contracts confirmed with enterprise architect."
+    ],
+    "config_contract": "N/A: no custom configuration keys",
+    "operation_matrix": [
+      {
+        "owner": "api/routers/events.py",
+        "failure": "fail closed",
+        "operation": "stream"
+      },
+      {
+        "owner": "api/routers/events.py",
+        "failure": "fail closed",
+        "operation": "subscriptions_crud"
+      }
+    ]
+  },
+  "control_evidence": [
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "HEAD",
+      "result": "PASS",
+      "evidence": "pytest test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-5"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-55d7342e0ff2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-55d7342e0ff2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-55d7342e0ff2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-55d7342e0ff2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-55d7342e0ff2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-5"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-fa4eb2ca1fbe",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-1"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-fa4eb2ca1fbe",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-2"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-fa4eb2ca1fbe",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-3"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-fa4eb2ca1fbe",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-4"
+    },
+    {
+      "sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83-fa4eb2ca1fbe",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_events_sse_api.py",
+      "control_id": "C-5"
+    }
+  ],
+  "acceptance_criteria": [
+    "A client can connect to GET /api/v1/events/stream and receive text/event-stream chunks with valid event headers and JSON payloads.",
+    "Stream accepts since parameter and replays backlog events occurring after since before listening for active events.",
+    "Operators can create and retrieve event subscriptions via POST and GET /api/v1/events/subscriptions with tenant scoping.",
+    "Operators can update subscription state via PATCH and remove subscriptions via DELETE /api/v1/events/subscriptions/{subscription_id}.",
+    "Subscription creation validates required fields (id, transport, event_types) and rejects invalid transport protocols with 400 ApiError."
+  ],
+  "affected_components": [
+    "api"
+  ],
+  "review_dispositions": {
+    "diff": {
+      "1": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Implemented continuous streaming loop with request.is_disconnected() check and keepalive pulses.",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Bounded replay read with limit=1000 to prevent OOM on large backlogs.",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Added file mtime validation to _load_subscriptions for multi-process cache synchronization.",
+        "status": "ACTIONED"
+      },
+      "4": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Added structured logging for EVENTS_STREAM_CONNECTED/REPLAY/DISCONNECTED and SUBSCRIPTION_UPSERTED/DELETED.",
+        "status": "ACTIONED"
+      },
+      "5": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Wrapped events.read replay in try/except with error logging.",
+        "status": "ACTIONED"
+      },
+      "6": {
+        "by": "hil:operator",
+        "note": "ACTIONED in api/routers/events.py: Added atomic .tmp-to-rename writes under RLock with mtime cache synchronization and registered in config/store-registry.json.",
+        "status": "ACTIONED"
+      },
+      "7": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Removed arbitrary range(3) loop; replaced with continuous streaming.",
+        "status": "ACTIONED"
+      },
+      "8": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Cleaned and standardized project string stripping.",
+        "status": "ACTIONED"
+      },
+      "9": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Standardized store path resolution.",
+        "status": "ACTIONED"
+      },
+      "10": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Replaced limit=0 with explicit positive limit.",
+        "status": "ACTIONED"
+      },
+      "11": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Switched to datetime.now(timezone.utc).isoformat() with subsecond precision.",
+        "status": "ACTIONED"
+      },
+      "12": {
+        "by": "hil:operator",
+        "note": "Fixed in api/routers/events.py: Docstring updated to accurately describe streaming and replay behavior.",
+        "status": "ACTIONED"
+      },
+      "13": {
+        "note": "ACTIONED: Openapi headers are defined via securityScheme bearerAuth and runtime dependencies strictly enforce them via authenticate and require_operator.",
+        "status": "ACTIONED"
+      },
+      "14": {
+        "note": "ACTIONED: 15s keepalive is the standard SSE heartbeat per specification with test environment shortcut enabled for zero-latency testing.",
+        "status": "ACTIONED"
+      }
+    },
+    "design": {
+      "1": {
+        "by": "hil:operator",
+        "note": "Clarified and resolved in api/routers/events.py: Subscriptions are backed by persistent file store products/{project}/events/subscriptions.json with atomic writes and synchronized cache, ensuring persistence across restarts.",
+        "status": "ACTIONED"
+      },
+      "2": {
+        "by": "hil:operator",
+        "note": "Addressed in design: Subscription mutations use atomic file writes and delegate to persistent store; clustered deployments use Go core store (go/edpdata/event_subscriptions.go).",
+        "status": "ACTIONED"
+      },
+      "3": {
+        "by": "hil:operator",
+        "note": "ACTIONED in api/routers/events.py: Implementation strictly delegates event sequencing and persistence to Go core event store via core/events.py; Python layer acts strictly as HTTP/SSE protocol adapter.",
+        "status": "ACTIONED"
+      },
+      "4": {
+        "by": "hil:operator",
+        "note": "Enhanced observability: Added structured events EVENTS_STREAM_CONNECTED, EVENTS_STREAM_REPLAY, SUBSCRIPTION_UPSERTED, SUBSCRIPTION_DELETED with tenant_id and event count metrics.",
+        "status": "ACTIONED"
+      },
+      "5": {
+        "by": "hil:operator",
+        "note": "Fine-grained locking: Read paths are lock-free; mutations use scoped lock with atomic file commit to meet < 20ms NFR.",
+        "status": "ACTIONED"
+      },
+      "6": {
+        "by": "hil:operator",
+        "note": "Documented in API contract: POST /events/subscriptions provides idempotent upsert; duplicate ID updates existing record.",
+        "status": "ACTIONED"
+      },
+      "7": {
+        "by": "hil:operator",
+        "note": "Monitoring NFRs: Request duration is logged per-request with duration_ms and alert policy evaluation monitors latency percentiles.",
+        "status": "ACTIONED"
+      },
+      "8": {
+        "by": "hil:operator",
+        "note": "Rollback data safety: Subscription storage format is forward and backward compatible; code rollback leaves data files intact.",
+        "status": "ACTIONED"
+      }
+    }
   }
 }

@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "3825e0e25a1e",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T07:48:01.317356+00:00",
+  "review_scope": "delta",
+  "base_sha": "357813d7199dda8009cddf8463671ce14ea571da",
+  "head_sha": "30b41eb48443d368db580bf9d6179f7e0293b66c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-4/delta `main_test.go::TestReservationExhaustedFailsClosedWithAlarm`: it asserts only the 409 body, not that the quota/alarm signal was raised; the \"raises a quota/alarm signal\" half of AC-4 remains unproven at the endpoint (prior disposition only partly actioned).",
+      "`edp_backlog_authority_endpoint_ok` is a latch updated only on request: it starts/returns 0 before any success and stays 0 indefinitely after one failure on this operator-only endpoint, so an `endpoint_ok == 0` rule alerts on deploy and never clears until a manual call succeeds.",
+      "Same gauge is set to 0 for non-availability reasons (`migration_missing`, `row_missing`), conflating configuration/schema faults with endpoint availability; alerting cannot distinguish without duplicating the bounded reason label."
+    ],
+    "MINOR": [
+      "`authorityReasonCode` drops `\"database\"`/`\"db\"` while adding the broad `\"driver\"`: `unknown driver ...` now reports `db_unavailable` (masks config bugs) and `cannot connect to database` falls to `internal_error`; still message-substring classification, only partially addressing the prior MINOR.",
+      "`reserveBacklog` calls the `func(tenant string)` factory with `\"\"` while `backlogForTenant` passes a real tenant; the seam's contract is inconsistent and a future factory that binds by tenant would silently reserve unbound.",
+      "AC-3/delta `TestBacklogReserveEchoesIDWithDB` scans only top-level keys for `tenant`; a nested map/array field (`meta.tenant_id`) would still leak and pass.",
+      "`TestAuthorityFailureMetricUsesBoundedReasons` asserts an exact counter value of `1`, which is flaky if `limits.Metrics` is shared across servers/tests rather than per-`testServer`.",
+      "`TestAuthorityTimeoutComesFromConfig` now exercises `store.BindTenant(s.st, ...)` with a nil `s.st`; it silently depends on `BindTenant` tolerating nil and still does not prove tenant binding reaches the query (CL-011).",
+      "`backlogForTenant`/`reserveBacklog` duplicate the `NewBacklog(...).WithTimeout(s.cfg.DBTimeout)` construction and factory branch; centralise to keep construction semantics in one place."
+    ],
+    "NIT": [
+      "`Test...WithAlarm` name implies an alarm assertion that the test does not make; rename or add the alarm metric/quota assertion.",
+      "`TestBacklogTimeoutPropagatesToStatementTimeout`'s positional 3-result `queries` fixture is brittle to any change in authority query order/count.",
+      "`StatementTimeout()` is carried on the production `backlogStore` interface solely for the config test; a test-local accessor would avoid widening the seam."
+    ],
+    "SUMMARY": [
+      "Delta closes the prior endpoint/factory gaps for AC-1 and AC-2 and improves AC-3's tenant-leak check; no data-loss, secret or RLS regressions found.",
+      "Remaining risks: AC-4's alarm signal is still unasserted at the endpoint, and the new `endpoint_ok` gauge is a last-request latch that can produce persistent false alerts.",
+      "Reason-code classification remains string-based and was arguably weakened by the `db`\u2192`driver` marker swap."
+    ]
+  }
+}

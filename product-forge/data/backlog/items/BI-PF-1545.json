@@ -1,0 +1,819 @@
+{
+  "id": "BI-PF-1545",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 679",
+  "title": "Delivery state and RCCA gate",
+  "body": "Add explicit Code/Integration/Validation/Quality/Delivery Complete states, Gate 2 consumption and RCCA requirement for escaped defects.",
+  "source": "api",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-17T23:22:14.807782",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Add explicit Code/Integration/Validation/Quality/Delivery Complete states, Gate 2 consumption and RCCA requirement for escaped defects.",
+    "what_adds": "Delivery state and RCCA gate",
+    "why": "Add explicit Code/Integration/Validation/Quality/Delivery Complete states, Gate 2 consumption and RCCA requirement for escaped defects.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Delivery state and RCCA gate",
+  "acceptance_criteria": [
+    "delivery_state_check reports missing states and blocks Delivery Complete until all prior states pass.",
+    "Gate 2 completion consumes delivery-state evidence, and escaped defects require RCCA with a linked backlog item."
+  ],
+  "in_scope": [
+    "Delivery state and RCCA gate"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Delivery state and RCCA gate",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 3, 'NIT': 2}"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1545): sig:98eef858d21c4138 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=046e0eced068\nBLOCKER:\n  - CL-015 violation: AC evidence entries (`ac_evidence`, `traceability`) cite only `docs/IMPLEMENTATION-CONTROLS-DESIGN.md` with no candidate SHA; empty SHA is incomplete, so Gate 2 cannot validate evidence.\n  - Acceptance criteria are truncated mid-clause (\"all prior s\", \"require RCCA with \"); the verifiable pass/fail condition for AC-1 and AC-2 is undefined, blocking objective gate evaluation.\n  - Design guardrail checklist (items 1-10) is entirely unanswered; per CL-008 the design must address reversibility, authz boundary, blast radius, invariants, and reuse before Gate 1.5 — approval is invalid while unaddressed.\nMAJOR:\n  - `affected_components` / `affected_files` are \"Not specified\", so the language rule (new shipped logic -> Go) cannot be confirmed and single-writer ownership (CL-001) cannot be verified.\n  - Traceability maps FR-1/FR-2 \"design\", \"test\", and \"evidence\" all to the same design document; no fail-able test artifact or test file is declared (guardrail 6), so AC verification is unprovable.\n  - `out_of_scope`, `risks`, and `affected_files` are \"Not specified\"; failure matrix covers only one case (`EVIDENCE_MISSING`) while AC-2's RCCA-with-backlog-link path has no stated failure behavior.\n  - Dependency BI-PF-1540 is asserted but its status/contract is undefined; blocked-on-dependency behavior for `delivery_state_check` is unstated.\nMINOR:\n  - Rollback is generic \"Revert the change\" with no migration-interrupted or partial-application recovery path (guardrail 6).\n  - Observability is reduced to \"tests\"; no minimum log/metric emission for gate denial is specified (guardrail 10).\n  - Reuse check absent: no statement that `delivery_state_check` reuses existing gate owners/ports rather than duplicating state logic (CL-001).\n  - `config_contract` claims \"no new config on develop\" but the state list (\"all five states\") is hardcoded-eligible with no single source of truth identified.\nNIT:\n  - FR titles are truncated in `design_pack.requirements` to match the clipped AC text; clean wording would improve review readability.\n  - `spec_pack.rollback_dr` marked N/A while `functional_spec.rollback` exists; slight inconsistency in rollback coverage labels.\nSUMMARY:\n  - Design is a template-level stub: truncated ACs, unspecified files/ownership, and evidence unpinned to a SHA mean Gate 1.5/CL-015/CL-008 conditions are unmet.\n  - Top risks: unverifiable AC-1/AC-2 acceptance, no fail-able test artifact, and unanswered security/reversibility guardrails.\n  - Recommend returning to design (G1.5 PENDING) before any approval; scope itself (delivery-state + RCCA gate) is coherent and appropriately split.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=302a5f2f20f6\nBLOCKER:\n  - FR-2/Gate 2 integration is untested: no test exercises `gate2_completion_check.completion_gaps` with `delivery_states`/escaped-defect RCCA input, so AC-2 (\"Gate 2 consumes delivery-state evidence\") is implemented but not demonstrably fail-able.\nMAJOR:\n  - `rcca.linked_item` is only checked for non-emptiness; any string passes. AC requires a *linked backlog item* — the check never resolves it via `backlog`, so a bogus link satisfies the gate.\n  - No call site/CI wiring in the diff shows `delivery_state_check` blocking the Delivery Complete transition itself; only Gate 2 imports `problems()`, so the \"blocks Delivery Complete\" half of AC-1 has no demonstrated enforcement point.\nMINOR:\n  - Redundant logic: the `delivery_complete without <state>` branch re-detects conditions already reported by the first `STATES` loop, producing duplicate/noisy problem entries instead of one authoritative message.\n  - `except Exception` around the `delivery_state_check` import converts any failure (path, syntax, signature) into a gap string with no traceback/logging — fail-closed but poor diagnosability for a gate.\n  - The wrapper test re-loads `tests/test_delivery_state.py` via `importlib` and copies functions into `globals()`; fragile symbol-by-name mirroring that silently drops non-`test_` fixtures/helpers the source may later rely on.\nNIT:\n  - Module docstring cites BI-PF-1538 rather than the shipping item BI-PF-1545, weakening change traceability.\n  - `STATES` is hard-coded in the script with no shared owner/config registration, so a future state-order change must be edited in multiple places.\nSUMMARY:\n  - The delivery-state predicate and Gate 2 hook are present and fail-closed, and tooling Python satisfies the language rule.\n  - Top risks: AC-2 has zero tests at the Gate 2 boundary, RCCA `linked_item` is not validated as a real backlog reference, and nothing in the diff demonstrates an active block on the Delivery Complete transition.\n  - Recommend adding a Gate 2 integration test, resolving `linked_item` through `backlog`, and showing the enforcement call site before merge.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "PR #366 merged to develop at 2f3d230c999fcb8a85b82023dd81bf12c0cf1638"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-17T23:22:14.564501",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/byot_integration.py, core/code_analyzer.py, core/code_executor.py, core/code_quality_gate.py",
+    "existing_components": [
+      "core/byot_integration.py",
+      "core/code_analyzer.py",
+      "core/code_executor.py",
+      "core/code_quality_gate.py",
+      "core/delivery.py",
+      "core/integration_advisor.py",
+      "core/merge_gate.py",
+      "core/model_gate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/delivery",
+      "/api/v1/validation",
+      "/api/v1/validation/policy",
+      "/api/v1/validation/profiles",
+      "/api/v1/validation/runs",
+      "/api/v1/validation/dogfood",
+      "/api/v1/validation/merge-gate",
+      "/api/v1/validation/merge-gate/queue"
+    ],
+    "existing_modules": [
+      "config/ci-cd-gates.json",
+      "config/delivery-completeness-baseline.json",
+      "config/design-completeness.json",
+      "config/gate-baseline.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "6ef474970e322194"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-17T23:22:14.677480"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-17T23:22:10.809744",
+  "updated_at": "2026-11-19T14:20:01.256757",
+  "score": 0.75,
+  "_note": "Delivered via PR #366",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1545",
+    "outcome": "Split deliverable is implementable and testable on its own branch.",
+    "actors": [
+      "operator",
+      "reviewer"
+    ],
+    "scope": [
+      "split deliverable"
+    ],
+    "non_goals": [
+      "other split items"
+    ],
+    "assumptions": [
+      "develop has shared review decisions API"
+    ],
+    "dependencies": [
+      "BI-PF-1540"
+    ],
+    "domain": "delivery process",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "delivery_state_check reports missing states and blocks Delivery Complete until all prior s",
+        "priority": "P0",
+        "source": "BI-PF-1545",
+        "preconditions": "Split delivery item is implemented on its own branch.",
+        "trigger": "The owning gate or API runs.",
+        "inputs": [
+          "backlog item",
+          "gate/API input"
+        ],
+        "outputs": [
+          "validated behavior and evidence"
+        ],
+        "errors": [
+          "missing or invalid input blocks"
+        ],
+        "auth": "operator/tooling only",
+        "idempotency": "validation is idempotent",
+        "data_rules": [
+          "no partial writes"
+        ],
+        "edge_cases": [
+          "missing evidence"
+        ],
+        "acceptance": [
+          "Given the owning control, when exercised, then the behavior is observable and tested."
+        ],
+        "verification": [
+          "pytest focused tests"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Gate 2 completion consumes delivery-state evidence, and escaped defects require RCCA with ",
+        "priority": "P0",
+        "source": "BI-PF-1545",
+        "preconditions": "Split delivery item is implemented on its own branch.",
+        "trigger": "The owning gate or API runs.",
+        "inputs": [
+          "backlog item",
+          "gate/API input"
+        ],
+        "outputs": [
+          "validated behavior and evidence"
+        ],
+        "errors": [
+          "missing or invalid input blocks"
+        ],
+        "auth": "operator/tooling only",
+        "idempotency": "validation is idempotent",
+        "data_rules": [
+          "no partial writes"
+        ],
+        "edge_cases": [
+          "missing evidence"
+        ],
+        "acceptance": [
+          "Given the owning control, when exercised, then the behavior is observable and tested."
+        ],
+        "verification": [
+          "pytest focused tests"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "validate",
+        "owner": "owning script",
+        "failure": "fail closed"
+      }
+    ],
+    "config_contract": {
+      "N/A": "no new config on develop"
+    },
+    "nfr": [
+      "no runtime impact"
+    ],
+    "data_lifecycle": "backlog evidence retained",
+    "compatibility": "independent branch",
+    "rollback": "revert branch",
+    "observability": "focused tests",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: deliverable is isolated."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "577b783810af"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1545.md",
+    "design_ref": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1545",
+        "reason": "design source",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "split"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no API change in this lifecycle record"
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no data change"
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no config on develop"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no runtime SLO"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1545",
+        "reason": "security review source",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "branch revert only"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1545",
+        "reason": "test evidence",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no user interface"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1545",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1545",
+        "reason": "split plan",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "split"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1545",
+        "reason": "branch tests",
+        "artifact": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "sections": [
+          "tests"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "delivery_state_check reports missing states and blocks Delivery Complete until all prior s",
+      "Gate 2 completion consumes delivery-state evidence, and escaped defects require RCCA with "
+    ],
+    "invariants": [
+      "one deliverable per branch"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": "N/A",
+      "files": {
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+      },
+      "config": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "missing evidence",
+        "behavior": "block",
+        "code": "EVIDENCE_MISSING"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1540"
+    ],
+    "security": "tooling-only",
+    "observability": "tests",
+    "performance": "no runtime impact",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "focused tests"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "focused tests"
+      }
+    ],
+    "rollout": "own branch",
+    "rollback": "revert branch",
+    "decisions": [
+      "split from BI-PF-1538"
+    ],
+    "guardrails": [
+      "independent branch"
+    ],
+    "learnings": [
+      "avoid multi-item branch"
+    ],
+    "design_areas": [
+      {
+        "area": "delivery-tooling",
+        "status": "APPLICABLE",
+        "reason": "split scope",
+        "sections": [
+          "split"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1545.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "focused tests",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "focused tests",
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "scope": [
+      "split deliverable"
+    ],
+    "non_goals": [
+      "other split items"
+    ],
+    "runtime_contract": {
+      "trigger": "gate/API",
+      "entrypoint": "owning script",
+      "call_sites": [
+        "gate"
+      ],
+      "adapter": "script",
+      "contract": "validated behavior",
+      "failure_behavior": "fail closed",
+      "observable_result": "test evidence"
+    },
+    "proof_plan": {
+      "failing_test": "focused tests",
+      "red_evidence": "missing behavior",
+      "green_evidence": "tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+      }
+    ],
+    "stop_conditions": [
+      "missing evidence"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Lifecycle record only; code/API belongs to the item branch.",
+    "routes": []
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "38669768d9a54febd4fbf8cccc5fdc80628ce6c6",
+      "review_sha": "046e0eced068",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T08:32:04.145983+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "38669768d9a54febd4fbf8cccc5fdc80628ce6c6",
+      "findings": {
+        "BLOCKER": [
+          "CL-015 violation: AC evidence entries (`ac_evidence`, `traceability`) cite only `docs/IMPLEMENTATION-CONTROLS-DESIGN.md` with no candidate SHA; empty SHA is incomplete, so Gate 2 cannot validate evidence.",
+          "Acceptance criteria are truncated mid-clause (\"all prior s\", \"require RCCA with \"); the verifiable pass/fail condition for AC-1 and AC-2 is undefined, blocking objective gate evaluation.",
+          "Design guardrail checklist (items 1-10) is entirely unanswered; per CL-008 the design must address reversibility, authz boundary, blast radius, invariants, and reuse before Gate 1.5 — approval is invalid while unaddressed."
+        ],
+        "MAJOR": [
+          "`affected_components` / `affected_files` are \"Not specified\", so the language rule (new shipped logic -> Go) cannot be confirmed and single-writer ownership (CL-001) cannot be verified.",
+          "Traceability maps FR-1/FR-2 \"design\", \"test\", and \"evidence\" all to the same design document; no fail-able test artifact or test file is declared (guardrail 6), so AC verification is unprovable.",
+          "`out_of_scope`, `risks`, and `affected_files` are \"Not specified\"; failure matrix covers only one case (`EVIDENCE_MISSING`) while AC-2's RCCA-with-backlog-link path has no stated failure behavior.",
+          "Dependency BI-PF-1540 is asserted but its status/contract is undefined; blocked-on-dependency behavior for `delivery_state_check` is unstated."
+        ],
+        "MINOR": [
+          "Rollback is generic \"Revert the change\" with no migration-interrupted or partial-application recovery path (guardrail 6).",
+          "Observability is reduced to \"tests\"; no minimum log/metric emission for gate denial is specified (guardrail 10).",
+          "Reuse check absent: no statement that `delivery_state_check` reuses existing gate owners/ports rather than duplicating state logic (CL-001).",
+          "`config_contract` claims \"no new config on develop\" but the state list (\"all five states\") is hardcoded-eligible with no single source of truth identified."
+        ],
+        "NIT": [
+          "FR titles are truncated in `design_pack.requirements` to match the clipped AC text; clean wording would improve review readability.",
+          "`spec_pack.rollback_dr` marked N/A while `functional_spec.rollback` exists; slight inconsistency in rollback coverage labels."
+        ],
+        "SUMMARY": [
+          "Design is a template-level stub: truncated ACs, unspecified files/ownership, and evidence unpinned to a SHA mean Gate 1.5/CL-015/CL-008 conditions are unmet.",
+          "Top risks: unverifiable AC-1/AC-2 acceptance, no fail-able test artifact, and unanswered security/reversibility guardrails.",
+          "Recommend returning to design (G1.5 PENDING) before any approval; scope itself (delivery-state + RCCA gate) is coherent and appropriately split."
+        ]
+      },
+      "evidence": "BI-PF-1545-046e0eced068.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "38669768d9a54febd4fbf8cccc5fdc80628ce6c6",
+      "review_sha": "302a5f2f20f6",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T08:34:10.294386+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "38669768d9a54febd4fbf8cccc5fdc80628ce6c6",
+      "findings": {
+        "BLOCKER": [
+          "FR-2/Gate 2 integration is untested: no test exercises `gate2_completion_check.completion_gaps` with `delivery_states`/escaped-defect RCCA input, so AC-2 (\"Gate 2 consumes delivery-state evidence\") is implemented but not demonstrably fail-able."
+        ],
+        "MAJOR": [
+          "`rcca.linked_item` is only checked for non-emptiness; any string passes. AC requires a *linked backlog item* — the check never resolves it via `backlog`, so a bogus link satisfies the gate.",
+          "No call site/CI wiring in the diff shows `delivery_state_check` blocking the Delivery Complete transition itself; only Gate 2 imports `problems()`, so the \"blocks Delivery Complete\" half of AC-1 has no demonstrated enforcement point."
+        ],
+        "MINOR": [
+          "Redundant logic: the `delivery_complete without <state>` branch re-detects conditions already reported by the first `STATES` loop, producing duplicate/noisy problem entries instead of one authoritative message.",
+          "`except Exception` around the `delivery_state_check` import converts any failure (path, syntax, signature) into a gap string with no traceback/logging — fail-closed but poor diagnosability for a gate.",
+          "The wrapper test re-loads `tests/test_delivery_state.py` via `importlib` and copies functions into `globals()`; fragile symbol-by-name mirroring that silently drops non-`test_` fixtures/helpers the source may later rely on."
+        ],
+        "NIT": [
+          "Module docstring cites BI-PF-1538 rather than the shipping item BI-PF-1545, weakening change traceability.",
+          "`STATES` is hard-coded in the script with no shared owner/config registration, so a future state-order change must be edited in multiple places."
+        ],
+        "SUMMARY": [
+          "The delivery-state predicate and Gate 2 hook are present and fail-closed, and tooling Python satisfies the language rule.",
+          "Top risks: AC-2 has zero tests at the Gate 2 boundary, RCCA `linked_item` is not validated as a real backlog reference, and nothing in the diff demonstrates an active block on the Delivery Complete transition.",
+          "Recommend adding a Gate 2 integration test, resolving `linked_item` through `backlog`, and showing the enforcement call site before merge."
+        ]
+      },
+      "evidence": "BI-PF-1545-302a5f2f20f6.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:9a21e02f2e38438d": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:39023f313b2fbce9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:f4f1920dfc1e752f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:583763882f947240": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:f4e78312b371a9c6": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:1eebc4f580d241aa": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:d7cdaee2b2b9213c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:0f2a4eb489da8bdc": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:f974bcecec6a2191": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:e00d801a88823feb": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:2f624c051e98fd5c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:77ed8d859826d767": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      },
+      "sig:c90db7114c17d242": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for delivery-state/RCCA split deliverable."
+      }
+    },
+    "diff": {
+      "sig:08f524ebc13922ea": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:51d071e23d543a89": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:28196aa8584329d6": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:25c6422c83f43a7f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:0359aaa9206c38c4": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:e64e80b80d947475": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:262b5e437aa84e07": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      },
+      "sig:a91d0f222f3fa51b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for split delivery-state deliverable."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:08f524ebc13922ea",
+      "finding": "FR-2/Gate 2 integration is untested: no test exercises `gate2_completion_check.completion_gaps` with `delivery_states`/escaped-defect RCCA input, so AC-2 (\"Gate 2 consumes delivery-state evidence\") is implemented but not demonstrably fail-able.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_delivery_state.py",
+      "evidence": "engineering/reviews/BI-PF-1545-302a5f2f20f6.json",
+      "files": [
+        "scripts/dev/delivery_state_check.py",
+        "tests/test_delivery_state.py"
+      ],
+      "rollback": "Revert BI-PF-1545.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:51d071e23d543a89",
+      "finding": "`rcca.linked_item` is only checked for non-emptiness; any string passes. AC requires a *linked backlog item* — the check never resolves it via `backlog`, so a bogus link satisfies the gate.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_delivery_state.py",
+      "evidence": "engineering/reviews/BI-PF-1545-302a5f2f20f6.json",
+      "files": [
+        "scripts/dev/delivery_state_check.py",
+        "tests/test_delivery_state.py"
+      ],
+      "rollback": "Revert BI-PF-1545.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:28196aa8584329d6",
+      "finding": "No call site/CI wiring in the diff shows `delivery_state_check` blocking the Delivery Complete transition itself; only Gate 2 imports `problems()`, so the \"blocks Delivery Complete\" half of AC-1 has no demonstrated enforcement point.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "tests/test_delivery_state.py",
+      "evidence": "engineering/reviews/BI-PF-1545-302a5f2f20f6.json",
+      "files": [
+        "scripts/dev/delivery_state_check.py",
+        "tests/test_delivery_state.py"
+      ],
+      "rollback": "Revert BI-PF-1545.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:08f524ebc13922ea",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_delivery_state.py",
+      "controls_rerun": [
+        "pytest -q tests/test_delivery_state.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1545-302a5f2f20f6.json"
+    },
+    {
+      "finding_sig": "sig:51d071e23d543a89",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_delivery_state.py",
+      "controls_rerun": [
+        "pytest -q tests/test_delivery_state.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1545-302a5f2f20f6.json"
+    },
+    {
+      "finding_sig": "sig:28196aa8584329d6",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "tests/test_delivery_state.py",
+      "controls_rerun": [
+        "pytest -q tests/test_delivery_state.py"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1545-302a5f2f20f6.json"
+    }
+  ],
+  "verified_by": "Srinikc HIL"
+}

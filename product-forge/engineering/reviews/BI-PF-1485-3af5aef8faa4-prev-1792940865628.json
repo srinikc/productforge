@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "3af5aef8faa4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T14:51:03.428142+00:00",
+  "base_sha": "",
+  "head_sha": "2621c445e62799693c0349405411a9315c490580",
+  "findings": {
+    "BLOCKER": [
+      "Re-review semantics under-specified: no defined identity/key for \"same candidate\" (what key: head SHA, commit range, or review id?) and no stated collision/tie-break when multiple reviews share a key; delta binding (`last_reviewed_HEAD..HEAD`) cannot be verified without it.",
+      "Design-pack enforcement is stated for \"enforced items\" only, but the mechanism/registry for which items are enforced, and how enforcement escalates (warn vs fail) at Gate 1 and precheck, is undefined \u2014 gate can silently pass on non-enforced items.",
+      "Encoding gate scope (\"changed source/config/docs\", \"working-tree/untracked\") lacks a defined change-set definition (diff vs index vs status) and a rule for files with no HEAD baseline (untracked/new), leaving the gate bypassable."
+    ],
+    "MAJOR": [
+      "Risk \"Delta review may miss interactions with unchanged code\" is mitigated only by prose (\"full-candidate AC context\"); no concrete mechanism (e.g., dependency-graph expansion, invariant re-check over the full tree) is specified \u2014 interaction regressions can ship silently.",
+      "CL-006/CL-002 ownership split (reviewer-owned findings, main-thread-owned dispositions) is not addressed in the design; the delta review must preserve prior dispositions without letting the reviewer tool write them \u2014 storage/ownership model is missing.",
+      "Guardrail checklist items 3, 4, 9 (authz boundary, blast radius/dry-run, tenant isolation) are not explicitly answered or explicitly marked N/A; precheck \"enforced items\" should make an N/A decision explicit and auditable.",
+      "Rollback (\"revert the commit\") does not cover the persisted `item.design_pack` / generated `engineering/design/<ID>.md` or `last_reviewed_HEAD` state: a revert could leave orphaned design docs or a stale delta base pointing at a non-ancestor HEAD.",
+      "Observability is absent: no metric/log/trace for review-delta computation, design-pack validation failure, or encoding-gate violations \u2014 failures will be diagnosable only by re-running locally."
+    ],
+    "MINOR": [
+      "Recurring MINOR \"_render_review\"/\"_item_dispositions\" untested paths (index alignment, missing item, unknown status) are not reflected in the test matrix; delta/prior-context rendering needs those exact cases.",
+      "\"Generator reads templates BOM-safely\" is asymmetric with the write-side guarantee (BOM-free output); specify both read and write normalization to avoid BOM reintroduction.",
+      "Affected-files list includes broad `test-framework/tests/test_*` glob \u2014 unreviewable scope; enumerate concrete test modules.",
+      "No decision record (ADR/decision entry) for choosing delta-review over full-review, though `docs/ARCHITECTURE-DECISIONS.md` is cited as a standard."
+    ],
+    "NIT": [
+      "Probe/ID uniqueness via wall-clock nanos (recurring) \u2014 prefer monotonic counter or content hash for deterministic tests.",
+      "\"No 1484 finalization code\" boundary is prose only; consider an explicit lint/precheck assertion that finalization symbols are untouched."
+    ],
+    "SUMMARY": [
+      "Design is directionally right (delta review, design-pack gate, encoding gate) and reversible at the repo level, but is not yet Gate-1-ready: identity/binding semantics, enforcement-vs-warn model, change-set definition for the encoding gate, and ownership of dispositions are unspecified. Top risks: silently non-enforced gates, delta reviews missing cross-file interactions, and revert leaving inconsistent persisted review/design state."
+    ]
+  },
+  "rereview_reason": "design completeness: scope/risks/observability/rollback/guardrails",
+  "rereview_reason_sha256": "c1fa1f33959faa21775902e10e3e1359ffee224acb7c38b8950b522a6f5ee75a"
+}

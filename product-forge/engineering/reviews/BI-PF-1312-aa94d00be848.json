@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "aa94d00be848",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`ops/cron/pfaudit-retention.cron` starts with a UTF-8 BOM (`\\ufeff` before `#`); cron parsers in `/etc/cron.d/` do not treat a BOM-prefixed line as a comment and may reject the entire file, silently disabling the retention cron (export, check, purge).",
+      "The cron purge line references `$PF_AUDIT_PURGE_MONTH` and `$PF_OPERATOR`, which are not declared in the file; cron.d does not inherit shell env, so the purge command always runs with an empty `--month` and exits 1 \u2014 the shipped cron can never purge an archive."
+    ],
+    "MAJOR": [
+      "`pfaudit-swap` `rehearsal()` runs `age -d` and `pg_restore -l` via `exec.CommandContext` with `context.Background()` (no deadline); a wrong `PF_AGE_IDENTITY` or hung pipe blocks the backup step indefinitely, stalling the swap window.",
+      "`backup()` calls `dump.Start()` then `age.Start()`; if `age.Start()` fails the `pg_dump` child is never killed or reaped \u2014 a zombie `pg_dump` process leaks on every failed backup attempt.",
+      "`DefaultSSE()` returns `\"aws:kms\"` whenever `PF_S3_BUCKET` is set, and `CheckSSE` always rejects bare `\"aws:kms\"` (requires a key ID); every S3 export fails closed unless `PF_S3_KMS_KEY` or `PF_AUDIT_SSE` is explicitly set, with no way to use the bucket-default KMS key.",
+      "The `0014` grants/revokes block is gated on `pf_app` existing; if migration 0004 has not yet run (fresh cluster, migration order), the `REVOKE ALL ... FROM pf_app` and `GRANT SELECT ... TO pf_app` statements are silently skipped, leaving the shadow table's default PUBLIC grants until 0004 applies.",
+      "`architect_review.py` `_build_prompt` now sends up to 180 000 characters of diff; combined with the AC and system prompt this can exceed the context window of the listed models, producing an HTTP 400 that the retry loop treats as fatal (400 is not in the retry set), making the gate fail closed on large diffs."
+    ],
+    "MINOR": [
+      "`RestoreMonth` grants `SELECT` on the scratch table to `pf_runtime`; the AC says app/tenant roles hold grants on the parent only \u2014 a scratch table holding audit rows now has a direct runtime grant, widening the surface beyond the parent-only principle.",
+      "`CheckSSE` accepts `AES256` / `SSE-S3` as satisfying the encryption requirement; the AC says SSE-KMS, so a weaker SSE-S3 configuration passes the gate.",
+      "`PurgeMonth` calls `audit_mark_purged` before deleting objects; a re-run after a partial delete overwrites `purged_at` with a new timestamp, losing the original purge time from the manifest (audit-trail degradation).",
+      "`audit_provision` catches `duplicate_table` (42P07) and silently returns without re-verifying that the partition now exists; a subsequent insert could still fail with 23514 if the race was against a different error path.",
+      "`architect_review.py` retry loop raises `last_err` without including the model ID or attempt count in the message, making triage of gateway failures harder."
+    ],
+    "NIT": [
+      "`architect_review.json` reformats arrays to multi-line; this is formatting-only and adds diff noise unrelated to the item.",
+      "`store-registry.json` adds a trailing newline; trivial formatting change.",
+      "`backupRetention` uses an unexplained constant `30` for the minimum retention floor; a named constant would improve readability.",
+      "`CoverageStatus.Stale` is a boolean state but the metric `audit_rotation_stale_total` is a counter; the naming implies cumulative events, not a point-in-time state."
+    ],
+    "SUMMARY": [
+      "The Go implementation is structurally sound: catalog-driven state machine, privilege-enforced hardening, bounded delta drain with lock-timeout retry, and fail-closed SSE are all present and well-tested. Two shipped artifacts are broken as-is: the cron file has a BOM that can disable it entirely, and the purge line references env vars that cron.d never sets, so the purge cron can never succeed. The `rehearsal`/`backup` process lifecycle has a hang risk and a zombie leak on the error path, and the SSE-KMS fail-closed design leaves no way to run against S3 without an explicit KMS key ID \u2014 confirm this is intentional before sign-off."
+    ]
+  }
+}

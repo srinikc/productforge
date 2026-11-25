@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "a128d9a5793a",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T15:25:37.297237+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "670819c363f7d9cf63f0756f2c773807578ef2df",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "[OUT_OF_SCOPE] Deprecation is inconsistent: capsvc keeps `PF_BACKLOG_API` as a fallback alias while `run_capsvc.py` drops `--backlog-api` and `usage_capture.py` swaps to `PF_EDP_API_URL` with no alias, so existing environments silently fall back to defaults instead of failing fast.",
+      "[OUT_OF_SCOPE] Default endpoint silently changes 127.0.0.1:8010 \u2192 :8000 in `capsvc`/`run_capsvc.py` with no migration note, config/doc/store-registry update, or readiness check; misdirected calls will fail opaquely.",
+      "No test asserts `controlAPIURL()` precedence (`PF_CONTROL_API_URL` > `PF_BACKLOG_API` > default) or that the dev runner forwards the resolved value; AC-4 requires config-resolution tests.",
+      "AC-3's \"generator reads templates BOM-safely\" is not evidenced by any `design_pack.py` template-read change or assertion in the candidate, so that criterion cannot be verified at Gate 1/2."
+    ],
+    "MINOR": [
+      "Three parallel env-var families now coexist (`PF_CONTROL_API_URL`, `PF_EDP_API_URL`, `PF_BACKLOG_API`) with no single documented source of truth in `config/`/`docs/`.",
+      "Compose hardening covers only the Postgres port; other published services in the same file are unverified, giving partial-assurance risk.",
+      "`PF_BACKLOG_API` deprecation has no warning log, no removal target, and no mention in `docs/ENGINEERING_OPERATING_STANDARD.md`, so consumers cannot plan migration."
+    ],
+    "NIT": [
+      "`capsvc` header documents `PF_BACKLOG_API` as a deprecated alias but states no timeline or telemetry for its removal.",
+      "`controlAPIURL()` mixes `envOr` and raw `os.Getenv` precedence logic; a shared precedence helper would keep dev runner and service resolution identical."
+    ],
+    "SUMMARY": [
+      "Changes are small and mostly safe (loopback-bound DB port), but endpoint/env-var configuration is being migrated ad hoc rather than through one documented contract, and none of it is test-covered.",
+      "Two of the four diffs touch service configuration outside the approved `affected_files`, so traceability for the AC evidence is incomplete.",
+      "Prior MAJOR findings on candidate SHA binding, base resolution, and base/diff-hash keys remain PENDING; per CL-006 the item cannot pass Gate 1 until they are dispositioned.",
+      "Verdict: not approvable as-is; resolve the pending MAJORs, add config-precedence tests, and either scope out or formally document the endpoint/env renames."
+    ]
+  }
+}

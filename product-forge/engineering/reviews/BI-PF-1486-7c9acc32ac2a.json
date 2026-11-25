@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "7c9acc32ac2a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T07:30:21.165990+00:00",
+  "base_sha": "a7613a4ef97ec16cd14693355ac3ae7e08c086c9",
+  "head_sha": "057cebd119fa46c12f18a94e2327866b91dec07b",
+  "findings": {
+    "BLOCKER": [
+      "Fail-open budget bypass: in `problems()` the new filter `if at and cutoff_dt and at >= cutoff_dt` leaves `rows` empty when `cutoff` is absent/empty (`_dt` returns None for falsy input), so `len(rows) >= max_n` never fires and the review gate is silently disabled; the prior string compare `>= \"\"` included all rows. Delta hunk (rows loop).",
+      "Same fail-open via corrupted evidence: rows with malformed `at` are now dropped (`except ValueError: continue`) instead of counted, so injected garbage timestamps shrink `rows` and suppress the budget gate in a gate path."
+    ],
+    "MAJOR": [
+      "Regression: `cutoff_dt = _dt(cutoff)` is the only `_dt` call site not wrapped in try/except, and `_dt` no longer swallows parse errors \u2014 a malformed `cutoff` config value now raises ValueError out of `problems()` and crashes the gate with a raw traceback (previously tolerated).",
+      "Silent-drop observability gap: malformed evidence `at` values are discarded with `continue` and no diagnostic, making corruption indistinguishable from absence \u2014 the very issue the prior MAJOR on `_dt` flagged, now relocated rather than resolved.",
+      "Reuse: `_dt_safe` is added but used in exactly one place (`mats` check) while `_material_ok` and the evidence loop re-implement the same try/except ValueError guard \u2014 three copies of one policy in one file, and the helper name invites the same drift elsewhere."
+    ],
+    "MINOR": [
+      "Naive timestamps are silently coerced with `dt.replace(tzinfo=timezone.utc)`; a local-time `at` is treated as UTC and can flip `at >= latest` ordering with no log or flag.",
+      "A MATERIAL_CHANGE decision with missing/empty `at` skips the `MATERIAL_APPROVAL_INVALID` branch (guarded by `str(d.get(\"at\") or \"\")` truthiness) and falls through to `MATERIAL_APPROVAL_ORDER`, conflating \"no timestamp\" with \"stale timestamp\".",
+      "`cutoff_dt = _dt(cutoff)` is recomputed per mode inside the loop rather than once before it \u2014 the same single-pass cleanup the delta applied elsewhere."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "The delta correctly resolves two prior MAJORs (string-vs-datetime filter mismatch; wrong code when no MATERIAL_CHANGE exists) and narrows `_dt`'s exception surface, but introduces a fail-open budget bypass on missing cutoff and on corrupted evidence timestamps, plus an uncaught crash path on malformed cutoff.",
+      "`MATERIAL_APPROVAL_*` codes remain message-string-only telemetry, and `_dt_safe` is added without being adopted at the other two guard sites.",
+      "Top risks before merge: make the budget filter fail-closed when `cutoff` is absent/malformed, wrap or reuse `_dt_safe` at `cutoff_dt`, and log (not silently drop) unparseable evidence rows."
+    ]
+  },
+  "rereview_reason": "prior sha 357301aed8a4; material codes/datetime fixed",
+  "rereview_reason_sha256": "316f5f9127262dea28d0028b16bbf198a93e1b8bb315ef88b983d98d721bf221"
+}

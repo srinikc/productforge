@@ -233,6 +233,15 @@ def deterministic(scope: str, project: str | None, item: dict, *, depth: str = "
 
 
 # â”€â”€ AI groomer (default) - reuses the existing agent runtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+def _guardrails_block(item: dict, item_id: str, extra: str = "") -> str:
+    """BI-PF-1468: 1.5 learnings applied at grooming/design time (never fatal; grooming must not block)."""
+    try:
+        from core import design_guardrails as _dg
+        return "\n\n" + _dg.render(item, item_id, extra=extra, stage="design") + "\n\n"
+    except Exception:
+        return ""
+
+
 def _ai_prompt(item: dict, ctx: dict) -> str:
     gl = guidelines()
     checks = "\n".join(f"- {c.get('id')}: {c.get('ask')}" for c in gl.get("checklist", []))
@@ -243,8 +252,9 @@ def _ai_prompt(item: dict, ctx: dict) -> str:
         f"EXISTING deps: {ctx.get('deps')}\n"
         f"RELATED/SIMILAR backlog items: {ctx.get('similar')}\n"
         f"CANDIDATE EXISTING CODE (reuse-first): components={ctx.get('existing_components')} "
-        f"apis={ctx.get('existing_apis')} modules={ctx.get('existing_modules')}\n\n"
-        "Apply this checklist:\n" + checks + "\n\n"
+        f"apis={ctx.get('existing_apis')} modules={ctx.get('existing_modules')}\n"
+        + _guardrails_block(item, str(item.get("id") or ""))
+        + "Apply this checklist:\n" + checks + "\n\n"
         "Produce ONLY a JSON object (no prose) with keys:\n"
         "architecture_fit (REUSE|EXTEND|MODIFY|NEW_COMPONENT|NEW_CAPABILITY|REFACTOR|OTHER), "
         "implementation_strategy (string), duplication_findings (list), dependency_findings (list), "
@@ -353,11 +363,13 @@ def _ai_prompt_batch(items_ctx: list[tuple[dict, dict]]) -> str:
             f"CANDIDATE EXISTING CODE (reuse-first): components={ctx.get('existing_components')} "
             f"apis={ctx.get('existing_apis')} modules={ctx.get('existing_modules')}")
     ids = ", ".join(str(i.get("id")) for i, _ in items_ctx)
+    blob = " ".join(f"{i.get('title') or ''} {i.get('body') or ''}" for i, _ in items_ctx)
     return (
         f"You are grooming {len(items_ctx)} Product Forge backlog items into execution-ready specs "
         "(reuse-first). Groom EACH item INDEPENDENTLY; never mix findings between items.\n\n"
         + "\n\n".join(parts)
-        + "\n\nApply this checklist to EACH item:\n" + checks
+        + _guardrails_block({"title": blob}, "batch", extra=blob)
+        + "Apply this checklist to EACH item:\n" + checks
         + "\n\nReturn ONLY one JSON object (no prose, no files, no markdown fences) mapping each item id to "
         "its proposal: {\"<ITEM_ID>\": {...}, ...}. Each proposal object uses these keys:\n"
         "architecture_fit (REUSE|EXTEND|MODIFY|NEW_COMPONENT|NEW_CAPABILITY|REFACTOR|OTHER), "
@@ -654,6 +666,10 @@ def _apply_proposal(scope: str, project: str | None, item_id: str, it: dict, ctx
             _a = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
             _a["consolidation_proposal"] = _build_proposal(it, dups)
             backlog.update(scope, project, item_id, analysis=_a)
+    # BI-PF-1468: zero-touch traceability - the groomed spec was produced against the design guardrails.
+    with contextlib.suppress(Exception):
+        from core import design_guardrails as _dg
+        _dg.record(scope, project, item_id)
     # BI-PF-1319: attach the explicit decision request so a groomed item is never a SILENT IN_PROGRESS.
     req = _attach_decision_request(scope, project, item_id, it)
     return {"item_id": item_id, "mode": used, "depth": depth, "proposal": proposal,

@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "83b1344fcea7",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T08:12:40.608105+00:00",
+  "review_scope": "delta",
+  "base_sha": "05fe4bd58674065133aa40b1123d8e017ae8ffb5",
+  "head_sha": "9584b309b4e48bf9d89f2b45424a79ab87375ff5",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta `design_pack.observability` defers cross-process metrics/alerting to an unnamed \"follow-up item\" with no owner/ID; guardrail 10/15 expects at least tracked alert ownership for fail-closed events emitted by workers/edpsvc.",
+      "AC-4 verification is fragmented across four artifacts with no stated authority: FR-4 `verification` = runbook, `design_pack.coverage` AC-4 `tests` = `pytest -k ac4`, `design_pack.test_matrix` AC-4 = runbook only, `ac_evidence.AC-4` = `AC-4.md`; unclear which one gates AC-4.",
+      "`design_pack.coverage` AC-4 lists `entrypoint: core/backlog.py` and `call_sites` in core even though `runtime_capability: false` (runbook adapter), so traceability points runtime code at a non-runtime AC.",
+      "Delta `functional_spec.traceability` AC-4 `evidence` still lists only `test-framework/tests/pipeline/test_backlog_db_cutover.py` while its `test` row points at `engineering/evidence/BI-PF-1534/operator-recovery.md`; the evidence array was not synced with the corrected test pointer."
+    ],
+    "NIT": [
+      "Delta `design_pack.code_guidelines` cites FastAPI/REST API guidelines although the spec marks `api` N/A and API changes are out of scope for this delta; harmless but signals applicability noise.",
+      "`config_contract.PF_BACKLOG_DB_SCOPES.startup_validation` is \"precheck + first operation\" while `empty_behavior` is \"fail when on\"; deferring to first operation means an unlisted/empty list fails only at runtime, not at startup precheck \u2014 worth an explicit note in the runbook."
+    ],
+    "SUMMARY": [
+      "Delta is substantively sound: prior findings are addressed (AC-2 `runtime_capability` now true, `-k acN` selectors added, `PF_BACKLOG_DB_SCOPES` now carries `BACKLOG_DB_SCOPE_UNLISTED`, AC-4 runbook pointer added), and the 1:1 AC/FR mapping plus on/dual/shadow/off operation matrix satisfy mode completeness and fail-closed intent.",
+      "Top risks: AC-4's proof is split across runbook/pytest/evidence artifacts without an authority, and deferred cross-process alerting leaves worker-side fail-closed events under-observable until a tracked follow-up exists.",
+      "No blocker; proceed once the AC-4 evidence authority and the observability deferral tracking are tightened in the design rows."
+    ]
+  },
+  "rereview_reason": "fix 5086c551950d findings",
+  "rereview_reason_sha256": "566c7f6e553091ce63bf465a9212d65427a79754e25cd255bf90a032306d0548"
+}

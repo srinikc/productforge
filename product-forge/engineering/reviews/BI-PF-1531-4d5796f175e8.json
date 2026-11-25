@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "4d5796f175e8",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T19:00:27.390847+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "80c9af1cbca5a86df611933f5f9a18d81066b765",
+  "findings": {
+    "BLOCKER": [
+      "Committed AC evidence contradicts itself: `engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt` and `db-mode-tests.txt` both record `FAILED test_mirror_on_propagates_failure ... DID NOT RAISE` (1 failed, 10 passed), yet the same file is cited as AC-1/AC-4/AC-5 evidence and `current-sha-control.txt` claims \"33 passed\".",
+      "`migrations/0023_backlog_global_id_guard.{up,down}.sql` is an undeclared schema change: it adds a column, a partial unique index and a trigger, but is absent from `design_pack.contracts.db`, `affected_files`, `deployment_rollout` and `prerequisites` (which list only 0021/0022).",
+      "`go/edpdata/backlog.go::Authority()` now hard-requires migration 23 (`IN (16,18,19,20,21,23) HAVING count(*)=6`) while `docs/BACKLOG-DB-SSOT.md` deploy order still ends at 0022 \u2014 an operator following the runbook gets a service that refuses to start."
+    ],
+    "MAJOR": [
+      "0023 does not enforce its stated invariant: both `uq_backlog_items_new_global_id` and `backlog_global_id_guard()` filter `legacy_duplicate=false`, so a new row may be inserted with an id owned by another tenant when that row is legacy \u2014 \"no new duplicate is accepted\" is not guaranteed.",
+      "`delete()` resolves authority via `str(project or scope or \"\")` while `_save_item`/`store_item_to_db` default to `\"product_forge\"`; an item with neither field is written to the DB tenant but deleted through the file path, orphaning DB rows.",
+      "`requireTenant` scans `current_setting('app.tenant_id', true)` into a `string`; a genuinely unset GUC returns NULL (scan error \u2192 500), so only the empty-string case yields the declared `ErrTenantContext`\u2192503 behaviour required by FR-4.",
+      "The whole BI-PF-1532 spec-chain framework (`functional_spec.py`, `spec_pack.py`, `conformance_check.py`, templates, config, `docs/SPEC-CHAIN.md`) ships inside this diff and adds three mandatory precheck gates, while BI-PF-1532's own design pack is still `Status: new` with a blank functional ref.",
+      "0023 runs `UPDATE backlog_items ...` and a non-concurrent `CREATE UNIQUE INDEX` on the shared table inside one transaction with only `statement_timeout='60s'`, and has no preflight/backup/dry-run path, unlike the 0021 discipline the design mandates."
+    ],
+    "MINOR": [
+      "`backlog-db.workflow.yml` satisfies the \"verified backup\" gate with `: > /tmp/pre-0021.backup`; `backlog_migration_preflight.py` accepts any existing file as `PF_BACKUP_ARTIFACT`, so the control is self-attestation.",
+      "`gate1_check.main` passes `{}` when the item is not found, and all three new `problems({})` return `[]`, so a missing/unreadable item silently passes the functional/spec/conformance chain.",
+      "`spec_pack.ac_evidence`/`design_pack.ac_evidence` record `sha: \"HEAD\"` / `\"candidate\"` instead of the frozen SHA, and disposition notes are self-referential (`core/backlog.py now delegates ... to core/backlog.py`), weakening auditability.",
+      "`docs/PF-DESIGN-DELIVERY-CONTRACT.md` (`Gate 0 readiness ? Gate 0.5 ...`) and `functional_spec.open_questions` (`None ?`) contain mojibake for `\u2192`/`\u2014`; the `encoding` gate does not flag them.",
+      "`backlog_db_export.py` injects `project` into exported `data` for non-`product_forge` tenants *after* id validation, so the written file can differ from the DB row that `backlog_db_parity.py` later compares.",
+      "`test_backlog_migrations.py::test_global_id_guard_migration` only substring-asserts 0023; no behavioural test proves a cross-tenant duplicate insert raises."
+    ],
+    "NIT": [
+      "`test-framework/tests/test_backlog_db_workflow.py` builds the same workflow path three times inside one `next(...)` generator.",
+      "`_DB_WARNED_SCOPES` is an unbounded, unlocked process-global set; repeated unlisted-scope traffic is invisible after the first warn.",
+      "`scripts/dev/architect_review.py` drops `**/data/backlog/**` and generated-doc exclusions but re-adds only `items`-adjacent paths (`open.json`, `closed.json`, `history/**`), so generated projections and `docs/README.md` now enter every review diff."
+    ],
+    "SUMMARY": [
+      "Direction matches the ACs, but the change is not deliverable: committed AC evidence is a red test run that contradicts `current-sha-control.txt`, and an undeclared, mandatory migration 0023 breaks the documented deploy order.",
+      "Highest integrity risk: 0023's global-ID guard explicitly exempts legacy rows, so the invariant it exists to protect (\"no new duplicate is accepted\") is not enforced at the DB.",
+      "Secondary risks: read/write/delete authority resolution disagree on the default tenant, and FR-4's 503 mapping only holds for the empty-string GUC case, not a truly unset one.",
+      "BI-PF-1532's spec-chain tooling (including three new blocking precheck gates) ships unreviewed inside this item; split it or get it reviewed on its own."
+    ]
+  }
+}

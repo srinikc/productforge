@@ -1,7 +1,7 @@
 ---
 description: Architect agent. Chooses the tech stack and produces the architecture document (ADRs) from the requirements and design.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: architect
 version: 1.0.0
 spec_version: "1.0"

@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "42bd4c08115b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-20T05:26:36.794540+00:00",
+  "review_scope": "delta",
+  "base_sha": "9b26c7ba87674754185eced3ddbc99c550e8fe45",
+  "head_sha": "6a9a3468024cfaefcc56fd9dd6464afcf2acc4a1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`Registry.GetForTenant` only rejects an empty tenant string, then calls the unscoped `Get(name)`; it cannot detect a cross-tenant lookup (control C-6/AC-4 still unmet) and `TestRegistryTenantScoped` only asserts empty-vs-nonempty tenant, proving no tenant binding.",
+      "`DefaultRegistry` gates webhook registration on `ResolveHMACKey(\"\")` (the env default only), so subscriptions that carry a per-subscription `auth_ref` key \u2014 explicitly the primary key with the env value as *default* \u2014 get no webhook transport at all; AC-1/AC-2 cannot be met for auth_ref-only configs.",
+      "Delta changes `sendEmail` to accept `sub` but the body still sends `To: n.SMTP.From` (self); the signature-only change leaves the subscriber never receiving email, so AC-1's \"subscriber receives events through \u2026 notify/email transports\" remains unmet in the very hunk that attempted the fix.",
+      "`secrets.go` (providing `ResolveHMACKey`) is still absent from the full candidate's changed files while this delta adds a new call site in `registry.go`; the package remains non-compilable, so all new delta tests/AC evidence are unverifiable (prior BLOCKER, still PENDING)."
+    ],
+    "MINOR": [
+      "429 `Retry-After` parsing accepts only integer delta-seconds; the RFC 7231 HTTP-date form is ignored, so the failure-matrix `retry max(backoff, retry-after)` contract is only partially honored.",
+      "`wait` from `Retry-After` is applied unbounded with no cap and no metric/log when it overrides the backoff (violates \"bounded\" retry pacing and observability expectations).",
+      "Dispatcher uses a duck-typed `interface{ RetryAfter() time.Duration }` assertion instead of a shared exported error contract in `edpdata`; any future wrapping of the transport error silently drops the retry-after signal.",
+      "`DefaultRegistry` silently omits the webhook transport with no startup validation log/metric, so operators cannot diagnose why webhook delivery stopped (guardrail: startup config-shape validation + observability)."
+    ],
+    "NIT": [
+      "`sub` parameter of `sendEmail` is unused (only the signature changed), which will trip unused-parameter lint and contradicts `no-dead-code` evidence.",
+      "A 429 without `Retry-After` now returns `retryAfterError{wait:0}` with message \"webhook status 429\" instead of \"webhook transient status 429\", diverging log/DLQ classification strings for the same condition."
+    ],
+    "SUMMARY": [
+      "Delta correctly implements `retry max(backoff, retry-after)` plumbing and a first-pass tenant-check helper, but the new registry API is cosmetic (no real tenant scoping), webhook registration is gated on the wrong key source, and the notify recipient fix was left signature-only \u2014 the approved contract is still not met.",
+      "Top risks: unresolved compile gap (`secrets.go`), per-subscription auth_ref key ignored at registry construction, and email that never reaches a subscriber."
+    ]
+  },
+  "rereview_reason": "Delta for prior 701977cb6d5f: retry-after, SSRF DNS, tenant registry, idempotency, email target, evidence",
+  "rereview_reason_sha256": "83246dd83bada0215a35b6d214170f333ecec202a16907a011ec653bdecb0d9b"
+}

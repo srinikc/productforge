@@ -73,6 +73,10 @@ def _start_state_checkpoint():
     The delivery lane checkpoints per-delivery; this covers grooming/restamp/triage/intake mutations made
     through the API. Interval via PF_STATE_CHECKPOINT_SECONDS (default 900; <=0 disables).
     """
+    from core import backlog as _backlog
+    _cfg_bad = _backlog.review_material_change_config_errors()
+    if _cfg_bad:
+        raise RuntimeError("; ".join(_cfg_bad))
     import threading
     import time
     try:
@@ -101,7 +105,7 @@ for _r in (intake.router, projects.router, runs.router, pipeline.router,
            artifacts.router, evidence.router, backlog.router,
            validation.router, tests.router, tools.router, gates.router, issues.router,
            vcs.router, workers.router, agents.router, engineering.router, enterprise.router,
-           github.router, events.router, apidocs.router, changes.router, reservations.router,
+           github.router, events.router, events.notifications_router, apidocs.router, changes.router, reservations.router,
            release.router, packaging.router, audit.router, dogfood.router, portfolio.router):
     app.include_router(_r, prefix="/api/v1")
 

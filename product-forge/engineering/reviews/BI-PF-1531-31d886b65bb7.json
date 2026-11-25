@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "31d886b65bb7",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T14:24:10.432959+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "276310bbc4e306077a3ddc7941d11990fdcf5c29",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`PF_BACKLOG_DB_SCOPES` is the operative safety gate but is unregistered in `config/env-flags.json` (no default/purpose/owner) and absent from `.env.example`; AC-1 requires config/docs consistency and env-flags.json is the declared flag registry.",
+      "Scope allowlist is duplicated with divergent normalization: `core/backlog.py` compares via `_norm_scope`, `core/id_allocator.py` via `strip().lower()`, each hardcoding its own `\"product_forge,ProductForge-Dashboard\"` default \u2014 a scope can be DB-authoritative for items but file-authoritative for IDs, silently splitting ID authority.",
+      "Diff shows no pinning of `PF_BACKLOG_DB=off` in `structure.yml`/`full-sweep.yml` (both in scope, unchanged); with the default now on, existing file-mode suites reaching backlog code will attempt the HTTP path with a 30s timeout.",
+      "`_load_all_from_db` fetches the entire backlog in one `limit=100000` request with no pagination or caching on every read entrypoint; payload, memory and latency grow with tenant item count, undermining the p95 no-regression requirement.",
+      "`backlog_db_bench.py` times only `SELECT data ... WHERE tenant_id=%s AND id=%s` for the T1 figure, omitting the `requireTenant` round-trip the design mandates \"in the boundary\"; it also compares DB (all tenants) against root-only file items, so the evidence does not back the AC-1 performance claim.",
+      "AC-3 GP parity is unproven in CI: the pinned workflow contract asserts only `backlog_db_parity.py --tenant product_forge`; no diff line shows a parity run for the generated-product tenant (`ProductForge-Dashboard`).",
+      "`backlog_db_backfill.py` ignores `PF_BACKLOG_DB_SCOPES`: it forces mode on and walks every tenant on disk, so it either writes DB rows for tenants still file-authoritative, or (if the mirror honours `_db_for`) reports `ok=N` while writing nothing \u2014 untested in both directions."
+    ],
+    "MINOR": [
+      "`_load_all_from_db` maps every `HTTPError` (including 500/503) to `BACKLOG_DB_AUTH`, so genuine outages and tenant-context 503s are misfiled as auth failures.",
+      "`Put` returns `ErrTenantConflict` when `app.tenant_id != it.TenantID`, surfacing as 409 \"conflicts with another tenant\" \u2014 wrong reason code/status for a context mismatch against the declared taxonomy (`TENANT_CONTEXT_MISSING`, 503).",
+      "`precheck.py` uses `os.environ.setdefault(\"PF_BACKLOG_DB\",\"off\")`, which is a no-op once an operator exports the now-default `on`, so precheck silently leaves file mode.",
+      "`Authority()` requires migrations 16,18,19,20,21 but not 22; a DB migrated only through 0021 passes the startup gate with the traceability index missing, so cascaded deletes table-scan.",
+      "No test asserts that on-mode does *not* write file projections; only the off-mode file write is covered, so the \"no file-authoritative writes in on mode\" guardrail is unverified.",
+      "`backlog_db_export.py` write/skip/overwrite logic is untested (only `target_dir`), and AC-5 evidence exercises `--dry-run` only.",
+      "`requireTenant`'s returned tenant is discarded in `Get`/`List`/`Delete`, forcing a second `current_setting` evaluation and an extra round-trip per call; `rows.Err()` is never checked.",
+      "Rollback docs order export \u2192 parity \u2192 `off` with no quiesce/drain step, so writes between export and the flag flip are lost from the file projection."
+    ],
+    "NIT": [
+      "`time.sleep(0.12)` is a hardcoded throttle, not the tenant/global RPM backpressure the design claims; no 429 handling or resume marker.",
+      "`backlog_db_export.py target_dir()` interpolates the CLI tenant into a filesystem path with no traversal guard.",
+      "`PF_BACKUP_CONFIRMED=1` is self-attestation with no binding to an actual verified backup artifact or timestamp.",
+      "`backlog_db_backfill.py` silently skips files lacking an `id` without counting them as failures."
+    ],
+    "SUMMARY": [
+      "Direction is correct and the prior blockers (workflow mirror, product parity scan, List tenant guard) are genuinely addressed; the cutover logic, fail-closed mapping and migration pair are coherent.",
+      "Remaining risks are concentrated in configuration as code: the new scope allowlist is registered nowhere, resolved twice with different normalization, and not proven against CI file-mode suites.",
+      "Performance evidence does not measure the boundary it claims, and backfill/parity for the generated-product tenant is asserted rather than demonstrated.",
+      "Overall: not releasable as-is; the scope-allowlist single-source and CI off-pinning items should be closed before flipping the default."
+    ]
+  }
+}

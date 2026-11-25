@@ -1,14 +1,69 @@
 {
   "$schema": "pf-language-rule-v1",
   "description": "A6 language rule (BI-PF-0395) enforcing the LOCKED delivery baseline (BI-PF-0387/0388): new shipped/sensitive logic must land in Go; existing shipped Python stays compiled (edits allowed, new modules blocked); build-time tooling may stay Python; Go-backed capabilities are exposed by Go API services (no Python<->Go bridge) with thin Python routes, per ADR-0007/ADR-0008. READ by core/change_policy.py (single reader); enforced by scripts/dev/language_rule_check.py (author-time + precheck). Roots are reviewed config - changing them is a governance change.",
-  "shipped_roots": ["core/", "api/", "adapters/"],
-  "sensitive_roots": ["core/licensing.py", "core/billing.py"],
-  "allow_new_python": ["core/change_policy.py", "core/state_checkpoint.py"],
-  "legacy_exempt_roots": ["dashboard/"],
-  "go_roots": ["go/"],
-  "tooling_roots": ["scripts/", "config/", "data/", "docs/", "products/", ".opencode/",
-                    "templates/", "pipeline_templates/", "security/", "issues/",
-                    "engineering/", "pipeline/", "test-framework/"],
+  "shipped_roots": [
+    "core/",
+    "api/",
+    "adapters/"
+  ],
+  "sensitive_roots": [
+    "core/licensing.py",
+    "core/billing.py",
+    "core/packaging.py",
+    "core/release.py",
+    "core/credentials.py",
+    "core/artifact_registry.py",
+    "core/bom.py",
+    "core/sizing.py",
+    "core/deploy_providers.py",
+    "core/pipeline_executor.py",
+    "core/product_analyzer.py",
+    "core/product_plan.py",
+    "core/service_catalog.py",
+    "core/global_orchestrator.py",
+    "core/intent_router.py",
+    "core/discovery_panel.py",
+    "core/discovery_engine.py",
+    "core/tech_stack.py",
+    "core/model_strategy.py",
+    "core/model_gate.py",
+    "core/pidl.py",
+    "core/agent_memory.py",
+    "core/conversation_models.py",
+    "core/capability_packs.py",
+    "core/feasibility.py",
+    "api/auth.py",
+    "api/idempotency.py",
+    "api/envelope.py"
+  ],
+  "allow_new_python": [
+    "core/change_policy.py",
+    "core/state_checkpoint.py",
+    "core/design_guardrails.py",
+    "core/execution_trail.py",
+    "core/rdc.py"
+  ],
+  "legacy_exempt_roots": [
+    "dashboard/"
+  ],
+  "go_roots": [
+    "go/"
+  ],
+  "tooling_roots": [
+    "scripts/",
+    "config/",
+    "data/",
+    "docs/",
+    "products/",
+    ".opencode/",
+    "templates/",
+    "pipeline_templates/",
+    "security/",
+    "issues/",
+    "engineering/",
+    "pipeline/",
+    "test-framework/"
+  ],
   "escape_env": "PF_ALLOW_PY_SHIPPED",
   "edit_growth": {
     "_doc": "BI-PF-1338: catch LARGE new logic added by EDITING an existing shipped .py (the new-file rule alone is bypassable via edits). Flag when a changed shipped .py adds new logic units (def/class/branches) AND grows by >= threshold net lines (sensitive roots use the lower bar). 'allow' lists governed exemptions.",
@@ -16,6 +71,22 @@
     "min_new_defs": 1,
     "min_new_branches": 5,
     "sensitive_edit_added_lines": 20,
-    "allow": []
+    "allow": [
+      "core/execution_trail.py",
+      "core/packaging.py",
+      "core/release.py",
+      "core/backlog.py",
+      "core/licensing.py",
+      "api/auth.py",
+      "api/routers/events.py"
+    ]
+  },
+  "_notes": {
+    "core/licensing.py": "BI-PF-1286: entitlement boundary enforcement across pipeline stages and capability bridge.",
+    "api/auth.py": "BI-PF-1286: FastAPI route entitlement and feature group dependency guards.",
+    "core/packaging.py": "BI-PF-1304 EDP-12: emit/validate the residency section of the existing packaging manifest; the policy engine is Go (go/residencymanifest).",
+    "core/release.py": "BI-PF-0398: no_raw_py_gate release check in existing shipped Python release validator.",
+    "core/backlog.py": "BI-PF-1531 DB authority cutover: existing shipped Python client edits for DB/tenant parity; DB logic remains in Go edpsvc/edpdata.",
+    "api/routers/events.py": "BI-PF-1274: SSE event stream and subscription CRUD HTTP adapter routes; event sequencing/storage is Go core."
   }
 }

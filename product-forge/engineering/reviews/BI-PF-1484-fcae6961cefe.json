@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "fcae6961cefe",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T18:11:40.722283+00:00",
+  "base_sha": "",
+  "head_sha": "ee2fa2ed9002e1cc6f77b42b7642080119a4b65c",
+  "findings": {
+    "BLOCKER": [
+      "No atomicity or idempotency guarantee for `finalize_item` writes; a crash mid\u2011write can leave a partial `final_report`, breaking the completion guard and requiring manual intervention."
+    ],
+    "MAJOR": [
+      "No explicit definition of the `ac_hash` algorithm or staleness detection logic; risk of false `FINAL_REPORT_STALE` failures.",
+      "No concurrency control (locking/versioning) for `finalize_item`; concurrent runs could race and duplicate or overwrite `final_report`.",
+      "HIL approval verification lacks an explicit authentication/authorization mechanism; approvals could be spoofed or forged.",
+      "Ownership separation between the reviewer tool (findings) and main\u2011thread (dispositions) is not explicitly defined, risking a violation of CL\u2011002.",
+      "No backfill or grandfathering mechanism for existing items lacking `ac_verification`/`final_report`; only a timestamp\u2011based exemption is described, with no migration script or detection logic.",
+      "Semantics of \u201creview markers\u201d, \u201cno\u2011review cache\u201d, and \u201cpre\u2011merge blocked set\u201d are undefined, leading to inconsistent caching and gate behavior."
+    ],
+    "MINOR": [
+      "No explicit definition of the \u201cdelta re\u2011review with prior findings\u201d scope; prior findings could be missed.",
+      "No explicit definition of the \u201cdesign pack + first\u2011pass quality contract\u201d enforcement criteria.",
+      "Test classification categories beyond the listed kinds are undefined, risking misclassification of new test types.",
+      "No explicit definition of `cost_source` fallback precedence, potentially causing incorrect cost calculation.",
+      "No explicit definition of the rendering logic for `execution trail show`, risking inconsistent output across versions."
+    ],
+    "NIT": [
+      "No explicit definition of the `review\u2011sha integrity` validation algorithm.",
+      "No explicit format for \u201creview markers\u201d.",
+      "No explicit expiration policy for the \u201cno\u2011review cache\u201d.",
+      "No explicit ordering guarantee for the \u201cpre\u2011merge blocked set\u201d.",
+      "No explicit trigger conditions for \u201cdelta re\u2011review with prior findings\u201d.",
+      "No explicit metrics for the \u201cdesign pack + first\u2011pass quality contract\u201d."
+    ],
+    "SUMMARY": [
+      "Overall the design is comprehensive but lacks explicit definitions for critical mechanisms (`ac_hash`, concurrency, HIL verification, ownership separation).",
+      "Key risks include partial writes, false stale detection, and potential spoofing of approvals.",
+      "Clarify atomicity, concurrency control, and HIL verification before implementation."
+    ]
+  },
+  "rereview_reason": "prior design sha 44dac6ae2f68; guardrails/verifier/single-writer completed",
+  "rereview_reason_sha256": "db9765ff4b8074ef1c1687b6dd8e547bd40468a15c5998052c2c646bcc9d8fd0"
+}

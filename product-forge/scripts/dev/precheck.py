@@ -27,10 +27,25 @@ import sys
 if os.getcwd() not in sys.path:
     sys.path.insert(0, os.getcwd())
 from core.paths import ROOT as _PF_ROOT  # noqa: E402
+
 _DEV_DIR = os.path.dirname(os.path.abspath(__file__))
 if _DEV_DIR not in sys.path:
     sys.path.insert(0, _DEV_DIR)
-from gitutil import GitError, git_text  # noqa: E402  (shared UTF-8/fail-closed git policy, BI-PF-1464)
+from gitutil import (  # noqa: E402  (shared UTF-8/fail-closed git policy, BI-PF-1464)
+    GitError,
+    git_text,
+)
+from git_env import sanitize_process_env, worktree_fingerprint  # noqa: E402
+
+# A pre-push hook can export GIT_DIR/GIT_WORK_TREE. Never let tests inherit them.
+sanitize_process_env()
+
+# Ensure canonical scopes are present in PF_BACKLOG_DB_SCOPES if set in ambient env
+if "PF_BACKLOG_DB_SCOPES" in os.environ:
+    _curr = {s.strip() for s in os.environ["PF_BACKLOG_DB_SCOPES"].split(",") if s.strip()}
+    _req = {"product_forge", "ProductForge-Dashboard", "project", "inbox", "intake"}
+    if not _req.issubset(_curr):
+        os.environ["PF_BACKLOG_DB_SCOPES"] = ",".join(sorted(_curr | _req))
 
 _ROOT = str(_PF_ROOT)
 _TEST_DIR = "test-framework/tests/pipeline"
@@ -60,7 +75,7 @@ def _changed_files():
     try:
         base = _git("merge-base", _integration_ref(), "HEAD")
     except GitError as e:
-        raise SystemExit(f"[precheck] FATAL: cannot resolve the changed file set: {e}")
+        raise SystemExit(f"[precheck] FATAL: cannot resolve the changed file set: {e}") from e
     if not base:
         raise SystemExit("[precheck] FATAL: git merge-base returned no base commit")
     for ln in _git("diff", "--name-only", base, "HEAD").splitlines():
@@ -173,6 +188,18 @@ _GATES = [
     ("worker", ["scripts/dev/worker_check.py"], "fast", ["core/worker"]),
     ("reservations", ["scripts/dev/reservations_check.py"], "fast", ["reservations", "shared-paths"]),
     ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
+    ("residency", ["scripts/dev/residency_gate.py"], "fast", ["packaging"]),
+    ("encoding", ["scripts/dev/encoding_check.py"], "fast", None),
+    ("spec-contract", ["scripts/dev/spec_contract.py", "--all"], "fast", None),
+    ("design-pack", ["scripts/dev/design_pack.py", "--changed", "--check", "--fresh"], "fast", None),
+    ("design-pack-full", ["scripts/dev/design_pack.py", "--all", "--check", "--fresh"], "deep", None),
+    ("functional-spec", ["scripts/dev/functional_spec.py", "--all", "--check", "--fresh"], "fast", None),
+    ("spec-pack", ["scripts/dev/spec_pack.py", "--all", "--check", "--fresh"], "fast", None),
+    ("conformance", ["scripts/dev/conformance_check.py", "--all"], "fast", None),
+    ("fix-guard", ["scripts/dev/fix_guard.py", "--all"], "fast", None),
+    ("backlog-scope", ["scripts/dev/backlog_scope_check.py"], "fast", None),
+    ("review-budget", ["scripts/dev/review_budget.py", "--all-changed"], "fast", None),
+    ("excluded-content", ["scripts/dev/excluded_content_check.py"], "fast", None),
     ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
     ("dependency-catalog", ["scripts/dev/dependency_catalog_check.py"], "fast", None),
     ("language-rule", ["scripts/dev/language_rule_check.py"], "fast", None),
@@ -182,13 +209,21 @@ _GATES = [
     ("backlog-dod", ["scripts/dev/backlog_dod_check.py"], "fast", None),
     ("backlog-verification", ["scripts/dev/backlog_verification_check.py"], "fast", None),
     ("store-registry", ["scripts/dev/store_registry_check.py"], "fast", None),
+    ("store-relationships", ["scripts/dev/store_registry_relationships.py", "--self-test"], "fast", None),
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", None),
     ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", None),
     ("backlog-monotonic", ["scripts/dev/backlog_monotonic_check.py"], "fast", None),
     ("api-first", ["scripts/dev/api_first_check.py"], "fast", None),
     ("backlog-write", ["scripts/dev/backlog_write_guard.py"], "fast", None),
     # BI-PF-1466: Gate 1 (design approval) machine-enforced at the new->in_progress transition.
+    ("branch-item", ["scripts/dev/branch_item_check.py", "--head"], "fast", None),
+    ("gate0", ["scripts/dev/gate0_check.py"], "fast", ["data/backlog"]),
     ("gate1-transition", ["scripts/dev/gate1_transition_check.py"], "fast",
+     ["data/backlog", "engineering/reviews"]),
+    # BI-PF-1469: Gate 2 (delivery approval) machine-enforced at -> completed.
+    ("gate2-completion", ["scripts/dev/gate2_completion_check.py", "--self-test"], "fast",
+     ["data/backlog", "engineering/reviews"]),
+    ("delivery-completeness", ["scripts/dev/delivery_completeness_check.py"], "fast",
      ["data/backlog", "engineering/reviews"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
@@ -208,6 +243,9 @@ _GATES = [
     ("artifact-map", ["scripts/dev/gen_artifact_map.py", "--check"], "fast", None),
     ("review-focus", ["scripts/dev/gen_review_focus.py", "--check"], "fast", None),
     ("review-static", ["scripts/dev/review_static_check.py"], "fast", None),
+    ("pf-process", ["scripts/dev/pf_process_check.py"], "fast", None),
+    ("framework-ref", ["scripts/dev/framework_ref_check.py"], "fast", None),
+    ("self-review", ["scripts/dev/self_review_check.py", "--strict"], "fast", None),
     ("compliance-register", ["scripts/dev/compliance_register_check.py", "--check"], "fast", None),
     # BI-PF-1296 (EDP-04): data-plane threat register completeness/evidence gate (config/docs change).
     ("data-plane-threats", ["scripts/dev/data_plane_threat_check.py", "--check"], "fast",
@@ -221,6 +259,8 @@ _GATES = [
     # evidence file (deterministic/offline check; the review itself is run separately, see docs/REVIEW-GATES-LIFECYCLE.md).
     ("architect-review", ["scripts/dev/architect_review_check.py"], "fast", None),
     ("recurring-findings", ["scripts/dev/recurring_findings_check.py"], "fast", None),
+    ("review-churn", ["scripts/dev/review_churn_check.py"], "fast", ["data/backlog"]),
+    ("execution-trail", ["scripts/dev/execution_trail_check.py"], "fast", ["data/backlog"]),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
     ("dogfood-replay", ["scripts/dev/dogfood_replay_check.py"], "deep", None),
     ("dogfood-schedule", ["scripts/dev/dogfood_schedule_check.py"], "deep", None),
@@ -241,9 +281,11 @@ _GATES = [
 _GROUP_OF = {
     # structure: compile / static hygiene / generated-doc freshness
     "compile": "structure", "pycompat": "structure", "ci-cd-gates": "structure", "wired-audit": "structure",
-    "store-contract": "structure", "store-registry": "structure", "lint": "structure", "changed-tests": "structure",
+    "store-contract": "structure", "store-registry": "structure", "store-relationships": "structure", "lint": "structure", "changed-tests": "structure",
     "workflow-matrix": "structure", "docs-fresh": "structure", "artifact-map": "structure",
-    "review-focus": "structure", "review-static": "structure",
+    "review-focus": "structure", "review-static": "structure", "pf-process": "structure",
+    "framework-ref": "quality", "self-review": "quality",
+    "residency": "quality", "encoding": "structure", "spec-contract": "quality", "design-pack": "quality", "functional-spec": "quality", "spec-pack": "quality", "conformance": "quality", "fix-guard": "quality", "backlog-scope": "quality", "review-budget": "quality", "excluded-content": "structure",
     # security: secrets / language rule / compliance / threat register
     "secret-scan": "security", "language-rule": "security", "compliance-register": "security",
     "data-plane-threats": "security",
@@ -260,12 +302,13 @@ _GROUP_OF = {
     "backlog-reconcile": "backlog", "backlog-context": "backlog", "backlog-dod": "backlog",
     "backlog-verification": "backlog", "backlog-ids": "backlog", "backlog-epic": "backlog",
     "backlog-monotonic": "backlog", "backlog-write": "backlog", "grooming": "backlog",
-    "gate1-transition": "backlog",
+    "branch-item": "structure", "gate0": "backlog", "gate1-transition": "backlog", "gate2-completion": "backlog",
+    "delivery-completeness": "backlog",
     "staleness": "backlog", "intent-trace": "backlog",
     # quality: pidl / validation / close-loop
     "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",
     "pidl-trace": "quality", "validation-engine": "quality", "feature-pr": "quality", "merge-gate": "quality",
-    "architect-review": "quality", "rate-budget": "quality",
+    "architect-review": "quality", "review-churn": "backlog", "execution-trail": "backlog", "rate-budget": "quality",
     # deep tier (merge/CI heavy) + release tier (periodic)
     "dogfood": "deep", "dogfood-replay": "deep", "dogfood-schedule": "deep", "repo-setup": "deep",
     "docs-fresh-strict": "deep", "release": "deep", "final-audit": "deep", "backlog-e2e": "deep",
@@ -285,12 +328,34 @@ def _area_touched(area, changed):
     return any(any(a in c for a in area) for c in changed)
 
 
+def _python_impact(changed) -> bool:
+    for c in changed:
+        n = c.replace("\\", "/")
+        if n.startswith("product-forge/"):
+            n = n[len("product-forge/"):]
+        if n.endswith(".py") and (n.startswith("core/") or n.startswith("api/")
+                                  or n.startswith("scripts/") or n.startswith("test-framework/")):
+            return True
+    return False
+
+
+def _smoke_tests() -> list:
+    out = []
+    for t in _test_files():
+        base = os.path.basename(t)
+        if base in _SMOKE:
+            out.append(t)
+    return sorted(out)
+
+
 def _steps(scope_csv: str = ""):
     """Default (fast/bookkeeping) steps. Deep/release gates run via --full/--release (named groups)."""
     changed = _changed_paths()
     # BI-PF-1374: a derived/bookkeeping-only change -> MINIMAL tier (docs-fresh + compile); no area gates, no tests.
     if _bookkeeping_only(changed):
-        return [(n, [sys.executable, *c]) for n, c, _t, _a in _GATES if n in ("compile", "docs-fresh")]
+        # Data-only completion PRs still must pass the delivery gates (BI-PF-1470).
+        must = ("compile", "docs-fresh", "gate2-completion", "delivery-completeness")
+        return [(n, [sys.executable, *c]) for n, c, _t, _a in _GATES if n in must]
     steps = []
     for name, cmd, tier, area in _GATES:
         if tier != "fast" or not _area_touched(area, changed):
@@ -299,11 +364,15 @@ def _steps(scope_csv: str = ""):
         if name == "wired-audit":
             cmd_list.append("--fast")  # skip advisory sub-audits in the per-phase tier
         steps.append((name, cmd_list))
-    tests = _scoped_tests(scope_csv)
-    if tests:
-        steps.append(("tests-scoped", [sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="]))
+    # Fast tier: only tests affected by the changed AREAS (plus a tiny smoke set); never the full suite.
+    if _python_impact(changed):
+        tests = _scoped_tests(scope_csv) or _smoke_tests()
+        if tests:
+            steps.append(("tests-scoped", [sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="]))
+        else:
+            print("[precheck] no affected tests selected; skipping tests (use --full for the full suite)")
     else:
-        steps.append(("pipeline-tests-full", [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
+        print("[precheck] no Python changes; skipping Python tests (use --full for the full suite)")
     return steps
 
 
@@ -422,7 +491,49 @@ def _run_groups(keys) -> int:
     return rc
 
 
-def main(argv=None) -> int:
+
+def _record_trail(timings, total, rc, tier):
+    try:
+        import json
+        import re
+        from core import execution_trail as trail
+        import gate2_completion_check as g2
+        base = g2._git("merge-base", "develop", "HEAD")
+        ids = g2.transitions(base) if base else []
+        if not ids:
+            branch = g2._git("branch", "--show-current")
+            m = re.search(r"bi-pf-(\d+)", branch or "", re.I)
+            if m:
+                ids = [f"BI-PF-{m.group(1)}"]
+        if not ids:
+            return
+        commits = g2._git("log", "--oneline", f"{base}..HEAD").splitlines() if base else []
+        tests = [{"command": n, "result": "pass" if c == 0 else "fail", "duration_ms": int(d * 1000)}
+                 for n, d, c in timings if n in ("tests-scoped", "go-modules")]
+        code = [{"command": n, "result": "pass" if c == 0 else "fail", "duration_ms": int(d * 1000)}
+                for n, d, c in timings if n in ("lint", "review-static", "compile", "pycompat", "changed-tests")]
+        for iid in ids:
+            have = {e["stage"] for e in trail.events(iid)}
+            if "implementation" not in have and commits:
+                trail.record(iid, "implementation", "pass", summary=f"{len(commits)} commit(s) since base",
+                             refs={"commits": commits[:20]})
+            trail.record(iid, "code_review", "pass" if all(t["result"] == "pass" for t in code) else "fail",
+                         tests=code)
+            trail.record(iid, "tests", "pass" if all(t["result"] == "pass" for t in tests) else "fail", tests=tests)
+            trail.record(iid, "precheck", "pass" if rc == 0 else "fail",
+                         summary=f"tier={tier}, gates={len(timings)}",
+                         refs={"total_seconds": round(total, 1)})
+    except Exception as e:
+        import json
+        try:
+            from core import execution_trail as _trail
+            _trail.write_failure("precheck", e)
+        except Exception:
+            pass
+        print(json.dumps({"event": "execution_trail_write_failed", "stage": "precheck", "error": str(e)}), file=sys.stderr)
+
+
+def _main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if "--list-groups" in argv:
         return _list_groups()
@@ -474,14 +585,43 @@ def main(argv=None) -> int:
           f"gates+scoped tests; --full = all groups; --release = +periodic full-tree sweeps)")
     if not bookkeeping:
         tests = _scoped_tests(scope_csv)
-        print(f"[precheck] changed-scoped tests: {len(tests)} file(s) "
-              f"(use --full for the complete suite)" if tests else
-              "[precheck] no scope match -> running full test suite")
+        print(f"[precheck] changed-scoped tests: {len(tests)} file(s) (use --full for the complete suite)")
     import time as _time
     rc = 0
     timings = []
     t_all = _time.time()
-    for name, cmd in _steps(scope_csv):
+    import concurrent.futures as _cf
+    steps = _steps(scope_csv)
+    # Read-only gates run concurrently; writers (backlog/derived docs, tests) stay serial.
+    parallel_safe = {"staleness", "feature-pr", "validation-engine", "merge-gate", "rate-budget",
+                     "intent-trace", "language-rule", "api-first", "store-registry",
+                     "store-relationships", "delivery-completeness", "docs-fresh", "artifact-map",
+                     "wired-audit", "api-contract", "api-governance", "compliance", "secret-scan"}
+    par = [st for st in steps if st[0] in parallel_safe]
+    ser = [st for st in steps if st[0] not in parallel_safe]
+
+    def _run_one(step):
+        name, cmd = step
+        t0 = _time.time()
+        try:
+            r = subprocess.run(cmd, cwd=_ROOT, capture_output=True, text=True)
+            return name, _time.time() - t0, r.returncode, (r.stdout or "") + (r.stderr or "")
+        except FileNotFoundError as e:
+            return name, _time.time() - t0, 0, f"[SKIP] {name}: {e}"
+
+    if par:
+        with _cf.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [pool.submit(_run_one, st) for st in par]
+            for f in futures:
+                name, dt, code, out = f.result()
+                print(f"\n=== precheck: {name} ===", flush=True)
+                if out:
+                    print(out.rstrip())
+                timings.append((name, dt, code))
+                if code:
+                    print(f"[FAIL] {name} (exit {code}, {dt:.1f}s)")
+                    rc = 1
+    for name, cmd in ser:
         print(f"\n=== precheck: {name} ===", flush=True)
         t0 = _time.time()
         try:
@@ -495,10 +635,46 @@ def main(argv=None) -> int:
             print(f"[FAIL] {name} (exit {r.returncode}, {dt:.1f}s)")
             rc = 1
     total = _time.time() - t_all
+    _record_trail(timings, total, rc, tier)
+    # Post gate: the trail check must run AFTER the runner writes tests/precheck trail events.
+    _t0 = _time.time()
+    _r = subprocess.run([sys.executable, "scripts/dev/execution_trail_check.py"], cwd=_ROOT,
+                        capture_output=True, text=True)
+    _dt = _time.time() - _t0
+    print(f"\n=== precheck: execution-trail ===")
+    if (_r.stdout or "").strip():
+        print((_r.stdout or "").rstrip())
+    if (_r.stderr or "").strip():
+        print((_r.stderr or "").rstrip())
+    timings.append(("execution-trail", _dt, _r.returncode))
+    if _r.returncode:
+        print(f"[FAIL] execution-trail (exit {_r.returncode}, {_dt:.1f}s)")
+        rc = 1
     print(f"\nprecheck: {'PASS' if rc == 0 else 'FAIL'} (tier={tier}, {total:.1f}s, {len(timings)} gates)")
     slow = sorted(timings, key=lambda x: -x[1])[:5]
     print("[precheck] slowest: " + ", ".join(f"{n}={d:.1f}s" for n, d, _ in slow))
     return rc
+
+
+def main(argv=None) -> int:
+    """Run the gates, then fail closed if the active worktree's Git state moved."""
+    _prev_db = os.environ.get("PF_BACKLOG_DB")
+    if "PF_BACKLOG_DB" not in os.environ:
+        os.environ["PF_BACKLOG_DB"] = "on"
+    try:
+        before = worktree_fingerprint(_ROOT)
+        rc = _main(argv)
+        after = worktree_fingerprint(_ROOT)
+        if before != after:
+            print("[precheck] FATAL: HEAD, refs, or index changed during precheck; "
+                  "refusing to proceed (possible Git environment leak)", file=sys.stderr)
+            return 1
+        return rc
+    finally:
+        if _prev_db is None:
+            os.environ.pop("PF_BACKLOG_DB", None)
+        else:
+            os.environ["PF_BACKLOG_DB"] = _prev_db
 
 
 if __name__ == "__main__":

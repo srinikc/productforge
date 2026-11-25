@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "91e76a9251c4",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-13T05:41:35.843104+00:00",
+  "review_scope": "delta",
+  "base_sha": "239b33c60bdb0431a493cc35b86fdc8e7ba4cea0",
+  "head_sha": "941400af4c1c41bb7f2061d13d9096b6b66898a6",
+  "findings": {
+    "BLOCKER": [
+      "AC-4 test resolves the runbook via CWD-relative `Path(\"engineering/evidence/BI-PF-1534/operator-recovery.md\")`, but its evidence command (`python -m pytest test-framework/...`) must run from `product-forge/`, while `engineering/` is repo-root (same convention as `config/`, `docs/`). Under the documented command the path does not resolve \u2192 FileNotFoundError, so AC-4 evidence fails."
+    ],
+    "MAJOR": [
+      "Design observability contract still unmet: `_DB_UNLISTED_COUNT`/`scope_unlisted_count()` have zero callers and zero test assertions \u2014 no `backlog_db_scope_unlisted_total` metric export or alert, so sustained-failure lead-time is absent (this merely replaces the removed dead `_DB_WARNED_SCOPES` with new dead state).",
+      "AC-2 ID coverage only asserts `id_allocator._db_enabled` raises; no test drives an actual id-reserve/allocation entrypoint, so the design invariant \"unlisted ID allocation raises before Git/local fallback\" remains unproven at the allocation path.",
+      "AC-4 test only greps for `PF_BACKLOG_DB=off` and `PF_BACKLOG_DB_SCOPES` substrings; it does not verify the runbook covers read/write/delete/ID recovery as the AC requires, so a stub runbook passes."
+    ],
+    "MINOR": [
+      "AC-3 exercises only the write path; off-mode unlisted read/delete/ID (explicitly in the design `operation_matrix`) are untested.",
+      "Only `PF_BACKLOG_DB=on` is tested; `dual`/`shadow` + unlisted (operation_matrix expects raise) have no coverage.",
+      "AC-2 `backlog._save_item(\"ignored\", {\"scope\":\"unlisted_ac2\"})` passes conflicting scope keys; the test can pass on the positional key without proving the item-scope guard.",
+      "Tests assert only the exception type/message; none proves \"no file/DB access before the guard\" (design invariant \"On + unlisted never touches files\").",
+      "`import logging` is executed inside `_raise_unlisted` on every failure path instead of module level."
+    ],
+    "NIT": [
+      "Test lines use semicolon-compressed `monkeypatch.setenv(...); monkeypatch.setenv(...)` style, inconsistent with the referenced Python style guide.",
+      "Log line repeats `code=BACKLOG_DB_SCOPE_UNLISTED` already present in the message prefix; error message and log format could share one structured source.",
+      "`_DB_UNLISTED_COUNT` is an unsynchronized, non-resettable process global (test/parallel-worker leakage if ever exposed as a metric)."
+    ],
+    "SUMMARY": [
+      "Delta correctly consolidates the unlisted-scope raise into `_raise_unlisted` with logging and adds AC-keyed tests, resolving prior dead-code and evidence-naming findings.",
+      "Top risks: the AC-4 runbook test is CWD-incompatible with its own evidence command (likely failing AC-4), the new counter is dead state that does not satisfy the design's metric/alert contract, and AC-2/AC-3 mode+path coverage (ID allocation fallback, off-mode read/delete/ID, dual/shadow) remains partial.",
+      "Recommend fixing the runbook path resolution, exporting/testing the counter, and adding allocation-path and off-mode read/delete tests before gate pass."
+    ]
+  },
+  "rereview_reason": "fix d4ac4c8aa7a3 findings",
+  "rereview_reason_sha256": "65cf4cec57ff75e95a4b8b9226b8cef0e8c2f0deebe7feac39fc1aa0edd18401"
+}

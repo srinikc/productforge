@@ -1,0 +1,48 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "73b7dc40d450",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T14:38:58.599832+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "23c0bad35ded3194bbcf0e9b2036973748ef0c38",
+  "findings": {
+    "BLOCKER": [
+      "`core/store_item_to_db` gates on `item[\"scope\"] or item[\"project\"]` while `scripts/dev/backlog_db_backfill.py:tenant_for_item` selects on `project or scope` \u2014 a PF-GP item with normalized `scope=\"project\"` and `project=\"ProductForge-Dashboard\"` is selected for backfill, then rejected with `BACKLOG_DB_SCOPE_DISABLED`, so the allowlisted dashboard tenant cannot be backfilled (AC-3).",
+      "Same root cause on the read path: `_norm_scope`/`backlog_scope.normalize` collapse anything non-alias to `\"project\"`, so any gate receiving the normalized scope sees key `\"project\"` (not allowlisted) \u2014 the effective allowlist is one entry, contradicting the design invariant that items and IDs share one allowlist key."
+    ],
+    "MAJOR": [
+      "AC-2: only `test_backlog_db_cutover.py` pins `off` per test; no conftest/global fixture or CI default sets `PF_BACKLOG_DB=off`, so every other backlog-touching test now inherits `on` and will attempt edpsvc calls.",
+      "`requireTenant` reads the session GUC `app.tenant_id` without proving it is tx-local (`SET LOCAL`); on a pooled connection a stale session tenant would be silently used by `Get`/`List`/`Delete` (only `Put` compares), and no test asserts reset between requests (guardrail 3).",
+      "New failure modes (`BACKLOG_DB_AUTH`, `BACKLOG_DB_UNAVAILABLE`, `BACKLOG_DB_INVALID_RESPONSE`, `ErrTenantContext`) only log; no metric or test backs the doc claim that edpsvc exports `edp_backlog_authority_errors_total`, so the failure taxonomy is not observable.",
+      "Backfill's 429 retry catches `urllib.error.HTTPError`, but `_load_all_from_db` wraps HTTP errors in `RuntimeError`; if `_mirror_item_to_db` does the same, the retry is dead code and a single 429 aborts the tenant backfill.",
+      "Migration 0022 uses non-`CONCURRENTLY` `CREATE INDEX` on `traceability`; under `lock_timeout` it still holds a blocking lock for the build duration, and its safety depends entirely on the manual \"stop old writers\" step.",
+      "0021 only re-points `fk_traceability_item`; any other FK referencing `backlog_items(id)` makes the PK drop fail mid-deploy. `preflight` reports unknown FKs but the migration itself does not, and no test covers that abort path.",
+      "`backlog_db_parity.py` compares DB `jsonb`-decoded dicts to raw file JSON; jsonb numeric/duplicate-key normalization can produce false drift or mask real drift, and drift exits 1 without emitting the declared `BACKLOG_DB_PARITY_DRIFT` code."
+    ],
+    "MINOR": [
+      "`scripts/dev/precheck.py` mutates `os.environ` process-wide inside `main()` with no restore and no log, silently overriding an operator's explicit `PF_BACKLOG_DB=on`.",
+      "`backlog_scope.allowed()`/`mode()` re-resolve env/config on every call and are invoked per item in list/backfill loops; no memoization and no evidence `env_flags.get` is cached.",
+      "`test_id_allocator_defaults_on` deletes only `PF_BACKLOG_DB`; an ambient `PF_BACKLOG_DB_SCOPES` without `product_forge` makes it flaky.",
+      "Design decision \"structure.yml, full-sweep.yml set PF_BACKLOG_DB=off\" has no asserting test; only `backlog-db.yml` content is pinned.",
+      "Docs \"Activate\" snippet says `PF_API_TOKEN`, while code reads `PF_EDP_TOKEN`/`PF_ADMIN_TOKEN` \u2014 docs/code drift under AC-1.",
+      "`docs/BACKLOG-DB-SSOT.md` now carries a bare 1\u20136 rollback list appended to the Activate checklist after the `## Rollback` heading was removed, duplicating numbering and blurring the rollback procedure.",
+      "`backlog_db_bench.py` SLO result is manual only; it is not wired into any workflow gate, so the AC-1 performance claim has no regression protection.",
+      "`scripts/dev/backlog_db_parity.py` docstring still states \"Prereq: EDP-18 migration applied\" while the runbook requires 0021/0022."
+    ],
+    "NIT": [
+      "`_norm_scope` performs a function-local `from core import backlog_scope` even though the module-level import already exists.",
+      "`.env.example` ships `PF_BACKLOG_DB=on` in the template, so a copied `.env` silently switches local dev to DB authority.",
+      "`store_item_to_db` is a new public shipped write API added in Python rather than Go; acceptable as an edit, but worth recording against the language rule.",
+      "Backfill sleeps only after a successful write, so failure bursts are unthrottled."
+    ],
+    "SUMMARY": [
+      "Direction is right: default-on, per-scope allowlist, fail-closed reads, tenant-bound Go queries, preflight/backup discipline, and rollback tooling are all present and tested.",
+      "Top risk: scope/project precedence and normalization disagree between the backfill selector, the writer gate, and the read gate, which can leave an allowlisted tenant in file mode or abort its backfill while the flag reads `on`.",
+      "Second risk: file-mode test isolation is per-module rather than suite-wide, so the new default can leak network calls into unrelated tests and CI.",
+      "Remaining gaps are observability of the new failure codes and migration lock/dependency safety (0021/0022), both recoverable but needing explicit evidence."
+    ]
+  }
+}

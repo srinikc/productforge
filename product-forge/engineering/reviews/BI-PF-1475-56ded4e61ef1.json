@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "56ded4e61ef1",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:44:34.239069+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Registry flips to exists/migrated in this commit while live ingestion is explicitly out of scope: shipped state asserts 11 stores have objects/rows that will not exist until ops later runs `pfingest`, so `pfingest --verify` and any existence check contradict `store-registry.json` on day one. Design must sequence: ingest + verify first, flip registry only on proof of existence.",
+      "Artifact revision semantics are unresolved: \"deterministic id + ON CONFLICT DO NOTHING\" cannot both satisfy \"same artifact id on unchanged input\" and \"changed payload produces a new object while prior stays readable\" unless the id derivation (path vs path+sha) is stated; if path-derived, `DO NOTHING` permanently pins the artifacts row to the old checksum."
+    ],
+    "MAJOR": [
+      "AC conformance mismatch: acceptance criteria require the 11 entries marked \"object-store/exists with migration_status migrated\"; the approach flips them to \"artifacts/exists/migrated\". Repeated AC-wording drift class \u2014 reconcile explicitly before Gate 1.5.",
+      "`go/intakeingest/go.mod` as a new module over \"existing datastore.ObjectStore + RelationalStore ports\": state where those ports live; if they are in the repo's root Go module this forces duplication (reuse violation) or a `replace` directive (version drift across modules).",
+      "Tenant/RLS isolation is claimed (BindTenant, RLS-bound tx) but no test is listed for cross-tenant non-leakage; a claimed security control without a fail-able test is unproven (checklist 9, 6).",
+      "Observability is a printed JSON report only: no per-store structured success/failure log, no run record, no metric distinguishing written vs skipped vs failed, so a half-failed 11-store run cannot be diagnosed or later proven ingested (checklist 10).",
+      "CL-001 ownership not stated: who else writes `stored_objects`/`artifacts`, and is this writer registered as single-writer for intake|builds keys? No route-by-kind/ownership disposition present.",
+      "CL-006 not addressed: this Gate-1 context does not embed the latest Gate 1.5 findings + dispositions, which `scripts/dev/gate1_check.py` enforces as a precondition for approval."
+    ],
+    "MINOR": [
+      "DSN passed via `cmd/pfingest` wiring risks credential exposure in argv/shell history; specify env-var/secret-file intake.",
+      "\"Configurable size cap\" appears in risks but not in the design: no config key, default, or scope (per-file vs total) defined, and no fail-closed evidence test listed.",
+      "`--verify` comparison basis unstated: Head checksum vs freshly re-read local file, and behaviour when the source file changed after ingest.",
+      "`gate0_check.py` git-root fix is a real correctness fix but bundles an unrelated tooling concern with the ingestion change; split for reviewability and independent rollback.",
+      "No GC/retention story for orphaned content-addressed objects when object write succeeds and metadata write fails (risk acknowledged but unmanaged)."
+    ],
+    "NIT": [
+      "Pipe delimiter in `intake|builds/<sha256>` object keys: confirm it is safe/documented across the object store and any path-based tooling.",
+      "JSON report schema is not pinned/versioned; ops automation parsing it will break silently on field changes.",
+      "Deterministic artifact id derivation should be recorded in an ADR/store-registry comment so future writers compute identical ids."
+    ],
+    "SUMMARY": [
+      "Solid foundations: Go-first logic, content-addressed immutability, RLS-bound transactions, and idempotent upserts are the right shape, and rollback is clean (no schema change).",
+      "Top risks: registry claims \"exists/migrated\" before any ingestion actually runs (integrity), and artifact-id/`DO NOTHING` revision semantics are underspecified against AC 3.",
+      "Secondary gaps: separate Go module reuse strategy, missing cross-tenant test, print-only observability, and unembedded CL-006/CL-001 process evidence."
+    ]
+  }
+}

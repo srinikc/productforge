@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "66ce76e2715a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-16T18:01:54.268697+00:00",
+  "review_scope": "delta",
+  "base_sha": "12595182d904676aa3b7aa983915bd195ee4946e",
+  "head_sha": "e61ef867f976db960f66c061926e6759e3bf490b",
+  "findings": {
+    "BLOCKER": [
+      "AC-3/tenant isolation (pfcore hunk): when `PF_EVENT_PROJECTION_DIR` is set, `projPath := filepath.Join(projRoot, \"events.jsonl\")` drops the tenant segment entirely \u2014 the env is process-wide and cannot vary per tenant, so every tenant regenerates the *same* file and each append overwrites other tenants' projections (cross-tenant leak + lost projection). Tenant must be joined in both branches."
+    ],
+    "MAJOR": [
+      "AC-1 (eventstore.go hunk): retry match narrowed from `\"duplicate key\"` to `\"events_pkey\"`. The design mandates retry on the `UNIQUE(tenant_id, seq)` conflict, which is a *separate* constraint unless the PK is exactly `(tenant_id, seq)`; if not, concurrent seq conflicts now abort instead of retrying while PK duplicates retry 5\u00d7. No test proves the retry still fires for the actual seq constraint name.",
+      "AC-4 observability (delta touches this line): `EnforceOutboxBound` is now invoked, but the rejection still emits no metric/log/counter and the bound check itself produces no row-count signal, so operators cannot distinguish `EVENT_OUTBOX_BOUND_EXCEEDED` backpressure from a generic append failure."
+    ],
+    "MINOR": [
+      "Bound check runs *after* payload offload (`payloads.Put` precedes it): an outbox-bound rejection orphans an already-uploaded object and relies on GC grace; the cheap check should fail fast before the expensive write.",
+      "Per-append `EnforceOutboxBound` adds a DB round-trip (likely a COUNT over outbox) to every outbox-enabled append: O(pending rows) latency at scale, TOCTOU-racy outside the tx (bound advisory under concurrency), with no supporting index/metric evidence.",
+      "`WithOutboxBound` mutates the receiver in place (unsafe if applied to a shared/global store; post-construction config mutation) and silently ignores `<=0`, contradicting the config contract's `invalid_behavior: fail closed`.",
+      "New `TestAppendEnforcesOutboxBound` asserts only `err != nil`; an `ErrEventInvalid` or DB error would satisfy it \u2014 assert the specific bound error to prove AC-4 backpressure.",
+      "`NewEventStore` hard-codes `inlineLimit: 32*1024` / `outboxMax: 100_000` as magic numbers rather than sourcing the declared `EVENT_INLINE_PAYLOAD_LIMIT` / outbox bound from the config contract with startup validation (divergence risk between code and contract).",
+      "`PF_EVENT_PROJECTION_DIR` is a new env var read via `os.Getenv` per append, with no startup validation and no entry in the config contract or env registry.",
+      "Projection default root `filepath.Join(\"products\", tenant)` is cwd-relative (a service started elsewhere writes where no reader looks, silently stale), and `tenant` is joined unsanitized \u2014 a tenant value containing a separator or `..` escapes the projection root."
+    ],
+    "NIT": [
+      "The outbox-bound test belongs in `eventstore_test.go`, not `event_outbox_gc_test.go`.",
+      "`projection_error` is surfaced only in the returned map; nothing logs/meters it, so AC-3 stale-projection marking depends entirely on callers echoing the field."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the two prior blockers (caller-controlled projection path now server-resolved; large payload without store now fails closed) and wires `EnforceOutboxBound` into `Append`.",
+      "Top risks: the new `PF_EVENT_PROJECTION_DIR` branch drops tenant scoping (blocker), and narrowing the duplicate-match to `events_pkey` may disable the required per-tenant seq retry with no test evidence.",
+      "Remaining hardening: bound-check ordering/observability, config-registry alignment for new constants/env var, and stronger assertions in the new tests."
+    ]
+  },
+  "rereview_reason": "Delta for prior 86ea3ecb0516 and a38e7f93d541 findings",
+  "rereview_reason_sha256": "b16c3ed1abfc5aef7104983df410643d8ce456507e52dcf95f9c3680feec0cb0"
+}

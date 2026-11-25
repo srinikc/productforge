@@ -1,0 +1,1119 @@
+{
+  "id": "BI-PF-1546",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 680",
+  "title": "Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership",
+  "body": "Fix accepted 1269 implementation findings: real DispatchOnce tests, backoff/status filtering, concurrency claim, cursor recovery after failed rows, filter semantics, cross-tenant collision errors, created_at retention, per-event failure isolation, dispatcher metrics/logs, registry registration, and an explicit DLQ ownership decision.",
+  "source": "api",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-19T16:31:39.349149",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Fix accepted 1269 implementation findings: real DispatchOnce tests, backoff/status filtering, concurrency claim, cursor recovery after failed rows, filter semantics, cross-tenant collision errors, created_at retention, per-event failure isolation, dispatcher metrics/logs, registry registration, and an explicit DLQ ownership decision.",
+    "what_adds": "Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership",
+    "why": "Fix accepted 1269 implementation findings: real DispatchOnce tests, backoff/status filtering, concurrency claim, cursor recovery after failed rows, filter semantics, cross-tenant collision errors, created_at retention, per-event failure isolation, dispatcher metrics/logs, registry registration, and an explicit DLQ ownership decision.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership",
+  "acceptance_criteria": [
+    "DispatchOnce has fail-able tests for matching, dedupe, retry with backoff/status gating, DLQ after max attempts, cursor recovery and concurrent passes.",
+    "Dispatcher applies filter semantics, isolates per-event failures, emits metrics/logs, and rejects cross-tenant subscription collisions instead of silently succeeding.",
+    "Event delivery/DLQ ownership is explicitly recorded (reuse or ADR amendment), store registry evidence is present, and migration rollback requires a verified backup."
+  ],
+  "in_scope": [
+    "Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Event dispatcher remediation: backoff, concurrency, cursor recovery, metrics and DLQ ownership",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 3, 'MAJOR': 4, 'MINOR': 5, 'NIT': 2}"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1546): sig:ab1f9d871fd2aff4 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=32056205cd98\nBLOCKER:\n  - AC-3 requires \"store registry evidence is present\"; neither spec_pack nor design_pack references any store registry artifact/entry — only migration and test files — so AC-3 is unmet as designed.\n  - AC-3 requires \"migration rollback requires a verified backup\"; rollout/rollback only say \"with backup\" with no verified backup/restore step, evidence, or restore test — data-loss exposure on 0026 down (guardrail 1).\nMAJOR:\n  - C-1/C-2 set `tenant_test: 'N/A: tenant RLS migration'` while AC-2 requires rejecting cross-tenant collisions; runtime role posture (NOSUPERUSER/NOBYPASSRLS) and tenant binding are never proven (CL-011, guardrail 3).\n  - C-5 uses `migrations/0025_...up.sql` as its own positive/negative/tenant \"test\" with evidence \"migration applied locally\" — not a fail-able test; AC-3's testability requirement is unsatisfied.\n  - observability_runbook is APPLICABLE but cites only a design doc and a unit test; no runbook artifact, alert ownership, probe backoff/cooldown, or dependency-down behavior (CL-014, guardrail 2 SPOF/alert lead-time).\n  - Guardrail 6: migration-interrupted/partial-apply recovery and rollback verification are not specified; \"Revert the change\" is not an operable rollback procedure.\n  - `affected_files`, `affected_components`, `risks` are \"Not specified\" while controls reference concrete files — declared scope and traceability are incomplete for gate review.\nMINOR:\n  - FR-1/2/3 all map to the same single test file and design doc; per-AC evidence granularity is too coarse for independent verification.\n  - `config_contract` is `{'N/A': 'reuse dispatcher options'}` without naming the reused options — drift risk against guardrail 10 reuse.\n  - `nfr_slo` marked N/A while `nfr: bounded batch` imposes a performance bound with no stated value or measurement.\nNIT:\n  - `stop_conditions: ['transport implementation']` and `out_of_scope: ['Not specified.']` are ambiguous/placeholder phrasing.\n  - `rollback: Revert the change` duplicates but conflicts in specificity with the design's \"run 0026 down with backup\" — consolidate to one authoritative statement.\nSUMMARY:\n  - Design covers backoff, DLQ, concurrency tests and metrics directionally, but AC-3 fails on two counts: no store-registry evidence and no verified backup/restore path for 0026.\n  - Top risks: tenant-collision controls ship without tenant/role tests (CL-011), C-5's \"test\" is a migration file, and no ops runbook/alert ownership exists for dispatcher/worker/DB failure.\n  - Gate should not pass until registry evidence, verified backup procedure, runtime role posture proof, and a real runbook artifact are added.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=d082f6deed5a\nBLOCKER:\n  - AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.\n  - DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.\n  - AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership.\nMAJOR:\n  - AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.\n  - Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass — head-of-line blocking up to StaleAfter (5m default) starves all later events.\n  - Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.\n  - Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration.\nMINOR:\n  - Deploy ordering risk: `beginDelivery` INSERT now references `created_at`; code-live-before-0026 (or 0026 rollback while code deployed) breaks every dispatch pass.\n  - `event_subscriptions.go` adds `fmt.Errorf` with no import hunk in the diff — verify the package builds.\n  - Confirm `EventStore.metrics` defaults to `nopEventMetrics` (or all constructors call `WithMetrics`); four new call sites in `DispatchOnce` panic if nil.\n  - `matchesFilter` uses `fmt.Sprint` coercion (`\"1\"` matches numeric `1`) and re-parses JSON per subscription per event; no test for type-coercion/nested-key semantics.\n  - Reclaimed/stale and DLQ'd-then-advanced rows are all counted/emitted as `DeliverySkipped`, muddying observability.\nNIT:\n  - `StaleAfter` is an undocumented knob (no comment on semantics/ops tuning) alongside `MaxAttempts`/`BaseBackoff`.\n  - `actionAdvance` on `failed` status increments `Skipped` rather than a distinct dedupe counter.\nSUMMARY:\n  - Behavior changes (state gating, atomic cursor+delivery, cross-tenant error) are directionally right, but AC-1 test coverage and AC-3 evidence are objectively missing, and AC-2's \"logs\" half is unimplemented.\n  - Top risks: skipping integration test masks DLQ proof in CI; pass-halting on retry/stale rows threatens availability; missing backup procedure for a destructive rollback.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "PR #369 merged to develop at 014ca5c3ce0268d2d75c02de90c21325a086c25d"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-19T16:31:39.055224",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/events.py, core/event_bus.py, core/quality_metrics.py, /api/v1/evidence/events",
+    "existing_components": [
+      "core/events.py",
+      "core/event_bus.py",
+      "core/quality_metrics.py"
+    ],
+    "existing_apis": [
+      "/api/v1/evidence/events",
+      "/api/v1/workers/metrics",
+      "/api/v1/events/types",
+      "/api/v1/events"
+    ],
+    "existing_modules": [
+      "config/implementation-controls.json",
+      "config/ownership.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "51f35326f640be10"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-19T16:31:39.170017"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-19T16:31:35.072954",
+  "updated_at": "2026-11-19T17:02:10.766617",
+  "score": 0.75,
+  "_note": "Delivered via PR #369",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-PF-1546",
+    "outcome": "Dispatcher remediation closes accepted 1269 correctness findings.",
+    "actors": [
+      "dispatcher",
+      "operator"
+    ],
+    "scope": [
+      "dispatcher fixes",
+      "tests",
+      "ownership"
+    ],
+    "non_goals": [
+      "new transports",
+      "alert policy"
+    ],
+    "assumptions": [
+      "1269 schema exists"
+    ],
+    "dependencies": [
+      "BI-PF-1269"
+    ],
+    "domain": "eventing",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "DispatchOnce has fail-able tests for matching, dedupe, retry with backoff/status gating, DLQ after max attempts, cursor recovery and concurrent passes.",
+        "priority": "P0",
+        "source": "BI-PF-1546",
+        "preconditions": "1269 dispatcher is merged.",
+        "trigger": "Remediation behavior is exercised.",
+        "inputs": [
+          "subscription",
+          "event",
+          "delivery state"
+        ],
+        "outputs": [
+          "validated dispatch outcome"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant scoped",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "cursor and delivery commit together"
+        ],
+        "edge_cases": [
+          "failed delivery row"
+        ],
+        "acceptance": [
+          "Given retry/DLQ scenarios, when DispatchOnce runs, then backoff, cursor recovery and concurrency are tested."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Dispatcher applies filter semantics, isolates per-event failures, emits metrics/logs, and rejects cross-tenant subscription collisions instead of silently succeeding.",
+        "priority": "P0",
+        "source": "BI-PF-1546",
+        "preconditions": "1269 dispatcher is merged.",
+        "trigger": "Remediation behavior is exercised.",
+        "inputs": [
+          "subscription",
+          "event",
+          "delivery state"
+        ],
+        "outputs": [
+          "validated dispatch outcome"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant scoped",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "cursor and delivery commit together"
+        ],
+        "edge_cases": [
+          "failed delivery row"
+        ],
+        "acceptance": [
+          "Given filters, cross-tenant IDs and failures, when dispatched, then behavior is explicit and observable."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Event delivery/DLQ ownership is explicitly recorded (reuse or ADR amendment), store registry evidence is present, and migration rollback requires a verified backup.",
+        "priority": "P0",
+        "source": "BI-PF-1546",
+        "preconditions": "1269 dispatcher is merged.",
+        "trigger": "Remediation behavior is exercised.",
+        "inputs": [
+          "subscription",
+          "event",
+          "delivery state"
+        ],
+        "outputs": [
+          "validated dispatch outcome"
+        ],
+        "errors": [
+          "retry then DLQ"
+        ],
+        "auth": "tenant scoped",
+        "idempotency": "dedupe by subscription_id,event_id",
+        "data_rules": [
+          "cursor and delivery commit together"
+        ],
+        "edge_cases": [
+          "failed delivery row"
+        ],
+        "acceptance": [
+          "Given schema/rollback review, when merged, then ownership is recorded and backup is required."
+        ],
+        "verification": [
+          "go test ./... in edpdata"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "dispatch",
+        "owner": "edpdata",
+        "failure": "retry then DLQ"
+      }
+    ],
+    "config_contract": {
+      "N/A": "reuse dispatcher options"
+    },
+    "nfr": [
+      "bounded batch"
+    ],
+    "data_lifecycle": "deliveries/DLQ retained",
+    "compatibility": "additive migration 0026",
+    "rollback": "revert migration/code with backup",
+    "observability": "delivery metrics/logs",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: DLQ ownership decided in ADR-0012."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "8e5a3546154f"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-PF-1546.md",
+    "design_ref": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "remediation design",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "dispatch"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "no API change"
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "migration 0026",
+        "artifact": "migrations/0026_event_deliveries_created_at.up.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0026_event_deliveries_created_at.up.sql"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "no new config"
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "bounded batch"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "tenant collision handling",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "add column",
+        "artifact": "migrations/0026_event_deliveries_created_at.up.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0026_event_deliveries_created_at.up.sql"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "down migration",
+        "artifact": "migrations/0026_event_deliveries_created_at.down.sql",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "migrations/0026_event_deliveries_created_at.down.sql"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "metrics/logs",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "go/edpdata/event_metrics_test.go"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "No user interface exists in this dispatcher remediation."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1546",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "dispatcher remediation",
+        "artifact": "go/edpdata/event_dispatcher.go",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1546",
+        "reason": "tests",
+        "artifact": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "DispatchOnce has fail-able tests for matching, dedupe, retry with backoff/status gating, DLQ after max attempts, cursor recovery and concurrent passes.",
+      "Dispatcher applies filter semantics, isolates per-event failures, emits metrics/logs, and rejects cross-tenant subscription collisions instead of silently succeeding.",
+      "Event delivery/DLQ ownership is explicitly recorded (reuse or ADR amendment), store registry evidence is present, and migration rollback requires a verified backup."
+    ],
+    "invariants": [
+      "cursor and delivery commit together"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": {
+        "migration": "0026"
+      },
+      "files": {
+        "dispatcher": "go/edpdata/event_dispatcher.go"
+      },
+      "config": "N/A"
+    },
+    "failure_matrix": [
+      {
+        "case": "transport failure",
+        "behavior": "retry then DLQ",
+        "code": "DELIVERY_FAILED"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1269"
+    ],
+    "security": "tenant RLS and collision errors",
+    "observability": "delivery metrics/logs",
+    "performance": "bounded batch",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/integration",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/integration",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/integration",
+        "test": "go test ./..."
+      }
+    ],
+    "rollout": "apply 0026 with backup",
+    "rollback": "run 0026 down with backup",
+    "decisions": [
+      "DLQ owner in ADR-0012"
+    ],
+    "guardrails": [
+      "no transport implementation"
+    ],
+    "learnings": [
+      "1269 accepted findings remediated"
+    ],
+    "design_areas": [
+      {
+        "area": "eventing",
+        "status": "APPLICABLE",
+        "reason": "remediation",
+        "sections": [
+          "dispatch"
+        ],
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1546.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "tests": "go test ./...",
+        "evidence": [
+          "go/edpdata/event_dispatcher_pg_integration_test.go"
+        ]
+      }
+    ],
+    "scope": [
+      "dispatcher remediation"
+    ],
+    "non_goals": [
+      "new transports"
+    ],
+    "runtime_contract": {
+      "trigger": "dispatcher pass",
+      "entrypoint": "edpdata.EventStore.DispatchOnce",
+      "call_sites": [
+        "worker"
+      ],
+      "adapter": "Transport",
+      "contract": "backoff/status gating + cursor recovery",
+      "failure_behavior": "retry then DLQ",
+      "observable_result": "DispatchStats + metrics"
+    },
+    "proof_plan": {
+      "failing_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "red_evidence": "1269 findings",
+      "green_evidence": "remediation tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "go/edpdata/event_dispatcher_pg_integration_test.go"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "go/edpdata/event_dispatcher_pg_integration_test.go"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "go/edpdata/event_dispatcher_pg_integration_test.go"
+      }
+    ],
+    "stop_conditions": [
+      "transport implementation"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "failure",
+        "control": "dispatcher retry/backoff/DLQ and cursor recovery",
+        "symbol": "go/edpdata/event_dispatcher.go:DispatchOnce",
+        "positive_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "cross-tenant subscription collision rejected",
+        "symbol": "go/edpdata/event_subscriptions.go:UpsertSubscription",
+        "positive_test": "go/edpdata/event_dispatcher_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "observability",
+        "control": "delivery metrics emitted",
+        "symbol": "go/edpdata/event_metrics.go:EventMetrics",
+        "positive_test": "go/edpdata/event_metrics_test.go",
+        "negative_test": "go/edpdata/event_metrics_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "config",
+        "control": "DLQ ownership recorded in ADR-0012",
+        "symbol": "docs/ARCHITECTURE-DECISIONS.md",
+        "positive_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "negative_test": "go/edpdata/event_dispatcher_test.go",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "go test ./... in edpdata"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "tenant",
+        "control": "delivery/DLQ tables tenant-scoped",
+        "symbol": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "positive_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "negative_test": "migrations/0025_event_subscriptions_dispatch.up.sql",
+        "tenant_test": "N/A: tenant RLS migration",
+        "concurrency_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+        "observability": "delivery metrics/logs",
+        "evidence": "migration applied locally"
+      }
+    ],
+    "tech_stack_evidence": [
+      "go-format",
+      "go-vet",
+      "go-race",
+      "go-context-pool",
+      "go-errors",
+      "pg-transactions",
+      "pg-rls",
+      "pg-migration",
+      "object-store",
+      "api-auth-tenant",
+      "api-validation",
+      "config-fail-closed",
+      "observability",
+      "no-dead-code"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Dispatcher remediation only; no API surface change.",
+    "routes": []
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "review_sha": "32056205cd98",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T11:06:11.189166+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 requires \"store registry evidence is present\"; neither spec_pack nor design_pack references any store registry artifact/entry — only migration and test files — so AC-3 is unmet as designed.",
+          "AC-3 requires \"migration rollback requires a verified backup\"; rollout/rollback only say \"with backup\" with no verified backup/restore step, evidence, or restore test — data-loss exposure on 0026 down (guardrail 1)."
+        ],
+        "MAJOR": [
+          "C-1/C-2 set `tenant_test: 'N/A: tenant RLS migration'` while AC-2 requires rejecting cross-tenant collisions; runtime role posture (NOSUPERUSER/NOBYPASSRLS) and tenant binding are never proven (CL-011, guardrail 3).",
+          "C-5 uses `migrations/0025_...up.sql` as its own positive/negative/tenant \"test\" with evidence \"migration applied locally\" — not a fail-able test; AC-3's testability requirement is unsatisfied.",
+          "observability_runbook is APPLICABLE but cites only a design doc and a unit test; no runbook artifact, alert ownership, probe backoff/cooldown, or dependency-down behavior (CL-014, guardrail 2 SPOF/alert lead-time).",
+          "Guardrail 6: migration-interrupted/partial-apply recovery and rollback verification are not specified; \"Revert the change\" is not an operable rollback procedure.",
+          "`affected_files`, `affected_components`, `risks` are \"Not specified\" while controls reference concrete files — declared scope and traceability are incomplete for gate review."
+        ],
+        "MINOR": [
+          "FR-1/2/3 all map to the same single test file and design doc; per-AC evidence granularity is too coarse for independent verification.",
+          "`config_contract` is `{'N/A': 'reuse dispatcher options'}` without naming the reused options — drift risk against guardrail 10 reuse.",
+          "`nfr_slo` marked N/A while `nfr: bounded batch` imposes a performance bound with no stated value or measurement."
+        ],
+        "NIT": [
+          "`stop_conditions: ['transport implementation']` and `out_of_scope: ['Not specified.']` are ambiguous/placeholder phrasing.",
+          "`rollback: Revert the change` duplicates but conflicts in specificity with the design's \"run 0026 down with backup\" — consolidate to one authoritative statement."
+        ],
+        "SUMMARY": [
+          "Design covers backoff, DLQ, concurrency tests and metrics directionally, but AC-3 fails on two counts: no store-registry evidence and no verified backup/restore path for 0026.",
+          "Top risks: tenant-collision controls ship without tenant/role tests (CL-011), C-5's \"test\" is a migration file, and no ops runbook/alert ownership exists for dispatcher/worker/DB failure.",
+          "Gate should not pass until registry evidence, verified backup procedure, runtime role posture proof, and a real runbook artifact are added."
+        ]
+      },
+      "evidence": "BI-PF-1546-32056205cd98.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "review_sha": "d082f6deed5a",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T11:09:25.339567+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+      "findings": {
+        "BLOCKER": [
+          "AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.",
+          "DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.",
+          "AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership."
+        ],
+        "MAJOR": [
+          "AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.",
+          "Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass — head-of-line blocking up to StaleAfter (5m default) starves all later events.",
+          "Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.",
+          "Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration."
+        ],
+        "MINOR": [
+          "Deploy ordering risk: `beginDelivery` INSERT now references `created_at`; code-live-before-0026 (or 0026 rollback while code deployed) breaks every dispatch pass.",
+          "`event_subscriptions.go` adds `fmt.Errorf` with no import hunk in the diff — verify the package builds.",
+          "Confirm `EventStore.metrics` defaults to `nopEventMetrics` (or all constructors call `WithMetrics`); four new call sites in `DispatchOnce` panic if nil.",
+          "`matchesFilter` uses `fmt.Sprint` coercion (`\"1\"` matches numeric `1`) and re-parses JSON per subscription per event; no test for type-coercion/nested-key semantics.",
+          "Reclaimed/stale and DLQ'd-then-advanced rows are all counted/emitted as `DeliverySkipped`, muddying observability."
+        ],
+        "NIT": [
+          "`StaleAfter` is an undocumented knob (no comment on semantics/ops tuning) alongside `MaxAttempts`/`BaseBackoff`.",
+          "`actionAdvance` on `failed` status increments `Skipped` rather than a distinct dedupe counter."
+        ],
+        "SUMMARY": [
+          "Behavior changes (state gating, atomic cursor+delivery, cross-tenant error) are directionally right, but AC-1 test coverage and AC-3 evidence are objectively missing, and AC-2's \"logs\" half is unimplemented.",
+          "Top risks: skipping integration test masks DLQ proof in CI; pass-halting on retry/stale rows threatens availability; missing backup procedure for a destructive rollback."
+        ]
+      },
+      "evidence": "BI-PF-1546-d082f6deed5a.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:cfc633831a59a50c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:e68850da6c0ea08a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:9ad945f88c81c260": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:c15cd3e91ca073d7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:185a822550cdb2fe": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:daa62b601f3781e2": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:cede75512e6748cd": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:9b5dcc525cc964aa": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:ae5d10f043263817": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:dec58849b5b1e0b1": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:e80fc674372f226b": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      },
+      "sig:bfcc8bd95d762145": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation deliverable."
+      }
+    },
+    "diff": {
+      "sig:8bbfcd8513dfab7f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:356b3c7e86c5ca83": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:7779b90a355a67b9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:eaac08205439ae9a": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:e7c189d007faab98": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:622c470d825fdd78": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:4a57d5e537cde692": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:5be4158681750c7e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:3187f44fab773411": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:042cb23816f0c877": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:cd95f954b3e78f3f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:c04035f611cb2022": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:67f7e583fcb05aff": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      },
+      "sig:9a030f7dd55e0b51": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for dispatcher remediation."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:8bbfcd8513dfab7f",
+      "finding": "AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:356b3c7e86c5ca83",
+      "finding": "DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:7779b90a355a67b9",
+      "finding": "AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:eaac08205439ae9a",
+      "finding": "AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:e7c189d007faab98",
+      "finding": "Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass — head-of-line blocking up to StaleAfter (5m default) starves all later events.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:622c470d825fdd78",
+      "finding": "Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4a57d5e537cde692",
+      "finding": "Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json",
+      "files": [
+        "go/edpdata/event_dispatcher.go"
+      ],
+      "rollback": "Revert BI-PF-1546.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:8bbfcd8513dfab7f",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:356b3c7e86c5ca83",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:7779b90a355a67b9",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:eaac08205439ae9a",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:e7c189d007faab98",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:622c470d825fdd78",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    },
+    {
+      "finding_sig": "sig:4a57d5e537cde692",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_dispatcher_pg_integration_test.go",
+      "controls_rerun": [
+        "go test ./... in edpdata"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-PF-1546-d082f6deed5a.json"
+    }
+  ],
+  "verified_by": "Srinikc HIL"
+}

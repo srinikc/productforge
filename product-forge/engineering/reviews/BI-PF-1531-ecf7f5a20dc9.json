@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "ecf7f5a20dc9",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T09:24:28.732805+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "ce6d3119cc32654c3f7f922c1ad665d30a0a1130",
+  "findings": {
+    "BLOCKER": [
+      "Default-on is applied inconsistently: `core/backlog.py` now resolves empty/unset to `\"on\"`, but `core/id_allocator.py` still ends with `str(value or \"off\")`, so an empty `PF_BACKLOG_DB=` (common in .env) makes the ID allocator file-mode while the item writer is DB-mode \u2014 split authority breaks the \"PF-SB and PF-GP share global ID authority\" invariant and risks duplicate IDs.",
+      "AC-2/AC-4 unmet: no fail-closed test exists (`BACKLOG_DB_UNAVAILABLE`, no-Git-fallback) and no DB-mode integration job is added (no `.github/workflows/` change in the diff); the contract test cited in the design can only assert the mode string, not fail-closed behaviour.",
+      "AC-3 unmet: no backfill run for PF-SB/PF-GP and no parity evidence (`scripts/dev/backlog_db_parity.py` / `BACKLOG_DB_PARITY_DRIFT`) is produced or referenced; the design's stop condition \"parity drift\" is unevaluated at the moment the default flips.",
+      "AC-5 unmet in the tested sense: rollback to `off` is described only in prose; no test proves the off path restores legacy writes while retaining DB tables.",
+      "The default flip is not contained: only one test in `test_backlog_db_cutover.py` sets `off`; any other test/tool that writes or reads backlog without an explicit flag will now attempt DB and fail closed \u2014 this needs a conftest/session-level `off` default before merge."
+    ],
+    "MAJOR": [
+      "`scripts/dev/precheck.py` mutates `os.environ` at import time (`setdefault(\"PF_BACKLOG_DB\", \"off\")`), a process-wide side effect that silently disables DB mode for anything importing the module and masks drift between precheck and production defaults.",
+      "No readiness/observability change ships: the design requires backlog DB state exposed via readiness/errors, but the diff adds no metric, log, or health signal for on-mode DB unavailability.",
+      "No evidence of performance non-regression on T1/T2 measured paths after making DB the default path for all PF-SB/PF-GP backlog operations.",
+      "Fail-closed semantics remain unverified in code review: the diff shows no guard at the Git-fallback call sites, so \"no silent fallback\" cannot be confirmed from the change alone.",
+      "Config/doc drift risk: `config/env-flags.json` purpose text still mentions only PF-SB, while `.env.example` and code cover PF-SB and PF-GP \u2014 the exact drift class this item exists to fix."
+    ],
+    "MINOR": [
+      "`.env.example` documents only the `on` value; no inline example of `PF_BACKLOG_DB=off` for rollback, weakening AC-5 discoverability for operators.",
+      "`BACKLOG-DB-SSOT.md` edit expands the `off` rationale but still lacks an explicit rollback procedure (steps, verification, retention of tables) matching the design's rollback plan.",
+      "`test_mode_defaults_on` relies on `env_flags.get` resolution; if the flag registry is cached or the process env carries a stale value, the test can pass for the wrong reason \u2014 assert the resolved source, not just the string.",
+      "No test covers `id_allocator._db_enabled` default, despite it being a changed line in a shipped module."
+    ],
+    "NIT": [
+      "Inline comment \"No network attempted; must not raise\" in `test_mirror_noop_when_off` no longer matches the surrounding test set (which now also exercises default-on paths).",
+      "`config/env-flags.json` purpose sentence is long; splitting owner/behaviour into separate fields would reduce future drift."
+    ],
+    "SUMMARY": [
+      "Direction is right (default flip + explicit `off` in file-mode tests), but the change is a code/config flip only; the operational half of the AC \u2014 DB-mode CI job, backfill/parity evidence, fail-closed proof, and rollback test \u2014 is absent.",
+      "Highest risk: divergence between `backlog.py` (`on` on empty) and `id_allocator.py` (`off` on empty) creates two authorities for the same scopes; fix before any merge.",
+      "Second risk: flipping the default without a suite-wide explicit `off` will break unrelated tests and tools at the same commit that removes the fallback.",
+      "Verdict: not approvable as-is; requires the fail-closed path, parity evidence, integration job, and rollback test to be added and linked as evidence."
+    ]
+  }
+}

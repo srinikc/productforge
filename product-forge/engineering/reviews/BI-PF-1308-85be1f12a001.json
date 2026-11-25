@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "85be1f12a001",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T04:38:46.550532+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`S3Store.ApplyLifecycle` mutates `s.objectLock` (re-probe) while `Capabilities()` and `Put` read it concurrently with no mutex \u2014 a data race that `go test -race` will flag and that can corrupt the capability flag under load.",
+      "`retentionFor` silently ignores `PutOptions.Immutable` when `Retention == 0`; local `Put` likewise only rejects `Retention > 0`. A caller requesting immutability without a TTL gets no protection and no error \u2014 fail-open on an integrity control.",
+      "`ApplyLifecycle` applies retention before legal hold; if the legal-hold call fails, retention (potentially irreversible COMPLIANCE) is left applied. A one-way door must be pre-validated and reported as partially applied, or ordered so failure cannot strand an unintended COMPLIANCE lock.",
+      "Object-lock capability probe in `New` swallows all errors with no log/metric; a transient `GetObjectLockConfig` failure permanently (until restart) flips `Capabilities().ObjectLock` to false, silently disabling lifecycle for all callers with zero observability at a security-relevant boundary.",
+      "`objpolicy.Mint` denials are emitted only via `log.Printf` to stdout. A privilege-boundary denial log is not an audit trail: no structured fields, no sink, no counter \u2014 unverifiable in production.",
+      "`Head` now maps `NoSuchKey` \u2192 `os.ErrNotExist`, but `Get`/`stat`/`Delete` keep raw minio errors \u2014 the ObjectStore error contract becomes method-inconsistent, and this is an unannounced behavioral change for existing `Head` callers that switch on minio error codes.",
+      "`objreconcile.notFound` only recognizes `os.ErrNotExist`, yet the unit-test fake returns `io.ErrUnexpectedEOF` for a missing key \u2014 the Head-race fallback path is both untested and its real-store contract (local store) is unverified; a mismatch turns transient drift detection into a hard scan failure.",
+      "Put-path retention is hardcoded to GOVERNANCE only (`retentionFor`); COMPLIANCE is reachable solely through `ApplyLifecycle`, so the acceptance criterion \"S3 implements object-lock retention (GOVERNANCE/COMPLIANCE)\" on the write path is only half met."
+    ],
+    "MINOR": [
+      "`ObjectLifecycle` performs a `GetBucketVersioning` round trip on every call and silently discards its error \u2014 added latency and a hidden partial-truth state (`Versioning=false` when the call merely failed).",
+      "Reconcile `Expected` counts invalid/duplicate manifest entries, so `Expected != len(Missing)+len(SizeMismatch)+...` in drifted reports; operators reconciling totals will misread the JSON.",
+      "Manifest keys marked `Invalid` (out-of-prefix/duplicate) are excluded from `want`, so if such a key also exists under the store prefix it is additionally reported as `Orphaned` \u2014 double-counting one root cause.",
+      "`objpolicy` tests exercise only the happy path for `AllowedMethods()` and never assert the fixed allowlist cannot be widened \u2014 a future edit to `allowedMethods` (e.g. adding `POST`) ships unguarded.",
+      "`cleanPath` rejects any key containing a literal \"..\" substring (e.g. `report..final.pdf`) after `path.Clean` already neutralized traversal \u2014 false denials for legitimate object names.",
+      "New `objpolicy`/`objreconcile` modules each hand-roll a `go.mod` + `replace` for `datastore`; this duplication (version drift risk, per-module go directive) should follow the repo's established module convention explicitly."
+    ],
+    "NIT": [
+      "`AllowedMethods()` allocates and sorts on every call solely for documentation/tests; a precomputed `[]string` literal would be allocation-free and immutable.",
+      "`objreconcile.Schema` is `\"pf.objreconcile/2\"` with no `/1` migration note in the package doc explaining what changed in v2.",
+      "S3 integration test creates an object with `Immutable: true` but no retention; the cleanup `Delete` therefore tests nothing about lock semantics and will pass even if the bucket policy silently blocks undelete later."
+    ],
+    "SUMMARY": [
+      "Solid shape overall: capability-interface discovery via `Lifecycle()`, typed `ErrUnsupported` fail-closed semantics, deterministic sorted JSON report, and a genuinely read-only scanner are the right enterprise primitives.",
+      "Top risks: an unsynchronized `objectLock` field (real data race), fail-open on `Immutable` without TTL, non-atomic retention+legal-hold application on the COMPLIANCE path, and audit-invisible denial logging at the signed-URL privilege boundary.",
+      "Secondary: inconsistent `Head` error contract, untested/unverified `notFound` mapping, and GOVERNANCE-only write-path retention leave acceptance criteria partially unmet despite green tests."
+    ]
+  }
+}

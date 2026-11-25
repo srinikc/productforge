@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "a1a15d81db1c",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T08:12:52.316739+00:00",
+  "review_scope": "delta",
+  "base_sha": "51487b175cd95201133e1a60b964f5139f2ffe47",
+  "head_sha": "5e191c8ce524316b0a3594440928a35d06d89d1a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "delta `spec_pack.applicibility` marks `api_contract` N/A (\"no new public API\") while `functional_spec.compatibility` asserts preserved response shapes **and** project-empty rows hidden \u2014 a behavioral change to the existing `/memory` surface; `design_pack.design_areas` lists `api` as APPLICABLE, so the delta understates contract coverage with no spec row validating it."
+    ],
+    "MINOR": [
+      "`functional_spec.status` remains `draft` while `spec_pack.status` is `approved` at the same version 3 \u2014 inconsistent gate status within the changed delta.",
+      "`functional_spec.functional_sha` is unchanged (`d0c39e3f214d`) despite edits to `traceability` and `dependencies`; confirm the digest was recomputed for version 3.",
+      "`spec_pack.applicability` for `config_contract` cites only `docs/MEMORY-ORCHESTRATOR-DESIGN.md:design`, but the delta's `config_contract` now pins fail-closed empty/invalid semantics for `PF_TEST_MEMORY_DSN`/`PF_MEMORY_OP_TIMEOUT`/`PF_MEMORY_MAX_SEARCH_K` \u2014 no row ties those exact semantics to a verification test."
+    ],
+    "NIT": [
+      "`functional_spec.traceability` FR-3 `test` is a bare file while FR-1/FR-2 pair a test list; keep one format so traceability renders uniformly.",
+      "`operation_matrix` lists `Validate` with scope `tenant/project` but no ACL, while `in_scope` still names `Consolidate` in the gateway interface though consolidation is a non-goal (BI-PF-1569) \u2014 reconcile wording to avoid implying shipped scope."
+    ],
+    "SUMMARY": [
+      "Delta cleanly actioned the three prior findings (dependencies aligned, traceability cites tests only, spec pack approved); no prior disposition is wrong.",
+      "Top risk is the `api_contract` N/A gap: compatibility claims for the existing `/memory` surface (including hidden project-empty rows) have no spec-pack row enforcing them.",
+      "Secondary: gate-status mismatch (`draft` vs `approved`) and unrefreshed `functional_sha` weaken provenance for Gate 1.5."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-00df1b8308c6; aligned dependency and traceability evidence",
+  "rereview_reason_sha256": "0a8b2c275ee351725f455884d77cc6241688ca06c36cdbebeb12032e73cc9f8a"
+}

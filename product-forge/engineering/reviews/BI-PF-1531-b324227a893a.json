@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "b324227a893a",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T19:03:20.482341+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "8f3c9fe9abf982dbc5cdf8786f008245a35a6568",
+  "findings": {
+    "BLOCKER": [
+      "Root `.github/workflows/{backlog-db,structure,full-sweep}.yml` hunks are absent; only `engineering/evidence/BI-PF-1531/*` mirrors exist. New tests resolve the root workflows, so AC-2 and file-mode pinning are not delivered and the tests cannot pass.",
+      "AC-3 PF-GP evidence is circular/failing: the workflow exports `ProductForge-Dashboard` from the DB to `/tmp/pf-gp`, then runs parity against that same export. With a fresh DB and no generated-product source backfill, `backlog_db_parity.py` returns `BACKLOG_DB_PARITY_EMPTY` and the CI step fails."
+    ],
+    "MAJOR": [
+      "`product-forge/conftest.py` uses `os.environ.setdefault(\"PF_BACKLOG_DB\", \"off\")`; an exported `PF_BACKLOG_DB=on` leaks into the whole file-mode suite, so AC-2's \"file-mode tests explicitly set off\" is not guaranteed.",
+      "`0022_traceability_tenant_index.up.sql` uses non-concurrent `CREATE INDEX` inside `BEGIN/COMMIT`; this contradicts the prior disposition claiming `CONCURRENTLY` and can hold a blocking lock on shared `traceability`.",
+      "`0021` preflight/up guard checks NULL/orphan `traceability.tenant_id` but not `backlog_items.tenant_id IS NULL`; the composite PK add can abort at deploy after the old pkey is dropped, and preflight passes.",
+      "`go/edpdata` tenant enforcement is only tested for `List`; no test covers `Get`/`Delete` tenant scoping or `Put` mismatch/`ErrTenantMismatch`, despite FR-4 naming all operations."
+    ],
+    "MINOR": [
+      "`backlog_db_export.py` prune guard wraps `from core import backlog` in `except Exception: pass`, so an import failure silently disables the unlisted-tenant protection and still allows `--prune`.",
+      "`docs/BACKLOG-DB-SSOT.md` Migration section says apply through `0021`, while the deploy-order section requires `0021`/`0022`/`0023`; operators following the top section can miss the global-ID guard.",
+      "`test_backlog_db_workflow.py` contract asserts `0022` but not `0023`; the workflow applies `0023`, so a missing `0023` migration step would not be caught.",
+      "`test_backlog_db_workflow.py::test_file_mode_workflows_pin_off` checks only `structure.yml` and `full-sweep.yml`, though the design decisions also list `pf-gates.yml` as needing `PF_BACKLOG_DB=off`."
+    ],
+    "NIT": [
+      "`backlog_db_export.py` uses `import os as _os` inside the write loop; move it to module scope.",
+      "`test_backlog_db_cutover.py` contains function-local `import pytest` statements that are redundant with the module import.",
+      "`backlog_db_bench.py` makes `db_read_pass` depend on `point_api`, so the documented bench command exits non-zero in an API-only environment even when DB reads are within SLO."
+    ],
+    "SUMMARY": [
+      "Direction remains correct, but AC-2 is still not actually delivered: the DB-mode integration workflow exists only as an evidence mirror, and generated-product parity is circular and fails on an empty fresh DB.",
+      "File-mode test isolation is not guaranteed because `conftest.py` uses `setdefault` rather than forcing `off`.",
+      "Migration and preflight safety gaps remain around `0022` lock behavior and missing `backlog_items.tenant_id` null checks.",
+      "Not approvable as-is; the new CI/parity and test-isolation defects should be closed before merge."
+    ]
+  }
+}

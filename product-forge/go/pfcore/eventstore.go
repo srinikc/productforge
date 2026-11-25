@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +16,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"productforge/edpdata"
 )
 
 // lockEventStore acquires a portable exclusive lock beside path (never blocks forever).
@@ -162,14 +166,93 @@ func asInt64(v any) (int64, bool) {
 }
 
 // EventAppendOp handles the event_append wire op; returns (result, error-message).
-func EventAppendOp(payload map[string]any) (map[string]any, string) {
-	path, _ := payload["path"].(string)
-	if strings.TrimSpace(path) == "" {
-		return nil, "event_append: payload.path is required"
+var (
+	eventStoreMu sync.Mutex
+	eventStore   *edpdata.EventStore
+)
+
+func sharedEventStore(ctx context.Context) (*edpdata.EventStore, error) {
+	eventStoreMu.Lock()
+	defer eventStoreMu.Unlock()
+	if eventStore != nil {
+		return eventStore, nil
 	}
+	st, _, err := edpdata.OpenEventStoreFromEnv(ctx)
+	if err != nil {
+		return nil, err
+	}
+	eventStore = st
+	return st, nil
+}
+
+func outboxEnabled() (bool, error) {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("EVENT_OUTBOX_ENABLED")))
+	switch v {
+	case "", "off", "0", "false", "no":
+		return false, nil
+	case "on", "1", "true", "yes":
+		return true, nil
+	default:
+		return false, fmt.Errorf("invalid EVENT_OUTBOX_ENABLED=%q", v)
+	}
+}
+
+func projectionPath(tenant string) string {
+	if root := os.Getenv("PF_EVENT_PROJECTION_DIR"); root != "" {
+		return filepath.Join(root, tenant, "events.jsonl")
+	}
+	return filepath.Join("products", tenant, "events.jsonl")
+}
+
+func EventAppendOp(payload map[string]any) (map[string]any, string) {
 	ev, ok := payload["event"].(map[string]any)
 	if !ok {
 		return nil, "event_append: payload.event must be an object"
+	}
+	if os.Getenv("PF_DB_DSN") != "" {
+		tenant, _ := payload["tenant_id"].(string)
+		if tenant == "" {
+			tenant, _ = ev["tenant_id"].(string)
+		}
+		if tenant == "" {
+			return nil, "event_append: tenant_id is required for the PostgreSQL event authority"
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		st, err := sharedEventStore(ctx)
+		if err != nil {
+			return nil, fmt.Sprintf("event_append: %v", err)
+		}
+		outbox, err := outboxEnabled()
+		if err != nil {
+			return nil, fmt.Sprintf("event_append: %v", err)
+		}
+		eventID, _ := ev["event_id"].(string)
+		eventType, _ := ev["event_type"].(string)
+		if eventID == "" || eventType == "" {
+			return nil, "event_append: event_id and event_type are required"
+		}
+		recorded, err := st.Append(ctx, edpdata.Event{
+			TenantID: tenant, EventID: eventID, Type: eventType,
+			Version: fmt.Sprint(ev["event_version"]), Payload: mustJSON(ev["payload"]),
+			CorrelationID: fmt.Sprint(ev["correlation_id"]), CausationID: fmt.Sprint(ev["causation_id"]),
+			Actor: fmt.Sprint(ev["actor"]),
+		}, outbox)
+		if err != nil {
+			return nil, fmt.Sprintf("event_append: %v", err)
+		}
+		ev["seq"] = recorded.Seq
+		projPath := projectionPath(tenant)
+		result := map[string]any{"seq": recorded.Seq, "record": ev}
+		if err := st.RegenerateProjection(ctx, tenant, projPath); err != nil {
+			st.RecordProjectionFailure(tenant)
+			result["projection_error"] = err.Error()
+		}
+		return result, ""
+	}
+	path, _ := payload["path"].(string)
+	if strings.TrimSpace(path) == "" {
+		return nil, "event_append: payload.path is required in legacy JSONL mode"
 	}
 	res, err := AppendEvent(path, ev)
 	if err != nil {
@@ -180,10 +263,6 @@ func EventAppendOp(payload map[string]any) (map[string]any, string) {
 
 // EventReadOp handles the event_read wire op; returns (result, error-message).
 func EventReadOp(payload map[string]any) (map[string]any, string) {
-	path, _ := payload["path"].(string)
-	if strings.TrimSpace(path) == "" {
-		return nil, "event_read: payload.path is required"
-	}
 	var since int64
 	if v, ok := payload["since_seq"]; ok {
 		since, _ = asInt64(v)
@@ -194,9 +273,39 @@ func EventReadOp(payload map[string]any) (map[string]any, string) {
 			limit = int(n)
 		}
 	}
+	if os.Getenv("PF_DB_DSN") != "" {
+		tenant, _ := payload["tenant_id"].(string)
+		if tenant == "" {
+			return nil, "event_read: tenant_id is required for the PostgreSQL event authority"
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		st, err := sharedEventStore(ctx)
+		if err != nil {
+			return nil, fmt.Sprintf("event_read: %v", err)
+		}
+		rows, maxSeq, err := st.Read(ctx, tenant, since, limit)
+		if err != nil {
+			return nil, fmt.Sprintf("event_read: %v", err)
+		}
+		events := make([]map[string]any, 0, len(rows))
+		for _, r := range rows {
+			events = append(events, map[string]any{"seq": r.Seq, "event_id": r.EventID, "event_type": r.Type, "event_version": r.Version, "tenant_id": r.TenantID, "payload": json.RawMessage(r.Payload)})
+		}
+		return map[string]any{"events": events, "count": len(events), "max_seq": maxSeq}, ""
+	}
+	path, _ := payload["path"].(string)
+	if strings.TrimSpace(path) == "" {
+		return nil, "event_read: payload.path is required in legacy JSONL mode"
+	}
 	events, maxSeq, err := ReadEvents(path, since, limit)
 	if err != nil {
 		return nil, fmt.Sprintf("event_read: %v", err)
 	}
 	return map[string]any{"events": events, "count": len(events), "max_seq": maxSeq}, ""
+}
+
+func mustJSON(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return json.RawMessage(b)
 }

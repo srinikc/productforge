@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1482",
+  "sha": "32b7bda5731b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T08:19:41.492601+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Cost evidence is not reproducible: `record()` bakes `price_usage()` output into the append-only trail, but `usage_totals()` re-runs `price_usage()` at read time, so displayed totals use the *current* catalog while stored events keep write-time costs. No pricing version/`fetched_at` snapshot is referenced per event; a catalog update silently rewrites historical totals.",
+      "`_pricing()` swallows every load exception into `{\"models\": {}, \"aliases\": {}}` with no logging, no trail marker, and no precheck signal \u2014 a missing/corrupt/renamed catalog makes all future events `cost_source=unavailable` with zero observability.",
+      "`_PRICING_CACHE` is a process-lifetime global with no invalidation; any long-lived consumer (or test run importing after a file change) sees stale prices indefinitely."
+    ],
+    "MINOR": [
+      "`test_show_renders_stages_tests_and_next` was weakened: `\"| 1 | gate0 | pass |\"` \u2192 substring `\"gate0\"`, losing regression coverage of ordering, status column and padding; `test_box_table_wraps_long_cells` asserts only `count(\"|\") > 4`, not that wrapping preserves column alignment.",
+      "Provider-cost path skips all token validation (`negative`/`cached > input` unvalidated when `provider_cost_usd` present), and `architect_review._llm_call` accepts `cost`/`total_cost`/`cost_usd` with no unit or magnitude sanity check \u2014 a per-token or currency-mismatched value is trusted as USD.",
+      "Validation (`invalid_usage`) is only reachable when the model is priced; unknown-model invalid usage reports `unavailable`, masking bad telemetry.",
+      "`store-registry.json` allow glob `\"model-pricing.json\"` is bare (no path) \u2014 it allowlists any file with that basename anywhere in the tree; scope it to `product-forge/config/`.",
+      "No refresh/staleness mechanism or gate for the pricing snapshot (`fetched_at: 2026-10-25`); ADR-0010 defers upstream-divergence alerts to an unspecified follow-up without a backlog item reference.",
+      "`price_usage` overwrites `u[\"model\"]` with the normalized name only in the computed path, changing the field's semantics for downstream consumers inconsistently.",
+      "`_box` `wrap()` uses `replace_whitespace=False`, so embedded newlines/tabs in summaries/commands can break row alignment; `show()` no longer truncates summaries (the old `[:160]` cap is gone), so long summaries produce very tall tables.",
+      "The ADR cites `config/language-rule.json` `allow_new_python` as the governance exception, but the diff contains no change to that file \u2014 verify the allowlist entry actually covers the new pricing/rendering code paths (precheck confirmation only asserted in prose)."
+    ],
+    "NIT": [
+      "`_box` builds `top`, `sep`, `bot` as three identical strings; one constant would do.",
+      "Hard-coded widths (`[4,15,9,28,10,44]`, etc.) duplicate the 44-char cap logic and will silently mis-wrap if headers change.",
+      "`usage_totals` reads `total[\"cost_usd\"] += ...` before the `cost_usd is None` unpriced check \u2014 works, but the ordering invites a refactor bug.",
+      "`price_usage` in `record()` means every writer pays catalog I/O on first call; a lazy-but-announced preload or explicit `refresh_pricing()` API would be cleaner for tooling reuse."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped delivery: pricing catalog with provenance, provider-cost precedence, ADR-0010 governance rationale, and tests for the core formula/precedence/normalization are all present; no blocker.",
+      "Top risks: (1) write-time vs read-time pricing divergence makes historical cost evidence non-reproducible and unversioned; (2) silent catalog-load failure yields permanently unpriced trails with no observability.",
+      "Secondary concerns: weakened show/box test assertions, unvalidated provider cost units, and an over-broad registry allow glob \u2014 address before relying on the trail as audit evidence."
+    ]
+  }
+}

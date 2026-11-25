@@ -1,7 +1,7 @@
 ---
 description: Quality Gate agent. Performs release readiness assessment, go/no-go decisions, and quality gate enforcement.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: quality_gate
 version: 1.0.0
 spec_version: "1.0"

@@ -1,7 +1,7 @@
 ---
 description: Research agent. Conducts thorough research on topics using web search, academic sources, and industry knowledge.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: researcher
 version: 1.0.0
 spec_version: "1.0"

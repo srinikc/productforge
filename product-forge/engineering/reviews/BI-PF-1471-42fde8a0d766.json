@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1471",
+  "sha": "42fde8a0d766",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T11:19:18.554166+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC \"gate_decide refuses in CI\" is unimplemented: `--hil-confirmed` is just a flag any caller (including CI) can pass; there is no CI/automation detection or attestation.",
+      "AC \"validates accepted_risks {owner, until, rationale}\" is absent from the diff \u2014 no schema check anywhere in gate_decisions.py or the approval path.",
+      "AC \"SCOPE findings resolved only with a follow-up item / non-blocking\" is unenforced: only `DISPOSITION_STATUSES` gains \"SCOPE\"; no check that a SCOPE finding references a follow-up item, and no approval-path handling.",
+      "Required tests missing: gate0 negative/positive, SCOPE resolution, accepted-risk validation, duplicate-review refusal \u2014 only `test_gate_decisions.py` is added.",
+      "AC \"gate-brief renders the reconciliation and impact-review table for HIL\" is unimplemented; only `gate0_check.render` exists (no gate-brief wiring in the diff)."
+    ],
+    "MAJOR": [
+      "`gate0_check.transitions()` fails open: unreadable/missing item JSON is `continue`d, and `git show` failure yields `prev={}`, so a transition can silently escape the gate.",
+      "Gate 0 API/AC row detection is substring-based (`\"api\" in claims`), so any claim containing \"api\" (e.g. \"capital\") satisfies the API row; same weak match for \"ac\"/\"language\".",
+      "COMPLIANCE one-way-door validation is duplicated in `retentionFor` (Put) and `ApplyLifecycle`, plus a third variant in LocalStore.Put \u2014 the irreversible policy will drift between paths.",
+      "`LocalStore.keyLocks` grows unbounded per key (long-lived process leak), and `Delete`/`DeleteVersion` never take the key lock, so `Immutable` can be raced by a concurrent delete/re-put.",
+      "`go_modules_check._git_changed()` catches all exceptions and returns `[]`, interpreted as \"no Go changes\" \u2192 the entire module gate is skipped on any git failure (fail-open in CI).",
+      "`precheck.py` hardcodes a \"parallel_safe\" allowlist asserting several gates (wired-audit, intent-trace, docs-fresh, api-contract) are read-only without verification, and the fast tier no longer runs the full suite \u2014 coverage regression hidden behind speed."
+    ],
+    "MINOR": [
+      "Decision record hardcodes `\"hil_confirmed\": True` instead of recording the actual flag value; no evidence beyond the flag that a human approved.",
+      "`objpolicy.Stats()` is process-local and lost on restart; per-tenant denial counts are not exported to metrics, weakening the \"counted per tenant+reason\" observability claim.",
+      "Tenant scoping in `Mint` is a pure string-prefix check with a hardcoded `<tenant>/` naming convention and no registry; enforcement depends entirely on adapter key hygiene.",
+      "Gate 0 only inspects current status `in_progress` vs previous not-in_progress; re-grooming edits to an already-in_progress item (or regressions from completed) are never re-checked.",
+      "Duplicate-review refusal is TOCTOU (file-existence check with no lock) and keyed only by filename; concurrent reviews of the same sha both proceed."
+    ],
+    "NIT": [
+      "`S3Store.Capabilities` acquires and releases `lockMu` twice back-to-back; one critical section suffices.",
+      "`gate0_check.problems` treats whitespace-only reconciliation values as present (truthy).",
+      "Trailing newline-only change at end of `go_modules_check.py` adds diff noise."
+    ],
+    "SUMMARY": [
+      "The Go work (EDP-16 lifecycle, objpolicy boundary, read-only reconcile) is directionally sound and mostly fail-closed, but this diff does not deliver most of BI-PF-1471's acceptance criteria: CI refusal, accepted-risk validation, SCOPE follow-up enforcement, gate-brief rendering, and 4 of 5 required test areas are missing.",
+      "The new Python gates additionally fail open on git/IO errors and rely on substring heuristics, so Gate 0 can be bypassed by a malformed item or a lucky claim wording.",
+      "Top risks: an unenforceable human-only gate (a flag, not an attestation), immutable-object bypass via unlocked deletes, and CI checks that silently self-disable on tooling errors."
+    ]
+  }
+}

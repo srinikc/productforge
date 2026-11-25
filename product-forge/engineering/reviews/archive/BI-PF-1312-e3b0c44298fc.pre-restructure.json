@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "e3b0c44298fc",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "Restart of the COPY step (step 5) is not specified: `CREATE TABLE audit (...) PRIMARY KEY (id, at)` precedes the legacy copy, so a crash mid-COPY leaves partial rows in `audit`; a re-run re-COPYs from `audit_legacy` and fails with duplicate-key (42P05) or, worse, a resume path that bypasses the PK silently duplicates. There is no stated truncate/`ON CONFLICT`/row-watermark guard for this specific step, so the AC \"restartable/idempotent after a partial failure\" is not demonstrably met.",
+      "Persistence of the `migration_state` marker is not addressed against `migrate.LoadDir`'s execution model. If 0014 runs inside a transaction (the normal LoadDir contract), any failure rolls back the marker \u2014 exactly the case the marker exists for. The design must state a non-transactional, phased execution (or an out-of-band marker committed before/independently of the migration transaction); without it the resume and the \"state marker without re-copying duplicates\" AC cannot hold.",
+      "The verified backup (`pg_dump` + restore into a scratch schema) cannot run inside a SQL migration transaction. Executed from SQL it requires `COPY ... TO PROGRAM` (superuser), violating the checklist-3 least-privilege/RLS boundary; executed externally it must be placed outside the freeze and outside the migration transaction. The design asserts the backup exists but specifies no owner/process, which makes the \"before any destructive step\" ordering unverifiable."
+    ],
+    "MAJOR": [
+      "The \u22645-minute freeze is asserted but not derived: step 5 copies the entire legacy `audit` table inside the freeze with no size precondition, no chunked/pre-stage copy (e.g., copy into the new table before rename, then swap), and no measured budget. On any realistically large audit table the bound is unachievable; add a row-count/size gate or a pre-copy strategy.",
+      "Grace partition range is internally inconsistent: monthly partitions already cover current+3 months, yet `audit_grace_YYYYMM` is described as covering \"the next month\" \u2014 two partitions cannot cover the same RANGE bound, so `CREATE TABLE` fails, or the grace partition silently shadows a monthly one. Define grace as a strictly non-overlapping bound (e.g., beyond the horizon, rotated) and state it explicitly for the ADR addendum.",
+      "Insert-path contention: the BEFORE INSERT trigger unconditionally enters `audit_ensure_partitions`, which takes a global `pg_advisory_xact_lock` \u2014 serializing every audit write even when coverage is fine, and holding the lock across optional DDL. Check coverage lock-free first and only take the advisory lock on an actual gap; state the contention expected under sustained insert load.",
+      "Legal-hold skip has no bound: partitions overlapped by an active hold are skipped indefinitely, so retention can accumulate unbounded storage with no backlog metric, age report, or alert. At minimum expose held-and-skipped partition count/oldest-held-partition age as part of the retention report.",
+      "Checklist item 8 (API & contracts) is not answered: `needs_api` is neither decided nor justified, and the claimed \"proven\" `/audit` and `AuditStore` compatibility is asserted rather than scoped (path, authz, tenant-scoping, PK(id, at) lookup behavior, contract tests). State `needs_api: yes/no` with the reasoning.",
+      "Retention-hold and provisioning functions are SECURITY-critical but the design does not state whether they are `SECURITY DEFINER`/`STABLE` search_path pinning, or that `audit_legal_holds` writes are themselves append-only/audited \u2014 a writable hold table is a retention-bypass vector."
+    ],
+    "MINOR": [
+      "Id invariant is ambiguous: `setval(max(id)+1)` on restart must be evaluated against the correct relation (post-swap `audit`, not stale `audit_legacy`) and the design must state whether gaps are acceptable (sequence cache, restart skips) vs. the AC's \"unique and monotonic\".",
+      "Language rule not explicitly addressed: insert-time provisioning, harden, retention, and coverage logic ship as plpgsql. Note the SQL/plpgsql exception (DB-owned invariants) and where the Go side (AuditStore.Append retry, coverage check, metrics) picks up, so Gate 1.5 does not flag it.",
+      "Observability is hand-waved (\"insert failures and coverage are exported as metrics\"): name the minimum metric set (e.g., months-ahead gauge, append-failure counter, retention report fields) and the existing metrics registry/owner it plugs into, avoiding a parallel channel.",
+      "Availability: defence-in-depth (startup check) and scheduled job are stated, but the failure mode when both are down and inserts still land is only covered by the insert-time trigger \u2014 state explicitly that the trigger is the last line and what it does at horizon exhaustion (fail-closed vs. grace routing).",
+      "down.sql rebuild from surviving partitions does not state row-count/ordering verification or that it is subject to the same freeze bound and pf_owner-only execution."
+    ],
+    "NIT": [
+      "No statement that `pg_dump`/restore tooling versions are pinned in the runbook (restore rehearsal on a different major version is a classic gap).",
+      "`audit_partition_coverage()` should also return the grace-partition bound so the lead-time check can't be satisfied by the grace partition alone.",
+      "Grace-partition naming (`audit_grace_YYYYMM`) rotation has no stated collision"
+    ],
+    "SUMMARY": []
+  }
+}

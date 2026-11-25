@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "5b3c7710dcd1",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "The EDP service coverage check cannot work as deployed: edpsvc connects as the runtime role, yet migration \u00a716 revokes ALL on `audit_partition_config` / `audit_migration_state_events` (never re-granted) and revokes EXECUTE on `audit_partition_coverage()` from PUBLIC, granting only `audit_ensure_partitions`/`audit_month_start`/`audit_partition_name` to pf_app. `checkAuditCoverage`/`GET /admin/audit-coverage` will always fail with permission denied (swallowed as non-fatal), so the AC \"startup check emits `audit_partition_months_ahead` / `audit_partition_low_coverage_total`\" is unachievable in production; only the owner-run cron works, and no test exercises this path under a runtime role."
+    ],
+    "MAJOR": [
+      "AC \"row count and SHA-256 compared per batch and per tenant\" is not implemented: `Verify` runs once over the whole table pre-swap, so a long multi-hour copy can diverge undetected until the final check; batches (`CopyBatch`) carry no digest evidence.",
+      "The freeze-budget path is inconsistent: when `PF_AUDIT_FREEZE_BUDGET_SECONDS` is exceeded the swap is already committed but `RecordState(\"swapped\")` is skipped and the process exits non-zero, blocking `close` until someone notices and re-runs `swap` to resume-record the state.",
+      "`edpsvc` reimplements coverage reading inline (`coverageStatus`, `readCoverage`, hand-rolled metric JSON to stderr) despite adding a `replace productforge/pfaudit` dependency that already provides `CheckCoverage`/`EmitCoverage` \u2014 duplicated SQL, drifting metric shapes, and two sources of truth for staleness logic.",
+      "Migration `0004_runtime_role.up.sql` was edited in place to become idempotent; if the migration runner ever validates applied-migration content (checksums, audit history), every existing database diverges. This belongs in a new migration.",
+      "Required AC tests are missing: no test proves an out-of-range insert fails closed with 23514 + stable message and that `audit_append_late` is the correction path, and no fresh-install test covers empty audit with `setval` to 1.",
+      "`ExportMonth` stages the full plaintext month as a local temp file (0600, but plaintext evidence at rest on the export host) before upload; `s3store.Put` now supports unknown-size streaming, so the archive should be hashed and streamed rather than materialised unencrypted on disk."
+    ],
+    "MINOR": [
+      "`s3store.Put` unknown-size path sets no checksum metadata and returns an empty `Checksum`/`Version`, which silently bypasses `backup()`'s `info.Checksum != \"\"` cross-check \u2014 the encrypted dump's integrity is then only locally attested.",
+      "`Down` revokes only INSERT/UPDATE/DELETE on `audit_partitioned` from pf_app/pf_runtime, leaving the SELECT grant `Swap` added; after a rollback the shadow table stays readable by app roles indefinitely.",
+      "A failed `ReconcileHolds` (extract/verify error) leaves `audit_restore_YYYYMM` standing with a pf_runtime SELECT grant; cleanup only happens on the success path.",
+      "Fresh systems always report `stale=true` (no `archived/dropped/purged` events ever) so the hourly `check` emits a permanent stale-rotation warning \u2014 alert fatigue by design.",
+      "Tenant-isolation proof only covers the parent table read path; no test asserts a tenant cannot read another tenant's rows via the hold archive or a leaf directly."
+    ],
+    "NIT": [
+      "Dead code in `archive.go`: `monthBounds` and `quoteDate` are unused by shipped paths (only exercised by a unit test).",
+      "Unrelated scope in the diff: `architect-review.json` tuning (max_tokens/attempts/timeout) and the review-script retry logic belong to a separate item.",
+      "`audit_partition_config`'s `id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id)` single-row pattern is unconventional; a dedicated constant or sequence-keyed singleton would be clearer to future maintainers."
+    ],
+    "SUMMARY": [
+      "Structurally sound design (catalog-driven state machine, fail-closed provisioning, gated down, two-stage retention) with unusually good crash/replay reasoning, but the deployed security grant model and the runtime coverage probe contradict each other, so a headline AC is dead on arrival.",
+      "Biggest residual risks: integrity verification is end-only rather than per-batch during a long copy; freeze-budget failure leaves migration state unrecorded; and required fail-closed/fresh-install tests are absent.",
+      "Recommend fixing the grants + reusing `pfaudit.CheckCoverage` in edpsvc, adding the missing 23514/late-append and fresh-install tests, and moving plaintext export off local disk before approving."
+    ]
+  }
+}

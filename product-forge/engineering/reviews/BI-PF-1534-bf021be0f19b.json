@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "bf021be0f19b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-13T08:16:18.268556+00:00",
+  "review_scope": "delta",
+  "base_sha": "8208a79718fce32a44bb8c3cda61a23c1f501423",
+  "head_sha": "f8c93fb7f1647a329a43b9f3c871f2db77d34691",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta deletes the only page-level signal (`ProductForgeBacklogScopeUnlisted`) and its metric with no interim detection path; design defers re-introduction to BI-PF-1535 (platform-oncall) \u2014 confirm that ticket exists and the operator runbook documents log-based detection for `BACKLOG_DB_SCOPE_UNLISTED` until then.",
+      "Delta edits `api/routers/health.py` and `ops/prometheus/backlog-authority.rules.yml`, which are outside the declared affected_files scope \u2014 coherent consequences of removing `metrics_text()`, but the design scope (CL-016) should be updated to record them and the BI-PF-1535 alert gap.",
+      "Removed public helpers `metrics_text()` / `scope_unlisted_count()` \u2014 verify no stale call sites remain outside the delta (precheck/gate scripts) before merge."
+    ],
+    "NIT": [
+      "`test_ac2_unlisted_log` is now preceded by 4 blank lines (context 2 + added 2); pycodestyle E303 would flag this if lint gates run."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves prior MAJORs: the misleading in-process metric and the tautological `metrics_text()` test are removed, replaced by a fail-able structured-log assertion (`caplog`), matching the approved design observability contract (logs now, metrics/alerting deferred to BI-PF-1535); AC-2 write/delete/ID fail-closed coverage and `-k ac2` evidence remain intact.",
+      "Prior MINORs/NITs are resolved or moot (envelope-less endpoint and absent()-guard findings obsolete with the endpoint/alert deleted; `monkeypatch.setenv` un-chained).",
+      "Residual risk is operational, not functional: between now and BI-PF-1535, repeated unlisted-scope fail-closed events are detectable only via logs; confirm runbook/log-query coverage. No AC regression introduced by the delta."
+    ]
+  },
+  "rereview_reason": "fix d4ac4c8aa7a3 findings",
+  "rereview_reason_sha256": "65cf4cec57ff75e95a4b8b9226b8cef0e8c2f0deebe7feac39fc1aa0edd18401"
+}

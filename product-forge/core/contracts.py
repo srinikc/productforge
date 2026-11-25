@@ -18,10 +18,13 @@ required-field shape and both are cross-checked by ``test-framework/tests/pipeli
 from __future__ import annotations
 
 import contextlib
+import hashlib
+import hmac
 import json
 import os
 import sys
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 import jsonschema
@@ -231,12 +234,12 @@ _EVENT_ENVELOPE = ContractSpec(
         Field("schema", required=True),
         Field("event_id", required=True),
         Field("event_type", required=True),
-        Field("event_version", required=True),
+        Field("event_version", type="enum", required=True, enum=("1",)),
         Field("occurred_at", required=True),
         Field("seq", type="integer", required=True),
         Field("tenant_id"), Field("project_id"), Field("run_id"), Field("stage_id"),
         Field("task_id"), Field("worker_id"), Field("actor"), Field("correlation_id"),
-        Field("causation_id"), Field("payload", type="object"),
+        Field("causation_id"), Field("payload", type="object"), Field("extensions", type="object"),
         # legacy flat fields (back-compat with core/events.py)
         Field("ts"), Field("type"), Field("level"), Field("stage"), Field("agent"),
         Field("trace_id"), Field("span_id"),
@@ -249,12 +252,13 @@ _SUBSCRIPTION = ContractSpec(
     (
         Field("schema", required=True),
         Field("id", required=True),
+        Field("tenant_id", required=True),
         Field("types", type="array"),
         Field("filter", type="object"),
         Field("transport", type="enum", required=True,
               enum=("inproc", "sse", "webhook", "notify", "email")),
         Field("target"),
-        Field("auth_ref"),
+        Field("auth_ref", required=True),
         Field("enabled", type="boolean"),
         Field("created_by"),
     ),
@@ -266,6 +270,7 @@ _ALERT_RULE = ContractSpec(
     (
         Field("schema", required=True),
         Field("id"),
+        Field("tenant_id", required=True),
         Field("event_type", required=True),
         Field("severity", type="enum", enum=("low", "medium", "high", "critical")),
         Field("channels", type="array", required=True),
@@ -315,6 +320,33 @@ WIRE_CONTRACTS: tuple[str, ...] = (_WIRE_REQUEST.name, _WIRE_RESPONSE.name)
 EVENTING_CONTRACTS: tuple[str, ...] = (
     _EVENT_ENVELOPE.name, _SUBSCRIPTION.name, _ALERT_RULE.name, _WEBHOOK_DELIVERY.name,
 )
+
+WEBHOOK_SIGNATURE_HEADER = "X-PF-Signature"
+WEBHOOK_IDEMPOTENCY_HEADER = "X-PF-Idempotency-Key"
+WEBHOOK_SIGNATURE_ALGORITHM = "sha256"
+WEBHOOK_HMAC_KEY_REF = "WEBHOOK_HMAC_KEY_REF"
+CONTRACT_METRICS = MappingProxyType({
+    "validation_failures": "contract_validation_failures_total",
+    "parity_failures": "contract_parity_test_failures",
+})
+CONTRACT_METRIC_LABELS = MappingProxyType({"validation_failures": ("code",)})
+
+
+def webhook_signature(body: bytes | str, secret: str) -> str:
+    """HMAC-SHA256 signature over the raw webhook body, prefixed with the algorithm."""
+    if not str(secret or ""):
+        return ""
+    raw = body.encode("utf-8") if isinstance(body, str) else bytes(body)
+    digest = hmac.new(str(secret).encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    return f"{WEBHOOK_SIGNATURE_ALGORITHM}={digest}"
+
+
+def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> bool:
+    """Constant-time webhook signature verification (fail closed on empty/mismatch)."""
+    if not str(secret or "") or not str(signature or ""):
+        return False
+    expected = webhook_signature(body, secret)
+    return bool(expected) and hmac.compare_digest(expected, str(signature))
 
 
 # ── schema + validation ─────────────────────────────────────────────────────────
@@ -774,3 +806,15 @@ def _cli(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_cli())
+
+
+def webhook_headers(event_id: str, body: bytes | str, secret: str) -> dict[str, str]:
+    """Canonical webhook headers; idempotency key is exactly the event_id."""
+    return {WEBHOOK_SIGNATURE_HEADER: webhook_signature(body, secret),
+            WEBHOOK_IDEMPOTENCY_HEADER: str(event_id)}
+
+
+def events_after_cursor(rows, cursor: int):
+    """Return events with seq strictly greater than cursor, in seq order."""
+    n = int(cursor)
+    return sorted((r for r in (rows or []) if int(r.get("seq", 0)) > n), key=lambda r: int(r["seq"]))

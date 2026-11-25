@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "de24b1c80119",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T11:21:18.376468+00:00",
+  "review_scope": "delta",
+  "base_sha": "0be35f8983b47eb7296987831ec1e74631b12a7b",
+  "head_sha": "273883eebfdcac96af865123ddef696970535c6e",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`is_closed` now lowercases the status before calling `backlog.section(...)` (review_select.py delta), changing the input casing given to the status authority; mixed-case statuses not present in `CLOSED_STATUSES` (e.g. stored `WONT_FIX`/`Done` variants) may resolve differently than the prior raw-status call.",
+      "The new `problems(item, c, meta=meta)` threading in `fix_guard.py` has no regression test; a dropped/reverted `meta` would make `mtime_fallback` print `0` while fallback selection still occurs, weakening AC-3 observability (test added only covers `review_select.is_closed` + `latest_review` meta).",
+      "`--item` path still reports no closed-skip marker: a closed item makes `problems()` return `[]` and the tool prints `OK` with no `skipped_closed` equivalent, while the delta touched this path (only `--all` makes skipping explicit)."
+    ],
+    "NIT": [
+      "`--item` observability line (`fix-guard: item=<id> mtime_fallback=<n>`) uses a different shape than the `--all` line (`status=... skipped_closed=... mtime_fallback=...`), making guard output inconsistent for log scraping.",
+      "`test_closed_status_authority_covers_all_closed_values` hardcodes a status vocabulary that must stay in sync with `CLOSED_STATUSES`/`backlog.section`; deriving the open/closed cases from the source of truth would prevent drift."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior pending findings: `is_closed` re-adds an explicit `CLOSED_STATUSES` authority with a covering test, `meta` is threaded once through `problems()` (double `latest_review` call removed), `--item` fallback is now printed, `import logging` is module-level, and the `prefer_sha` early-return no longer mislabels `mtime_fallback`.",
+      "No blockers or contract breaks in the delta; residual risks are the casing change to the backlog status authority call, untested `meta` threading, and continued silence of closed-skip on the single-item path."
+    ]
+  },
+  "rereview_reason": "Final delta for prior fee0b3e04294 and 1aa21128b48d",
+  "rereview_reason_sha256": "ebe68b3dc2a7325f260c6330ae2459107caa88d1bed47ae1613deeed97790c38"
+}

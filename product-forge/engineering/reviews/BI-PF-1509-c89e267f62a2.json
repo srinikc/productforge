@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "c89e267f62a2",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-28T10:55:29.814982+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "AC-4 requires 503 when \"migrations 0016-0020\" are missing, but the schema probe is described as `information_schema` table/RLS-policy checks; table presence cannot detect a partially applied 0019 (missing counter triggers) or a missing 0020. A half-migrated DB would return a drift-prone 200 \u2014 an AC-4 violation. Pin a migration-state or object-level (trigger/index/policy) probe covering 0018\u20130020.",
+      "Migration 0020 is a destructive `DROP INDEX` shipped in the same change as the endpoint that depends on the tenant count query, with no stated blast-radius bound, no dry-run/report mode, no proof that neither `count(backlog_items)` nor RLS enforcement relies on the dropped index, and no statement of whether the 0020 `down` recreates the exact pre-existing index. Violates guardrail 4 and the reversibility guardrail."
+    ],
+    "MAJOR": [
+      "AC-5 coverage is mapped only to `test_pf_sb_scope_guard.py` (guard, `runtime_capability: false`); no runtime test is attached to the \"fails before the route, passes after wiring through the real mux\" clause. The fail-before red evidence is a static trail file (`BI-PF-1509-red.txt`), which is not the current-run red proof CL-010 requires.",
+      "Ownership gate (CL-001) is explicitly \"pending\" in the correction ledger while the design asserts single-writer ownership of the allocation row and triggers. Ownership registration must land before Gate 1.5, not be inferred from prose.",
+      "Rollback drain depends on `/admin/limits pool stats`, an endpoint not in dependencies, contracts, or review scope. If that endpoint doesn't exist or doesn't reflect this pool, the \"drain before down migrations\" step is unverifiable \u2014 either verify it or state an alternative drain/verification procedure in the runbook.",
+      "0019 hardening trigger semantics are underspecified: if triggers execute \"as the runtime role,\" confirm the runtime role (`pf_app`, NOBYPASSRLS) holds UPDATE on `backlog_id_reservations`; if any function is SECURITY DEFINER, that's an escalation path that must be pinned explicitly. Counter drift mitigation rests entirely on this.",
+      "Schema-probe checks and the fixed 503 reason taxonomy (`migration_missing,row_missing,timeout,db_unavailable,canceled`) don't cover \"trigger/index/policy missing but tables present\" \u2014 the bounded-reason design must extend to the new probe granularity, and `ops/prometheus/backlog-authority.rules.yml` alerts must key off the same taxonomy."
+    ],
+    "MINOR": [
+      "Two independent timeouts (`transaction-local statement_timeout='5s'` and `PF_EDP_DB_TIMEOUT`) can diverge; pin which one wins and make the effective bound a single documented value.",
+      "Counter \"reconstructible from backlog_id_reservations\" is asserted in rollback but no reconstruction procedure is referenced in the runbook file list; add the section reference or the assertion is untested.",
+      "`edp_backlog_authority_startup_ok` and the on-startup schema probe share logic with the request path; ensure one Go implementation is reused (guardrail 10) rather than a second startup-only check drifting from the handler probe.",
+      "The 0020 up migration is listed in review scope but absent from `contracts.files`; keep contracts and review scope in sync."
+    ],
+    "NIT": [
+      "Acceptance-criteria text alternates between \"0016-0020\" (item) and \"0016/0018\" (requirements) for the 503 trigger; normalize wording so test assertions and the runbook triage table cite the same set.",
+      "Error-rate alert threshold `> 0.05 for 5m` on a per-request admin endpoint may never fire at admin traffic volumes; consider pairing with the absolute `startup_ok=0` alert as the primary signal (already present) and note this in the runbook.",
+      "`canceled` as a reason label can reflect client disconnects rather than faults; documenting the distinction avoids on-call chasing benign admin aborts."
+    ],
+    "SUMMARY": [
+      "Design direction is sound: fail-closed auth order, constant-time token compare, tenant-bound RLS posture, no fallback, and bounded reason labels meet the enterprise bar. Two blockers must be resolved before Gate 1.5: (1) the migration-verification probe is too weak to satisfy AC-4 for 0019/0020 partial application, and (2) the destructive 0020 index cleanup lacks blast-radius, dry-run, and reversibility proof. Also close the AC-5 coverage gap by attaching a real current-run red proof through the mux, and land the pending CL-001 ownership registration."
+    ]
+  }
+}

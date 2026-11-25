@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1409",
+  "sha": "9cbaa9a7472f",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T19:30:07.931266",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Baseline grandfathering file (`config/delivery-completeness-baseline.json`) has no stated monotonic-decrease enforcement, owner/expiry, or review gate; new placeholder completions can be added to it and silently defeat the gate.",
+      "RCCA-block trigger is keyword-based (\"title/AC mentions RCCA\"): brittle both ways \u2014 false positives on incidental mentions, evasions via paraphrase (\"root cause analysis\"). Prefer an explicit item type/label, or document the trigger precisely.",
+      "CI wiring is not fail-closed specified: acceptance requires `--report` (dry-run) support but does not state that `ci-cd-gates.json`/precheck invoke the enforcing (non-dry-run) mode with non-zero exit on error, crash, or unreadable backlog \u2014 a crash or misconfigured flag becomes a silent pass.",
+      "Design does not demonstrate the design-guardrail checklist (reversibility, invariants, observability, reuse) nor dispositions of prior Gate 1.5 findings (CL-006/CL-008); approval validity depends on this being embedded before Gate 1.5."
+    ],
+    "MINOR": [
+      "Placeholder predicate (\"specific\" = not title echo, not `Objective achieved:`, length threshold) is heuristic and stated only in prose; the exact predicate, thresholds, and their tests are not pinned, risking drift between script and test-framework tests.",
+      "Baseline entries are implicitly keyed by item id; renames/deletions or id reuse can cause stale entries that mask or falsely fail items \u2014 no reconciliation step stated.",
+      "No observability statement for the gate (structured log line, counts of scanned/failed/baselined items, exit-reason) \u2014 checklist 10 diagnostics missing.",
+      "Precheck fast tier latency impact of full-backlog scan not bounded; consider caching or incremental scope."
+    ],
+    "NIT": [
+      "Placeholder predicate logic likely duplicated across gate script and tests; extract a single predicate module for reuse.",
+      "Language rule is satisfied (tooling Python), but a one-line note in the design stating why this is tooling, not shipped runtime logic, would preempt a Gate 2 challenge."
+    ],
+    "SUMMARY": [
+      "Sound direction: evidence-based DoD gate with dry-run, self-test, baseline audit, and CI wiring addresses the real closure-without-evidence failure mode.",
+      "Top risks: baseline can become a permanent escape hatch (no shrink-only/expiry rule), keyword-triggered RCCA validation is brittle, and CI fail-closed semantics are unspecified.",
+      "No blocker; proceed after tightening baseline governance, trigger definition, and fail-closed exit behavior."
+    ]
+  }
+}

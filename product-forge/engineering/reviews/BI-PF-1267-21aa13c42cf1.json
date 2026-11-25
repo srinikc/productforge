@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "21aa13c42cf1",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T12:44:51.142862+00:00",
+  "review_scope": "delta",
+  "base_sha": "64d5d0027d93156d98a1d44d8664bd2d54129cf2",
+  "head_sha": "8f4f9f4f435cdfaee139da793b9372561845cc7a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "fix_guard.enforced() checks is_closed() BEFORE the explicit config `enforce_items` list, so config-enforced items (BI-PF-1531/1508) silently escape enforcement when marked closed \u2014 fail-open against config/fix-impact.json contract.",
+      "fix_guard.problems() early-returns [] when no BLOCKER/MAJOR findings are present, so an absent/corrupt review artifact (latest_review -> {}) now passes where it previously reported 'fix_impact missing' \u2014 gate fails open on missing evidence.",
+      "Delta ships unrelated BI-PF-1531 tooling (scripts/dev/architect_review.py, fix_guard.py, review_select.py, test_fix_guard.py); none are in the design's declared affected_files and no BI-PF-1267 design/AC covers these changes."
+    ],
+    "MINOR": [
+      "`required` and the later `req` list-comprehension in problems() are byte-identical; the second is dead duplication that will drift when severity filters change.",
+      "review_select still uses p.stat().st_mtime as the tie-break key, so records with equal or missing `at` remain checkout-order dependent; only a log line mitigates the original BI-PF-1531 flake.",
+      "is_closed() lazily imports core.backlog and calls backlog.section, coupling a pure selection helper to the backlog authority (env/DB side effects inside CI gates).",
+      "architect_review defers `from review_select import latest_review` to the call site instead of module-level import, hiding the dependency from static analysis and inconsistent with the rest of the file.",
+      "fix-guard --all/--item output gained a second summary line with different field order; strict parsers keyed on the single 'fix-guard: OK|FAIL' line may need updating."
+    ],
+    "NIT": [
+      "`_J = \".\" + \"json\"` filename-construction workaround in test_fix_guard.py is opaque and fragile against future store-contract changes.",
+      "glob pattern f\"{item_id}-*.json\" does not escape glob metacharacters in item_id.",
+      "review_select is_closed duplicates the closed-status vocabulary in the test, so config/status changes require two edits."
+    ],
+    "SUMMARY": [
+      "Delta is internally well-tested tooling refactor (shared deterministic selector is the right reuse), but it is out of BI-PF-1267 scope and weakens fix-guard into fail-open paths (closed-status short-circuit before enforce_items, empty-review early return).",
+      "AC-1 (contract parity) is unaffected by this delta; top risks are gate-integrity regressions in fix-guard and unreviewed scope creep."
+    ]
+  },
+  "rereview_reason": "Delta for current SHA after develop sync; prior 0b854fbc08f1",
+  "rereview_reason_sha256": "9364e0f038a9e725d4df638df40e22f30304c8d0fac97fdb7f7febd717e37ae2"
+}

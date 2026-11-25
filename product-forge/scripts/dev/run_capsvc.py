@@ -27,7 +27,7 @@ def _dev_token() -> str:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Run the Go capability service (capsvc).")
     ap.add_argument("--addr", default=os.environ.get("PF_CAP_ADDR", "127.0.0.1:8020"))
-    ap.add_argument("--backlog-api", default=os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8010/api/v1"))
+    ap.add_argument("--control-api", default=os.environ.get("PF_CONTROL_API_URL") or os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8000/api/v1"))
     a = ap.parse_args(argv)
 
     token = _dev_token()
@@ -38,7 +38,7 @@ def main(argv: list[str]) -> int:
     env.update({
         "PF_CAP_TOKEN": os.environ.get("PF_CAP_TOKEN", token),
         "PF_BACKLOG_TOKEN": os.environ.get("PF_BACKLOG_TOKEN", token),
-        "PF_BACKLOG_API": a.backlog_api,
+        "PF_CONTROL_API_URL": a.control_api,
         "PF_CAP_ADDR": a.addr,
     })
     return subprocess.call(["go", "run", "."], cwd=str(ROOT / "go" / "capsvc"), env=env)

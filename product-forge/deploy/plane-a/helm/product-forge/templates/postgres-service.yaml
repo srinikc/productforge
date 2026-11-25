@@ -1,0 +1,19 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "product-forge.fullname" . }}-postgres
+  labels:
+    {{- include "product-forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.postgres.service.port }}
+      targetPort: postgres
+      protocol: TCP
+      name: postgres
+  selector:
+    app.kubernetes.io/name: {{ include "product-forge.name" . }}-postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

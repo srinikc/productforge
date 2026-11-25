@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "c2372e84cebf",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:24:27.439618+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`scripts/dev/residency_gate.py` returns `0 if a.report else 1` on a block: `--report` silently downgrades a blocking violation to exit 0. AC says `--report` is non-fatal only in the sense it must not *add* failure; here it removes it and neuters the CI gate (which also passes no --report, but any operator/CI use of --report disables enforcement).",
+      "Neither `core.packaging.validate_residency` nor Go `Validate` ever emits `RESIDENCY_MISSING_GROUP:egress`; Python even `continue`s past it. AC requires all six groups populated \u2014 an empty/missing `egress` block passes both validators.",
+      "Conformance fixture set (AC5) is incomplete: no cases for missing `home_region`, `backup`/`kms` region outside allowed, invalid `kms.provider`, unreadable/missing profile, or toolchain/validator-unavailable. The \"one fixture set drives both validators identically\" requirement is only partially met."
+    ],
+    "MAJOR": [
+      "Python `validate_residency` appends `RESIDENCY_UNKNOWN_HOME` twice for an empty home (once unconditionally, once in the dead `if not home or not re.match(...)` branch whose two arms are identical) \u2014 duplicated/non-deterministic error codes undermine the \"stable error codes\" contract and parity comparisons.",
+      "Go `Validate` treats a profile with empty `ID` or empty `allowed_regions` as `RESIDENCY_PROFILE_UNREADABLE`; Python only checks file existence/readability. If any `config/residency-profiles/*.json` lacks an `id` field, the two validators disagree and the gate hard-blocks on \"parity failure\" at exit 2.",
+      "Python flags `RESIDENCY_REGION_NOT_ALLOWED` whenever the profile is unreadable/empty (spurious `not sec_allowed <= allowed`), producing noisy multi-error output that differs from Go's behavior on the same input.",
+      "`hard = {UNKNOWN_HOME, PROFILE_UNREADABLE, SCHEMA_VERSION}` matches raw codes, so `RESIDENCY_MISSING_GROUP:home_region` and `RESIDENCY_INVALID_FIELD:*` are warn-downgraded in warn mode \u2014 AC says warn may downgrade only policy violations; field/schema-class errors silently pass.",
+      "`packaging.build` swallows an unreadable manifest into `{\"error\": \"RESIDENCY_MANIFEST_UNREADABLE\"}` and still emits a \"successful\" build manifest; build integrity should fail loudly rather than embed an error blob.",
+      "Gate shells out to `go run` on every fast-tier precheck/CI run (compiles the module each time, 120s timeout); no prebuilt-binary reuse or toolchain version pin, risking slow and environment-dependent gates."
+    ],
+    "MINOR": [
+      "`return 0 if a.report else 0` in the warn branch is dead code and signals confusion about the exit-code contract.",
+      "`config/residency-manifest.json` template carries `\"template\": true` and `notes` that flow into the built packaging manifest, polluting shipped artifacts.",
+      "Products override `products/<project>/residency-manifest.json` is not registered in store-registry.json with an owner, unlike the template.",
+      "`id-blocks.json` diff leaves a gap (1187\u20131189 unused, new session starts at 1190) and mixes unrelated allocator churn into this change.",
+      "Go `LoadProfile`/`LoadManifest` build paths with `fmt.Sprintf` and `strings.TrimRight(dir, \"/\\\\\")` instead of `filepath.Join` \u2014 works but fragile on Windows and for trailing separators."
+    ],
+    "NIT": [
+      "`--profiles` Go default `\"config/residency-profiles\"` is cwd-relative and only correct when run from repo root.",
+      "`store-registry.json` allow-list adds scratch filenames (`residency_*_scratch.json`) that only exist because tests write into the repo instead of tmp; prefer tmp everywhere.",
+      "`residency_gate.py` warn message prints the full error list per run, which will grow the .jsonl quickly despite the rotation bound; consider truncating to counts + codes.",
+      "`_policy()` prints a BLOCK line but returns a dict that continues execution; clearer to exit 2 immediately on unreadable policy."
+    ],
+    "SUMMARY": [
+      "Solid shape overall: Go validator as authority, profile-bounded rules, stable codes, warn-first rollout lever with expiry, and cross-language conformance scaffolding are the right architecture.",
+      "However the gate's `--report` exit-0 path is a real enforcement bypass, `egress` missing-group is never checked (AC violation), and the fixture/conformance coverage falls short of AC5's \"every RESIDENCY_* error incl. schema/invalid-field/toolchain/profile\".",
+      "Secondary risk: Python/Go divergence on profile parsing (`id` field, unreadable-profile error set) will manifest as flaky exit-2 parity blocks once real profiles vary."
+    ]
+  },
+  "rereview_reason": "prior sha 447aa695d95b; fail-closed, BOM, conformance fixtures/tests committed",
+  "rereview_reason_sha256": "99739676b55c0e8f2551feaa122c4cfb9ffe7888648bb6904bdf0ca03fb9dff6"
+}

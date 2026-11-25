@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "848bf9d4cde4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-28T10:24:40.343379+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "Rollback plan depends on `migrations/0020_backlog_authority_index_cleanup` (rollback: \"run migrations 0020, 0019, 0018 down\"; dependencies and invariants also reference 0020), but 0020's up/down files are absent from `affected_files` and `review_scope.files`. As declared, the change cannot execute its own rollback, and if 0020 files are touched the scope guard (AC-5) will flag them as stray paths. Either declare 0020 files in scope or remove all 0020 references (per CL-016)."
+    ],
+    "MAJOR": [
+      "A query timeout on `count(backlog_items)` for a legitimately large tenant returns the same fixed 503 as a broken DB/missing migration. This conflates \"authority unavailable\" with \"tenant is big,\" which will produce false-positive readiness failures and alert fatigue once this endpoint is wired to monitoring; the design should distinguish (bounded reason code or documented sizing threshold) rather than a single opaque 503.",
+      "The fixed safe 503 message plus `edp_backlog_authority_errors_total` with no stated dimension makes runbook triage of the four distinct 503 causes (missing schema, missing allocation row, DB outage, timeout) impossible from metrics alone; only one cause (schema) has an explicit probe. Recommend a bounded, low-cardinality reason label or a startup probe that pins the schema/row presence independently of request traffic."
+    ],
+    "MINOR": [
+      "Single shared `PF_ADMIN_TOKEN` means no per-admin attribution for an endpoint that reads global allocation state; consider request logging of a redacted principal/source for audit, since the security section already rules out token/item content in logs.",
+      "The response body hard-codes `authority=global` and `item_scope=tenant` as constants; these are documentation values, not authority data, and risk drifting from reality if scoping changes \u2014 pin them in a contract test explicitly, not just by construction.",
+      "`edp_backlog_authority_startup_ok` is described as \"production startup non-fatal\"; the design should state the expected alert rule and lead time on this gauge so a never-applied 0018/0019 in an environment is detected before the first on-call triage, not during it."
+    ],
+    "NIT": [
+      "AC-4 wording says \"missing migration 0016/0018\" while dependencies span 0016\u20130020; the tests probe schema generically so behavior is fine, but aligning the AC and dependency naming avoids future scope-guard ambiguity.",
+      "`affected_components` lists `ops/prometheus` and implicitly `docs` (runbook) without a docs component entry; cosmetic inconsistency with the components list used by the scope guard."
+    ],
+    "SUMMARY": [
+      "The design is strong on the whole: fail-closed 401/400/405/503, auth-before-method, constant-time token compare, RLS/GUC probing before any count, statement_timeout bounding, no fallback paths, real-mux E2E red/green proof, and metric cardinality discipline all meet the guardrails and CL-010\u2013013/016.",
+      "Top risks: (1) the 0020 scope inconsistency breaks both the rollback plan and the AC-5 scope guard as declared \u2014 must be resolved before Gate 1.5; (2) opaque 503 for large-tenant count timeouts risks false readiness alarms once the endpoint is alert-backed.",
+      "No data-loss, RLS-bypass, language-rule, or secret-exposure blockers; counter drift is mitigated by triggers and the counter is reconstructible from `backlog_id_reservations`."
+    ]
+  }
+}

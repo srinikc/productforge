@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "15ef2ec8f536",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-27T15:01:45.856651+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "Design leaves affected_components, affected_files, and risks as \"Not specified\", so blast radius, the AC-5 diff-guard scope, and rollback (\"Revert the change\") are not objectively verifiable at Gate 1.",
+      "No statement that the runtime DB role used by edpdata.BacklogStore is least-privilege and NOT BYPASSRLS/superuser; checklist item 3 (privilege boundary) is unanswered for the new read path.",
+      "Behavior when migrations 0016/0017 are absent/unapplied is undefined \u2014 must be fail-closed 503, not 500 or a 200 with zeroed counts."
+    ],
+    "MAJOR": [
+      "Observability says \"No new metrics required\"; a fail-closed readiness endpoint with no log/metric for 503/latency leaves the primary failure mode undiagnosable (checklist item 10).",
+      "Admin-token verification is underspecified: constant-time comparison, token source/rotation, and whether PF_ADMIN_TOKEN falls foul of CL-005 (no PF token for internal callers) are not addressed.",
+      "Checklist item 2 unanswered: no on-startup DB check or alert lead-time for \"PostgreSQL unavailable\" beyond the request path.",
+      "Checklist item 1: \"verified backup/restore path\" not stated (read-only today, but must be declared explicitly as not-applicable rather than omitted).",
+      "Full-table `count(backlog_items)` scalability and index support are asserted (\"single indexed read\") but not evidenced; counts grow unbounded with backlog volume."
+    ],
+    "MINOR": [
+      "out_of_scope is \"Not specified\" while AC-5 depends on it; must state \"no PF-GP defs, no backlog item files, no new ID authority\".",
+      "Rollback wording inconsistent: top-level \"Revert the change\" vs design_pack \"Revert the edpsvc route\"; no migration-interrupted recovery statement (checklist 6).",
+      "Checklist item 9 partial: redaction/retention of aggregate counts for the admin response is not stated; tenant leakage risk is only implicitly bounded by admin-only access.",
+      "CL-003: glossary terms (EDP admin token, authority, reserved_up_to, reservation) are not pinned to docs/GLOSSARY.md.",
+      "CL-001: ownership of `backlogAuthority` and of the `/backlog/*` route namespace (single writer, register point) is not declared."
+    ],
+    "NIT": [
+      "ac_evidence entries all carry SHA \"candidate\" placeholders.",
+      "API contract adds a `storage` field not present in any AC \u2014 contract/AC drift.",
+      "Proof plan says red evidence is \"404/no route\"; 404-vs-401 semantics for an unauthenticated unknown path are not pinned."
+    ],
+    "SUMMARY": [
+      "Sound, low-risk, read-only pilot reusing existing mux and BacklogStore with clear fail-closed invariants and a red/green E2E proof plan.",
+      "Top risks: incomplete Gate-1 metadata (files/risks/out_of_scope), unspecified DB-role privilege/RLS posture, undefined behavior without migrations, and zero observability on the failure path.",
+      "Recommend Gate 1.5 only after the blocker items and checklist items 2/3/9/10 are explicitly answered in the design."
+    ]
+  }
+}

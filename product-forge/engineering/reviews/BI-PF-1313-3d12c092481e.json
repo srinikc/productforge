@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1313",
+  "sha": "3d12c092481e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T20:49:15.711208",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance criteria require the /memory API to accept a `user` parameter, but `memoryHandle` GET hardcodes `User: principal` (env `PF_MEMORY_PRINCIPAL`); there is no `user` query param, so per-user ACL filtering is unreachable at the API and the AC's \"user\" contract is unimplemented.",
+      "All entries posted through the API get `Owner = env principal` (default \"admin\"), so the eight-type ACL model (private-per-owner) is effectively single-principal in production; the negative tests only exercise it via direct `MemoryStore` calls, not the shipped API."
+    ],
+    "MAJOR": [
+      "`Put` silently discards the embedding when pgvector is absent (no log, no error, no signal in the response); callers reasonably believe the vector was persisted \u2014 data loss without observability.",
+      "Backward-compat break: legacy `?kind=X` previously filtered `kind = X` exactly (old `q` was compared to the kind column); it is now a free-text FTS query, so existing clients filtering by kind silently get different results.",
+      "Hybrid queries add `embedding IS NOT NULL` to WHERE, so supplying a vector silently hides every entry that lacks an embedding \u2014 scope-limited result sets without documentation or test coverage.",
+      "AC requires \"integration tests plus unit tests\": `memory_test.go` contains only DSN-gated integration tests (skipped in default CI) \u2014 no unit tests for `formatVector`, kind/ACL validation, or embedding dimension checks; the claimed hybrid/FTS-only degradation test with a valid 1536-dim vector is also absent.",
+      "Migration 0015 adds a `GENERATED ALWAYS ... STORED` tsvector column, which forces a full table rewrite; combined with `SET LOCAL lock_timeout='5s'` (a no-op if the runner executes the file outside a transaction) this can abort the migration on any non-trivial `memory` table."
+    ],
+    "MINOR": [
+      "`formatVector` uses `%g` (6 significant digits) for float32 vectors, discarding ~3 digits of precision per component and degrading cosine ranking; NaN/Inf also serialize to non-pgvector-safe literals.",
+      "`Search` applies the explicit tenant guard only `if scope.TenantID != \"\"`; an empty tenant falls back entirely to RLS instead of failing closed as the AC's \"RLS plus explicit guard\" implies.",
+      "The cross-tenant negative test is masked: `store.BindTenant(st, tenant)` makes RLS return zero rows regardless of the explicit `tenant_id` predicate, so it doesn't prove the code-level guard.",
+      "Put accepts an empty `Kind` (validation only rejects non-empty unknown kinds) and surfaces the DB CHECK violation as HTTP 500 instead of 400; same for DB-level ACL violations.",
+      "Observability: `log.Printf` in library code, unstructured error strings, no metrics/logging for FTS-only degradation, search latency, or result counts; `memoryByID` collapses all `Get` errors to 404 with no logging.",
+      "Legacy `source` values are heuristically remapped when they equal ACL names (\"private\"/\"project\"/...); a genuine source literally named \"private\" is silently reinterpreted as an ACL filter.",
+      "Upsert `WHERE ... memory.owner = EXCLUDED.owner` makes a legitimate re-PUT by a different principal fail with a 500 that conflates tenant and owner conflicts."
+    ],
+    "NIT": [
+      "`EmbeddingDim = 1536` is duplicated as a literal `vector(1536)` in the migration \u2014 no single source of truth for the vector contract.",
+      "`where := []string{\"TRUE\"}` and the conditional `ORDER BY` string building are awkward; a builder or always-parameterized rank expression would be clearer.",
+      "The returned `Score` (0.7/0.3 blend) is serialized straight to API clients, leaking an internal ranking heuristic as public contract.",
+      "Down migration intentionally keeps data but also leaves `memory_kind_valid`/`memory_acl_valid` constraints and never drops `content/source/owner/embedding`, so rollback leaves schema drift from the pre-0015 state."
+    ],
+    "SUMMARY": [
+      "Solid substrate direction (parameterized FTS-first SQL, server-side ACL predicates, optional-pgvector migration, RLS + guard), and the language rule (Go) is respected, but the AC's API contract (`user` param, per-owner principal) is not actually implemented in the shipped handler.",
+      "Top risks: silent embedding drop on Put, changed `?kind=` semantics breaking existing clients, vector queries hiding non-embedded rows, and a migration that can lock/rewrite the table.",
+      "Verification is weaker than claimed: no unit tests, no valid-dimension degradation test, and the cross-tenant negative is masked by RLS \u2014 precheck PASS should not be read as AC coverage."
+    ]
+  }
+}

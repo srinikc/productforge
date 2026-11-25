@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1408",
+  "sha": "fff88d1e3de7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Canonical edge set (SEED) is enforced only for `tenant_id` tenancy edges derived from schema; non-tenancy canonical edges (e.g. `artifacts.runs.run_id`, `runs.projects.project_id`, `stages/attempts` chain) are silently droppable \u2014 `check()` will still pass, so the \"relationships recorded\" guarantee is only partially enforced.",
+      "SEED list is hardcoded duplicate truth living in two places (script + registry JSON) with no consistency check; the `canonical: true` flag written to the registry is never read or validated by the tool \u2014 drift between the two copies is undetectable.",
+      "Status transitions are self-attesting: `planned \u2192 exists` flips based solely on the owner backlog item being in `DONE`, not on verified delivery (object-store \"exists\" is validated only against a hardcoded `OBJECT_META = {\"artifacts\",\"stored_objects\"}` set, not actual bucket/backend state). A falsely-closed item silently upgrades store status and `migration_status` to \"migrated\".",
+      "Rationale/provenance loss: `reason: \"global authored config -> file (git-reviewed)\"` on ~40 retained file targets replaced with empty-string `ref`/`owner_item`; the gate accepts empty strings, so the \"planned targets name the owning EDP item\" invariant degenerates into a shape check with no information content."
+    ],
+    "MINOR": [
+      "`REQUIRED_TRIGGERS` is a hardcoded tuple in tooling; trigger drift (rename/split in migrations) will break the fast gate with no config-level override \u2014 consider deriving from migrations or a config artifact.",
+      "`--verbose` is parsed and passed to `_report` but ignored there (all problems always print); dead parameter.",
+      "`_expected_status` special-cases `kind == \"table\" and backend == \"file\"` and `retained_reason` presence to yield \"retained\", mixing \"where data lives\" with \"why it wasn't migrated\" \u2014 semantics are subtle and easy to misapply on future stores.",
+      "Self-test covers only 3 scenarios; it does not exercise the object-store \"exists\" validation, the required-trigger check, or the non-tenancy canonical-edge removal case (which, per MAJOR #1, would pass \u2014 a test gap that masks the enforcement gap).",
+      "`kind \u2208 {file,view,derived}` accepts `backend \u2208 {file,derived}` \u2014 a `view` backed by `file` passes silently; looseness in an otherwise strict gate.",
+      "`check()` re-derives expectations from `target.status` rather than an independent source, so a store whose target status is wrong-but-internally-consistent passes; consider an independent existence oracle per backend."
+    ],
+    "NIT": [
+      "`glob` import used for `_sql_files`; `Path.glob` would be more idiomatic and testable.",
+      "`_statements_after` quote/paren scanning is hand-rolled; acceptable for tooling but fragile if migrations ever embed dollar-quoted bodies (`$$ ... $$`) \u2014 a `DO $$` block would break column extraction.",
+      "`retained_reason` is stuffed inside `target` alongside `reason`; two similarly-named fields coexist in the same object \u2014 naming collision risk for future readers."
+    ],
+    "SUMMARY": [
+      "Solid incremental slice: new relationship gate wired consistently into both `precheck.py` and `ci-cd-gates.json`, fail-closed checks, and a self-test with negative scenarios \u2014 directionally right. Top risks: (1) canonical relationship enforcement is only partial (tenancy edges only), so the SEED/registry duplication is undetectable drift; (2) status flips driven by backlog-item state rather than verified delivery weaken the integrity of `migration_status`; (3) blanket replacement of `reason` with empty `ref`/`owner_item` on retained file targets discards provenance while satisfying the gate shape. Recommend tightening enforcement to the full canonical set, validating the seed against the registry, and preserving rationale text before merge."
+    ]
+  }
+}

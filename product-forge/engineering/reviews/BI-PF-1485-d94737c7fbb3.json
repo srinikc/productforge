@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "d94737c7fbb3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T15:52:43.630244+00:00",
+  "base_sha": "",
+  "head_sha": "4a1960d499c5d0a3956d2555fc3b30bb860d6924",
+  "findings": {
+    "BLOCKER": [
+      "empty_delta_rule excludes engineering/** and data/backlog/** (config/id-blocks.json, baseline) purely by path class with no verification: a code/logic change committed into an excluded path yields \"no review-relevant changes\", exit 0, and is never reviewed (fail-open bypass).",
+      "Excluded-path classification is asserted by convention (\"no hand-edited code in engineering/**\") but nothing in the design detects or rejects hand-edits/stale content in those paths; generation must be drift-checked or content-class verified before the delta gate can trust the exclusion."
+    ],
+    "MAJOR": [
+      "Delta base validity is under-specified: no ancestry/merge-base check that last_reviewed_head is an ancestor of HEAD; after rebase/squash/force-push the delta diff is misleading. DELTA_BASE_INVALID exists but does not define this case.",
+      "No re-baseline trigger: nothing forces a periodic full re-review (long delta chains, model/provider change, base divergence), so delta drift accumulates and unchanged-code interactions are only covered by AC-context text.",
+      "failure_matrix lacks a prior-evidence failure case: corrupt/missing/unparsable prior findings evidence should fail closed or force a full re-review, not silently degrade delta context.",
+      "Committed generated artifact engineering/design/<ID>.md has no drift/regeneration check, so stale or hand-edited design docs pass both Gate 1 and precheck and are also invisible to the delta diff (excluded path).",
+      "Reviewer prompt ingests repo/design/prior-findings content with no untrusted-content or prompt-injection handling and no provider endpoint pinning; evidence integrity depends wholly on provider behaviour.",
+      "Rollback direction of evidence_compat is one-way: old-tooling readability of new records is stated; behaviour of reverted tooling reading new-format evidence after a revert is not."
+    ],
+    "MINOR": [
+      "Candidate ordering \"collisions resolve by latest at\" depends on wall-clock timestamps; prefer content/sequence-derived ordering even under the single-writer assumption.",
+      "Encoding gate scans the changed set only, so a BOM in previously committed files is never re-detected; document as accepted or add an opt-in full-tree scan.",
+      "\"Full-candidate AC evidence\" inside a delta-bounded prompt conflicts with the performance invariant; bound/paginate or store a reference rather than inlining.",
+      "No stated maximum size/streaming strategy for large diffs, encoding scans, or design-pack checks; large items may blow prompt or scan budgets.",
+      "Concurrency invariant relies on AGENTS IS-PF-0036 convention only; no lock or detection of a second writer on the same tree.",
+      "Reviewer egress is unpinned (base URL/model not fixed in config); a config drift silently changes the review channel."
+    ],
+    "NIT": [
+      "Rollback mentions \"generated design MDs deleted\" without a removal command or file list; add to rollout steps.",
+      "Ownership/update cadence of config/design-pack.json (enforce_items/enforce_from) is not assigned.",
+      "Security section lists explicit N/A items without a verification hook; keep but add a re-check trigger if tooling gains network scope."
+    ],
+    "SUMMARY": [
+      "Design is structurally strong: invariants, failure matrix, guardrail coverage, and language-rule compliance (tooling Python) are clear, and recurring findings (render/disposition tests) are pre-empted.",
+      "Top risk is review-integrity bypass via path-class exclusions without content verification, followed by delta-base validity under history rewrite and the absence of a re-baseline trigger.",
+      "Recommend tightening empty-delta trust, adding ancestry + prior-evidence failure cases and a generated-doc drift check before implementation."
+    ]
+  },
+  "rereview_reason": "one-review budget + guardrails/learnings; final design review",
+  "rereview_reason_sha256": "1c3827b9c35767accf1f2153d2c43b5fdafe030164e38ecdbc36bd8b2733d02b"
+}

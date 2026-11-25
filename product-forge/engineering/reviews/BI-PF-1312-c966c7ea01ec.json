@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "c966c7ea01ec",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`runSwap` requires a full `Verify` (complete per-tenant checksums of `audit` vs `audit_partitioned`) to pass, but any audit write between prestage and swap lands only in the legacy table, so Verify fails hard; the designed \"bounded delta drain under lock\" is never reached and no quiesce/leadership step exists \u2014 the swap cannot complete on any live database.",
+      "`Swap` runs two full-table `count(*)` over the entire `audit` and shadow while holding ACCESS EXCLUSIVE, so freeze time scales with total table size rather than the delta, defeating the delta-bound and `audit_swap_freeze_seconds` budget contract.",
+      "`VerifyHoldExtraction` digests ALL archived hold rows (including released holds) against only currently-held live rows; after any hold is released the digests can never match, permanently blocking export/drop for that month."
+    ],
+    "MAJOR": [
+      "The AC-required hold-reconcile path (hold placed AFTER archive \u2192 restore to scratch, extract, verify) has no implementation in Go or SQL; only the post-purge rejection exists.",
+      "The AC-required EDP service startup coverage check and ops cron emitting `audit_partition_months_ahead` / `audit_partition_low_coverage_total` plus stale-job alerting are absent \u2014 only the CLIs emit coverage.",
+      "`ExportMonth` writes the full plaintext month to a temp file on the ops host (0600 only); evidence-at-rest is required to be SSE-KMS \u2014 stream or encrypt before hitting disk.",
+      "`metrics.go` declares `MetricHoldAfterPurge`, `MetricInsertOutOfRange`, `MetricLateInsert`, `MetricProvisionSeconds`, `MetricHoldExtractFailed` that no code path ever emits, so the promised dashboards/alerts stay silent."
+    ],
+    "MINOR": [
+      "Migration `0014` down drops the primitives but orphans helper functions (`audit_deny_truncate`, `audit_config_touch`, `audit_hold_guard`).",
+      "`RestoreMonth` leaves `audit_restore_YYYYMM` tables behind indefinitely (no TTL/drop) and they are invisible to `audit_assert_hardened`.",
+      "`pfaudit-retention purge --dry-run` prints a static message without consulting DB grace/hold state, so the dry-run plan is not the real plan.",
+      "Migration `0004` was edited in place (role-creation guard) instead of shipping a new migration \u2014 mutates applied migration history.",
+      "Retention CLI early-returns (`purge`/`holds` dry-run) skip `emitMetrics`.",
+      "Metric name is `audit_swap_retry_exhausted_total` while the AC names `audit_swap_retry_exhausted`."
+    ],
+    "NIT": [
+      "`RestoreMonth` doc comment says \"scratch partition of the live audit table\" but the code (correctly) creates a standalone table \u2014 comment drift.",
+      "`audit_restore_lock` is only a state-event insert, not a lock; the name misleads future maintainers.",
+      "The integration test attaches a partition via raw `CREATE TABLE ... PARTITION OF` + harden, bypassing `audit_attach_partition`, which the same diff declares the \"only supported attach path\".",
+      "`close` deletes the backup object without re-checking its existence/rehearsal at close time.",
+      "`rehearsal` asserts TOC presence via brittle substrings (`\"TABLE public audit\"`, `\"SEQUENCE public audit_legacy_id_seq\"`) that depend on `pg_restore -l` formatting."
+    ],
+    "SUMMARY": [
+      "The migration substrate, privilege-enforced hardening and fail-closed out-of-range contract are genuinely strong and well-tested.",
+      "However the swap cannot succeed against a live writer workload (Verify gate + full-table counts under ACCESS EXCLUSIVE), and the hold-verification digest blocks retention after any released hold.",
+      "Two acceptance criteria \u2014 hold-reconcile and service/cron coverage telemetry with stale-job alerting \u2014 are unimplemented in this diff."
+    ]
+  }
+}

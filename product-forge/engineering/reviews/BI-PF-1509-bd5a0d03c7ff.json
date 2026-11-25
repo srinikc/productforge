@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "bd5a0d03c7ff",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-28T10:49:55.797514+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "migrations/0020_backlog_authority_index_cleanup.{up,down}.sql is in design affected_files/rollback rollout (applied before route deploy, dropped on rollback) but absent from the binding review scope file list \u2014 an unreviewed destructive schema step is carried in the rollout path.",
+      "Observability defence-in-depth is thin: the only new alert is startup_ok=0 for 10m; there is no alert on edp_backlog_authority_errors_total rate, so a live DB outage/timeout condition is only detectable if a caller happens to hit the endpoint and read the runbook.",
+      "AC-4 evidence drift: coverage lists `TestBacklogAuthorityMissingSchemaFailsClosed` while ac_evidence lists `TestBacklogAuthorityMissingRLSPolicyFailsClosed`; one of the two is not an actual test artifact, weakening the fail-closed proof."
+    ],
+    "MINOR": [
+      "Tenant is deliberately excluded from metric labels (correct for cardinality), but this leaves no metric dimension to identify which tenant's count is timing out; the runbook must document the log-based triage path explicitly.",
+      "Failure matrix distinguishes `timeout` from `db_unavailable` in triage, yet both surface as the same fixed 503 body; the only discriminator is the reason log \u2014 confirm that log is emitted at the handler/store boundary with request correlation.",
+      "Rollback order depends on removing the route before dropping 0018/0019 triggers; there is no stated check that an in-flight request cannot hit a dropped-trigger store during rollback."
+    ],
+    "NIT": [
+      "guideline_coverage pairs `go test ./...` as the check/evidence for `docs/guidelines/database/postgresql.md` on 0018 SQL \u2014 the evidence does not actually validate the SQL guideline.",
+      "Reversibility rehearsal (scratch DB backup/restore) is described in rollout prose but has no named test or trail file as evidence."
+    ],
+    "SUMMARY": [
+      "Sound fail-closed design: constant-time admin auth, tenant-required query, single-writer global allocation, bounded timeouts, and low-cardinality reason metrics align with the standards and correction ledger.",
+      "Top risks: the 0020 migration rides the rollout while sitting outside the approved review scope, and alerting covers only the startup probe rather than live authority errors.",
+      "Resolve the 0020 scope mismatch and the AC-4 test-name evidence drift before Gate 1.5."
+    ]
+  }
+}

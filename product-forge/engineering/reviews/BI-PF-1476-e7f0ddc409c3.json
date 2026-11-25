@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "e7f0ddc409c3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:27:34.219661+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "The gate invariant is design-systems-specific (hardcoded path + exact tuple). With ~60 other retained config stores pending audit, this pattern scales into N special cases. Specify a generic rule first \u2014 \"any registry entry with target.status=retained MUST carry non-empty retained_reason and a decision_ref that resolves in docs/ARCHITECTURE-DECISIONS.md\" \u2014 and let design-systems.json be the first data-driven instance, not the only hardcoded one.",
+      "Referential integrity of decision_ref is asserted only as a literal string `ADR-0007`. Nothing verifies the ADR section and index row actually exist in docs/ARCHITECTURE-DECISIONS.md at gate time; index/section drift was self-identified as a risk but the ACs only cover the registry side. Add a gate assertion that the referenced ADR id resolves to both an index row and a section.",
+      "Negative self-test mechanics are unspecified: it must mutate a sandboxed temp copy of the registry, never the live config/store-registry.json, and must be provably cleanup-safe (tempdir + guaranteed restore even on exception). State this explicitly; a self-test that touches the live registry is a data-integrity blocker waiting to happen.",
+      "Design guardrails are not answered in the design (CL-008). Explicitly mark: needs_api=no, tenant/RLS N/A (no runtime data), language rule satisfied (tooling Python), rollback = pure revert + gate re-run. Silence here will bounce the review."
+    ],
+    "MINOR": [
+      "Supersede trigger for BI-PF-1439 is prose-only; consider a gate assertion that the ADR's supersede field names BI-PF-1439 so the linkage is machine-checkable in both directions (decision_ref forward, related_item/supersede backward).",
+      "Rollback section omits a docs-fresh re-run as the verification step for the rollback path itself; include it so rollback is as testable as the forward path.",
+      "\"retained-by-decision vs retained-by-pending-migration\" glossary text should cross-reference docs/GLOSSARY.md if these terms are load-bearing (CL-003), otherwise they fork vocabulary.",
+      "Observability checklist is unaddressed; for a tooling-only change, state that the gate's exit code + stdout is the intended signal and no metrics are required."
+    ],
+    "NIT": [
+      "Consider having the gate emit a structured (JSON) report of pinned retained entries so the deferred audit of the other 60 stores has a ready-made input instead of a new script.",
+      "`related_item=BI-PF-1476` hardcodes ticket ids into config; if this becomes a pattern for the remaining retained stores, note a convention (e.g., array of related items) to avoid a schema churn later."
+    ],
+    "SUMMARY": [
+      "Verdict: sound, low-risk documentation/registry/gate change; correctly reuses the existing single-writer gate and stays within the language rule. Top risks: hardcoded design-systems-specific invariant that won't scale to the other retained stores, decision_ref with no referential check against the ADR document, and unspecified (potentially live-mutating) negative self-test mechanics. Address the four MAJORs and the guardrail checklist before Gate 1.5; no blockers."
+    ]
+  }
+}

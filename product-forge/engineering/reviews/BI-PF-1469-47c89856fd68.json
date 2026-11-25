@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "47c89856fd68",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:02:07.022376",
+  "findings": {
+    "BLOCKER": [
+      "The mandated ordering predicate is not implemented: `gate_predicates.approval()` never compares `decision.at >= evidence.at`. Evidence now stores `at` (in `_ingest`) but nothing consumes it, so an approval recorded *before* a re-ingest of identical findings (or clock-skewed writes) is indistinguishable from a valid one \u2014 the AC's STALE_APPROVAL-by-timestamp case is unprovable.",
+      "Negative self-tests required by the AC are materially incomplete: `gate1_transition_check.py` has no self-test at all (missing design evidence / NO_EVIDENCE, missing Gate 1 decision, STALE_EVIDENCE unproven), and no test anywhere proves force-without-PF_GATE_FORCE is refused. Only 4 of the 6 mandated negative cases exist, all inside gate2.",
+      "Baseline governance is fail-open: `gp.baseline_problems()` findings (over-quota entries, missing reason/owner_item, >90-day `until`, malformed date) are printed in both `main()`s but never contribute to the exit code. A bloated or unowned baseline silently allows transitions/completions, contradicting \"expired/unknown entries DENY\" and fail-closed."
+    ],
+    "MAJOR": [
+      "Decisions are not bound to an authenticated human. `by` is an unconstrained string, and neither `approval()` nor either checker validates it; `record_gate_decision(by=\"system:auto\")` passes every gate. The force path even writes `by:\"hil:forced\"`. \"Recorded only by the HIL session / never auto-approved\" is convention, not enforcement.",
+      "Layering inversion: shipped control-plane `core/backlog.py` now imports `scripts/dev/architect_review.py` at call time and mutates `sys.path` inside functions. A library used by the backlog store depends on dev-tool path layout and availability; a missing/broken script turns every close into `GATE_ERROR`.",
+      "`item[\"decisions\"]` is mutated via read-modify-write (`record_gate_decision`, force path) with no concurrency control or compare-and-swap. Two concurrent approvals or an approval racing a status write silently drops an append-only audit record while still leaving `seq` monotonic-looking.",
+      "docs-only/skip-glob logic is triplicated (`backlog._gate2_status`, `gate2_completion_check._docs_only`, size gate) with the same hardcoded default globs, and `_gate2_status` derives it from the *working tree* (`ar.changed_files()`) rather than the committed change set \u2014 the runtime predicate and the CI predicate can disagree, defeating the stated \"local/CI cannot diverge\" invariant."
+    ],
+    "MINOR": [
+      "`_DESIGN_KEYS` is duplicated verbatim inside `_design_body`; the canonical hash and the reviewer-facing body can drift apart on the next field addition.",
+      "Force guard tests `os.environ.get(\"PF_CI\")` truthiness, so `PF_CI=\"\"` permits a forced close; should test key presence.",
+      "Decision `at` uses naive `datetime.now()` (no tz), which will make the required `at` ordering comparison unreliable across DST/timezones once implemented.",
+      "`record_gate_decision` accepts any `gate` value and silently maps everything \u22601 to diff mode; no allow-list of gates 1/2.",
+      "The decision-recording path uses `ar.gate_view(eid, \"design\")` while `gate1_transition_check` uses `gate1_check.evaluate` \u2014 two accessors for one predicate; the AC's single-predicate rule is only half-held."
+    ],
+    "NIT": [
+      "`record_gate_decision` returns `None` for a missing item but the *unchanged* item on refusal \u2014 callers cannot distinguish \"refused\" from \"no-op succeeded\" without parsing stdout.",
+      "The CI/precheck gate invocation runs `--self-test` on every fast-tier run, adding steady-state latency for a matrix that rarely changes.",
+      "`gate-baseline.json` registered with `retention: \"unbounded\"` though it is a time-boxed rollout artifact that should be archived/emptied at rollout end."
+    ],
+    "SUMMARY": [
+      "Structure is right (shared `gate_predicates`, fail-closed defaults, `--report`, docs-only handling, baseline file), but the implementation misses three explicit acceptance criteria: the `at`-ordering stale-approval predicate, the full negative self-test matrix (gate1 + force), and fail-closed baseline governance. Combined with unauthenticated `by`, sys.path-in-function imports in shipped core, and non-committed-tree docs-only detection, the gate can be satisfied by a stale or machine-authored approval while CI still passes \u2014 the audit trail is append-only in form, not in guarantee."
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "d9358205e417",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T07:51:24.366159+00:00",
+  "review_scope": "delta",
+  "base_sha": "47ab983e49795c94f4b6ac029cf6c84cf8755152",
+  "head_sha": "8998ccd8b1719258b895dff00f168c6aeff10ddd",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`authorityReasonCode` now classifies any error whose lowercased message contains `\"tls\"` or `\"password authentication\"` as `db_unavailable`; substring `\"tls\"` also matches unrelated words (e.g. \"defaults\", \"results\") \u2014 over-broad classification risks mislabeling genuine internal errors as availability failures and skewing the bounded reason diagnostics."
+    ],
+    "MINOR": [
+      "`backlogReserve` changed to `s.reserveBacklog()` which calls `s.backlogFactory(\"\", true)`; the empty tenant is now hard-coded inside the new helper rather than at the call site, removing the documented \"admin-only, no tenant binding\" context from the seam \u2014 a future factory caller may assume tenant scoping, so add a doc comment on `reserveBacklog` making the deliberate unbound store explicit.",
+      "`authorityBacklog`/`reserveBacklog` duplicate the `edpdata.NewBacklog(...).WithTimeout(s.cfg.DBTimeout)` construction; the timeout wiring is now expressed twice, so a future change to the default timeout/backlog constructor must be kept in sync in both helpers.",
+      "New test `TestAuthorityFailureMetricUsesBoundedReasons` mutates `s.backlogFactory` after the initial failure assertion and asserts recovery \u2014 good, but no test asserts that `reserveBacklog`'s unbound factory path (`tenant=\"\"`) is exercised, leaving the reserve seam untested for the tenant-binding invariant."
+    ],
+    "NIT": [
+      "The `57014`/`statement timeout` fallback is checked before `errors.As(err, &netErr)`; ordering is fine today but unreachable for `*pgconn.PgError` users \u2014 consider a dedicated `errors.As(&pgErr)` branch for clarity and to avoid string matching on `\"57014\"`.",
+      "`TestAuthorityFailureMetricUsesBoundedReasons` uses `strings.Contains(..., \"edp_backlog_authority_errors_total{reason=\\\"internal_error\\\"}\")` without the value; the earlier exact-value assertion was relaxed, weakening the metric-shape check."
+    ],
+    "SUMMARY": [
+      "Delta resolves prior MAJORs (timeout precedence, request-only gauge, recovery assertion, textual markers) and cleanly splits `backlogFor` into `authorityBacklog`/`reserveBacklog`.",
+      "Main residual risk is the over-broad `\"tls\"` substring marker in `authorityReasonCode`, which can misclassify non-availability errors and pollute diagnostics; tighten the marker set.",
+      "Minor reuse/duplication between the two backlog helpers and an untested reserve seam are worth addressing but not blocking."
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "763e6e8cb1bf",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T08:39:32.299169+00:00",
+  "base_sha": "3cc2a8ae43c2997ad373cfe25a6b0d4de65a992f",
+  "head_sha": "eeb8b1bbbc5b703fbb924b63a8f25e84d721243c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`sys.stdout.reconfigure` mutates process-global stream state inside a per-record helper; once any gate record reconfigures stdout, all subsequent output in the process (other gates, tooling, test capture) inherits `errors=\"replace\"`, silently masking encoding defects elsewhere. Scope the reconfiguration to the specific print (e.g., wrap the rendered text) instead of the global stream, or document it as a process-wide invariant.",
+      "The blanket `except Exception: pass` around `reconfigure` gives no observability when reconfiguration fails; a debug-level log or comment on why failure is safe would keep the fail-open behavior auditable per ENGINEERING_OPERATING_STANDARD observability expectations."
+    ],
+    "NIT": [
+      "The `try/except` is nested inside an existing `try`; hoisting the reconfigure into the module's import/startup path would make the encoding policy a single explicit decision rather than a per-call side effect."
+    ],
+    "SUMMARY": [
+      "The delta is a one-line defensive encoding fix in `gate_decisions.py`; it does not affect residency ACs, which remain evidenced at HEAD.",
+      "Only concern is the global, silently-failing `stdout.reconfigure` side effect \u2014 low risk, worth scoping or documenting rather than blocking."
+    ]
+  },
+  "rereview_reason": "prior sha 6a062ecb0b75; UTF-8 gate package fix",
+  "rereview_reason_sha256": "f88c3426e17c686cee7d991456b7dff50e785f1c77fceb20abc5b52d8edb4c8a"
+}

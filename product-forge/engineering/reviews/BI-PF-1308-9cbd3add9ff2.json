@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "9cbd3add9ff2",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:25:37.504517+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Reversibility contradiction: COMPLIANCE object-lock retention is a one-way door (cannot be shortened or removed); the stated rollback (\"feature-flag lifecycle enforcement; degrade to no-op\") is invalid for that path. Design must define a gating order (GOVERNANCE-only behind flag, COMPLIANCE requires explicit gate), warn that ApplyLifecycle(COMPLIANCE) is irreversible, and prove no existing/backfill keys are touched by default.",
+      "Checklist 5 (invariants) unanswered: no ordering defined for ApplyLifecycle vs Put (pre-lock vs post-lock). A put-then-lock sequence leaves an unlocked window; a lock-then-put on S3 is not expressible the same way. Without a stated and tested ordering invariant, retention can silently fail to apply."
+    ],
+    "MAJOR": [
+      "Checklist 9 unanswered: \"key prefix/tenant guard\" is unspecified \u2014 is the tenant scope derived from the authenticated principal's claims or from a caller-supplied prefix argument? A caller-controlled prefix with a caller-supplied tenant id is a cross-tenant signed-URL leak. Must pin the trust source and add a negative test (tenant A cannot mint for tenant B's prefix).",
+      "Checksum identity unpinned: manifest \"checksum\" has no algorithm/version, and S3 multipart uploads produce ETags that are not content digests. Comparing manifest checksums to ETag will produce systematic false mismatch reports. Define SHA-256 (or similar) in the manifest schema, pin the algorithm in the report, and state how checksums are obtained (server-side checksum vs full body read).",
+      "Scanner completeness: no mention of List pagination/continuation tokens, prefix scoping, or handling of eventual consistency; unpaged List would silently report false \"missing\" entries. Add a tested invariant that every page is consumed and that the report distinguishes \"scan incomplete\" from \"missing\".",
+      "Reuse/ownership (recurring x2 MAJOR, \"wire fully\"): objpolicy.Mint is a new in-process API, but the design names no existing call sites to migrate (ad-hoc presign calls in s3store/handlers), and needs_api=false is asserted without proving no HTTP path currently mints URLs. Duplicate minting paths would bypass the TTL/prefix policy \u2014 the security boundary would be advisory. List the call sites, migrate them, and add a test that un-migrated paths cannot mint.",
+      "S3 conformance gated on PF_S3_ENDPOINT means the object-lock path is unverified in CI. Require a containerised S3-compatible target (minio/LocalStack) in CI or an S3 SDK stub asserting headers (x-amz-object-lock-mode/until, legal hold) and the missing-object-lock failure, so the enforcement path is fail-able.",
+      "Checklist 2/10 unanswered: no metrics/logs specified (e.g., reconcile drift counts, ErrUnsupported incidence, ApplyLifecycle failures, signed-URL mint rejections by reason). Drift that is only visible in a JSON report with no alerting path has no lead time."
+    ],
+    "MINOR": [
+      "Idempotency and concurrency of ApplyLifecycle undefined: repeated calls, or retention shortening attempts on S3 (rejected), should map to typed errors, not raw SDK errors.",
+      "Legal hold vs retention interaction unspecified: unlocking legal hold while GOVERNANCE retention remains should be tested; COMPLIANCE + legal hold release semantics should be stated.",
+      "Reconciliation report schema has no version field; a deterministic report without a version breaks downstream consumers on first change.",
+      "Local adapter \"fails closed when Immutable+TTL is requested\" \u2014 specify whether the failure is at Put time (typed error) and whether the same applies to plain Retention without Immutable; asymmetry here is a footgun.",
+      "Checklist 3: Mint is in-process, but the design should state that the policy package is the only privilege boundary for URL issuance (no provider credentials escape) to keep the authz story explicit."
+    ],
+    "NIT": [
+      "TTL bounds (30s/15m/5m) should live in one named constants block referenced by both policy and tests, not repeated literals.",
+      "ErrUnsupported should carry the provider name/capability string for diagnostics without string-matching by callers.",
+      "Deterministic JSON: state key ordering and float/int formatting explicitly to keep report bytes stable for diffing."
+    ],
+    "SUMMARY": [
+      "Design shape is right (optional capability interface, read-only scanner, central policy), but Gate-1 approval is blocked on two unanswered guardrails: an invalid rollback story for irreversible COMPLIANCE retention, and an unstated apply/put ordering invariant.",
+      "Tenant trust source for the signed-URL prefix guard and the checksum/ETag identity must be pinned before build, or the security boundary and drift report are both unreliable.",
+      "Ensure CL-006: these BLOCKER/MAJOR items must be dispositioned before Gate 1.5; embed findings + dispositions in the Gate 1 record."
+    ]
+  }
+}

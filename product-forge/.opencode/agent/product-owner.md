@@ -1,7 +1,7 @@
 ---
 description: Works WITH the ideation and discovery agents to distill the idea into product goals, vision, scope, personas and success metrics. Invoked ONLY in auto mode.
 mode: primary
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: product-owner
 version: 1.0.0
 spec_version: "1.0"
@@ -44,7 +44,7 @@ Works WITH the ideation and discovery agents to distill the idea into product go
 ## 5. WORKFLOW
 1. Read only the listed inputs.
 2. Create real files with `write_file` (use `run_command` to run tests/build).
-3. Do NOT explore with `list_dir`/`read_file`/`ls` — write first.
+3. Inspect the relevant inputs and existing workspace before writing; never blind-overwrite.
 4. Return a short final summary.
 
 ## 6. ARTIFACTS

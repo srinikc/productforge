@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "219b92621520",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:26:56.714490+00:00",
+  "review_scope": "delta",
+  "base_sha": "32c7bb39142105eb83c865c25edfb67b49b8e43b",
+  "head_sha": "a3f7bdc0f6075df1d6771d07908a8759c63d4fc4",
+  "findings": {
+    "BLOCKER": [
+      "CL-006 violated: all prior BLOCKER/MAJOR dispositions are still PENDING in this delta; Gate 1 approval is invalid until each is resolved or rejected, regardless of the SHA-pinned evidence.",
+      "HMAC key model still not coherently pinned: `design_pack.contracts.config` adds `PF_WEBHOOK_HMAC_KEY_REF` but `functional_spec.config_contract` (same delta) omits it, and no implementation control stores/binds the per-subscription `auth_ref` key (C-2 tests only signature shape; its `tenant_test` is registry lookup), so AC-2 tenant binding remains under-specified."
+    ],
+    "MAJOR": [
+      "Prior MAJOR only half-fixed: C-4 now correctly maps to AC-2, but C-3 (notify priority gate, FR-2) is still tagged `AC-2`; it must map to AC-3 (notify AC) \u2014 control/AC rows are out of sync inside this delta.",
+      "Evidence rows swapped: `coverage`/`traceability` map FR-2 (notify) \u2192 `webhook_test.go` and FR-3 (classification) \u2192 `notify_test.go`, contradicting `ac_evidence` (AC-3 \u2192 `notify_test.go`); the cited tests do not prove the FRs they are attached to.",
+      "`decisions` is re-emitted unchanged in the delta (\"other 4xx permanent\") while the unchanged `failure_matrix` still classifies 429\u2192RETRY, 409\u2192DUPLICATE_OK, 400/404/410/422 permanent \u2014 the emitted contract remains internally contradictory.",
+      "`functional_spec.traceability` (delta field) still cites `docs/EVENT-TRANSPORTS-DESIGN.md` as its own evidence for all four FRs while `ac_evidence`/`coverage` cite tests \u2014 the self-reference residual of the prior evidence blocker is unremediated and the three rows now disagree on evidence class."
+    ],
+    "MINOR": [
+      "`functional_spec.rollback` (\"remove transports/endpoint\") remains the short form while `design_pack.rollback` in the same delta requires disable-subscriptions, DLQ retention, and verified backup \u2014 rollback contract not in sync.",
+      "CL-011 partial: C-4/C-5/C-6 still record `tenant_test: N/A`, and no control/test pins the NOSUPERUSER/NOBYPASSRLS runtime role posture asserted in `security`.",
+      "All four FRs in the delta repeat identical `edge_cases`/`errors` ([\"missing SMTP\",\"409 duplicate\"]) regardless of transport, weakening FR-specific error contracts."
+    ],
+    "NIT": [
+      "`PF_NOTIFY_API_URL` default \"local API\" is not a concrete value (no host/port), leaving the config contract imprecise."
+    ],
+    "SUMMARY": [
+      "Delta improves evidence pinning (SHA + test paths) and adds the SSRF control (C-7), but it ships with all prior BLOCKER/MAJOR dispositions still PENDING, so Gate 1 is not approvable under CL-006.",
+      "Top risks: unsynced webhook key/config contract (AC-2 tenant binding), mis-mapped control and FR-to-test rows, and a failure-classification contract that still contradicts itself.",
+      "Next step: fix mappings and config desync in one delta, resolve each PENDING disposition, then re-run Gate 1."
+    ]
+  },
+  "rereview_reason": "Delta for prior 4ad12028dd7d: HMAC model, AC mapping, failure policy, SSRF control, evidence",
+  "rereview_reason_sha256": "ebb1784d183b8ee71f59533e770fd60e934deef15aacf59b04145f2a2a46e3d3"
+}

@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "1c885b3c3a42",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T15:59:09.168641+00:00",
+  "base_sha": "",
+  "head_sha": "4d383601f1e460e03c5d25e68168ada914491806",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "last_reviewed_HEAD derivation is contractually vague: invariants define first-vs-subsequent review, and 'no shared last_reviewed_head pointer', but not how the delta base is derived (presumably latest evidence head per item). Unspecified behavior when the stored head is not an ancestor of HEAD (rebase/force-push) or prior evidence is corrupt/unreadable \u2192 ambiguous fail-closed vs full-review fallback. Add explicit invariant + failure-matrix cases (EVIDENCE_UNREADABLE, DELTA_BASE_DIVERGED).",
+      "empty_delta_rule trusts path+header/schema classification of excluded files; a static header or valid-JSON payload under engineering/** or data/backlog/** can hide review-relevant content from the delta diff. Schema checks must be semantic (required keys, record shape, size bounds), and any executable content under excluded paths should be a hard fail, not just 'malformed' fail.",
+      "Concurrency control is declarative only ('single writer per AGENTS; concurrent sessions forbidden') with no enforcement (no lockfile/PID guard). Two sessions sharing a working tree can interleave worktree+untracked encoding scans and evidence writes, silently producing wrong candidate keys.",
+      "Generated engineering/design/<ID>.md has no drift gate: item.design_pack (source of truth) and the committed generated MD can diverge after edits; rollback assumes the MDs are deletable but CI never proves regenerated output matches committed content. Add a render-and-compare check in Gate 1/precheck."
+    ],
+    "MINOR": [
+      "Encoding gate exclusion list is path-based, unlike the content-verified empty_delta_rule \u2014 inconsistent trust model; reuse excluded_content_check for encoding exclusions too.",
+      "failure_matrix lacks design-pack version-mismatch case (item pack version 1 during enforce_from migration vs config required version 2) and encoding-gate case for unreadable/binary files.",
+      "'T2/T3 require 1.5/1/2.5/2' is opaque shorthand; spell out the gate mapping (Gate 1, Gate 1.5, Gate 2.5, Gate 2) to avoid gate-selection drift.",
+      "Redaction says 'reason text is redacted' while delta re-review reason feeds the prompt/evidence \u2014 state explicitly what the prompt sees vs what is persisted to avoid contradictory contracts.",
+      "Observability is stderr/exit only; emit one machine-readable JSON gate result per run for the trail (cheap, enables final-report metrics already promised)."
+    ],
+    "NIT": [
+      "Encoding scan of committed base..HEAD duplicates worktree scan for files unchanged in the worktree; scope to index+worktree+untracked plus deleted-skip for perf.",
+      "'One 1.5/2.5 per candidate' plus head-scoped candidate keys means data-noise commits still mint candidates; the empty-diff rule mitigates, but consider deduping candidates with empty review-relevant diff entirely."
+    ],
+    "SUMMARY": [
+      "Sound design overall: delta binding, evidence integrity via excluded_content_check, explicit guardrails/CL mapping, and revert-only rollback are enterprise-appropriate for tooling.",
+      "Top risks: unspecified delta-base derivation under rebase/corrupt evidence, spoofable path/header-based exclusions, unenforced single-writer assumption, and generated design-doc drift.",
+      "All are addressable with added invariants, failure-matrix cases, and a render-and-compare gate without scope expansion."
+    ]
+  },
+  "rereview_reason": "excluded-content verifier + content-class rules; final design review",
+  "rereview_reason_sha256": "96809c0c533cc84ff69a2d800db15d15ca8993a601d3361e171fc79307844caf"
+}

@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1546",
+  "sha": "d082f6deed5a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-19T11:09:25.339567+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "493ed6c894613394e8dfce958a03c3b4924b62f3",
+  "findings": {
+    "BLOCKER": [
+      "AC-1 unmet: no fail-able tests for retry-with-backoff/status gating, cursor recovery (stale 'processing' reclaim), or concurrent passes; only matching/dedupe/DLQ exist.",
+      "DLQ coverage is solely in a `PF_DB_DSN`-gated test that skips by default, so it is not fail-able in CI; traceability claims all three ACs to this one skipping file.",
+      "AC-3 evidence absent from diff: no store-registry/ownership record and no ADR-0012 reuse/amendment shown for event delivery/DLQ ownership."
+    ],
+    "MAJOR": [
+      "AC-2 requires \"metrics/logs\": diff emits metrics only; no log lines for delivery failure, DLQ, stale reclaim, or cross-tenant collision.",
+      "Failure isolation gap: a backing-off or non-stale 'processing' head event does `return st, nil`, halting the entire pass \u2014 head-of-line blocking up to StaleAfter (5m default) starves all later events.",
+      "Cross-tenant collision rejection (control C-2) ships with no positive/negative test in `event_dispatcher_test.go`; `UpsertSubscription` `n==0` path is untested.",
+      "Verified-backup requirement for 0026 rollback is only a SQL comment; no documented/verified backup-restore procedure accompanies the destructive down migration."
+    ],
+    "MINOR": [
+      "Deploy ordering risk: `beginDelivery` INSERT now references `created_at`; code-live-before-0026 (or 0026 rollback while code deployed) breaks every dispatch pass.",
+      "`event_subscriptions.go` adds `fmt.Errorf` with no import hunk in the diff \u2014 verify the package builds.",
+      "Confirm `EventStore.metrics` defaults to `nopEventMetrics` (or all constructors call `WithMetrics`); four new call sites in `DispatchOnce` panic if nil.",
+      "`matchesFilter` uses `fmt.Sprint` coercion (`\"1\"` matches numeric `1`) and re-parses JSON per subscription per event; no test for type-coercion/nested-key semantics.",
+      "Reclaimed/stale and DLQ'd-then-advanced rows are all counted/emitted as `DeliverySkipped`, muddying observability."
+    ],
+    "NIT": [
+      "`StaleAfter` is an undocumented knob (no comment on semantics/ops tuning) alongside `MaxAttempts`/`BaseBackoff`.",
+      "`actionAdvance` on `failed` status increments `Skipped` rather than a distinct dedupe counter."
+    ],
+    "SUMMARY": [
+      "Behavior changes (state gating, atomic cursor+delivery, cross-tenant error) are directionally right, but AC-1 test coverage and AC-3 evidence are objectively missing, and AC-2's \"logs\" half is unimplemented.",
+      "Top risks: skipping integration test masks DLQ proof in CI; pass-halting on retry/stale rows threatens availability; missing backup procedure for a destructive rollback."
+    ]
+  }
+}

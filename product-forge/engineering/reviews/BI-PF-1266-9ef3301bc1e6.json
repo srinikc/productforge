@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1266",
+  "sha": "9ef3301bc1e6",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T17:50:49.798167+00:00",
+  "review_scope": "delta",
+  "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Rollback says \"restore the projection\" but gives no regeneration source or freshness bound after the Go writer stops; invariant 8 bars Python from writing authority, so if PostgreSQL is unavailable (the fail-closed trigger) events.jsonl cannot be rebuilt and the read path reverts to stale data \u2014 reversibility guardrail (CL-008 item 1) not fully answered.",
+      "`design_pack.contracts.files` is now empty while AC-1 requires frozen contracts; the file-level surface was moved to `contract_surface_future` (labelled future), leaving no frozen file contract for the facade/projection seam at Gate 1."
+    ],
+    "MINOR": [
+      "`design_pack.version` stays `1` despite substantive additions (failure_matrix rows, ownership_registration, decisions, contract_surface_future); approval audit cannot distinguish which version was accepted.",
+      "`config/store-registry.json` is declared in `design_pack.dependencies` but its registration entries only land in BI-PF-1268/1269; mark it a deferred dependency so Gate 1.5 does not assume evidence that does not yet exist.",
+      "Rollback ambiguity compounds the still-PENDING prior MAJOR disposition (CL-006: approval invalid while any MAJOR is PENDING)."
+    ],
+    "NIT": [
+      "`spec_pack` and `functional_spec` are listed in `changed_fields` but their delta content is byte-identical to context (`functional_sha` unchanged) \u2014 scope noise for reviewers.",
+      "Guardrail 4 bound (\"dry-run bounded to 1000 events\") covers event rows only; the retention/object-GC path (`EVENT_PAYLOAD_STILL_REFERENCED`) has no explicit delete bound or dry-run mode."
+    ],
+    "SUMMARY": [
+      "Delta resolves most prior findings: retention control added to failure_matrix, config_contract now APPLICABLE, traceability includes BI-PF-1268/1269 tests, SLO enablement and ownership registration notes added, contracts.files separated into future surface.",
+      "No blockers; AC-1/AC-2 evidence (ADR, migration matrix, resolved Q1-Q5, ownership rows) is present.",
+      "Top risks: rollback projection-restore mechanism underspecified against the no-Python-writer invariant, and unresolved prior MAJOR dispositions must be closed before CL-006-valid Gate 1 approval."
+    ]
+  },
+  "rereview_reason": "Second design delta for prior 886051fa010e and fa50497939a7 findings",
+  "rereview_reason_sha256": "3bcf2e5e6310c1cfab58e1625f965a5f6243a19800a017b13f0debc186383f47"
+}

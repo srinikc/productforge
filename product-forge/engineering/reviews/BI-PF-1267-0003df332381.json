@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "0003df332381",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-14T05:40:30.216669+00:00",
+  "review_scope": "delta",
+  "base_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+  "head_sha": "7358e25549d6dd45c336105e5f6a09cbda3651f3",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "review.reconciliation.assumptions B3 says the `seq` writer stays in `core/events.py`, contradicting the binding invariant/decision that seq is assigned by the Go/PostgreSQL event core; this also implies new shipped Python logic under the language rule.",
+      "Three Go contract-shape surfaces are now in play (existing `go/contract/contract.go`, `go/pfcore/pfcore.go` contractShapes, new `go/pfcore/contracts.go`); no consolidation or statement of which surface parity tests pin vs. which runtime uses \u2014 drift risk defeats AC-1.",
+      "`config_contract` mandates WEBHOOK_HMAC_KEY_REF startup validation fail-closed, but this item has no runtime component and, unlike metrics (deferred to BI-PF-1270/1274), no implementing artifact or deferred owner is named."
+    ],
+    "MINOR": [
+      "Open question requires parity coverage of cursor ordering, but test_matrix has no named cursor-ordering test.",
+      "Row 3 (constant-time HMAC/idempotency) evidence omits `go/pfcore/contracts.go` despite the open question requiring signature-verification parity across Python/Go.",
+      "design_pack.security repeats near-identical HMAC/tenant bullets (concatenated revisions), obscuring the actual control set."
+    ],
+    "NIT": [
+      "functional_spec.observability and design_pack.observability are verbatim duplicates; ADR-0005 (prior_decisions) and ADR-0011 (assumptions) are cited without cross-reference."
+    ],
+    "SUMMARY": [
+      "Delta closes the prior BLOCKER (impact verdict now \"aligned\") and the config-contract, rollback, CL-011, observability-owner, spec evidence, and webhook-parity-row findings; prior NIT unchanged and not reopened.",
+      "Top residual risks: seq-writer contradiction on a P0 invariant, fragmented Go mirror surfaces vs. declared file, and unowned fail-closed startup validation."
+    ]
+  },
+  "rereview_reason": "Delta design fixes for prior 6996429ccf34 and 04038c3c0c10 findings",
+  "rereview_reason_sha256": "09737477a051e090284e29308f30e1082c80b5c5c8e3fa517dadc609edaa1800"
+}

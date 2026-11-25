@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1556",
+  "sha": "1472cc83e027",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-22T11:05:23.179709+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+  "findings": {
+    "BLOCKER": [
+      "The `design_pack.status` is 'in_progress', contradicting the 'approved' status in `functional_spec.status` and `spec_pack.status`, indicating a regression of a prior BLOCKER."
+    ],
+    "MAJOR": [
+      "The `rollback_orchestrator.py` is located in `scripts/dev/`, which is an inappropriate path for critical production deployment tooling. This impacts operational rigor and maintainability.",
+      "Resource quotas (CPU, memory) for the `rollback_orchestrator.py` itself are not defined, only for the deployed API service. This critical component needs explicit resource guarantees for reliability."
+    ],
+    "MINOR": [
+      "The `design_pack.learnings` mentions \"Automated contract synchronization prevents gate schema divergence\", but the design does not detail how this is implemented or enforced for this project.",
+      "The `design_pack.observability.logs` path `data/evidence/rollbacks/` suggests local file storage, which is not ideal for enterprise-grade centralized logging and long-term retention."
+    ],
+    "NIT": [
+      "The `design_pack.ownership` states `owner: ops`, while `functional_spec.owner` and `spec_pack.owner` state `eng:devops`. Consistency in ownership declaration is preferred."
+    ],
+    "SUMMARY": [
+      "The design outlines a robust automated rollback mechanism with strong adherence to non-destructive operations and tenant isolation.",
+      "Key areas for improvement include resolving the regression in design status, formalizing the orchestrator's location and resource allocation, and enhancing logging for enterprise observability.",
+      "The project demonstrates good coverage of security, reliability, and data integrity aspects."
+    ]
+  }
+}

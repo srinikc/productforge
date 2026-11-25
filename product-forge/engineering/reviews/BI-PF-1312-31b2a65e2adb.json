@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "31b2a65e2adb",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`audit_hold_guard` inserts the spoliation event and then `RAISE EXCEPTION` in the same transaction: the raise rolls back the event insert, so `audit_hold_after_purge_total`'s DB evidence is never persisted, and no Go path ever increments `MetricHoldAfterPurge` (or InsertOutOfRange/ProvisionSeconds/LateInsert/HoldExtractFailed) \u2014 AC \"rejected and emits\" is unmet.",
+      "AC's hold-reconcile flow (hold placed AFTER archive \u2192 restore to scratch, extract, verify) has no implementation in Go or SQL; `audit_approve_purge`/`audit_drop_partition` only reject active holds, they never reconcile already-archived months.",
+      "`VerifyHoldExtraction` digest-compare breaks with more than one hold on a month: the archive stores one copy per hold, so `archSum != liveSum` even when extraction is complete \u2014 retention is permanently blocked for multiply-held months.",
+      "No EDP service startup check or ops cron emitting `audit_partition_months_ahead` / `audit_partition_low_coverage_total` appears in the diff; only the `pfaudit-retention coverage` CLI does, so the AC's non-fatally-surfaced stale-coverage alert is unwired.",
+      "No statement-level TRUNCATE deny trigger exists on `audit_partitioned` or `audit_legal_hold_archive` (only on the two events tables); `REVOKE TRUNCATE` is ineffective for the owner, so `pf_owner` can still wipe the audit journal.",
+      "`CheckSSE` unconditionally rejects bare `\"aws:kms\"`, which is exactly what `DefaultSSE()` returns whenever `PF_S3_BUCKET` is set without a KMS key \u2014 S3 archive/backup is dead-on-arrival unless `PF_S3_KMS_KEY` is set, contradicting the comment \"defaults to AES256\".",
+      "AC's `audit_late_YYYYMM` bounded late partitions were dropped entirely (late rows go into the canonical month); the \"strictly below grace, non-overlapping, cannot satisfy coverage\" requirement and its tests are silently unimplemented."
+    ],
+    "MINOR": [
+      "`PurgeMonth` re-run resets the purge timestamp (`audit_mark_purged` unconditionally sets `purged_at = now()`), silently restarting the audit clock on resume after a partial failure.",
+      "`Append`'s 23514 classification matches on the English substring \"no partition of relation\" \u2014 locale/version fragile; a stable SQLSTATE+constraint-name check would be robust.",
+      "`Rehearsal` comment claims RLS policies are asserted in the dump listing, but only table and sequence names are checked.",
+      "AC \"fresh-install (empty audit, setval to 1) case tested\" has no test; \u00a717's early RETURN on a fresh install is unexercised.",
+      "The integration test attaches a partition with a raw `CREATE TABLE ... PARTITION OF`, contradicting the \"attach is the only supported path\" invariant the same suite enforces elsewhere.",
+      "`Rehearsal`/`backup` shell out to `age` and `pg_restore` with no version/path pinning or existence check surfaced early \u2014 an ops box without them fails at the worst moment (post-swap close gate).",
+      "`audit_provision` comment says \"the trigger is cloned onto every leaf\"; it is only on the parent \u2014 misleading for future hardening changes.",
+      "Unknown-size S3 puts leave `Info.Checksum`/`Version` empty; nothing verifies the backup object's integrity at rest (only size > 0)."
+    ],
+    "NIT": [
+      "`architect-review.json` reformatting (arrays exploded) is unrelated churn in a config gate file.",
+      "`emitMetrics`/`activeMetrics` globals in `pfaudit-swap` are redundant with the `fail()` parameter already carrying state; a plain struct field would do.",
+      "`metrics.go` `Inc` creates the counter under lock then increments atomically outside \u2014 correct but the map-of-pointers design invites a copy bug later.",
+      "`TestUnhardenedLeafDetected` uses `2100 + nano%200` as a year to dodge collisions; a UUID-suffixed month with an explicit teardown would be less surprising."
+    ],
+    "SUMMARY": [
+      "Solid substrate: ensure-based DDL, catalog-driven swap resume, bounded S4 freeze with in-lock delta re-count, and privilege-enforced hardening are genuinely well designed and tested.",
+      "Top risks are legal/compliance completeness rather than mechanics: the spoliation event is rolled back with the rejected insert, hold-reconcile is entirely missing, multi-hold months wedge retention, and the coverage/late-insert observability ACs are uninstrumented.",
+      "The SSE-KMS fail-closed logic is self-contradictory (S3 archives cannot currently be written without a KMS key despite the \"AES256 default\" contract), and owner-level TRUNCATE remains possible on the audit journal.",
+      "Recommend closing the AC gaps above before Gate sign-off; the core swap/retention architecture itself is sound."
+    ]
+  }
+}

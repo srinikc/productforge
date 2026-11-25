@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "c5553e8ff7cd",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T09:13:38.899877+00:00",
+  "review_scope": "delta",
+  "base_sha": "980053be6c2877d6094bbdefaed8654188f64e1c",
+  "head_sha": "e76fbc45c6e3b80e6359819631595dd927fe7a85",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`memoryAudit.Audit` now spawns an unbounded goroutine per event (`go func(...)`) with no semaphore/worker pool; a burst of /memory ops can fan out unbounded 2s-timeout DB appends and exhaust the PgStore pool, converting audit-store slowness into an availability incident.",
+      "The detached audit goroutine is not drained on shutdown (no WaitGroup/handoff), so in-flight security audit records are silently dropped at process exit; combined with best-effort logging this weakens the AC-1 \"structured audit\" evidence contract under rolling deploys.",
+      "`TestRolePostureBypassRejected` delta only asserts `relforcerowsecurity`; the C-8 control also requires NOSUPERUSER/NOBYPASSRLS for the connecting role, which the test still never checks \u2014 a superuser/`rolbypassrls` connection still passes, so the prior bypass-evidence gap is only half-resolved."
+    ],
+    "MINOR": [
+      "Audit `Resource` format changes from `recordID` to `projectID + \"/\" + recordID` with no compatibility note; downstream consumers keying on record ID will break silently (audit schema/join contract change shipped without versioning).",
+      "The async path has no test: no coverage that `memory_audit_failures_total` is incremented or that the failure log fires, so the new observability path can regress undetected.",
+      "Failure log prints tenant/project/actor/record at `log.Printf` default level on every retry-less failure; consider structured logger/redaction policy consistency with the design's \"no secrets\" audit rule."
+    ],
+    "NIT": [
+      "The goroutine closure duplicates the previously extracted audit context setup inline; a small named helper would keep the fire-and-forget path reusable and testable."
+    ],
+    "SUMMARY": [
+      "Delta usefully resolves the two prior MAJORs on synchronous/discarded audit errors and strengthens the FORCE-RLS assertion, but replaces them with unbounded fire-and-forget goroutines and no shutdown drain \u2014 audit durability is now probabilistic.",
+      "Top risks: audit-path resource exhaustion under load, silent audit loss at shutdown, and C-8 role-posture evidence still not proving NOSUPERUSER/NOBYPASSRLS."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-8e78149685b1; audit failures observable, async sink, forced RLS proof",
+  "rereview_reason_sha256": "7f75e0d62b7f719ff8009a7b15fb301a3cf616c56ecaf1f8f4f547d7d66655bc"
+}

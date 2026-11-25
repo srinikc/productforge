@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "fdc98620ba7f",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:00:49.788527+00:00",
+  "review_scope": "delta",
+  "base_sha": "80db7d256bcda931bb1ae63a093a8e1ce876e65f",
+  "head_sha": "c8b6713b8bfe8b1880119cd7f1431fbb4f09d56b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-2's enforcement point is absent from the delta: `contracts.files` and `runtime_contract.adapter` name only `core.backlog.material_change_errors` (HIL/decision), while `failure_behavior` claims \"reject invalid HIL/SHA\" \u2014 the reviewed-ancestor/--since SHA check lives in `scripts/dev/architect_review.py` + `review_budget.py` with no stated validation owner, fail-closed behavior, or reason-cites-latest-SHA contract row.",
+      "`runtime_contract.call_sites` lists \"architect_review run --rereview\" but never names the `--since` input from FR-2/AC-2, so the AC-2 contract row cannot be traced to a design row updated in this delta (guardrail: AC change must update matching rows in the same delta)."
+    ],
+    "MINOR": [
+      "`contracts.api` was edited in this delta but still records only the path \u2014 method (POST), operator authn/authz, and scope resolution are not restated in the contract row (checklist item 8: needs_api contracts in sync).",
+      "Rollback says \"retain core.backlog validation ... so the suite stays green\" while removing the route: post-rollback `material_change_errors` has no shipped caller, and the design does not state which tests in `tests/test_review_material_change.py` are route-dependent (would fail) vs core-level (survive).",
+      "Prior findings' dispositions remain PENDING; the delta appears to address the language-rule BLOCKER and design-row MAJORs (module dropped, `core/backlog.py` single source stated) but dispositions must be recorded before Gate 1 approval per CL-006."
+    ],
+    "NIT": [
+      "`dependencies` uses bare `architect_review.py` while `affected_files` uses `scripts/dev/architect_review.py`; align identifiers so file-level traceability is unambiguous."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior language-rule BLOCKER (no new shipped module; validation consolidated in `core/backlog.py`) and the design-row sync MAJORs, pending disposition recording.",
+      "Top remaining risks: AC-2's --since validation ownership and fail-closed contract are undefined in the delta, and rollback's test-retention claim is ambiguous.",
+      "No security, data-loss, or AC-unmet blocker found in the changed fields."
+    ]
+  },
+  "rereview_reason": "Delta for prior f28dd975eec7: validation in core.backlog, contracts synced",
+  "rereview_reason_sha256": "e945e765dac1c4f5aa5a3ac95de5979a7d32b8c1585ae2e7c9f118cdb370781c"
+}

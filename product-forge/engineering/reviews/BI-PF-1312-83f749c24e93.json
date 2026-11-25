@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "83f749c24e93",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`audit_provision()` can never provision: PostgreSQL fires BEFORE ROW triggers on the LEAF after tuple routing, so a missing month raises 23514 in the executor before any trigger runs, and the `TG_TABLE_NAME <> audit_parent()` guard early-returns on the leaf anyway. In-DB provisioning, the lock-free fast path and the 42P07 swallow are dead code (the trigger is also not cloned onto leaves attached later); the ADR/docs advertise a safety mechanism that does not exist and the AC is unmet.",
+      "`RequireUnfilteredVisibility` fails open: it accepts any table owner provided an `owner_bypass` policy merely exists, without checking `current_user` is a member of `pf_owner`. Under FORCE RLS a non-pf_owner owner reads 0 rows on both sides, so CopyBatch copies nothing, Verify/PostVerify compare empty-to-empty and pass, and the swap commits with the live `audit` empty and all evidence stranded in `audit_legacy`."
+    ],
+    "MAJOR": [
+      "edpsvc reimplements coverage/staleness logic (`coverageStatus`, `readCoverage`, metric emission, 48h default) instead of calling `pfaudit.CheckCoverage`/`EmitCoverage`, even though the `productforge/pfaudit` replace was added to edpsvc/go.mod; duplicated metric names and staleness semantics will drift.",
+      "`PurgeMonth` marks the month purged BEFORE deleting objects, and `audit_purge_candidates` excludes purged months, so a crash between mark and delete leaves cold evidence permanently unmanaged (no job retries) and a later restore of a \"purged\" month still succeeds \u2014 the irreversible-purge invariant is inverted.",
+      "Streamed (`size == -1`) puts in s3store skip checksum/version entirely; `backup()` then skips its store-vs-local digest comparison (`info.Checksum != \"\"`), so the S1 encrypted dump's integrity against the object store is never proven.",
+      "`ExportMonth` writes the full plaintext NDJSON of every tenant to `os.CreateTemp` (often shared/ephemeral /tmp) before upload; enterprise evidence handling expects no plaintext at rest outside the SSE-protected object."
+    ],
+    "MINOR": [
+      "edpdata `Append` classifies 23514 by localized error text (`strings.Contains(err.Error(), \"no partition of relation\")`); locale/wording changes silently disable the heal \u2014 prefer SQLSTATE plus a provisioned-month check.",
+      "`PlaceHold` mirrors spoliation by string-matching `\"purged\"` in the driver error; same fragility for a compliance metric (`audit_hold_after_purge_total`).",
+      "0014 down drops every primitive except `audit_coverage_status()`, leaving a live SECURITY DEFINER function referencing dropped tables after a rollback.",
+      "The retention cron runs `check` without `--strict`, so stale/low coverage always exits 0 and only lands in a log file \u2014 there is no alerting hook for the AC's \"raise a stale-job alert\".",
+      "`RestoreMonth`/`ReconcileHolds` leave the `audit_restore_YYYYMM` scratch table (containing audit rows) behind when extraction/verify fails; nothing tracks or reaps it.",
+      "`TestUnhardenedLeafDetected` creates year-2100+ leaves that persist for the life of the test DB, permanently skewing coverage and partition scans in subsequent runs."
+    ],
+    "NIT": [
+      "0014 creates partitions through `current+horizon-1` (default current+2) while the AC text says `current+3` \u2014 confirm the intended horizon semantics.",
+      "`audit_provision`'s archived-month check and 42P07 branch duplicate logic already owned by `audit_attach_partition`/`audit_ensure_partitions`; remove once the trigger's role is corrected.",
+      "`checkAuditCoverage` runs before `ListenAndServe` and can block startup for up to 10s against an unreachable DB."
+    ],
+    "SUMMARY": [
+      "The substrate is unusually thorough (catalog-driven state, gated down, two-stage retention, hold reconcile, real integration coverage), but two fail-open mechanisms undermine its core promises.",
+      "The advertised in-database insert provisioning is unreachable under PostgreSQL's route-then-fire trigger semantics, and the swap's visibility precheck can pass while reading zero rows \u2014 either can silently produce an \"empty\" live audit.",
+      "Required before merge: make the visibility precheck require pf_owner membership/BYPASSRLS, and either implement provisioning via a routing-safe path or correct the AC/ADR/docs to rely solely on the Go heal.",
+      "Secondary risks: purge mark-before-delete ordering, unverified streamed backups, plaintext temp export, and duplicated coverage logic in edpsvc."
+    ]
+  }
+}

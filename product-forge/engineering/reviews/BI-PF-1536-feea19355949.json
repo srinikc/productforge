@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "feea19355949",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-14T10:23:42.355159+00:00",
+  "review_scope": "delta",
+  "base_sha": "124a5736f4feba019388c2b880cbcde918fd660f",
+  "head_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta introduces control dependencies (`core/backlog.py`, `scripts/dev/gate2_completion_check.py`) but leaves `contracts.files`/`affected_files` unchanged, so the AC-3 anti-bypass control has no declared file/evidence row in the same delta (guardrail: matching rows must update together)."
+    ],
+    "MINOR": [
+      "`coverage` has no row for AC-2's tests (`test_shared_selector_used_for_reviews`, `test_architect_review_uses_shared_selector`) that `test_matrix` lists \u2014 coverage/test_matrix diverge on a new AC.",
+      "`functional_spec.traceability`/`requirements` contain only FR-1/FR-2; AC-2 (shared deterministic helper with tests covering both callers) maps to no requirement or traceability row.",
+      "Delta `observability` rows emit only `skipped_closed=<n>`; no emitted signal is specified for the mtime fallback, which AC-3 requires to be explicit and observable.",
+      "`functional_spec.dependencies` (only `BI-PF-1243`) is not synced with the expanded `design_pack.dependencies` in the same delta."
+    ],
+    "NIT": [
+      "AC-2 architect-review tests are named and placed in `test_fix_guard.py` with no architect-review test file declared in `contracts.files`.",
+      "`functional_spec.data_lifecycle` states \"No runtime data\" while the selector reads on-disk review evidence files."
+    ],
+    "SUMMARY": [
+      "Delta resolves several prior findings (contradicting `risks` tamper row removed, observability wording unified, `adapter` now names `core/backlog.py`, AC-1 coverage row synced).",
+      "Verdict: sound design direction; top residual risks are the undeclared file rows for the close-guard control dependency and incomplete AC-2 traceability/coverage."
+    ]
+  },
+  "rereview_reason": "Final design delta for prior 853440c5f155 and 10078bffa592",
+  "rereview_reason_sha256": "e2b67b2883cb648aa54de5f093f3b3c6b97ccebeac46c39b0bcc71d80ad96490"
+}

@@ -35,6 +35,8 @@ def _bare(tmp: Path) -> Path:
 def _repo(proj_dir: Path, origin: Path = None) -> Path:
     proj_dir.mkdir(parents=True, exist_ok=True)
     _git(proj_dir, "init", "-q")
+    _git(proj_dir, "config", "user.email", "t@t")
+    _git(proj_dir, "config", "user.name", "t")
     _git(proj_dir, "checkout", "-q", "-b", "develop")
     (proj_dir / "a.txt").write_text("base\n", encoding="utf-8")
     _git(proj_dir, "add", "a.txt")
@@ -49,8 +51,9 @@ def _wg_branch(proj_dir: Path, iid: str, origin: Path = None) -> str:
     v = VCSManager(str(proj_dir))
     br = v.feature_branch_name("wg", iid)
     _git(proj_dir, "checkout", "-q", "-b", br)
-    (proj_dir / "a.txt").write_text("base\nfeature\n", encoding="utf-8")
-    _git(proj_dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "feat")
+    (proj_dir / "feature.txt").write_text("feature\n", encoding="utf-8")
+    _git(proj_dir, "add", "feature.txt")
+    _git(proj_dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "feat")
     if origin is not None:
         _git(proj_dir, "push", "-u", "origin", br)
     _git(proj_dir, "checkout", "-q", "develop")
@@ -84,7 +87,7 @@ def test_deliver_push_ref_advances_develop_without_touching_live_tree(tmp_path, 
         r = delivery.deliver("project", _PROJ, iid)
         assert r["ok"] is True and r["method"] == "push-ref", r
         # develop advanced on the remote ...
-        out = subprocess.run(["git", "--git-dir", str(origin), "show", "develop:a.txt"],
+        out = subprocess.run(["git", "--git-dir", str(origin), "show", "develop:feature.txt"],
                              capture_output=True, text=True)
         assert "feature" in out.stdout, "remote develop has the merged change"
         # ... and the live tree's branch was never switched

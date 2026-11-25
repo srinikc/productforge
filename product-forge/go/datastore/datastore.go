@@ -10,9 +10,13 @@ package datastore
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 )
+
+// ErrNotFound is the shared not-found sentinel for storage ports.
+var ErrNotFound = errors.New("datastore: not found")
 
 // Capabilities declares optional provider features. Never assume a provider supports them; adapters report
 // their real capabilities and callers degrade explicitly (ADR-0006 "provider portability = tested contracts").
@@ -54,8 +58,17 @@ type Rows interface {
 type PutOptions struct {
 	ContentType string
 	Checksum    string
-	Immutable   bool
-	Retention   time.Duration
+	// Immutable asks the adapter not to replace an existing object with DIFFERENT content (local) and to
+	// keep versions (S3). It is NOT a retention lock: set Retention/RetentionMode for object lock.
+	Immutable bool
+	Retention time.Duration
+	// RetentionMode is GOVERNANCE (default) or COMPLIANCE. COMPLIANCE requires Immutable=true,
+	// ComplianceOptIn=true and cannot be shortened or removed once applied.
+	RetentionMode   string
+	ComplianceOptIn bool
+	// ServerSideEncryption requests provider-managed encryption (e.g. "aws:kms"); adapters that cannot
+	// honour it MUST reject the write rather than silently store plaintext.
+	ServerSideEncryption string
 }
 
 type ObjectInfo struct {
@@ -64,6 +77,78 @@ type ObjectInfo struct {
 	Checksum    string
 	ContentType string
 	Size        int64
+}
+
+// LifecyclePolicy is the requested object-lock state. Mode is GOVERNANCE or COMPLIANCE; COMPLIANCE cannot
+// be shortened or removed once applied (one-way door - callers must opt in explicitly).
+type LifecyclePolicy struct {
+	Mode             string // GOVERNANCE | COMPLIANCE (COMPLIANCE cannot be shortened/released)
+	RetainUntil      time.Time
+	LegalHold        bool
+	ReleaseLegalHold bool
+	// ComplianceOptIn must be true for Mode=COMPLIANCE: the one-way door is never implicit.
+	ComplianceOptIn bool
+}
+
+// LifecycleState is the effective object-lock state reported by a provider.
+type LifecycleState struct {
+	Mode        string
+	RetainUntil time.Time
+	LegalHold   bool
+	Versioning  bool
+}
+
+// ErrUnsupported is returned by adapters that cannot honour a requested capability (fail closed).
+var ErrUnsupported = errors.New("datastore: capability unsupported")
+
+// ErrImmutable is returned when an immutable object would be replaced by different content.
+var ErrImmutable = errors.New("datastore: immutable object exists with different content")
+
+// ErrInvalidPolicy marks caller policy errors (missing mode, conflicting flags, missing COMPLIANCE opt-in).
+var ErrInvalidPolicy = errors.New("datastore: invalid lifecycle policy")
+
+// UnsupportedError carries the provider and capability for diagnostics while matching ErrUnsupported.
+type UnsupportedError struct {
+	Provider   string
+	Capability string
+}
+
+func (e *UnsupportedError) Error() string {
+	return "datastore: " + e.Provider + " does not support " + e.Capability
+}
+
+func (e *UnsupportedError) Is(target error) bool { return target == ErrUnsupported }
+
+// PartialApplyError reports which lifecycle step succeeded before a later step failed.
+type PartialApplyError struct {
+	Applied string
+	Err     error
+}
+
+func (e *PartialApplyError) Error() string {
+	return "datastore: partial lifecycle apply (" + e.Applied + "): " + e.Err.Error()
+}
+func (e *PartialApplyError) Unwrap() error { return e.Err }
+
+// LifecycleCapable is an OPTIONAL capability: providers that support object lock/retention implement it.
+// Look it up with Lifecycle(store) instead of asserting it unconditionally.
+type LifecycleCapable interface {
+	ApplyLifecycle(ctx context.Context, key, version string, policy LifecyclePolicy) error
+	ObjectLifecycle(ctx context.Context, key, version string) (LifecycleState, error)
+}
+
+// Lifecycle returns the provider's lifecycle capability, if any.
+func Lifecycle(store ObjectStore) (LifecycleCapable, bool) {
+	if !store.Capabilities().ObjectLock {
+		return nil, false
+	}
+	lc, ok := store.(LifecycleCapable)
+	return lc, ok
+}
+
+// PrefixLister is an OPTIONAL paginated listing capability (bounded memory scans).
+type PrefixLister interface {
+	ListPage(ctx context.Context, prefix, marker string, limit int) ([]ObjectInfo, string, error)
 }
 
 type ObjectStore interface {
@@ -109,6 +194,10 @@ type MemoryEntry struct {
 	Kind      string
 	ObjectRef string
 	ACLScope  string
+	Content   string
+	Source    string
+	Owner     string
+	Score     float32
 	Embedding []float32
 }
 
@@ -124,6 +213,10 @@ type MemoryScope struct {
 	TenantID string
 	Project  string
 	Source   string
+	ACL      string    // optional acl_scope filter (legacy `source` values are mapped by the API)
+	User     string    // caller principal: private entries are visible only to their owner
+	Kinds    []string  // optional memory-type filter (all eight types when empty)
+	Vector   []float32 // optional query embedding; used only when pgvector is available
 }
 
 // ---- Durable jobs / leases (ONE job truth; reuse workergrid/internal/store as reference) ----

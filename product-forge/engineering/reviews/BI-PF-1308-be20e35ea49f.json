@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "be20e35ea49f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T19:02:55.840720+00:00",
+  "findings": {
+    "BLOCKER": [
+      "PutOptions.Immutable alone is neither enforced nor rejected: local accepts Immutable=true with Retention=0 and S3 sets no headers, so callers silently get a non-immutable object \u2014 direct violation of \"enforced or explicitly rejected per provider\".",
+      "S3 Put never fails when the bucket lacks object-lock (AC explicitly requires it); s.objectLock is only surfaced via Capabilities, so retention headers rely on the server rejecting them \u2014 a provider that ignores them fails open."
+    ],
+    "MAJOR": [
+      "objectLock probe is one-shot best-effort: a transient GetObjectLockConfig failure pins Capabilities().ObjectLock=false for the process lifetime, and ApplyLifecycle never consults it, returning a raw provider error instead of typed datastore.ErrUnsupported.",
+      "Head's NoSuchKey\u2192os.ErrNotExist remap is an unannounced contract change for existing callers and is not mirrored in Get; objreconcile.notFound only recognises os.ErrNotExist, so any adapter returning a store-level not-found aborts Scan instead of reporting drift.",
+      "ApplyLifecycle mutates retention then legal hold non-atomically; a failure after step one leaves partial state with no typed indication of which step succeeded.",
+      "New modules objpolicy/objreconcile rely on local `replace` directives and v0.0.0 pins; no go.work/CI wiring is shown \u2014 risk of version drift and modules silently excluded from the build/test matrix."
+    ],
+    "MINOR": [
+      "Mint checks capability before method/TTL, so deny-reason ordering leaks which gate tripped; only denials are logged \u2014 no audit record of successful mint (no request/tenant id either).",
+      "tenantPrefix is a plain parameter; the comment claims it comes from authenticated context but nothing enforces or derives it from ctx.",
+      "Scan's Actual is counted from the raw List slice while comparisons use the deduped map (duplicate keys skew counts); size is taken from List despite the doc saying Head is authoritative.",
+      "ObjectLifecycle calls GetBucketVersioning on every invocation \u2014 an extra round trip per object that should be cached from the constructor probe.",
+      "Scan aborts on the first transient Head error, discarding all already-detected drift rather than returning a partial report plus error.",
+      "Missing tests for the Head-failure fail-closed path, prefix normalization, and JSON determinism of Report."
+    ],
+    "NIT": [
+      "cleanPath's `strings.Contains(c, \"..\")` is unreachable after path.Clean, giving false confidence in the guard.",
+      "New modules hardcode `go 1.21`; confirm against the repo toolchain/go.work version.",
+      "success path of Mint and reconcile's clean runs are silent \u2014 a single DEBUG/INFO line would help operational triage."
+    ],
+    "SUMMARY": [
+      "Solid shape overall: optional capability + typed ErrUnsupported, a single signed-URL privilege boundary, and a read-only deterministic reconcile report are the right primitives.",
+      "Top risks: fail-open handling of PutOptions.Immutable and of object-lock-less buckets violates explicit ACs; the one-shot objectLock probe and inconsistent not-found typing undermine the fail-closed guarantees across providers.",
+      "Before merge: enforce/reject Immutable everywhere, fail fast on missing object-lock, unify not-found semantics, and confirm the new modules are wired into workspace/CI."
+    ]
+  }
+}

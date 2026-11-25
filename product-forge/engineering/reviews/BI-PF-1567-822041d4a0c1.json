@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "822041d4a0c1",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T08:32:41.077998+00:00",
+  "review_scope": "delta",
+  "base_sha": "257dfea3dad03731c73c3fce0d2639cc5d5c4b0e",
+  "head_sha": "b04ce6899eae54153d42ffbceb0dfdd533a1a155",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta modifies control-row content (C-4 `dimension`, C-8 `tenant_test`, C-19 auth-boundary fields) without bumping `design_pack.version` or `candidate_sha`; traceability of which control revision was gate-approved is weakened.",
+      "Store-level controls C-10..C-18 carry `observability: \"test output\"` only; if these rows are authoritative for AC-2, denial/leak evidence at the storage layer has no runtime signal named (design elsewhere defines `memory_denied_total`)."
+    ],
+    "NIT": [
+      "`controls` and `implementation_controls` remain byte-identical mirrors in this delta; accepted previously with `control_gate` canonical at Gate 2 \u2014 no new action."
+    ],
+    "SUMMARY": [
+      "Delta correctly applies the prior ACTIONED corrections: C-4 now `dimension: concurrency_idempotency` and C-8 `tenant_test: TestRolePosture`; C-19 names `go/edpsvc/main.go:authenticate`.",
+      "Controls cover AC-1/AC-2/AC-3 with fail-closed behaviors, RLS role posture (CL-011), parameterized scope (CL-013), and four -race leakage suites; language rule satisfied (Go-only).",
+      "Top residual risks: version/sha not advanced with the control edits, and store-layer controls evidenced only by test output."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-aa4296a1a1ba; corrected C-4/C-8 and auth boundary pointer",
+  "rereview_reason_sha256": "fb34f8f6d08b937aedc734df5fde5ba970260454402361db4a3a87236a2b63a4"
+}

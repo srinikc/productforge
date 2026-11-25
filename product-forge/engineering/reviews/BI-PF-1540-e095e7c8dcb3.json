@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "e095e7c8dcb3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:53:25.687709+00:00",
+  "review_scope": "delta",
+  "base_sha": "587c4ab3547641601d630003e86c7ee056477ae4",
+  "head_sha": "0561099492740cf7adba94609c734e41ac9c59f0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`guardrail_answers.rollback` and `guardrail_answers.reversibility` (both in this delta) contradict: reversibility removes \"route/config/tests\", while rollback says to retain \"core validation/config/design/audit tests\" and does not list config removal \u2014 after rollback the retained config-dependent tests would fail against a removed `config/review-material-change.json`, leaving the suite red and the rollback contract unmeetable as written."
+    ],
+    "MINOR": [
+      "`guardrail_answers.startup_defence` says the handler fails closed \"if it changed\", but never defines how change is detected (hash/mtime/content) or the fail-closed window; a benign policy edit could yield unexplained 500 CONFIG_INVALID with no stated recovery/observability signal.",
+      "`guardrail_answers.rollback` omits re-sync/removal of `config/review-material-change.json` from the step list even though `reversibility` includes config removal \u2014 the two rollback-related rows in the same delta should enumerate identical artifacts."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta correctly resolves the four prior PENDING MINORs (authz-before-revision ordering, failing_test anchors now include HIL mismatch + `test_decisions_api_route_exists`, openapi re-sync restored in rollback, startup vs per-request config read clarified) and the observability NIT; dispositions should be recorded as RESOLVED per CL-006.",
+      "Top risk is the self-contradictory rollback/reversibility pair over config-file removal vs retained config tests \u2014 must be reconciled before Gate 1.5; otherwise design is coherent, language rule (shipped-Python edits only) and operator/HIL/revision controls are satisfied."
+    ]
+  },
+  "rereview_reason": "Delta for prior aadac728a8aa: guardrail order, rollback sync, proof anchors",
+  "rereview_reason_sha256": "a0dd2ffac60c858c7094a77b99204c1a6f0de75350a42831d5a76f5a23afa693"
+}

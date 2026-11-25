@@ -1,7 +1,7 @@
 ---
 description: Scout agent. Explores new territories, discovers opportunities, and identifies emerging trends and technologies.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: scout
 version: 1.0.0
 spec_version: "1.0"

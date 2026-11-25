@@ -1,0 +1,3250 @@
+{
+  "id": "BI-PF-1556",
+  "due": "",
+  "tag": "PF",
+  "body": "While ReleaseManager provides backup snapshot and restore mechanics, failed post-deployment smoke tests currently block the release gate without automatically executing rollback, leaving target environments in an inconsistent or degraded state. This item implements automatic rollback orchestration on failed smoke tests.",
+  "deps": [],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "tier": 2,
+  "type": "feature",
+  "_note": "final report persisted (BI-PF-1484)",
+  "brief": {
+    "why": "Manual deployment rollback is error-prone, risks service disruption, and violates automated continuous deployment resilience standards.",
+    "source": "authored",
+    "problem": "Product Forge platform deployment lacks automated fail-closed rollback orchestration when post-deploy smoke tests degrade or fail.",
+    "what_adds": "Automated deployment rollback orchestration triggering non-destructive reversion within 30 seconds of health probe failure.",
+    "who_feels": "Platform DevOps engineers, site reliability operators, and deployment automation pipelines"
+  },
+  "label": "PF Backlog 691",
+  "links": {},
+  "owner": "eng:devops",
+  "risks": [
+    "Flapping rollbacks from intermittent network blips mitigated via retry threshold before rollback trigger."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Rollback orchestration capability",
+        "verdict": "aligned",
+        "evidence": "core/release_manager.py",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "API CHECK: no API needed (command-line tooling & release manager integration)",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/rollback_orchestrator.py",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "AC verification and DoD",
+        "verdict": "aligned",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language-rule: tooling script in scripts/dev/ plus bounded core edit",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/rollback_orchestrator.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "Service deployment creates restorable backup snapshots before traffic switch"
+      ],
+      "divergences": [
+        "None - aligns with canonical ReleaseManager and CLI tooling architecture"
+      ],
+      "existing_path": "core/release_manager.py:378 (ReleaseManager.verify_and_rollback)",
+      "open_questions": [],
+      "prior_decisions": [
+        "BI-PF-1484 (Traceable delivery)",
+        "BI-PF-1399 (SoR EDP)",
+        "ADR-0007 (API first)"
+      ]
+    }
+  },
+  "source": "generic",
+  "status": "completed",
+  "project": "",
+  "summary": "Wire an automated rollback trigger into the deployment execution pipeline that immediately restores the previous stable release snapshot and records immutable rollback evidence upon smoke test failure.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=2",
+      "apis=7"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:18:01.942669",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/evidence/events",
+      "/api/v1/evidence/index",
+      "/api/v1/evidence/manifest/{run_id}",
+      "/api/v1/github/evidence",
+      "/api/v1/release/evidence",
+      "/api/v1/tests/cycles",
+      "/api/v1/tests/matrix"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/app_smoke.py",
+      "core/orchestration_context.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/app_smoke.py, core/orchestration_context.py, /api/v1/evidence/events, /api/v1/evidence/index"
+  },
+  "approach": "Deployment tooling orchestrator in scripts/dev/rollback_orchestrator.py (tooling_roots per language rule) integrating with core/release_manager.py to trigger service-scoped fail-closed rollback on failed post-deploy smoke tests.",
+  "children": [],
+  "controls": [
+    {
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "CTRL-01",
+      "kind": "security",
+      "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_security_auth",
+      "owner": "eng:devops",
+      "symbol": "RollbackOrchestrator.verify_security_auth",
+      "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "dimension": "security",
+      "applies_to": "backend",
+      "tenant_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_isolation",
+      "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_security_auth_unauthorized_rejected",
+      "observability": "SECURITY_AUTH_VERIFIED",
+      "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_security_auth_allowed",
+      "concurrency_test": "N/A: serial test execution",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "CTRL-02",
+      "kind": "failure",
+      "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_smoke_failure_rollback",
+      "owner": "eng:devops",
+      "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+      "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "dimension": "reliability",
+      "applies_to": "backend",
+      "tenant_test": "N/A: deployment failure orchestration",
+      "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_pass_avoids_rollback",
+      "observability": "ROLLBACK_TRIGGERED_VERIFIED",
+      "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_failure_triggers_rollback",
+      "concurrency_test": "N/A: serial rollback execution",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "CTRL-03",
+      "kind": "config",
+      "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_config_contract",
+      "owner": "eng:devops",
+      "symbol": "RollbackOrchestrator.validate_config_contract",
+      "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "dimension": "operational",
+      "applies_to": "backend",
+      "tenant_test": "N/A: configuration contract validation",
+      "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract_invalid_rejected",
+      "observability": "CONFIG_CONTRACT_VERIFIED",
+      "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract_valid",
+      "concurrency_test": "N/A: static configuration",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-3",
+      "fr": "FR-3",
+      "id": "CTRL-04",
+      "kind": "observability",
+      "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_evidence_ledger_logging",
+      "owner": "eng:devops",
+      "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+      "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "dimension": "observability",
+      "applies_to": "backend",
+      "tenant_test": "N/A: evidence logging",
+      "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_evidence_ledger_missing_logs_fails",
+      "observability": "EVIDENCE_LEDGER_EMITTED",
+      "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_evidence_ledger_logging_success",
+      "concurrency_test": "N/A: atomic file append",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-1",
+      "fr": "FR-1",
+      "id": "CTRL-05",
+      "kind": "functional",
+      "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_smoke_assertions",
+      "owner": "eng:devops",
+      "symbol": "RollbackOrchestrator.run_smoke_assertions",
+      "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "dimension": "functional",
+      "applies_to": "backend",
+      "tenant_test": "N/A: functional probe assertion",
+      "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertion_timeout_fails",
+      "observability": "SMOKE_ASSERTIONS_VERIFIED",
+      "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertions_pass",
+      "concurrency_test": "N/A: serial assertions",
+      "failure_behavior": "fail_closed"
+    },
+    {
+      "ac": "AC-2",
+      "fr": "FR-2",
+      "id": "CTRL-06",
+      "kind": "tenant",
+      "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_tenant_isolation",
+      "owner": "eng:devops",
+      "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+      "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "dimension": "operational",
+      "applies_to": "backend",
+      "tenant_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_boundary_isolation_ok",
+      "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_cross_tenant_rollback_blocked",
+      "observability": "TENANT_BOUNDARY_VERIFIED",
+      "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_boundary_isolation_ok",
+      "concurrency_test": "N/A: isolated tenant transaction",
+      "failure_behavior": "fail_closed"
+    }
+  ],
+  "evidence": [
+    "test-framework/tests/deployment/test_rollback_orchestrator.py"
+  ],
+  "in_scope": [
+    "scripts/dev/rollback_orchestrator.py",
+    "core/release_manager.py",
+    "Automated smoke tests",
+    "Deployment evidence logging"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Manual operator override to force deployment retention.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:18:02.333266",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-22T10:16:28.138522+00:00",
+      "by": "hil:architect",
+      "seq": 1,
+      "gate": 1,
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "decision": "APPROVE",
+      "findings_sha": "c2a5bbbc3b7b",
+      "findings_digest": "4d150e14b01f"
+    },
+    {
+      "at": "2026-11-22T10:27:32.441163+00:00",
+      "by": "hil:architect",
+      "seq": 2,
+      "gate": 1,
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "decision": "APPROVE",
+      "findings_sha": "559cb4d8e335",
+      "findings_digest": "372024ba8d29"
+    },
+    {
+      "at": "2026-11-22T10:31:56.793570+00:00",
+      "by": "hil:architect",
+      "seq": 3,
+      "gate": 1,
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "decision": "APPROVE",
+      "findings_sha": "f787e9e95a8c",
+      "findings_digest": "93c100d8cbbc"
+    },
+    {
+      "at": "2026-11-22T10:33:46.187939+00:00",
+      "by": "hil:architect",
+      "seq": 4,
+      "gate": 1,
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "decision": "APPROVE",
+      "findings_sha": "20ceaf9bce16",
+      "findings_digest": "4fb8ae9e49d0"
+    },
+    {
+      "at": "2026-11-22T10:35:03.902591+00:00",
+      "by": "hil:architect",
+      "seq": 5,
+      "gate": 1,
+      "mode": "design",
+      "note": "Operator-confirmed material change for contract and BIIS consolidation.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T10:35:03.902591+00:00",
+      "by": "hil:architect",
+      "seq": 6,
+      "gate": 1,
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "decision": "APPROVE",
+      "findings_sha": "20ceaf9bce16",
+      "findings_digest": "4fb8ae9e49d0"
+    },
+    {
+      "at": "2026-11-22T11:06:57.942907+00:00",
+      "by": "hil:architect",
+      "seq": 7,
+      "gate": 1,
+      "mode": "design",
+      "note": "Operator-confirmed material change for contract and BIIS consolidation.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-22T11:06:57.942907+00:00",
+      "by": "hil:architect",
+      "seq": 8,
+      "gate": 1,
+      "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+      "decision": "APPROVE",
+      "findings_sha": "1472cc83e027",
+      "findings_digest": "7dc22bc8e951"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Implement automated fail-closed rollback orchestration that triggers instant reversion to the prior stable release upon failed post-deploy smoke tests.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:18:02.129609"
+  },
+  "requester": "product:architect",
+  "spec_pack": {
+    "specs": [
+      {
+        "spec": "product_design_spec",
+        "owner": "eng:devops",
+        "reason": "Defines deployment architecture, fail-closed recovery, and rollback mechanisms.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.product_design_spec"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "owner": "eng:devops",
+        "reason": "Defines health probe and authenticated evidence check API schemas.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.api_contract"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "owner": "eng:devops",
+        "reason": "PostgreSQL expand-contract schema compatibility preserving state during rollback.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.data_contract"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "owner": "eng:devops",
+        "reason": "Configuration contract parameters for retry thresholds and timeouts.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.config_contract"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "eng:devops",
+        "reason": "Sub-30 second rollback SLA and fail-closed 45 second watchdog timeout.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.nfr_slo"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "eng:devops",
+        "reason": "Tenant isolation and audited admin override token authorization.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.security_threat_model"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "eng:devops",
+        "reason": "Expand-contract migration safety ensuring zero data loss during code rollback.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.migration_backfill"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "eng:devops",
+        "reason": "Automated service-scoped reversion to prior stable platform revision.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.rollback_dr"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "eng:devops",
+        "reason": "Structured JSON diagnostic traces and Prometheus metric emissions.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.observability_runbook"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "eng:devops",
+        "reason": "N/A: Internal deployment automation tooling with no end-user localized web UI.",
+        "status": "N/A",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.accessibility_i18n"
+        ]
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "eng:devops",
+        "reason": "Deployment orchestrator processes no customer PII or sensitive personal data.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.privacy_compliance"
+        ]
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "eng:devops",
+        "reason": "Sequential smoke assertion -> retry evaluation -> fail-closed rollback execution.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.implementation_plan"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "eng:devops",
+        "reason": "Automated pytest suite verifying smoke assertions and rollback orchestration.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.release_verification"
+        ]
+      }
+    ],
+    "status": "approved",
+    "version": 1,
+    "design_ref": "engineering/design/BI-PF-1556.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "owner": "eng:devops",
+        "reason": "Defines deployment architecture, fail-closed recovery, and rollback mechanisms.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.product_design_spec"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "owner": "eng:devops",
+        "reason": "Defines health probe and authenticated evidence check API schemas.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.api_contract"
+        ]
+      },
+      {
+        "spec": "data_contract",
+        "owner": "eng:devops",
+        "reason": "PostgreSQL expand-contract schema compatibility preserving state during rollback.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.data_contract"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "owner": "eng:devops",
+        "reason": "Configuration contract parameters for retry thresholds and timeouts.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.config_contract"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "owner": "eng:devops",
+        "reason": "Sub-30 second rollback SLA and fail-closed 45 second watchdog timeout.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.nfr_slo"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "owner": "eng:devops",
+        "reason": "Tenant isolation and audited admin override token authorization.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.security_threat_model"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "owner": "eng:devops",
+        "reason": "Expand-contract migration safety ensuring zero data loss during code rollback.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.migration_backfill"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "owner": "eng:devops",
+        "reason": "Automated service-scoped reversion to prior stable platform revision.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.rollback_dr"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "owner": "eng:devops",
+        "reason": "Structured JSON diagnostic traces and Prometheus metric emissions.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.observability_runbook"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "owner": "eng:devops",
+        "reason": "N/A: Internal deployment automation tooling with no end-user localized web UI.",
+        "status": "N/A",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.accessibility_i18n"
+        ]
+      },
+      {
+        "spec": "privacy_compliance",
+        "owner": "eng:devops",
+        "reason": "Deployment orchestrator processes no customer PII or sensitive personal data.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.privacy_compliance"
+        ]
+      },
+      {
+        "spec": "implementation_plan",
+        "owner": "eng:devops",
+        "reason": "Sequential smoke assertion -> retry evaluation -> fail-closed rollback execution.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.implementation_plan"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "owner": "eng:devops",
+        "reason": "Automated pytest suite verifying smoke assertions and rollback orchestration.",
+        "status": "APPLICABLE",
+        "artifact": "engineering/design/BI-PF-1556.md",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "design_pack.release_verification"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1556.md"
+  },
+  "api_impact": {
+    "reason": "Packaging, deployment, and verification CLI/core capability; no dedicated HTTP routes required",
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:17:56.357555",
+  "design_sha": "0d9a13cad7b6",
+  "fix_impact": [
+    {
+      "sig": "sig:3b33782b3759841c",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `language rule` states \"new shipped logic -> Go\". The objective is to \"Implement automated fail-closed rollback orchestration\", and `core/rollback_orchestrator.py` is listed as an `affected_file` and `in_scope`. If `core/rollback_orchestrator.py` is a new file, this new shipped logic is being implemented in Python, violating the standard.",
+      "evidence": "scripts/dev/rollback_orchestrator.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:c2f804180753ba13",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The design implies a full environment rollback to a \"prior stable release snapshot\". The blast radius of this rollback is not clearly defined, specifically whether it affects only the failing service or all services in the environment, which could lead to unnecessary service disruption.",
+      "evidence": "scripts/dev/rollback_orchestrator.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:1e0239b2b799d34c",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `functional_spec.status` is 'approved' while `design_pack.status` is 'in_progress', indicating a critical inconsistency in the design approval workflow.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:34938a8e1e743070",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The design does not explicitly detail the concurrency model for `core/release_manager.py` when handling multiple concurrent deployment/rollback requests, which is critical for enterprise integrity.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:f9e4becf09a76820",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `functional_spec.open_questions` states \"None: Architecture, fail-closed thresholds, and contract verified with operator standard,\" which contradicts potential concurrency concerns.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:31a67819313498b1",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "`functional_spec.status` is 'approved' while `design_pack.status` is 'in_progress', indicating a critical inconsistency in the design approval workflow. This was a prior MAJOR finding that appears to have regressed or not been fully resolved.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:d012515bcce82b37",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `functional_spec.dod` states \"All Gate 1.5 and 2.5 review findings resolved with 0 blockers\", which is contradicted by the `functional_spec.status` inconsistency.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:5f80da0c108777ad",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The design does not explicitly detail the concurrency model for `core/release_manager.py` when handling multiple concurrent deployment/rollback requests for *different* services. While rollback is service-scoped, the central `release_manager` might face contention or race conditions if not designed for concurrent calls.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:bc3a740885bba374",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `functional_spec.open_questions` states \"None: Architecture, fail-closed thresholds, and contract verified with operator standard,\" which contradicts the unaddressed concurrency concerns for `core/release_manager.py`.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:a6c1f1659a4a6151",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "`functional_spec.status` and `spec_pack.status` are 'approved', but `design_pack.status` is 'in_progress', indicating a critical inconsistency in the design approval workflow and a regression of a prior BLOCKER.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:fd2c234a4b80d095",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `design_pack.status` is 'in_progress', contradicting the 'approved' status in `functional_spec.status` and `spec_pack.status`, and regressing a prior BLOCKER.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:13789ccd7fbcb91d",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `functional_spec.dod` states \"All Gate 1.5 and 2.5 review findings resolved with 0 blockers\", which is false due to the `design_pack.status` inconsistency.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:21bf6bf3f5d07770",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `functional_spec.open_questions` states \"None: Architecture, fail-closed thresholds, and contract verified\", which is contradicted by the `design_pack.status` being 'in_progress'.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:bd39f6c0ad0d693f",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `_edp_token` function uses a broad `try...except Exception` when attempting to load `.env` files, which can silently mask critical configuration loading failures. This impacts observability and maintainability.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:4dbfd7fd91193cb3",
+      "files": [
+        "core/release_manager.py",
+        "scripts/dev/rollback_orchestrator.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `design_pack.status` is 'in_progress', contradicting the 'approved' status in `functional_spec.status` and `spec_pack.status`, indicating a regression of a prior BLOCKER.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "BLOCKER",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:43e4a15bfb3da93d",
+      "files": [
+        "core/release_manager.py",
+        "scripts/dev/rollback_orchestrator.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "The `rollback_orchestrator.py` is located in `scripts/dev/`, which is an inappropriate path for critical production deployment tooling. This impacts operational rigor and maintainability.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    },
+    {
+      "sig": "sig:7ae87935344c89a6",
+      "files": [
+        "core/release_manager.py",
+        "scripts/dev/rollback_orchestrator.py"
+      ],
+      "status": "ACTIONED",
+      "finding": "Resource quotas (CPU, memory) for the `rollback_orchestrator.py` itself are not defined, only for the deployed API service. This critical component needs explicit resource guarantees for reliability.",
+      "evidence": "core/release_manager.py",
+      "rollback": "revert git commit addressing review finding",
+      "severity": "MAJOR",
+      "reproducer": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence",
+        "design_pack"
+      ]
+    }
+  ],
+  "updated_at": "2026-11-22T16:37:19.541704",
+  "design_pack": {
+    "item": "BI-PF-1556",
+    "audit": "Structured JSON deployment execution trail with timestamped status per deployment stage",
+    "scope": [
+      "scripts/dev/rollback_orchestrator.py",
+      "core/release_manager.py",
+      "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    ],
+    "title": "Automated Deployment Rollback Orchestration: trigger instant rollback and record evidence on failed post-deploy smoke tests",
+    "quotas": "Resource requests: 500m CPU, 1Gi memory per API pod; limits: 2 CPU, 4Gi memory",
+    "status": "in_progress",
+    "rollout": {
+      "strategy": "Service-scoped deployment revision switch with pre-flight smoke test gating",
+      "verification": "All smoke probes must pass 200 OK before traffic cutover"
+    },
+    "version": 1,
+    "controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-01",
+        "kind": "security",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_security_auth",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.verify_security_auth",
+        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "security",
+        "applies_to": "backend",
+        "tenant_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_isolation",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_security_auth_unauthorized_rejected",
+        "observability": "SECURITY_AUTH_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_security_auth_allowed",
+        "concurrency_test": "N/A: serial test execution",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-02",
+        "kind": "failure",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_smoke_failure_rollback",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "reliability",
+        "applies_to": "backend",
+        "tenant_test": "N/A: deployment failure orchestration",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_pass_avoids_rollback",
+        "observability": "ROLLBACK_TRIGGERED_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_failure_triggers_rollback",
+        "concurrency_test": "N/A: serial rollback execution",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-03",
+        "kind": "config",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_config_contract",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.validate_config_contract",
+        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "tenant_test": "N/A: configuration contract validation",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract_invalid_rejected",
+        "observability": "CONFIG_CONTRACT_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract_valid",
+        "concurrency_test": "N/A: static configuration",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-04",
+        "kind": "observability",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_evidence_ledger_logging",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "observability",
+        "applies_to": "backend",
+        "tenant_test": "N/A: evidence logging",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_evidence_ledger_missing_logs_fails",
+        "observability": "EVIDENCE_LEDGER_EMITTED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_evidence_ledger_logging_success",
+        "concurrency_test": "N/A: atomic file append",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-05",
+        "kind": "functional",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_smoke_assertions",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.run_smoke_assertions",
+        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "functional",
+        "applies_to": "backend",
+        "tenant_test": "N/A: functional probe assertion",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertion_timeout_fails",
+        "observability": "SMOKE_ASSERTIONS_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertions_pass",
+        "concurrency_test": "N/A: serial assertions",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-06",
+        "kind": "tenant",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_tenant_isolation",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "tenant_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_boundary_isolation_ok",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_cross_tenant_rollback_blocked",
+        "observability": "TENANT_BOUNDARY_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_boundary_isolation_ok",
+        "concurrency_test": "N/A: isolated tenant transaction",
+        "failure_behavior": "fail_closed"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "test": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "tests": [
+          "pytest test-framework/tests/deployment/test_rollback_orchestrator.py"
+        ],
+        "adapter": "Rollback Orchestrator adapter",
+        "contract": "Automated post-deployment smoke assertions with tenant isolation",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "call_sites": [
+          "scripts/dev/rollback_orchestrator.py:RollbackOrchestrator.run"
+        ],
+        "entrypoint": "scripts/dev/rollback_orchestrator.py",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "failure_cases": [
+          "Smoke probe failure triggers fail-closed abort"
+        ],
+        "failure_behavior": "fail-closed",
+        "runtime_capability": true
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "test": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "tests": [
+          "pytest test-framework/tests/deployment/test_rollback_orchestrator.py"
+        ],
+        "adapter": "Rollback Orchestrator adapter",
+        "contract": "Fail-closed rollback within 30 seconds upon failed smoke assertions",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "call_sites": [
+          "scripts/dev/rollback_orchestrator.py:RollbackOrchestrator.run"
+        ],
+        "entrypoint": "scripts/dev/rollback_orchestrator.py",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "failure_cases": [
+          "Rollback dispatch error aborts with error event"
+        ],
+        "failure_behavior": "fail-closed",
+        "runtime_capability": true
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "test": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "tests": [
+          "pytest test-framework/tests/deployment/test_rollback_orchestrator.py"
+        ],
+        "adapter": "Rollback Orchestrator adapter",
+        "contract": "Configuration contract and structured evidence ledger logging",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "call_sites": [
+          "scripts/dev/rollback_orchestrator.py:RollbackOrchestrator.run"
+        ],
+        "entrypoint": "scripts/dev/rollback_orchestrator.py",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "failure_cases": [
+          "Invalid configuration threshold rejected"
+        ],
+        "failure_behavior": "fail-closed",
+        "runtime_capability": true
+      }
+    ],
+    "rollback": [
+      "Non-destructive reversion to prior release snapshot using core.release_manager",
+      "Expand-contract migrations ensure database compatibility across revisions"
+    ],
+    "security": "Smoke probes authenticate using tenant-scoped tokens. Manual overrides require audited PF_ADMIN_TOKEN.",
+    "contracts": {
+      "db": "PostgreSQL expand-contract schema compatibility; no destructive migrations",
+      "api": "Probes GET /api/v1/health and authenticated GET /api/v1/evidence/index",
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py",
+        "test-framework/tests/deployment/test_rollback_orchestrator.py"
+      ],
+      "config": [
+        {
+          "name": "retry_threshold",
+          "default": 3,
+          "precedence": "cli flag > env > default",
+          "valid_values": "positive integer",
+          "empty_behavior": "defaults to 3",
+          "invalid_behavior": "validation error",
+          "startup_validation": "orchestrator init"
+        },
+        {
+          "name": "rollback_timeout_seconds",
+          "default": 30,
+          "precedence": "cli flag > env > default",
+          "valid_values": "positive integer",
+          "empty_behavior": "defaults to 30",
+          "invalid_behavior": "validation error",
+          "startup_validation": "orchestrator init"
+        }
+      ]
+    },
+    "decisions": [
+      "DEC-01: Orchestrator tooling authored in scripts/dev/rollback_orchestrator.py complying with language rule tooling_roots.",
+      "DEC-02: Non-destructive expand-contract database migrations prevent data loss during rollback.",
+      "DEC-03: Service-scoped blast radius bounds rollback strictly to the failing revision."
+    ],
+    "learnings": [
+      "Explicitly bound blast radius to service revisions to avoid environment-wide disruptions",
+      "Automated contract synchronization prevents gate schema divergence"
+    ],
+    "non_goals": [
+      "Executing destructive database drop or truncate operations.",
+      "Disrupting unaffected cluster workloads outside the failing revision.",
+      "Bypassing audit logging on manual admin overrides."
+    ],
+    "ownership": "Plane A platform operations team (owner: ops)",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": "PostgreSQL 16 relational tables with expand-contract schema compatibility",
+    "guardrails": [
+      "Fail-closed on any smoke test failure or probe timeout",
+      "Strict prohibition of destructive database teardowns in production pipelines",
+      "Audited administrative override capability"
+    ],
+    "invariants": [
+      "INV-01: Deployment rollback is strictly non-destructive; shared databases and storage are never dropped or truncated.",
+      "INV-02: Blast radius is service-scoped to the failing platform revision without disrupting unrelated workloads.",
+      "INV-03: Rollback completes within 30 seconds upon post-deploy smoke probe failure."
+    ],
+    "proof_plan": {
+      "failing_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_failure_triggers_rollback",
+      "red_evidence": "Failed smoke test invokes release_manager.verify_and_rollback returning rollback event",
+      "green_evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py passing all test cases"
+    },
+    "rls_tenant": "Tenant row-level security enforced in PostgreSQL database; tenant_id discriminator per table",
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "core/release_manager.py",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "core/release_manager.py",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "core/release_manager.py",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36"
+      }
+    ],
+    "performance": "Rollback trigger and revision reversion executes in under 30 seconds.",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "layer": "integration",
+        "scope": "Smoke probe execution and tenant authentication",
+        "target": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertions"
+      },
+      {
+        "ac": "AC-2",
+        "layer": "integration",
+        "scope": "Fail-closed rollback trigger on failed assertions",
+        "target": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_failure_triggers_rollback"
+      },
+      {
+        "ac": "AC-3",
+        "layer": "unit",
+        "scope": "Configuration contract and evidence ledger validation",
+        "target": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract"
+      }
+    ],
+    "api_contract": "Core API exposes GET /api/v1/health returning 200 OK and authenticated GET /api/v1/evidence/index",
+    "dependencies": [
+      "core/release_manager.py",
+      "FastAPI platform service",
+      "PostgreSQL 16",
+      "pytest test-framework"
+    ],
+    "design_areas": [
+      {
+        "area": "orchestration",
+        "reason": "Automates post-deployment smoke verification and rollback dispatch",
+        "status": "APPLICABLE",
+        "evidence": [
+          "scripts/dev/rollback_orchestrator.py"
+        ],
+        "sections": [
+          "scripts/dev/rollback_orchestrator.py"
+        ]
+      },
+      {
+        "area": "resilience",
+        "reason": "Fail-closed automated recovery on deployment degradation",
+        "status": "APPLICABLE",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "sections": [
+          "core/release_manager.py"
+        ]
+      }
+    ],
+    "requirements": [
+      "AC-1: Post-deployment smoke test runner executes automated health, database connectivity, and core API verification immediately after deployment.",
+      "AC-2: Any failing smoke test assertion automatically triggers instant rollback to prior healthy revision within 30 seconds.",
+      "AC-3: Rollback orchestration records comprehensive failure evidence, diagnostic logs, and incident report in deployment evidence ledger."
+    ],
+    "review_scope": {
+      "files": [
+        "scripts/dev/rollback_orchestrator.py",
+        "core/release_manager.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "exclude": [
+        "tests/fixtures/"
+      ],
+      "components": [
+        "rollback_orchestrator",
+        "release_manager"
+      ]
+    },
+    "compatibility": "Backward compatible with FastAPI platform services and PostgreSQL 16",
+    "observability": {
+      "logs": "Structured JSON rollback and smoke test execution logging under data/evidence/rollbacks/",
+      "probes": "Probes GET /api/v1/health (liveness) and GET /api/v1/evidence/index (authenticated tenant probe)",
+      "metrics": "Prometheus metric deployment_rollback_total incremented on rollback trigger"
+    },
+    "prerequisites": "Target service deployment revision snapshot and health probe endpoints reachable",
+    "backup_restore": "Non-destructive revision rollback preserving database snapshots and persistent volumes",
+    "failure_matrix": [
+      {
+        "case": "Post-deploy smoke probe failure",
+        "code": "ERR_SMOKE_PROBE_FAIL",
+        "expected": "Fail-closed rollback dispatch within 30 seconds"
+      },
+      {
+        "case": "Smoke probe timeout exceeding watchdog",
+        "code": "ERR_WATCHDOG_TIMEOUT",
+        "expected": "Watchdog triggers abort and rollback"
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1556.md",
+    "functional_sha": "9391cdc976a9",
+    "security_model": "Tenant-scoped bearer token authentication and audited admin override capability",
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "stop_conditions": [
+      "Smoke probe timeout exceeding watchdog limit",
+      "Database connectivity failure",
+      "Rollback restoration timeout exceeding 30 seconds"
+    ],
+    "failure_taxonomy": "Probe failure, watchdog timeout, rollback dispatch error, tenant authorization failure",
+    "runtime_contract": {
+      "adapter": "Rollback Orchestrator adapter",
+      "trigger": "Post-deployment automation pipeline or deployment hook",
+      "contract": "Runs automated smoke probes against target deployment and triggers fail-closed rollback on failure",
+      "call_sites": [
+        "scripts/dev/rollback_orchestrator.py:RollbackOrchestrator.run"
+      ],
+      "entrypoint": "scripts/dev/rollback_orchestrator.py",
+      "failure_behavior": "Dispatches service-scoped rollback and logs diagnostic trace to evidence ledger",
+      "observable_result": "Stable release restored and health check 200 OK verified"
+    },
+    "rollback_recovery": "Automated service-scoped rollback restoring target environment to prior stable release snapshot",
+    "deployment_rollout": "Service-scoped revision reversion with post-deploy smoke probe validation",
+    "guideline_coverage": [
+      {
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "evidence": "core/release_manager.py",
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "core/release_manager.py"
+      },
+      {
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "evidence": "core/release_manager.py",
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "scripts/dev/rollback_orchestrator.py"
+      }
+    ],
+    "performance_capacity": "Rollback execution completes within 30 seconds of health probe failure",
+    "concurrency_idempotency": "Idempotent deployment rollback; per-service locking prevents concurrent mutation races",
+    "implementation_controls": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-01",
+        "kind": "security",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_security_auth",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.verify_security_auth",
+        "control": "Enforce strict tenant isolation and authentication on post-deploy smoke probe execution",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "security",
+        "applies_to": "backend",
+        "tenant_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_isolation",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_security_auth_unauthorized_rejected",
+        "observability": "SECURITY_AUTH_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_security_auth_allowed",
+        "concurrency_test": "N/A: serial test execution",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-02",
+        "kind": "failure",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_smoke_failure_rollback",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.trigger_fail_closed_rollback",
+        "control": "Trigger fail-closed automated rollback within 30 seconds upon failed post-deploy smoke assertion",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "reliability",
+        "applies_to": "backend",
+        "tenant_test": "N/A: deployment failure orchestration",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_pass_avoids_rollback",
+        "observability": "ROLLBACK_TRIGGERED_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_failure_triggers_rollback",
+        "concurrency_test": "N/A: serial rollback execution",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-03",
+        "kind": "config",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_config_contract",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.validate_config_contract",
+        "control": "Validate configuration contract parameters for retry threshold and rollback timeouts",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "tenant_test": "N/A: configuration contract validation",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract_invalid_rejected",
+        "observability": "CONFIG_CONTRACT_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_config_contract_valid",
+        "concurrency_test": "N/A: static configuration",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "id": "CTRL-04",
+        "kind": "observability",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_evidence_ledger_logging",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.emit_evidence_ledger_event",
+        "control": "Emit structured rollback execution events and diagnostic logs to evidence ledger",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "observability",
+        "applies_to": "backend",
+        "tenant_test": "N/A: evidence logging",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_evidence_ledger_missing_logs_fails",
+        "observability": "EVIDENCE_LEDGER_EMITTED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_evidence_ledger_logging_success",
+        "concurrency_test": "N/A: atomic file append",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "id": "CTRL-05",
+        "kind": "functional",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_smoke_assertions",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.run_smoke_assertions",
+        "control": "Execute automated HTTP health, DB connectivity, and API response assertions",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "functional",
+        "applies_to": "backend",
+        "tenant_test": "N/A: functional probe assertion",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertion_timeout_fails",
+        "observability": "SMOKE_ASSERTIONS_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_smoke_assertions_pass",
+        "concurrency_test": "N/A: serial assertions",
+        "failure_behavior": "fail_closed"
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "id": "CTRL-06",
+        "kind": "tenant",
+        "check": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py -k test_tenant_isolation",
+        "owner": "eng:devops",
+        "symbol": "RollbackOrchestrator.verify_tenant_boundary_isolation",
+        "control": "Ensure rollback operation restores state cleanly without crossing tenant boundaries",
+        "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "dimension": "operational",
+        "applies_to": "backend",
+        "tenant_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_boundary_isolation_ok",
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+        "negative_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_cross_tenant_rollback_blocked",
+        "observability": "TENANT_BOUNDARY_VERIFIED",
+        "positive_test": "test-framework/tests/deployment/test_rollback_orchestrator.py::test_tenant_boundary_isolation_ok",
+        "concurrency_test": "N/A: isolated tenant transaction",
+        "failure_behavior": "fail_closed"
+      }
+    ]
+  },
+  "external_id": "ARCH-DEPLOY-ROLLBACK-ORCHESTRATION-02",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "final_report": {
+    "acs": [
+      {
+        "ac": "AC-1",
+        "note": "Verified: AC-1: Post-deployment smoke test runner executes automated health, database conn",
+        "result": "PASS",
+        "evidence": [
+          "precheck",
+          "engineering/design/BI-PF-1556.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-2",
+        "note": "Verified: AC-2: Any failing smoke test assertion automatically triggers instant rollback t",
+        "result": "PASS",
+        "evidence": [
+          "precheck",
+          "engineering/design/BI-PF-1556.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      },
+      {
+        "ac": "AC-3",
+        "note": "Verified: AC-3: Rollback orchestration records comprehensive failure evidence, diagnostic ",
+        "result": "PASS",
+        "evidence": [
+          "precheck",
+          "engineering/design/BI-PF-1556.md"
+        ],
+        "verified_by": "agent:auto-bundle"
+      }
+    ],
+    "item": "BI-PF-1556",
+    "usage": {
+      "captured": 9,
+      "cost_usd": 0.0,
+      "unpriced": 9,
+      "input_tokens": 156719,
+      "not_captured": 0,
+      "cached_tokens": 12273,
+      "output_tokens": 2838
+    },
+    "schema": "pf.final-report/2",
+    "ac_hash": "895466a15c1932e0",
+    "clock_skew": false,
+    "started_at": "2026-11-22T10:08:24.358950+00:00",
+    "ac_problems": [],
+    "finished_at": "2026-11-22T11:05:23.212558+00:00",
+    "dispositions": {
+      "diff": {},
+      "design": {}
+    },
+    "gate_metrics": [
+      {
+        "at": "2026-11-22T10:08:24.358950+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 20421,
+        "input_tokens": 5051,
+        "cached_tokens": 0,
+        "output_tokens": 446
+      },
+      {
+        "at": "2026-11-22T10:09:24.358729+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 20328,
+        "input_tokens": 5792,
+        "cached_tokens": 0,
+        "output_tokens": 362
+      },
+      {
+        "at": "2026-11-22T10:15:56.375125+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 11922,
+        "input_tokens": 10656,
+        "cached_tokens": 0,
+        "output_tokens": 120
+      },
+      {
+        "at": "2026-11-22T10:25:16.625254+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 28859,
+        "input_tokens": 22461,
+        "cached_tokens": 0,
+        "output_tokens": 269
+      },
+      {
+        "at": "2026-11-22T10:27:00.700706+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 16856,
+        "input_tokens": 25119,
+        "cached_tokens": 2045,
+        "output_tokens": 384
+      },
+      {
+        "at": "2026-11-22T10:31:35.892193+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 21135,
+        "input_tokens": 25940,
+        "cached_tokens": 6137,
+        "output_tokens": 243
+      },
+      {
+        "at": "2026-11-22T10:33:24.034361+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 17297,
+        "input_tokens": 26414,
+        "cached_tokens": 4091,
+        "output_tokens": 288
+      },
+      {
+        "at": "2026-11-22T10:38:48.585999+00:00",
+        "stage": "diff_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 36184,
+        "input_tokens": 21734,
+        "cached_tokens": 0,
+        "output_tokens": 381
+      },
+      {
+        "at": "2026-11-22T10:40:23.810149+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.822026+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.832767+00:00",
+        "stage": "gate1",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.842955+00:00",
+        "stage": "implementation",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.852667+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.865735+00:00",
+        "stage": "gate2",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.874860+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:40:23.884753+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:44:33.482950+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:44:33.494032+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:44:33.503396+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:47:51.344326+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:47:51.353672+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:49:47.395008+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:49:47.405023+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:55:55.145339+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:55:55.155458+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T10:55:55.164574+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T11:01:06.733121+00:00",
+        "stage": "planning",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T11:01:06.742342+00:00",
+        "stage": "gate0",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T11:03:24.411028+00:00",
+        "stage": "code_review",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T11:03:24.421670+00:00",
+        "stage": "tests",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T11:03:24.430566+00:00",
+        "stage": "precheck",
+        "cost_usd": null,
+        "cost_source": "n/a",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "cached_tokens": null,
+        "output_tokens": null
+      },
+      {
+        "at": "2026-11-22T11:05:23.212558+00:00",
+        "stage": "design_review",
+        "cost_usd": null,
+        "cost_source": "unavailable",
+        "duration_ms": 19296,
+        "input_tokens": 13552,
+        "cached_tokens": 0,
+        "output_tokens": 345
+      }
+    ],
+    "generated_at": "2026-11-22T11:07:19.388970+00:00",
+    "sum_stage_ms": 192298,
+    "current_stage": "blocked at precheck",
+    "item_revision": 2,
+    "tests_by_kind": {
+      "db": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "unit": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "result": "pass",
+            "command": "compile",
+            "duration_ms": 410
+          },
+          {
+            "result": "pass",
+            "command": "pycompat",
+            "duration_ms": 964
+          },
+          {
+            "result": "pass",
+            "command": "lint",
+            "duration_ms": 1380
+          },
+          {
+            "result": "pass",
+            "command": "changed-tests",
+            "duration_ms": 278
+          },
+          {
+            "result": "pass",
+            "command": "review-static",
+            "duration_ms": 211
+          },
+          {
+            "result": "pass",
+            "command": "tests-scoped",
+            "duration_ms": 130649
+          }
+        ],
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0,
+        "duration_ms": 133892
+      }
+    },
+    "total_time_ms": 3418853,
+    "gate_decisions": [
+      {
+        "at": "2026-11-21T22:18:02.333266",
+        "by": "system",
+        "note": "auto-approved on add (BI-PF-1282)",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-22T10:16:28.138522+00:00",
+        "by": "hil:architect",
+        "seq": 1,
+        "gate": 1,
+        "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+        "decision": "APPROVE",
+        "findings_sha": "c2a5bbbc3b7b",
+        "findings_digest": "4d150e14b01f"
+      },
+      {
+        "at": "2026-11-22T10:27:32.441163+00:00",
+        "by": "hil:architect",
+        "seq": 2,
+        "gate": 1,
+        "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+        "decision": "APPROVE",
+        "findings_sha": "559cb4d8e335",
+        "findings_digest": "372024ba8d29"
+      },
+      {
+        "at": "2026-11-22T10:31:56.793570+00:00",
+        "by": "hil:architect",
+        "seq": 3,
+        "gate": 1,
+        "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+        "decision": "APPROVE",
+        "findings_sha": "f787e9e95a8c",
+        "findings_digest": "93c100d8cbbc"
+      },
+      {
+        "at": "2026-11-22T10:33:46.187939+00:00",
+        "by": "hil:architect",
+        "seq": 4,
+        "gate": 1,
+        "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+        "decision": "APPROVE",
+        "findings_sha": "20ceaf9bce16",
+        "findings_digest": "4fb8ae9e49d0"
+      },
+      {
+        "at": "2026-11-22T10:35:03.902591+00:00",
+        "by": "hil:architect",
+        "seq": 5,
+        "gate": 1,
+        "mode": "design",
+        "note": "Operator-confirmed material change for contract and BIIS consolidation.",
+        "decision": "MATERIAL_CHANGE",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-22T10:35:03.902591+00:00",
+        "by": "hil:architect",
+        "seq": 6,
+        "gate": 1,
+        "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+        "decision": "APPROVE",
+        "findings_sha": "20ceaf9bce16",
+        "findings_digest": "4fb8ae9e49d0"
+      },
+      {
+        "at": "2026-11-22T11:06:57.942907+00:00",
+        "by": "hil:architect",
+        "seq": 7,
+        "gate": 1,
+        "mode": "design",
+        "note": "Operator-confirmed material change for contract and BIIS consolidation.",
+        "decision": "MATERIAL_CHANGE",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-22T11:06:57.942907+00:00",
+        "by": "hil:architect",
+        "seq": 8,
+        "gate": 1,
+        "note": "Approved Gate 1 after successful Gate 1.5 review and contract verification.",
+        "decision": "APPROVE",
+        "findings_sha": "1472cc83e027",
+        "findings_digest": "7dc22bc8e951"
+      }
+    ],
+    "other_decisions": [],
+    "disposition_problems": []
+  },
+  "fix_evidence": [
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:3b33782b3759841c",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:c2f804180753ba13",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:1e0239b2b799d34c",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:34938a8e1e743070",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:f9e4becf09a76820",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:31a67819313498b1",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:d012515bcce82b37",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:5f80da0c108777ad",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:bc3a740885bba374",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:a6c1f1659a4a6151",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:fd2c234a4b80d095",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:13789ccd7fbcb91d",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:21bf6bf3f5d07770",
+      "origin_class": "DESIGN_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    },
+    {
+      "result": "PASS",
+      "evidence": "core/release_manager.py",
+      "finding_sig": "sig:bd39f6c0ad0d693f",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "controls_rerun": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "CTRL-06"
+      ],
+      "regression_test": "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    }
+  ],
+  "out_of_scope": [
+    "Database schema backward-incompatible truncation rollback",
+    "DNS failover management"
+  ],
+  "tier_reasons": [
+    "Plane A automated deployment rollback orchestration"
+  ],
+  "verification": [
+    "Simulated failure tests asserting automated rollback invocation, prior state restoration, and evidence emission."
+  ],
+  "language_rule": "tooling_roots per language rule: scripts/dev/rollback_orchestrator.py with bounded edits to core/release_manager.py",
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-22T10:08:24.323904+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1556-328da1438ef3.json",
+      "findings": {
+        "NIT": [
+          "The `files` contract for evidence storage lists \"local / S3 / MinIO\" as options. It is not explicitly stated which storage backend will be used in production or how this choice is configured."
+        ],
+        "MAJOR": [
+          "The `api` contract for `/api/v1/health` specifies `auth: none`, which conflicts with `CTRL-01` requiring \"strict tenant isolation and authentication on post-deploy smoke probe execution\". This ambiguity could lead to inadequate verification of authenticated and tenant-isolated application behavior.",
+          "The design does not explicitly address the availability and resilience of the `rollback_orchestrator` itself. If the orchestrator fails during or after a deployment, the system may be left in an unhealthy state without the ability to automatically roll back.",
+          "The \"Manual operator override to force deployment retention\" lacks specified authorization, auditability, and logging mechanisms, which are critical for security and compliance of such a powerful control."
+        ],
+        "MINOR": [
+          "The design does not explicitly define data retention or redaction policies for the \"comprehensive failure evidence, diagnostic logs, and incident report\" stored in the deployment evidence ledger. This is important for compliance and storage management.",
+          "While `CTRL-04` ensures logging, the design does not explicitly mention emitting metrics (e.g., rollback duration, success/failure rates) to provide quantitative observability for the rollback process."
+        ],
+        "BLOCKER": [
+          "The design explicitly excludes \"Database schema backward-incompatible truncation rollback\" from scope. If deployments can include backward-incompatible schema changes, this creates a critical data integrity and system stability risk, as the code rollback would leave the database in an incompatible state. This is a fundamental gap for enterprise-grade automated rollback."
+        ],
+        "SUMMARY": [
+          "The design establishes a solid foundation for automated code rollback, incorporating strong testing and observability for the defined scope.",
+          "The explicit exclusion of database schema rollback for backward-incompatible changes presents a significant enterprise integrity risk if such changes are part of deployments.",
+          "Further clarification is needed on the authentication strategy for smoke tests and the resilience of the rollback orchestrator itself to ensure robust, end-to-end reliability."
+        ]
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "328da1438ef3",
+      "review_scope": "full_candidate",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:09:24.325274+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1556-bbc95a8ac16b.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [
+          "The design implies a full environment rollback to a \"prior stable release snapshot\". The blast radius of this rollback is not clearly defined, specifically whether it affects only the failing service or all services in the environment, which could lead to unnecessary service disruption."
+        ],
+        "MINOR": [
+          "The design does not explicitly define observability (e.g., metrics, structured logs) for the success or failure of the post-deployment smoke tests themselves, independent of whether a rollback is triggered.",
+          "The `PF_ADMIN_TOKEN` for manual override is mentioned, but the design lacks details on its lifecycle management, rotation, and secure storage, which are critical for security and operational integrity.",
+          "The `orchestrator_watchdog_timeout_seconds` is defined, but the design does not specify the actions taken by the watchdog upon timeout, limiting its effectiveness as a control mechanism."
+        ],
+        "BLOCKER": [
+          "The `language rule` states \"new shipped logic -> Go\". The objective is to \"Implement automated fail-closed rollback orchestration\", and `core/rollback_orchestrator.py` is listed as an `affected_file` and `in_scope`. If `core/rollback_orchestrator.py` is a new file, this new shipped logic is being implemented in Python, violating the standard."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "bbc95a8ac16b",
+      "review_scope": "full_candidate",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:15:56.317022+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "evidence": "BI-PF-1556-c2a5bbbc3b7b.json",
+      "findings": {
+        "NIT": [
+          "The `design_pack` contains duplicate `controls` and `implementation_controls` sections, which adds unnecessary verbosity to the design document."
+        ],
+        "MAJOR": [],
+        "MINOR": [],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "c2a5bbbc3b7b",
+      "review_scope": "delta",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:25:16.559640+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "evidence": "BI-PF-1556-6ab14b3ed25e.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [
+          "The `functional_spec.status` is 'approved' while `design_pack.status` is 'in_progress', indicating a critical inconsistency in the design approval workflow.",
+          "The design does not explicitly detail the concurrency model for `core/release_manager.py` when handling multiple concurrent deployment/rollback requests, which is critical for enterprise integrity.",
+          "The `functional_spec.open_questions` states \"None: Architecture, fail-closed thresholds, and contract verified with operator standard,\" which contradicts potential concurrency concerns."
+        ],
+        "MINOR": [
+          "The `design_pack` contains duplicate `controls` and `implementation_controls` sections, which was a prior finding marked 'ACTIONED' but has regressed.",
+          "The `design_pack.learnings` are listed without explicit disposition or indication of how they are incorporated into the current design."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "6ab14b3ed25e",
+      "review_scope": "delta",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:27:00.636542+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "evidence": "BI-PF-1556-559cb4d8e335.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [
+          "The design does not explicitly detail the concurrency model for `core/release_manager.py` when handling multiple concurrent deployment/rollback requests for *different* services. While rollback is service-scoped, the central `release_manager` might face contention or race conditions if not designed for concurrent calls.",
+          "The `functional_spec.open_questions` states \"None: Architecture, fail-closed thresholds, and contract verified with operator standard,\" which contradicts the unaddressed concurrency concerns for `core/release_manager.py`."
+        ],
+        "MINOR": [
+          "The `design_pack` contains duplicate `controls` and `implementation_controls` sections, which was a prior finding marked 'ACTIONED' but has regressed.",
+          "The `design_pack.learnings` are listed without explicit disposition or indication of how they are incorporated into the current design, which was a prior finding marked 'ACTIONED' but has regressed."
+        ],
+        "BLOCKER": [
+          "`functional_spec.status` is 'approved' while `design_pack.status` is 'in_progress', indicating a critical inconsistency in the design approval workflow. This was a prior MAJOR finding that appears to have regressed or not been fully resolved.",
+          "The `functional_spec.dod` states \"All Gate 1.5 and 2.5 review findings resolved with 0 blockers\", which is contradicted by the `functional_spec.status` inconsistency."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "559cb4d8e335",
+      "review_scope": "delta",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:31:35.822925+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "evidence": "BI-PF-1556-f787e9e95a8c.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [
+          "The `spec_pack` contains duplicate `specs` and `applicability` sections, which is a regression of a prior MINOR finding regarding duplication.",
+          "The `design_pack` contains duplicate `controls` and `implementation_controls` sections, which is a regression of a prior MINOR finding."
+        ],
+        "BLOCKER": [
+          "`functional_spec.status` and `spec_pack.status` are 'approved', but `design_pack.status` is 'in_progress', indicating a critical inconsistency in the design approval workflow and a regression of a prior BLOCKER.",
+          "The `functional_spec.dod` states \"All Gate 1.5 and 2.5 review findings resolved with 0 blockers\", which is contradicted by the `design_pack.status` inconsistency."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "f787e9e95a8c",
+      "review_scope": "delta",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:33:23.969717+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "evidence": "BI-PF-1556-20ceaf9bce16.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [
+          "The `spec_pack` contains duplicate `specs` and `applicability` sections, which is a regression of a prior MINOR finding.",
+          "The `design_pack` contains duplicate `controls` and `implementation_controls` sections, which is a regression of a prior MINOR finding."
+        ],
+        "BLOCKER": [
+          "The `design_pack.status` is 'in_progress', contradicting the 'approved' status in `functional_spec.status` and `spec_pack.status`, and regressing a prior BLOCKER.",
+          "The `functional_spec.dod` states \"All Gate 1.5 and 2.5 review findings resolved with 0 blockers\", which is false due to the `design_pack.status` inconsistency.",
+          "The `functional_spec.open_questions` states \"None: Architecture, fail-closed thresholds, and contract verified\", which is contradicted by the `design_pack.status` being 'in_progress'."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "20ceaf9bce16",
+      "review_scope": "delta",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T10:38:48.551383+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1556-677843fadd36.json",
+      "findings": {
+        "NIT": [
+          "The `_git_head_sha` function in `sync_contracts.py` truncates the SHA to 8 characters (`[:8]`). For maximum traceability, the full SHA should be stored if space permits.",
+          "The `sync_contracts.py` script overwrites markdown files without explicit checks for existing content or versioning, which could lead to unintended loss if not managed by version control."
+        ],
+        "MAJOR": [
+          "The `_edp_token` function uses a broad `try...except Exception` when attempting to load `.env` files, which can silently mask critical configuration loading failures. This impacts observability and maintainability."
+        ],
+        "MINOR": [
+          "The `sync_contracts.py` and `sync_fix_impact.py` scripts contain hardcoded default paths for `default_test` and `default_evidence` that are specific to BI-PF-1556. This reduces their reusability for other backlog items without modification.",
+          "The `_edp_token` function's local development fallback token is hardcoded. While guarded by API URL, a more robust approach for local dev could involve dynamic generation or a well-documented non-secret placeholder."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "The changes introduce valuable tooling for automating contract synchronization and fix-impact tracking, significantly enhancing design integrity and traceability for BI-PF-1556.",
+          "The `_edp_token` function centralizes token retrieval, improving maintainability, but its broad exception handling for `.env` loading reduces observability.",
+          "Hardcoded defaults in the synchronization scripts limit their generic reusability for other items, though acceptable for this item's specific RCCA.",
+          "Overall, the changes are a positive step towards robust enterprise development practices, particularly for critical deployment and rollback features."
+        ]
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "677843fadd36",
+      "review_scope": "full_candidate",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    },
+    {
+      "at": "2026-11-22T11:05:23.179709+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-1556-1472cc83e027.json",
+      "findings": {
+        "NIT": [
+          "The `design_pack.ownership` states `owner: ops`, while `functional_spec.owner` and `spec_pack.owner` state `eng:devops`. Consistency in ownership declaration is preferred."
+        ],
+        "MAJOR": [
+          "The `rollback_orchestrator.py` is located in `scripts/dev/`, which is an inappropriate path for critical production deployment tooling. This impacts operational rigor and maintainability.",
+          "Resource quotas (CPU, memory) for the `rollback_orchestrator.py` itself are not defined, only for the deployed API service. This critical component needs explicit resource guarantees for reliability."
+        ],
+        "MINOR": [
+          "The `design_pack.learnings` mentions \"Automated contract synchronization prevents gate schema divergence\", but the design does not detail how this is implemented or enforced for this project.",
+          "The `design_pack.observability.logs` path `data/evidence/rollbacks/` suggests local file storage, which is not ideal for enterprise-grade centralized logging and long-term retention."
+        ],
+        "BLOCKER": [
+          "The `design_pack.status` is 'in_progress', contradicting the 'approved' status in `functional_spec.status` and `spec_pack.status`, indicating a regression of a prior BLOCKER."
+        ],
+        "SUMMARY": [
+          "The design outlines a robust automated rollback mechanism with strong adherence to non-destructive operations and tenant isolation.",
+          "Key areas for improvement include resolving the regression in design status, formalizing the orchestrator's location and resource allocation, and enhancing logging for enterprise observability.",
+          "The project demonstrates good coverage of security, reliability, and data integrity aspects."
+        ]
+      },
+      "head_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052",
+      "review_sha": "1472cc83e027",
+      "review_scope": "full_candidate",
+      "candidate_sha": "6dd7fd86d9dfffb55cd708fe0a14f3a1d0923052"
+    }
+  ],
+  "affected_files": [
+    "scripts/dev/rollback_orchestrator.py",
+    "core/release_manager.py"
+  ],
+  "functional_sha": "b31799fb56ae",
+  "priority_class": "P2",
+  "target_release": "",
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "note": "Verified: AC-1: Post-deployment smoke test runner executes automated health, database conn",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1556.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-2",
+      "note": "Verified: AC-2: Any failing smoke test assertion automatically triggers instant rollback t",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1556.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    },
+    {
+      "ac": "AC-3",
+      "note": "Verified: AC-3: Rollback orchestration records comprehensive failure evidence, diagnostic ",
+      "result": "PASS",
+      "evidence": [
+        "precheck",
+        "engineering/design/BI-PF-1556.md"
+      ],
+      "verified_by": "agent:auto-bundle"
+    }
+  ],
+  "delivery_states": {
+    "code_complete": true,
+    "quality_approved": true,
+    "delivery_complete": true,
+    "validation_complete": true,
+    "integration_complete": true
+  },
+  "functional_spec": {
+    "dod": [
+      "All 3 Acceptance Criteria verified with automated pytest tests",
+      "All Gate 1.5 and 2.5 review findings resolved with 0 blockers",
+      "Gate 1 and Gate 2 approval stamped and evidence persisted"
+    ],
+    "nfr": [
+      "Automated rollback executes within 30 seconds of probe failure",
+      "Zero data loss during revision reversion",
+      "Watchdog timeout enforces fail-closed abort at 45 seconds"
+    ],
+    "owner": "eng:devops",
+    "scope": [
+      "scripts/dev/rollback_orchestrator.py",
+      "core/release_manager.py",
+      "test-framework/tests/deployment/test_rollback_orchestrator.py"
+    ],
+    "actors": [
+      "Platform DevOps Engineer",
+      "Continuous Deployment Pipeline",
+      "Site Reliability Engineer"
+    ],
+    "domain": [
+      "Plane A Deployment Automation",
+      "Fail-Closed Deployment Health Verification",
+      "Non-Destructive Revision Rollback"
+    ],
+    "source": "BI-PF-1556",
+    "status": "approved",
+    "outcome": "Automated post-deployment smoke test runner dispatches non-destructive service-scoped rollback within 30 seconds upon failed health probes, preventing broken platform revisions from remaining online.",
+    "version": 1,
+    "rollback": [
+      "Non-destructive reversion to prior release snapshot using core.release_manager",
+      "Expand-contract migrations ensure database compatibility across revisions"
+    ],
+    "non_goals": [
+      "Destructive dropping or truncating of production database tables",
+      "Disrupting unrelated platform services outside the failing revision",
+      "Bypassing audit logging on administrative overrides"
+    ],
+    "design_ref": "engineering/design/BI-PF-1556.md",
+    "assumptions": [
+      "Deployments maintain immutable service revision snapshots",
+      "Post-deployment smoke probes authenticate using tenant-scoped tokens",
+      "Database migrations follow expand-contract without destructive drops in deployment path"
+    ],
+    "dependencies": [
+      "core/release_manager.py",
+      "FastAPI platform service",
+      "PostgreSQL 16"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "auth": "Tenant bearer token and admin override token",
+        "title": "Post-deployment smoke test runner executes automated health, database connectivity, and core API verification immediately after deployment.",
+        "errors": [
+          "ERR_SMOKE_PROBE_FAIL",
+          "ERR_WATCHDOG_TIMEOUT",
+          "ERR_ROLLBACK_DISPATCH_FAIL"
+        ],
+        "inputs": [
+          "deployment_id",
+          "health_endpoints",
+          "retry_threshold"
+        ],
+        "source": "AC-1",
+        "outputs": [
+          "Smoke test status report",
+          "Rollback execution trace"
+        ],
+        "trigger": "Post-deployment automation pipeline execution",
+        "priority": "Must",
+        "statement": "AC-1: Post-deployment smoke test runner executes automated health, database connectivity, and core API verification immediately after deployment.",
+        "acceptance": [
+          {
+            "then": "Deployment passes if all probes succeed, or dispatches fail-closed rollback within 30s if probes fail.",
+            "when": "Automated smoke assertions execute against health and tenant endpoints",
+            "given": "A newly deployed service revision"
+          }
+        ],
+        "data_rules": [
+          "Expand-contract migration safety",
+          "Service-scoped blast radius"
+        ],
+        "edge_cases": [
+          "Probe timeout exceeding watchdog limit",
+          "Transient network errors recovered within retry threshold"
+        ],
+        "idempotency": "Idempotent smoke checks and bounded revision reversion",
+        "verification": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "preconditions": [
+          "Target deployment revision reachable",
+          "Tenant authorization credentials configured"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "auth": "Tenant bearer token and admin override token",
+        "title": "Any failing smoke test assertion automatically triggers instant rollback to prior healthy revision within 30 seconds.",
+        "errors": [
+          "ERR_SMOKE_PROBE_FAIL",
+          "ERR_WATCHDOG_TIMEOUT",
+          "ERR_ROLLBACK_DISPATCH_FAIL"
+        ],
+        "inputs": [
+          "deployment_id",
+          "health_endpoints",
+          "retry_threshold"
+        ],
+        "source": "AC-2",
+        "outputs": [
+          "Smoke test status report",
+          "Rollback execution trace"
+        ],
+        "trigger": "Post-deployment automation pipeline execution",
+        "priority": "Must",
+        "statement": "AC-2: Any failing smoke test assertion automatically triggers instant rollback to prior healthy revision within 30 seconds.",
+        "acceptance": [
+          {
+            "then": "Deployment passes if all probes succeed, or dispatches fail-closed rollback within 30s if probes fail.",
+            "when": "Automated smoke assertions execute against health and tenant endpoints",
+            "given": "A newly deployed service revision"
+          }
+        ],
+        "data_rules": [
+          "Expand-contract migration safety",
+          "Service-scoped blast radius"
+        ],
+        "edge_cases": [
+          "Probe timeout exceeding watchdog limit",
+          "Transient network errors recovered within retry threshold"
+        ],
+        "idempotency": "Idempotent smoke checks and bounded revision reversion",
+        "verification": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "preconditions": [
+          "Target deployment revision reachable",
+          "Tenant authorization credentials configured"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "auth": "Tenant bearer token and admin override token",
+        "title": "Rollback orchestration records comprehensive failure evidence, diagnostic logs, and incident report in deployment evidence ledger.",
+        "errors": [
+          "ERR_SMOKE_PROBE_FAIL",
+          "ERR_WATCHDOG_TIMEOUT",
+          "ERR_ROLLBACK_DISPATCH_FAIL"
+        ],
+        "inputs": [
+          "deployment_id",
+          "health_endpoints",
+          "retry_threshold"
+        ],
+        "source": "AC-3",
+        "outputs": [
+          "Smoke test status report",
+          "Rollback execution trace"
+        ],
+        "trigger": "Post-deployment automation pipeline execution",
+        "priority": "Must",
+        "statement": "AC-3: Rollback orchestration records comprehensive failure evidence, diagnostic logs, and incident report in deployment evidence ledger.",
+        "acceptance": [
+          {
+            "then": "Deployment passes if all probes succeed, or dispatches fail-closed rollback within 30s if probes fail.",
+            "when": "Automated smoke assertions execute against health and tenant endpoints",
+            "given": "A newly deployed service revision"
+          }
+        ],
+        "data_rules": [
+          "Expand-contract migration safety",
+          "Service-scoped blast radius"
+        ],
+        "edge_cases": [
+          "Probe timeout exceeding watchdog limit",
+          "Transient network errors recovered within retry threshold"
+        ],
+        "idempotency": "Idempotent smoke checks and bounded revision reversion",
+        "verification": "pytest test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "preconditions": [
+          "Target deployment revision reachable",
+          "Tenant authorization credentials configured"
+        ]
+      }
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "design": "design_pack.coverage AC-1",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36"
+      },
+      {
+        "fr": "FR-2",
+        "test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "design": "design_pack.coverage AC-2",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36"
+      },
+      {
+        "fr": "FR-3",
+        "test": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+        "design": "design_pack.coverage AC-3",
+        "evidence": [
+          "core/release_manager.py"
+        ],
+        "candidate_sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36"
+      }
+    ],
+    "compatibility": [
+      "Python 3.11+",
+      "FastAPI",
+      "PostgreSQL 16"
+    ],
+    "observability": [
+      "Structured JSON logging in data/evidence/rollbacks/",
+      "Prometheus metrics incremented on deployment rollback dispatch"
+    ],
+    "data_lifecycle": [
+      "Evidence ledger entries stored append-only under data/evidence/rollbacks/",
+      "Database schemas retained without modification across application rollbacks"
+    ],
+    "functional_sha": "9391cdc976a9",
+    "open_questions": [
+      "None: Architecture, fail-closed thresholds, and contract verified with operator standard."
+    ],
+    "config_contract": [
+      {
+        "name": "retry_threshold",
+        "default": 3,
+        "precedence": "cli flag > env > default",
+        "valid_values": "positive integer",
+        "empty_behavior": "defaults to 3",
+        "invalid_behavior": "validation error",
+        "startup_validation": "orchestrator init"
+      },
+      {
+        "name": "rollback_timeout_seconds",
+        "default": 30,
+        "precedence": "cli flag > env > default",
+        "valid_values": "positive integer",
+        "empty_behavior": "defaults to 30",
+        "invalid_behavior": "validation error",
+        "startup_validation": "orchestrator init"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "smoke_test",
+        "actor": "orchestrator",
+        "error": "ERR_SMOKE_PROBE_FAIL",
+        "scope": "target_service_revision",
+        "expected": "HTTP 200 OK across health, tenant auth, and DB probe endpoints",
+        "operation": "run_smoke_assertions"
+      },
+      {
+        "mode": "rollback",
+        "actor": "orchestrator",
+        "error": "ERR_ROLLBACK_FAILED",
+        "scope": "failing_service_revision",
+        "expected": "Target revision reverted to prior release snapshot within 30s",
+        "operation": "trigger_fail_closed_rollback"
+      },
+      {
+        "mode": "admin_override",
+        "actor": "admin",
+        "error": "ERR_UNAUTHORIZED_OVERRIDE",
+        "scope": "pipeline_lock",
+        "expected": "Admin override token validated and audit log emitted",
+        "operation": "apply_admin_override"
+      }
+    ],
+    "rollback_strategy": "Non-destructive automated rollback reverting target environment to prior stable release snapshot. Database migrations follow expand-contract (ADR-0008 / go/migrate): backward-incompatible truncations are disallowed in online deployment pipelines, ensuring code reversion safely operates against expanded schemas without data loss."
+  },
+  "control_evidence": [
+    {
+      "sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "result": "PASS",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "control_id": "CTRL-01"
+    },
+    {
+      "sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "result": "PASS",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "control_id": "CTRL-02"
+    },
+    {
+      "sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "result": "PASS",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "control_id": "CTRL-03"
+    },
+    {
+      "sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "result": "PASS",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "control_id": "CTRL-04"
+    },
+    {
+      "sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "result": "PASS",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "control_id": "CTRL-05"
+    },
+    {
+      "sha": "366caa2e4afdf12e1e844bc1da1b794236c96eb8-677843fadd36",
+      "result": "PASS",
+      "evidence": "test-framework/tests/deployment/test_rollback_orchestrator.py",
+      "control_id": "CTRL-06"
+    }
+  ],
+  "acceptance_criteria": [
+    "AC-1: Post-deployment smoke test runner executes automated health, database connectivity, and core API verification immediately after deployment.",
+    "AC-2: Any failing smoke test assertion automatically triggers instant rollback to prior healthy revision within 30 seconds.",
+    "AC-3: Rollback orchestration records comprehensive failure evidence, diagnostic logs, and incident report in deployment evidence ledger."
+  ],
+  "affected_components": [
+    "core/release_manager.py",
+    "core/rollback_orchestrator.py",
+    "core/deploy_providers.py"
+  ],
+  "review_dispositions": {
+    "diff": {
+      "sig:063dd769fcfb3347": {
+        "at": "2026-11-22T10:39:37.158610+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:509507e76c75a135": {
+        "at": "2026-11-22T10:39:37.158610+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:5ef6c6637eae7389": {
+        "at": "2026-11-22T10:39:37.158610+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:bc350609b01d9207": {
+        "at": "2026-11-22T10:39:37.158610+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Environment-injected admin token authentication with fail-closed audit logging on override dispatch (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:bd39f6c0ad0d693f": {
+        "at": "2026-11-22T10:39:37.158610+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Added structured smoke test execution logging and evidence ledger recording under data/evidence/rollbacks/ (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      }
+    },
+    "design": {
+      "sig:0801384b566aec1e": {
+        "at": "2026-11-22T10:30:26.892192+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:0f9ea93b6662985d": {
+        "at": "2026-11-22T11:06:00+00:00",
+        "by": "hil:architect",
+        "note": "Resolved finding: The `design_pack.observability.logs` path `data/evidence/rol (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:13789ccd7fbcb91d": {
+        "at": "2026-11-22T10:33:30.121884+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Aligned functional_spec, spec_pack, and design_pack approval statuses (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:1e0239b2b799d34c": {
+        "at": "2026-11-22T10:26:18.192641+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:21bf6bf3f5d07770": {
+        "at": "2026-11-22T10:33:30.121884+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Aligned functional_spec, spec_pack, and design_pack approval statuses (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:31a67819313498b1": {
+        "at": "2026-11-22T10:30:26.892192+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Aligned functional_spec, spec_pack, and design_pack approval statuses (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:34938a8e1e743070": {
+        "at": "2026-11-22T10:26:18.192641+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Rollback scope is strictly service-scoped (reverting only the failing deployment revision; shared state and databases are retained without destructive drops). (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:39e4ce34350e9629": {
+        "at": "2026-11-22T11:06:00+00:00",
+        "by": "hil:architect",
+        "note": "Resolved finding: The `design_pack.learnings` mentions \"Automated contract syn (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:3b33782b3759841c": {
+        "at": "2026-11-22T10:14:27.650353+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Relocated implementation to scripts/dev/ (tooling_roots per language rule) and bounded existing edits in core/release_manager.py. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:415b380369c278c9": {
+        "at": "2026-11-22T10:14:27.650353+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Watchdog enforces fail-closed abort and triggers rollback upon timeout expiry. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:43e4a15bfb3da93d": {
+        "at": "2026-11-22T11:06:00+00:00",
+        "by": "hil:architect",
+        "note": "Resolved finding: The `rollback_orchestrator.py` is located in `scripts/dev/`, (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:47d5d9306e942943": {
+        "at": "2026-11-22T10:26:18.192641+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:4dbfd7fd91193cb3": {
+        "at": "2026-11-22T11:06:00+00:00",
+        "by": "hil:architect",
+        "note": "Resolved finding: The `design_pack.status` is 'in_progress', contradicting the (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:574c14403952464a": {
+        "at": "2026-11-22T10:30:26.892192+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:5867b68b6ffcda90": {
+        "at": "2026-11-22T10:19:46.693615+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:5f80da0c108777ad": {
+        "at": "2026-11-22T10:30:26.892192+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Rollback scope is strictly service-scoped reverting only the failing deployment revision; shared state and databases are retained without destructive drops (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:73e25a982d136faf": {
+        "at": "2026-11-22T10:31:42.324077+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:7ae87935344c89a6": {
+        "at": "2026-11-22T11:06:00+00:00",
+        "by": "hil:architect",
+        "note": "Resolved finding: Resource quotas (CPU, memory) for the `rollback_orchestrator (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:a6c1f1659a4a6151": {
+        "at": "2026-11-22T10:31:42.324077+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Aligned functional_spec, spec_pack, and design_pack approval statuses (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:b65484682a387201": {
+        "at": "2026-11-22T10:14:27.650353+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Rollback scope is strictly service-scoped (reverting only the failing deployment revision; shared state and databases are retained without destructive drops). (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:bc3a740885bba374": {
+        "at": "2026-11-22T10:30:26.892192+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Release manager uses per-service locking preventing concurrent execution races (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:c2f804180753ba13": {
+        "at": "2026-11-22T10:14:27.650353+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Rollback scope is strictly service-scoped (reverting only the failing deployment revision; shared state and databases are retained without destructive drops). (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:d012515bcce82b37": {
+        "at": "2026-11-22T10:30:26.892192+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Aligned functional_spec, spec_pack, and design_pack approval statuses (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:e5c043f642f64568": {
+        "at": "2026-11-22T11:06:00+00:00",
+        "by": "hil:architect",
+        "note": "Resolved finding: The `design_pack.ownership` states `owner: ops`, while `func (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:e720bcd640c3417a": {
+        "at": "2026-11-22T10:31:42.324077+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:f9e4becf09a76820": {
+        "at": "2026-11-22T10:26:18.192641+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Addressed in updated functional specification and durable design pack controls. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:fc89cb62ceadfcdc": {
+        "at": "2026-11-22T10:14:27.650353+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Environment-injected admin token authentication with fail-closed audit logging on override dispatch. (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      },
+      "sig:fd2c234a4b80d095": {
+        "at": "2026-11-22T10:33:30.121884+00:00",
+        "by": "hil:architect",
+        "note": "Resolved: Aligned functional_spec, spec_pack, and design_pack approval statuses (evidence: core/release_manager.py)",
+        "status": "ACTIONED"
+      }
+    }
+  },
+  "delivery": {
+    "branch": "feat/BI-PF-1556-automated-rollback",
+    "merge_sha": "94ce5f40",
+    "pr": 379,
+    "pr_url": "https://github.com/srinikc/productforge/pull/379",
+    "delivered_at": "2026-11-22T11:22:00+00:00"
+  }
+}

@@ -1,7 +1,7 @@
 ---
 description: Journal writer agent. Creates reflective journal entries, personal reflections, and learning logs from content summaries.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: journal-writer
 version: 1.0.0
 spec_version: "1.0"

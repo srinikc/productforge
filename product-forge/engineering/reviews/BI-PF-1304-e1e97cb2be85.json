@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "e1e97cb2be85",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:33:44.118903+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`core/packaging.py` gains new shipped validation logic (`validate_residency`, `residency_section`, `residency_path`) while AGENTS/EDP language rule mandates new shipped logic in Go; the diff self-grants an exemption by editing `config/language-rule.json`'s allowlist \u2014 a governed rule should not be relaxed inside the same change that violates it.",
+      "Fail-open on corrupt policy: `_policy()` prints \"BLOCK policy unreadable\" and returns `gate_mode: block` + `_error`, but `main()` never inspects `_error`; if the manifest is valid the gate exits 0. A compliance gate must hard-fail (exit 2) when its own policy source is unreadable.",
+      "Default test runs mutate tracked repo state: `test_gate_report_is_non_fatal` invokes the gate without `PF_RESIDENCY_EVENT`/`PF_RESIDENCY_JSONL`, so the test writes `engineering/residency-gate.json`/`.jsonl` into the working tree \u2014 CI/test side effects on a registered evidence artifact."
+    ],
+    "MAJOR": [
+      "Frozen error-code contract broken: unknown home `XX` produces `RESIDENCY_PROFILE_UNREADABLE` (both Go `LoadProfile` and Python), never `RESIDENCY_UNKNOWN_HOME`; the code only fires for empty/regex-invalid homes. AC and the \"frozen codes\" doc are not honored, and conformance tests assert only booleans, not codes.",
+      "`kms.region` may be empty and still pass: Go checks it only `if m.KMS.Region != \"\"` and Python builds the region list as `[]` when unset; AC requires `kms {provider, region, rotation_days>0}` \u2014 a KMS-less-residency declaration validates clean.",
+      "Validation policy is duplicated in three places (Go `Validate`, Python `validate_residency`, Python gate `hard_prefix` tuple) with divergent semantics: Go invoked with `--mode warn` exits 0 on everything, while the Python gate independently re-decides which codes are \"hard\" \u2014 the \"Go is the authority\" claim is structurally false and drift is only detected at runtime as a WARN.",
+      "Runtime Python/Go verdict divergence only warns and continues (`Python/Go verdict divergence; Go is authoritative` then evaluates `go_valid` alone); AC5 demands identical pass/block \u2014 a divergent Python-invalid/Go-valid manifest silently ships. Divergence must block.",
+      "The structured evidence event is best-effort: `_event()` swallows all write/rotation failures to a stderr WARN without affecting exit code, so the AC-required bounded event can silently vanish while the gate reports success (observability gap).",
+      "`config/store-registry.json` registers `residency-gate.json`, `residency-gate.jsonl`, `products/*/residency-manifest.json` with `target.status: \"exists\"` though none exist at registration time; an evidence/config registry that pre-declares existence weakens drift detection.",
+      "`residency-policy.json` ownership is incoherent: registry owner is `go/backupdrill/region.go` (region cells) while docs assign the `gate_mode` rollout lever to \"a recorded decision\" \u2014 no single accountable owner for a security-relevant policy lever."
+    ],
+    "MINOR": [
+      "Python `_load_json` has no size cap while Go enforces 64KB on manifest and profile \u2014 asymmetric DoS/robustness between the two paths.",
+      "Backup group can be \"populated\" with zero regions (`regions: []` + encrypted + frequency passes missing-group and subset checks in both validators), weakening the AC's `backup {regions, ...}` requirement.",
+      "Go `Manifest.Template` is retained but Python `residency_section` pops `template`/`notes` \u2014 the emitted packaging manifest and the Go-validated artifact are not the same document shape, complicating future parity.",
+      "`--mode warn` explicitly passed by a user is still silently escalated to block by the expiry check, overriding operator intent without a distinct exit/report signal.",
+      "`residency_path(scope, ...)` ignores `scope` entirely \u2014 dead parameter that will mislead future callers; also `PF_RESIDENCY_PROFILES` env indirection is undocumented in RESIDENCY-MANIFEST-GATE.md.",
+      "No test updates for `language-rule` allowlist or precheck gate-count assertions (AC requires language_rule_review + precheck 45+ gates coverage); existing tests asserting exact allowlist contents may now fail.",
+      "`go run` compiles the validator on every gate invocation in the \"fast\" CI tier (120s timeout) \u2014 build a vetted binary once and cache, or the gate becomes a flaky latency source."
+    ],
+    "NIT": [
+      "`test_packaging_residency.py` uses single blank lines between top-level functions (PEP8 E302) and an inline `import os` inside a test \u2014 inconsistent with repo style.",
+      "`_notes` key added to `config/language-rule.json` is schema pollution unless the checker explicitly tolerates unknown keys.",
+      "Gate prints its own WARN line in addition to Go's stderr WARN in warn mode \u2014 duplicated, slightly different summaries.",
+      "`--mode` values other than warn/block in `pfresidency` are treated as block implicitly; validate and reject explicitly.",
+      "Duplicate `RESIDENCY_HOME_NOT_ALLOWED` emission in Python (profile check and manifest check) inflates error lists."
+    ],
+    "SUMMARY": [
+      "Solid scaffolding (Go module, fixtures, conformance harness, ownership registry entries), but the change weakens a governing language rule via a self-granted allowlist edit, fails open on unreadable policy, and ships a Python re-implementation of the policy engine that contradicts the \"Go is authoritative\" claim. The frozen error-code contract (notably RESIDENCY_UNKNOWN_HOME) and the kms.region requirement are not actually enforced. Recommend: move `validate_residency` to Go with Python as a thin reader, hard-fail on policy/validator unavailability, assert error codes (not booleans) in conformance tests, and isolate event writes behind temp paths in tests."
+    ]
+  },
+  "rereview_reason": "prior sha 50db8bcc88e9; final strict/warn-first fixes committed",
+  "rereview_reason_sha256": "ed793639bdcc7faa9a4ed8818e3c55d6640c27bef6ef0f507e0e9b2a44fa43c4"
+}

@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "cb85c2ac352d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T08:16:19.775076+00:00",
+  "review_scope": "delta",
+  "base_sha": "18f0d38f6bf7d38a2e0b325e80442ec76960176c",
+  "head_sha": "8ff92d02b183152362092b5b8df5cec6cfd3f754",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`test_pfcore_eventing_field_parity` builds/calls only `go/pfcore`; the approved decision requires parity coverage across *both* Go mirrors (go/pfcore and go/contract), so `go/contract/contract.go` drift is undetected by this test.",
+      "The parity assertion is a field-name set equality only (`set(desc[\"result\"][\"fields\"]) == set(field_names())`); nothing checks required-vs-optional flags or type/shape, so the AC phrase \"required-field/**shape** parity\" is only demonstrated for names."
+    ],
+    "MINOR": [
+      "`@pytest.mark.skipif(_go_bin() is None)` means the parity AC can be met vacuously in Go-less environments; CI must record an actual pass (not a skip) as AC evidence.",
+      "`test_metric_and_empty_secret_contract` pins `webhook_signature(b\"x\", \"\") == \"\"`, codifying silent empty-secret signing as expected behavior; the same test should assert the verify side rejects an empty secret so fail-closed is proven, not implied."
+    ],
+    "NIT": [
+      "The parity test compiles the Go binary inside the test body on every run; a session-scoped build fixture would keep CI deterministic and fast without changing coverage."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully adds Python-side parity and metric-pinning evidence, likely resolving the prior single-language-metric finding via constant-pinning on both sides. Top risks: parity covers only one of the two required Go mirrors, and the \"shape\" half of the AC (required flags/types) is not asserted; ensure CI produces a recorded pass rather than a skip for AC evidence."
+    ]
+  },
+  "rereview_reason": "Delta diff fix for prior 0b854fbc08f1 and 2f34b1d5ad18 findings",
+  "rereview_reason_sha256": "350f3e1d35a9bdc1050959915ddd1590ac2a0708a908714d32d3d2fde332e34e"
+}

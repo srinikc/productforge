@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "7a8ce143f723",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-12T17:38:50.798628+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+  "findings": {
+    "BLOCKER": [
+      "FR-3 (AC-3) is self-contradictory: preconditions say \"DB mode on\", acceptance says \"Given DB on ... Then it fails closed\", and the FR-3 title/triggers repeat on-mode guard behavior \u2014 the approved AC-3 (off mode keeps file authority) is not actually specified or testable as written.",
+      "No distinct evidence/tests exist for AC-4's operator-recovery runbook path; all four ACs point to one pytest command that cannot demonstrate runbook coverage (stop condition \"Missing tests for read/write/delete/ID\" is unproven)."
+    ],
+    "MAJOR": [
+      "`PF_BACKLOG_DB` valid values include `dual` and `shadow`, but the operation_matrix/failure_matrix only define `on` and `off` behavior for unlisted scopes \u2014 unlisted-scope semantics under dual/shadow are unspecified, risking a silent file fallback through an undefined mode.",
+      "Design does not address CL-011: no runtime role posture (NOSUPERUSER/NOBYPASSRLS) or tenant-binding proof for the guard, despite `security_threat_model` and `rls_tenant` being marked APPLICABLE.",
+      "Design guardrail checklist items 2 (availability/SPOF: worker/DB down behavior, on-startup check), 4 (blast radius/dry-run), 5 (id/sequence invariants for ID-allocation path) are unanswered in the design pack."
+    ],
+    "MINOR": [
+      "Rollback is inconsistent: item says \"Revert the change\", design says \"Set PF_BACKLOG_DB=off explicitly\" \u2014 two different rollback procedures with no precedence stated.",
+      "Config contract `startup_validation` for `PF_BACKLOG_DB` is \"operation\" (lazy) rather than on-startup, weakening CL-014-style defence-in-depth; failure surfaces only at first use.",
+      "Observability is limited to \"error code logged with scope\" \u2014 no metric/counter for `BACKLOG_DB_SCOPE_UNLISTED` occurrences, so fail-closed spikes are not alertable.",
+      "`affected_files`/`in_scope` contain \"Not specified.\" placeholders; CL-016 separation of prerequisites (BI-PF-1531) from changed files is not explicit in scope.",
+      "Off-mode operation_matrix covers only read/write for unlisted scopes; delete/ID off-mode behavior is unlisted despite AC-2/AC-4 covering those paths."
+    ],
+    "NIT": [
+      "Error taxonomy defines only `BACKLOG_DB_SCOPE_UNLISTED`; consider whether mode/allowlist misconfiguration (`BACKLOG_DB_MODE_INVALID`) needs an equivalent documented recovery step in the runbook.",
+      "`ac_evidence.sha` values are \"candidate\" rather than pinned SHAs; traceability is weaker than a content-addressed evidence reference."
+    ],
+    "SUMMARY": [
+      "Direction is right (fail closed, no silent fallback, explicit off), but AC-3 is specified inconsistently within FR-3 itself and AC-4's runbook/test evidence is not concretely demonstrated \u2014 these must be fixed before Gate 1.5.",
+      "Undefined dual/shadow semantics for unlisted scopes is the top residual risk of reintroducing the silent file fallback this item exists to remove.",
+      "Guardrail gaps (RLS/role posture, startup validation, availability/invariants) and a dual rollback definition need design answers; no schema/API/language-rule violations found in the declared file set."
+    ]
+  }
+}

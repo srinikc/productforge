@@ -31,7 +31,9 @@ _REPO_ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
 
 
 def _git(*args):
-    r = subprocess.run(["git", *args], cwd=_ROOT, capture_output=True, text=True)
+    env = os.environ.copy()
+    env.pop("GIT_INDEX_FILE", None)
+    r = subprocess.run(["git", *args], cwd=_ROOT, env=env, capture_output=True, text=True)
     return (r.stdout or "").strip()
 
 
@@ -59,11 +61,18 @@ def _ruff(files):
     """Return (count, output) for ruff on the given files (empty => 0)."""
     if not files:
         return 0, ""
-    r = subprocess.run([sys.executable, "-m", "ruff", "check", *files],
-                       cwd=_ROOT, capture_output=True, text=True)
-    out = (r.stdout or "") + (r.stderr or "")
-    count = sum(1 for ln in out.splitlines() if ln.strip() and ":" in ln and not ln.startswith(" "))
-    return count, out
+    out_all = []
+    total_count = 0
+    # chunk to avoid WinError 206 command-line length limits on Windows
+    chunk_size = 50
+    for i in range(0, len(files), chunk_size):
+        chunk = files[i:i + chunk_size]
+        r = subprocess.run([sys.executable, "-m", "ruff", "check", *chunk],
+                           cwd=_ROOT, capture_output=True, text=True)
+        out = (r.stdout or "") + (r.stderr or "")
+        out_all.append(out)
+        total_count += sum(1 for ln in out.splitlines() if ln.strip() and ":" in ln and not ln.startswith(" "))
+    return total_count, "".join(out_all)
 
 
 def _baseline_findings(files):

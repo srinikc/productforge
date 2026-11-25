@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "6fdf4391d423",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:40:54.998124+00:00",
+  "review_scope": "delta",
+  "base_sha": "45526439c5ed614c9d4de5b35564d3a45cbf2da5",
+  "head_sha": "0e7552fead9a353503ab0ce3c31b00d607271103",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta adds a new control contract `config/review-material-change.json` in design_pack.contracts.config, yet the same delta leaves functional_spec.config_contract as \"review-budget.json: existing policy used unchanged\" and the file is absent from declared affected_files \u2014 matching design rows were not updated in this delta as required.",
+      "Prior MAJOR (hil:<actor> validation) disposition is only half-correct: the delta now specifies an allowlist check, but `by` remains a caller-supplied payload field with no statement that it is bound to the authenticated principal, so an operator can still self-assert `hil:<actor>` and pass the guard \u2014 remains PENDING."
+    ],
+    "MINOR": [
+      "Guardrail newly declares 503/500 fail-closed behaviour, but the failure_matrix updated in this delta has no availability rows and FR-1.errors remains 400/404/409 with no status-to-code mapping \u2014 three changed/related rows unsynced.",
+      "Invariant ordering is \"validate revision -> identity\": authorization should precede revision checks, otherwise an unauthorized caller can probe item existence/state via CONFLICT vs VALIDATION responses.",
+      "Scope claim (\"scope/project-scoped by _scope_project, no tenant header\") exists only in design_pack.security; FR-1 auth/data_rules do not record scoping, leaving the functional spec as the weaker contract."
+    ],
+    "NIT": [
+      "Availability guardrail covers fail-closed handling but not the checklist's on-startup defence-in-depth check or alert lead-time (residual of the pending CL-008 finding).",
+      "The new allowlist config has no stated ownership/refresh process or dedicated test evidence in traceability."
+    ],
+    "SUMMARY": [
+      "Design delta materially improves guardrails (security, availability, invariant ordering, observability) and resolves the reason-citation and scoping prior findings, but introduces a new config control that is not synced into the functional spec's config contract, and the HIL identity binding remains unproven \u2014 the two open MAJORs must be dispositioned before Gate 1.5 approval (CL-006).",
+      "Top risks: forged `by`/HIL confirmation at the new endpoint, and contract-row drift between design_pack and functional_spec within the same delta."
+    ]
+  },
+  "rereview_reason": "Delta for prior 2d9a0b7d3ba6: HIL allowlist, latest-SHA citation, scope, guardrails",
+  "rereview_reason_sha256": "68672a04bac1bfc3f0bbf925e6b52da897102adf50f7e46a5e4cd7a4ba92a489"
+}

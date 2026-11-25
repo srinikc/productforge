@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "50db8bcc88e9",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:28:43.396984+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Python and Go validators disagree on strictness (`int(\"90\")` accepted by Python; Go `json.Unmarshal` rejects it \u2192 cmd exits 2, `\"egress\": null` passes Python's key-presence check but is MISSING_GROUP in Go), and the gate maps any rc==2 or parity mismatch to a hard exit 2.",
+      "Result: one type/NULL drift in a product manifest hard-blocks all CI (blocking fast-tier gate) even with `gate_mode=warn`, directly contradicting the warn-first rollout and the \"warn downgrades policy violations only\" rule \u2014 this is a policy divergence, not an execution failure."
+    ],
+    "MAJOR": [
+      "`core/packaging.build()` sets `out[\"ok\"]=False` on any residency violation while `config/residency-policy.json` ships `gate_mode=warn`; warn-first is honored only in the gate, not in manifest consumers \u2014 builds fail-closed against the stated rollout plan.",
+      "AC5 conformance never runs `core.packaging.validate` (only internal `validate_residency`), has no toolchain/validator-unavailable fixture, and asserts boolean parity only \u2014 divergent error codes between the two authorities go untested.",
+      "~90 lines of new shipped validation logic landed in Python by editing the language-rule `allow` list; the full policy engine is duplicated in two languages and is already drifting (typing/null/missing-group semantics), which the language rule exists to prevent.",
+      "The gate unconditionally writes `engineering/residency-gate.json`/`.jsonl` into the working tree on every run (only tests override via env), dirtying the repo on every precheck/CI pass and risking file/store-registry gates.",
+      "Missing-group detection uses incompatible heuristics (Python: key presence; Go: zero-value combinations like `len(regions)==0 && !encrypted && freq==\"\"`), so partially populated groups can pass one validator and fail the other \u2192 spurious parity exit 2."
+    ],
+    "MINOR": [
+      "`residency_path(scope, ...)` ignores `scope`; `residency_section` strips `template`/`notes` and records no source path \u2014 audit trail of which manifest was used is lost.",
+      "`PF_RESIDENCY_PROFILES` lets Python validate against profiles different from the Go default dir; `core.packaging.validate` can silently diverge from the authority outside the gate.",
+      "AC-required tests for `language_rule_review` and precheck (45+ gates) are absent from the diff; registration exists but coverage is unverified.",
+      "`data_classes`/`subprocessors` contents are never validated (empty-string or malformed entries pass both validators) \u2014 these are the compliance-relevant fields.",
+      "`store-registry` owner for `residency-profiles/*.json` is \"counsel (EDP-05)\", not a resolvable module owner; owner-resolution gates may reject it.",
+      "Every gate run pays a `go run` compile inside the `fast` CI tier; a prebuilt/cached binary is warranted at scale."
+    ],
+    "NIT": [
+      "`residency_conformance.json` has no trailing newline; `test_residency_conformance.py` carries a UTF-8 BOM.",
+      "JSONL rotation yields base + 3 files (4 total) while docs/registry advertise \"5MB x3\".",
+      "store-registry allow-list adds repo-root scratch filenames the tests no longer produce (they use tmp_path).",
+      "Inconsistent blank-line spacing between test functions in `test_packaging_residency.py`."
+    ],
+    "SUMMARY": [
+      "Solid structure (Go authority, stable codes, owners, evidence trail, warn-first lever), but the two validators already diverge on JSON typing/nulls and that divergence escalates to a hard, non-warn-downgradable CI block \u2014 fix strictness parity and separate \"execution failure\" from \"policy divergence\" before merging.",
+      "Second-tier risks: Python-side policy engine duplication, build-time `ok=false` contradicting warn-first, and dirty-tree evidence writes on every gate run.",
+      "AC5 conformance is thinner than specified (no toolchain case, doesn't exercise `core.packaging.validate`, boolean-only parity), so the \"identical verdict\" guarantee is currently asserted more than proven."
+    ]
+  },
+  "rereview_reason": "prior sha c2372e84cebf; exit contract, egress, profile parity and build fail-closed fixed",
+  "rereview_reason_sha256": "9c9c2ea13c23c04a20a7977dfaf5061ecf81829ae7bffe9f6a8f69c6d4a85e1b"
+}

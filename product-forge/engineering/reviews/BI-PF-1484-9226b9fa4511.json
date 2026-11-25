@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "9226b9fa4511",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T14:14:25.801438+00:00",
+  "base_sha": "0916fa9f0c85ed5095f07758ca07b7fc297efd28",
+  "head_sha": "a1e3d624010f60ea17e59c159247ccf8501f09e7",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The new exclusion `:(exclude,glob)**/config/id-blocks.json` removes the blocked-ID configuration from the staleness diff entirely. If `id-blocks.json` changes (e.g., a newly blocked ID or expanded block rules), in-flight reviews remain \"fresh\" and proceed under stale security-relevant policy. If this file materially affects review outcomes, it must invalidate prior reviews, not be excluded; justify the exclusion with a reference to BI-PF-1485 or scope its exclusion to the content-only (non-behavioral) case.",
+      "The delta is a single-line change to a gate-critical pathspec list with no accompanying test (the AC demands guard coverage for review tooling changes). There is no assertion that `config/id-blocks.json` is excluded or that the exclude is `:(exclude)`-prefixed, so a future edit that drops the magic prefix silently re-introduces the pathspec-inversion defect reviewed earlier \u2014 untested and undetected."
+    ],
+    "MINOR": [
+      "The `EXCLUDE` list now encodes two separate concerns (baseline config and block config) with identical comment/justification treatment; a one-line comment stating why `id-blocks.json` is safe to exclude (owned by BI-PF-1485, non-behavioral) would prevent a future maintainer from removing it as an apparent mistake or, worse, copying it as precedent for excluding other policy configs.",
+      "Consistency: this exclusion makes the new `id-blocks.json` an unreviewed blind spot in delta evidence, while AC evidence for \"Docs/state\" claims store/wired checks as the compensating control. That coupling is implicit; the delta should reference the compensating control so a reviewer of the config change knows the guard exists."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta is minimal and mechanically correct (proper `:(exclude)` magic prefix), but it silently widens the review-staleness blind spot to a policy-bearing config (`id-blocks.json`) with no justification, no test, and no compensating-control citation. Verify with BI-PF-1485 that excluding this file from staleness detection is intended, and add a pathspec guard test; otherwise restore its inclusion."
+    ]
+  },
+  "rereview_reason": "prior sha 87bf82001fb7; id-blocks excluded from review diff",
+  "rereview_reason_sha256": "14bf8500bcc237cc297271a63f523b4f5e6413d9c09b8a6a7d9207fdce1d8db2"
+}

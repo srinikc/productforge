@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "ac58c94a8886",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T11:23:15.857554+00:00",
+  "review_scope": "delta",
+  "base_sha": "273883eebfdcac96af865123ddef696970535c6e",
+  "head_sha": "4442430d772200bfe0bbc20a0fc35fd2b2bf05f1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "The delta-added `--item` closed-skip branch (`fix_guard.py`: `skipped = 1 if is_closed(...)` / `if not skipped: bad += ...`) has no regression test; a dropped guard would silently re-enforce closed items or lose the `skipped_closed` marker, weakening AC-3 for this path.",
+      "The `is_closed` case-boundary change (raw value now passed to `backlog.section`) is untested: no test covers a mixed-case authority-dependent status (e.g. `WONT_FIX` vs `wont_fix`), so the exact contract with the case-sensitivity of `backlog.section` remains implicit (fail-closed direction only).",
+      "The new `test_fix_guard_problems_threads_meta` patches `fg.latest_review`, so it only holds if `problems` resolves that symbol at module scope; it verifies meta threading but not that the printed `mtime_fallback=` line reflects it end-to-end."
+    ],
+    "NIT": [
+      "When `--item` skips a closed item, `meta` stays empty and the line prints `mtime_fallback=0`, which is indistinguishable from \"evaluated, no fallback\"; consider an explicit \"not evaluated\" marker for log scraping.",
+      "Output-shape unification in `--item` is good, but the line still omits the item id (`item=<id>`), so `--all` and `--item` records are not uniformly greppable."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior MINORs (raw status to authority, meta threading test, `--item` skip marker, output-shape NIT) and stays within the approved scope with tooling-Python language rule satisfied.",
+      "Remaining risks are test-coverage gaps on the new `--item` skip path and the unverified case-sensitivity contract at the `backlog.section` boundary.",
+      "No blocker or contract-breaking issue; approve with the MINOR test additions."
+    ]
+  },
+  "rereview_reason": "Final delta for prior fee0b3e04294 and de24b1c80119",
+  "rereview_reason_sha256": "c79416842848bbbb836a763deb05d89e6ec6598944b0d13ed75a0301a67f24a8"
+}

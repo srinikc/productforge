@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "8ba9d8b47bd3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:33:41.135630+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "AC/schema ambiguity: AC uses `target.related_item=BI-PF-1476` (singular) but `in_scope` says `related_items` (plural). Pin the exact field name before implementation; a mismatch means the pinned parity check and the AC disagree on the contract.",
+      "Generic invariant vs. out-of-scope data: the new generic rule (\"any retained target with decision_ref => non-empty retained_reason + resolvable ADR\") is applied to a registry with ~60 other retained stores explicitly out of scope for audit. If any existing retained entry carries a decision_ref (or a decision_ref-shaped value) without a reason, the gate breaks on data this item never reviewed. Add a pre-flight scan of the live registry proving the generic rule is currently satisfied for ALL entries before enabling it.",
+      "Self-test coverage gap for \"index row AND section\": the negative self-test list covers a missing ADR ref but not the case where the ADR index row exists while the section anchor is missing (index/section drift, which the risks list calls out). Add that mutation or the AC's \"AND section\" clause is not demonstrably enforced."
+    ],
+    "MINOR": [
+      "`in_scope` lists `config/store-registry.json` twice with overlapping descriptions (\"pinned retained-state\" and \"pinned retained tuple\") \u2014 dedupe to keep the scope boundary unambiguous for the gate check.",
+      "Rollback requires regenerating STORE-DATAFLOW.md and re-running precheck to \"prove restored parity,\" but the rollback section does not state a concrete verification command/exit-code expectation; a future revert operator may skip the proof step.",
+      "The ADR supersede trigger depends on a future BI-PF-1439 state change (\"runtime-writable or tenant-specific\"), but there is no stated mechanism to flag/link that item so the revisit is discovered; consider a one-line reference from the ADR to the item (forward-link) rather than relying on the registry's backward `related_item` only.",
+      "Observability of gate failures: the generic rule should emit a message naming the offending entry id, the missing field, and the decision_ref so a future contributor can self-serve; this is asserted in the AC but not in the design's error-message contract."
+    ],
+    "NIT": [
+      "\"docs-fresh passes after STORE-DATAFLOW regeneration\" encodes a strict ordering (regen then docs-fresh) that is fine but could be stated as a precheck-enforced ordering to prevent a stale-docs commit between the two steps.",
+      "The gate's pinned parity tuple (kind/status/backend/migration_status + decision_ref) is small and additive, which is good; ensure the parity block is commented as \"design-systems specific, see ADR-0009\" so a future contributor does not treat it as a template to copy for other stores."
+    ],
+    "SUMMARY": [
+      "Overall: the design is sound \u2014 file-backed retention over a tenant-scoped table is the correct enterprise call, the single-writer gate extension with an in-memory negative self-test is the right enforcement pattern, and rollback is a clean doc/config revert with no schema or data change. Top risks are the singular/plural `related_item(s)` contract ambiguity and the generic invariant silently tripping on the 60 unaudited retained stores; both must be resolved before Gate 1.5 sign-off (CL-006: no pending MAJORs)."
+    ]
+  }
+}

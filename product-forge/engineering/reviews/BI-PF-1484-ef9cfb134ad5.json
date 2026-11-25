@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "ef9cfb134ad5",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:08:08.774360+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Language rule: `core/execution_trail.py` (show) gaining new render logic is new shipped logic in Python; design does not state whether this is an \"edit to shipped Python\" vs new logic, and no Go placement is proposed. AC claims language-rule checks pass but the design contradicts it.",
+      "No decided policy for pre-existing completed items lacking `ac_verification`/`final_report`: \"backfill or grandfathering\" is left open. An undecided completion-guard behavior is an unfalsifiable invariant \u2014 pick one, list the affected ids, and test it."
+    ],
+    "MAJOR": [
+      "Enforcement is spread across `gate1_check.py`, `gate_decisions.py`, `execution_trail_check.py`, and `disposition_policy.py`; design does not name a single writer/owner for disposition+AC policy. CL-001 route-by-kind requires one module that all gates call, else the cap/approval rules will drift per gate.",
+      "Finding signature (`finding sigs`) algorithm and stability invariant are unstated: if sigs hash volatile fields (timestamps, ordering, wording), approvals break on re-render or become forgeable by trivial edits. Define the sig inputs and add a tamper/round-trip test.",
+      "ACCEPTED cap is \"per review mode\" but the aggregate behavior (e.g., 2 design + 2 diff = 4 accepted per item) is unspecified; state whether caps are independent or item-global and test the combined case.",
+      "`finalize_item.py` persistence has no stated atomicity/single-writer contract: partial writes or concurrent finalize runs could leave a half-populated `final_report` that passes merge checks. Require write-then-rename (or equivalent) plus an idempotency invariant.",
+      "DEFERRED \"cites an existing backlog id\" needs an existence check against the store at each gate, and a rule for ids later closed/deleted; otherwise the cite degrades to a free-text string."
+    ],
+    "MINOR": [
+      "DEFERRED id validation, cost_source enumeration (allowed values, required-when-cost-present), and test-kind taxonomy (`other` catch-all) need documented rules; add invariant test that per-kind counts/durations sum to the reported totals.",
+      "Guardrail refusals (cap exceeded, missing approval, failed AC, missing final report) emit no stated log/metric; observability gap will make gate failures hard to diagnose in CI.",
+      "No explicit test that Gate 2.5 flagging an AC gap does *not* certify it (the \"2.5 may flag but not certify\" negative case).",
+      "Rollback note says \"revert the commit\" but post-revert orphan fields (`final_report`, `ac_verification`) in stored items are unaddressed; confirm read paths tolerate unknown/extra fields."
+    ],
+    "NIT": [
+      "`config/review-dispositions.json` ownership/updater not named (who edits caps/config vs code); add to store-registry docs to prevent config drift.",
+      "Recurring `_render_review`/`_item_dispositions` test gap from prior reviews should be explicitly added to the test list to avoid a third repeat."
+    ],
+    "SUMMARY": [
+      "Verdict: conceptually sound and well-scoped (guards at Gate 1/2/completion, persisted report, docs), but two items must be settled before Gate 1.5: the language-rule placement of new `show` rendering logic, and the grandfathering-vs-backfill decision for existing items.",
+      "Top risks: enforcement logic duplicated across gate scripts without a named single writer; unspecified finding-signature stability; non-atomic final_report persistence."
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "44dac6ae2f68",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T18:07:52.925492+00:00",
+  "base_sha": "",
+  "head_sha": "ee2fa2ed9002e1cc6f77b42b7642080119a4b65c",
+  "findings": {
+    "BLOCKER": [
+      "`scripts/dev/disposition_policy.py` and `scripts/dev/finalize_item.py` are new *shipped* gating logic written in Python; per language rule, new shipped logic must be Go (tooling-only carve-out must be explicitly justified and verified by AC-5's language-rule check).",
+      "AC verification has no verifier-role constraint: the worker/implementer can self-assert PASS with arbitrary evidence, so Gate 2/merge/completion gates are bypassable by the party they gate (integrity of the whole contract collapses).",
+      "Design omits the mandatory DESIGN GUARDRAILS checklist answers (authz boundary, tenant/RLS scope, backup/restore, blast radius, single-writer ownership); CL-008 is enforced by `core/design_guardrails.py`, so Gate 1 will reject this design as-is.",
+      "CL-002 tension unresolved: dispositions are main-thread-owned while HIL approval is required; design specifies no tamper-evident binding (signature/nonce over finding sigs + item id + sha) for `DISPOSITION_APPROVAL`, so `hil_confirmed`/`by hil:*` can be self-asserted in the same trust domain as the disposer."
+    ],
+    "MAJOR": [
+      "Grandfathering is asserted (\"forward-looking\", \"no data migration\") but no discriminator is defined (e.g., schema/policy version or completion timestamp); existing items lacking `ac_verification`/`final_report` will either spuriously fail the completion/merge guard or silently bypass it \u2014 define and test the cutoff invariant.",
+      "`FINAL_REPORT_MISSING/STALE` is in the failure matrix but staleness is undefined; bind the report to review sha / merge-base / HEAD (and the delta base) with a tested invalidation rule, including cache-vs-review-sha interaction.",
+      "Delta-review base invariants (\"merge-base or prior reviewed HEAD of same item; base != HEAD\") are stated but no ordering/monotonicity invariant or test is planned (no `DELTA_BASE_INVALID` test in `test_matrix`) \u2014 add explicit tests for cross-item, self-referential, and rewind cases.",
+      "`cost_source`/token accounting has no named system of record or reconciliation step; provider-reported vs measured drift will make `final_report` non-authoritative for audit \u2014 specify the source, tolerance, and failure behavior.",
+      "AC-4 coverage gap mirrors the recurring finding: no planned tests for the trail `show` render helpers (`_render_review`/`_item_dispositions`: index alignment, missing item, unknown status, partial AC rows), so rendering regressions won't fail gates.",
+      "Checklist item 10 / CL-001 unaddressed: no single owner/writer registered for `ac_verification`, `review_dispositions`, and `final_report` beyond a store-registry entry; duplicate writers (finalize_item vs gates vs completion) can race on the same item fields \u2014 define the write path and ownership."
+    ],
+    "MINOR": [
+      "Observability is stderr + trail events only; no counter/metric for gate refusals by `code` (e.g., `AC_VERIFICATION_INCOMPLETE`, `HIL_APPROVAL_MISSING`), which is needed to detect policy-induced delivery stalls.",
+      "`2.5 may flag AC gaps but does not certify` lacks an enforcement mechanism (how are 2.5 findings recorded without polluting verifier identity, and how are they reconciled with the verifier's PASS).",
+      "\"No per-item review glob in hot path where cacheable\" leaves cache invalidation unspecified; a stale no-review cache could let a changed diff pass \u2014 tie cache key to diff/review sha.",
+      "Rollback claims \"item fields inert\", but readers (`show`, gates, store checks) now interpret them; specify forward/backward reader tolerance for unknown/absent fields.",
+      "Reversibility: no verified restore/inspection path for `item.final_report`/`ac_verification` mutations (checklist 1) \u2014 document a read-only inspect + field-clear procedure even if the revert is code-only."
+    ],
+    "NIT": [
+      "`ACCEPTED`/`DEFERRED` terminology collides with the reviewer disposition vocabulary; consider an explicit glossary line in `REVIEW-GATES-LIFECYCLE.md` to avoid operator confusion.",
+      "Error codes should be exhaustively enumerated alongside the failure matrix so trail/CI consumers can switch on stable identifiers.",
+      "Probe-key wall-clock nanos uniqueness (recurring) \u2014 negligible, but note if trail event ids ever become user-visible keys."
+    ],
+    "SUMMARY": [
+      "Verdict: not Gate-1-ready. Two hard integrity defects \u2014 Python for new shipped gating logic, and self-certifiable AC verification / HIL approval without tamper-evident binding \u2014 undermine the very gates this item introduces.",
+      "Top risks: missing guardrail-answers block Gate 1 per CL-008; undefined grandfathering and staleness semantics will misfire on existing items; delta-base and render-path tests are absent from the test matrix.",
+      "Recommend: constrain verifier/approver roles cryptographically or by trust boundary, name the owner/writer per field, and add explicit staleness/grandfathering invariants with tests before proceeding."
+    ]
+  },
+  "rereview_reason": "prior design sha ef9cfb134ad5; merged candidate final design",
+  "rereview_reason_sha256": "71d6913be1db5c93188c1229f4116a13e7c55408190dbf035c9863b3b96d6fc1"
+}

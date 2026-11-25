@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "48535cbaf787",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T07:33:44.478199+00:00",
+  "base_sha": "25db7f721a58dccb9a9b852afc7a0b10e83de74b",
+  "head_sha": "0cab65b4bc6d03d99f601053212bccc893e55bbf",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`enforce_from` diagnostic string changed from `invalid/missing` to `missing` for the unparseable case; any grep/alert/CI rule or reviewer playbook keyed on the old combined wording silently stops matching, and neither `REVIEW-GATES-LIFECYCLE.md` nor tests were updated in this delta to record the split (hunk: new `except ValueError` branch emitting `invalid enforce_from`).",
+      "`invalid` is incremented for any malformed/missing-evidence `at` regardless of `parsed_ok` or cutoff, so a single permanently corrupt historical evidence row keeps `len(rows) + invalid >= max_n` true forever with no remediation path short of rewriting history; the diagnostic repeats per row with no cap (hunk: `invalid += 1` in both bad-`at` branches) \u2014 fail-closed is right, but the unbounded, un-actionable signal remains.",
+      "The delta resolves the crash and the `rows` contamination but `test_review_budget.py` is untouched, so there is still no regression test asserting that a malformed `enforce_from` degrades to a problem entry instead of raising, nor that `_material_ok` is fed only valid rows (AC: \"tests cover ... missing timestamp negative cases\" \u2014 delta hunk ships no test evidence)."
+    ],
+    "NIT": [
+      "The `# count it so bad evidence cannot shrink the budget` rationale was deleted rather than moved; the `len(rows) + invalid >= max_n` invariant now has no in-code or in-doc explanation, which is exactly the policy note prior review asked to relocate to `REVIEW-GATES-LIFECYCLE.md` (neither file touched by this delta)."
+    ],
+    "SUMMARY": [
+      "The delta correctly resolves the two substantive prior MAJORs: `_dt(cutoff)` is now wrapped so a malformed `enforce_from` becomes a problem entry instead of an exception, and invalid evidence is excluded from `rows` so `_material_ok` is evaluated only against valid reviews while still counting fail-closed via `invalid`.",
+      "Net verdict: improvement, ship-ready on the corrected arithmetic, but evidence and docs lag the code change.",
+      "Top residual risks: untested new branches (crash-prevention and material-approval integrity are unproven against regression), a silently renamed diagnostic string, and permanently blocking un-actionable corrupt historical evidence.",
+      "Prior MAJOR on the hard-fail contract for missing `enforce_from` and the missing migration note remains PENDING (unchanged by this delta; not re-litigated here)."
+    ]
+  },
+  "rereview_reason": "prior sha 22bb8ae22e89; cutoff/invalid evidence fixed",
+  "rereview_reason_sha256": "16ecab03b85b5a721129d36fd68b575c902751e2b1d7319bf272f751039dc587"
+}

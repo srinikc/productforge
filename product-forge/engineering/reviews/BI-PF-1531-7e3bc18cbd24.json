@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "7e3bc18cbd24",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-10T08:49:44.736984+00:00",
+  "review_scope": "delta",
+  "base_sha": "805ecbf9a97312c13ce91e945a88142d42cd58db",
+  "head_sha": "ac27d097f8f9b98f6420f7581689dcce721c04bc",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta ships two new untested branches in `_docs_body` (hardcoded config-ref injection and the ROOT containment guard); the pre-existing test-coverage gap now covers more shipped gate logic.",
+      "The containment guard silently `continue`s on out-of-ROOT refs with no log/warning, so declared-scope files (`../.github/workflows/structure.yml`, `../.github/workflows/full-sweep.yml`) drop out of the review prompt with no trace that they were considered and skipped.",
+      "`seen` dedup keys on the raw ref string before `.resolve()`, so two spellings of the same path (e.g. a hardcoded `config/env-flags.json` plus an `./`-prefixed entry in `affected_files`) are both read and injected."
+    ],
+    "NIT": [
+      "The four config refs are item-agnostic and unconditional, so every architect review for any item now injects these files regardless of relevance; the list is also a second hardcoded config path inventory alongside `config/architect-review.json`.",
+      "The guard uses `ROOT.resolve() not in p.parents`, which also rejects `ref == ROOT` itself \u2014 harmless today but worth a comment since it is a containment assertion others will copy."
+    ],
+    "SUMMARY": [
+      "The delta is a small tooling-only change (language rule satisfied) whose traversal guard correctly closes the previously reported out-of-repo read path; the prior MAJOR on out-of-ROOT injection is resolved by this hunk.",
+      "No AC in BI-PF-1531 is broken or de-evidenced by this delta (declared file `config/env-flags.json` is untouched; flag default remains `on`).",
+      "Top residual risks are silent skipping of declared-scope files and growth of the untested `_docs_body` branch; both are MINOR hardening, not contract-breaking."
+    ]
+  },
+  "rereview_reason": "fix 81e8e8c2f8af blockers/majors",
+  "rereview_reason_sha256": "bb108672845f0058aa092227c1fb9055b5c70eafc3197e64b32d308cb1dbcc81"
+}

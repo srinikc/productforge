@@ -1,0 +1,26 @@
+{
+  "item": "BI-PF-0399",
+  "sha": "eadfae16f92c",
+  "model": "gemini-3.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-22T05:23:52.366822+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "9e6139e11e8e945bf6db6822ea0e21b46b3d9db9",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "The OpenAPI specification (`product-forge/api/openapi.json`) omits the 400 response contract for `/api/v1/packaging/rdc/compose` and `/api/v1/packaging/rdc/validate`, despite the router raising `ApiError(\"VALIDATION_FAILED\")` on validation/IP-leakage failure."
+    ],
+    "NIT": [
+      "In `go/pfcore/rdc.go`, `ValidateIPLeakage` includes redundant checks `!strings.HasSuffix(lower, \".pyc\") && !strings.HasSuffix(lower, \".pyd\")` alongside `strings.HasSuffix(lower, \".py\")`, since filenames ending in `.pyc` or `.pyd` already fail the `.py` suffix check."
+    ],
+    "SUMMARY": [
+      "Implementation successfully fulfills all acceptance criteria for BI-PF-0399.",
+      "Native Go runtime dependency compiler engine and fail-closed IP guard adhere strictly to language and contract boundaries.",
+      "Pipeline tests cover hermetic resolution, target filtering, and REST API exposure cleanly."
+    ]
+  }
+}

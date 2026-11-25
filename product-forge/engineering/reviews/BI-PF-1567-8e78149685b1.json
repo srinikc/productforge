@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "8e78149685b1",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T08:58:36.317006+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "962cf069588a4a39f539196019fb33a695c3b588",
+  "findings": {
+    "BLOCKER": [
+      "TestRolePosture (C-8/AC-2) is an empty no-op: it only skips when PF_TEST_MEMORY_DSN is unset and asserts nothing when set, so NOSUPERUSER/NOBYPASSRLS/RLS-FORCE posture is never proven and CI never fails on a missing DSN as the config contract requires.",
+      "TestConcurrentBoundaryLoad discards every result (`_, _ =`, `_ =`) and asserts zero invariants, so AC-3's \"boundary isolation under concurrent load\" is not actually verified."
+    ],
+    "MAJOR": [
+      "Config contract PF_MEMORY_OP_TIMEOUT / PF_MEMORY_MAX_SEARCH_K (C-6) is never read: resolveOrchestrator calls pfmemory.New with only WithObserver, so startup validation and fail-closed limits are unimplemented.",
+      "Required structured audit (C-5: memory.read/write/search/delete/denied with tenant/project/actor/outcome) is emitted nowhere in the orchestrator or handlers; only counters exist.",
+      "edpdata MemoryStore GetScoped/DeleteScoped and the pg_store wrappers (C-11/C-12/C-14/C-15) have no tests in the diff; the PostgreSQL production path has zero leakage evidence.",
+      "memory.MemoryRecord.Validate errors are returned raw, so client input failures surface as HTTP 500 via memoryRequestError default, contradicting the failure matrix (MEMORY_VALIDATION_FAILED) and inflating the documented 5xx rollout alert.",
+      "Approved design mandates \"read-verify-delete\" for Delete; implementation is a single atomic predicate DELETE with no verify step \u2014 stronger, but an unacknowledged contract divergence (design/spec not amended).",
+      "Failure-matrix error codes (MEMORY_INVALID_SCOPE, MEMORY_NOT_FOUND, \u2026) are never produced; handlers return free-text only, so runbook/alerting keyed on codes cannot work."
+    ],
+    "MINOR": [
+      "TestNoDirectMemoryRepositoryCalls greps only four `mem.`-prefixed substrings in main.go; other aliases (`repo.`, `m.`) or additional handler files bypass the AC-1 guard.",
+      "TestMemoryHandlersUseOrchestrator merely re-invokes TestServer_Memory_DualVec_Sqlite; it proves nothing independently about orchestrator wiring.",
+      "ErrScopedReadUnsupported/ErrScopedDeleteUnsupported map to HTTP 400, masking server misconfiguration as a client error (should fail as 5xx/503).",
+      "Existing callers that omit `project` on GET/search now get 400; only writes were specified as project-required \u2014 confirm API-compat and rollout communication.",
+      "Duplicate not-found sentinels (datastore.ErrNotFound vs pfmemory.ErrNotFound) require manual mapping at each boundary; an unmapped path returns 500 instead of 404.",
+      "Misplaced godoc: the retained `// Delete removes a memory entry by ID.` comment now documents GetScoped in sqlite_store.go.",
+      "D-1 strict project filter is applied inside shared dualvec Search, changing behavior for any non-governed dualvec.Search callers, not just the gateway."
+    ],
+    "NIT": [
+      "resolveOrchestrator rebuilds the Orchestrator (and resolveMemory/dualvec store wrapper) per request; no shared instance \u2014 allocation churn that extends a pre-existing pattern.",
+      "Validation denial increments both memory_denied_total(reason=validation) and memory_ops_total(result=error) \u2014 inconsistent metric taxonomy.",
+      "sqlite DeleteScoped repeats the Observe call at three return sites; observe once.",
+      "Orchestrator.Validate mutates a copy of the entry and has no caller in this diff."
+    ],
+    "SUMMARY": [
+      "The gateway design is directionally right (server-resolved Scope, storage-side predicates, per-hit revalidation, Go-only), but two AC-critical proofs are hollow: the concurrency suite asserts nothing and the RLS role-posture test is a no-op skip, so AC-2/AC-3 are not demonstrably met.",
+      "Additional gaps versus the approved contract: config env validation and structured audit are unimplemented, the PG store path is untested, and validation failures leak as 500s.",
+      "Recommend: add real assertions + CI-fail-on-missing-DSN to role posture, make the concurrent suite verify isolation, wire declared config and audit, and test edpdata/pg scoped paths before Gate 2."
+    ]
+  }
+}

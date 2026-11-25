@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "0e0b34ffb157",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:53:02.179715+00:00",
+  "base_sha": "",
+  "head_sha": "3b968097b94686454122ea9d8a3d352c358ffe08",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Merge-gate enforcement is claimed in AC but no merge-gate file/owner appears in affected_files/components (only gate1_check/gate_decisions); CL-001 route-by-kind not answered \u2014 who single-writes merge enforcement?",
+      "DEFERRED requires \"an existing backlog id\": design never states where/ how existence is validated (cross-store lookup, offline cache), so a stale/foreign id passes the policy check.",
+      "HIL DISPOSITION_APPROVAL binds \"finding sigs\" but findings are reviewer-owned (CL-002); design does not state where sigs come from or how reviewer-owned findings are read-only for the main thread.",
+      "Backfill/grandfathering for existing completed items without ac_verification/final_report is only listed as a risk, not a decided invariant; forward-looking guard can silently split behavior across the same store schema.",
+      "No single canonical writer specified for disposition state: policy code, gate checks, and finalize_item.py all touch it \u2014 duplicate logic/owner risk (CL-001, reuse)."
+    ],
+    "MINOR": [
+      "Guardrail 10 not addressed: no stated metrics/log lines on gate refusals (missing AC, disallowed disposition, absent final_report), making production failures hard to diagnose.",
+      "Guardrail 4/6 partial: rollback is \"revert commit\" but no statement that in-flight items mid-completion recover cleanly if the diff is interrupted (migration-interrupted recovery checklist item unanswered).",
+      "cost_source is persisted but its trust level/provenance is undefined; unattributed cost undermines long-term auditability.",
+      "\"accepted/deferred with ids\" in final_report conflicts with ACCEPTED being prohibited \u2014 accepted is permanently empty; schema should state that invariant explicitly.",
+      "Language rule (checklist 7) not explicitly asserted: confirm any new shipped logic lands in Go and core/execution_trail.py changes are edits only, not new shipped Python logic.",
+      "Test taxonomy mapping (unit/api/db/logic/go/other) needs a stated, tested precedence rule (e.g., go vs unit) to avoid unstable classification across runners."
+    ],
+    "NIT": [
+      "No coverage named for the show-render paths of AC verification and test-by-kind tables (recurring MINOR class: render helpers untested).",
+      "Guardrail 9 (tenant/RLS) is not addressed in the design text; state explicitly as not-applicable rather than leaving it silent.",
+      "docs/REVIEW-GATES-LIFECYCLE.md update is bundled in the same diff as enforcement \u2014 consider ordering so docs land with the contract, not after."
+    ],
+    "SUMMARY": [
+      "Verdict: directionally sound and reversible, but the enforcement ownership map is incomplete (merge gate, single writer for disposition state) and validation of DEFERRED backlog ids/HIL finding-sig provenance is unspecified \u2014 those are the top risks to close before Gate 1.5.",
+      "Secondary risks: grandfathering of legacy items, undefined refusal observability, and test-classification precedence."
+    ]
+  },
+  "rereview_reason": "design amendment: strict no-accepted policy",
+  "rereview_reason_sha256": "363b36b6e722ab7bbf2e3ddf6aceeb2172dd632ec187020b1c7b09082535e321"
+}

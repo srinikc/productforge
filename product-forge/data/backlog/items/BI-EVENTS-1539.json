@@ -1,0 +1,957 @@
+{
+  "id": "BI-EVENTS-1539",
+  "tag": "EVENTS",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 673",
+  "title": "Structured outbox metrics and alerting for event authority",
+  "body": "BI-PF-1268 left outbox-bound backpressure with log-only observability. Add structured metrics for pending/claimed outbox rows, bound rejections, prune counts and projection failures so operators can alert across instances without parsing stderr.",
+  "source": "api",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-17T11:06:36.522097",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "BI-PF-1268 left outbox-bound backpressure with log-only observability. Add structured metrics for pending/claimed outbox rows, bound rejections, prune counts and projection failures so operators can alert across instances without parsing stderr.",
+    "what_adds": "Structured outbox metrics and alerting for event authority",
+    "why": "BI-PF-1268 left outbox-bound backpressure with log-only observability. Add structured metrics for pending/claimed outbox rows, bound rejections, prune counts and projection failures so operators can alert across instances without parsing stderr.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Structured outbox metrics and alerting for event authority",
+  "acceptance_criteria": [
+    "Expose an outbox_rows_current gauge by tenant/status and an EVENT_OUTBOX_BOUND_EXCEEDED counter, with owner and alert threshold documented and tested.",
+    "Emit structured outbox prune and projection-failure signals through the existing observability owner, not ad-hoc stderr logging, and verify them in tests."
+  ],
+  "in_scope": [
+    "Structured outbox metrics and alerting for event authority"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Structured outbox metrics and alerting for event authority",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 5, 'MINOR': 4, 'NIT': 2}"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-EVENTS-1539): sig:184056b580e5b0bb (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=3bd78fc68352\nBLOCKER:\n  - CL-010 violated: proof_plan red_evidence = 'absent'; no current-run red/failing proof for the real metrics exporter entrypoint — declared tests/prose are not proof.\n  - AC-1 requires owner + alert threshold documented and tested; design names no threshold value and no accountable owner (only \"existing metrics owner\") — AC unverifiable as written.\nMAJOR:\n  - Evidence conflict: functional_spec traceability points AC-1/AC-2 to go/edpdata/event_metrics_test.go, design_pack coverage points to tests/test_review_material_change.py — neither is shown to assert the gauge, counter, or structured prune/projection-failure signals.\n  - CL-001 unresolved: \"existing metrics owner\"/observability owner is never named or registered as single writer; no route-by-kind decision proving no duplicate exporter/registry is introduced.\n  - Label cardinality contradiction: invariant \"metrics are tenant-scoped\" vs guardrail \"no high-cardinality tenant-id labels\" — tenant label set must be bounded (allow-list/registry) before Gate 1.5.\n  - CL-012 not addressed: outbox_rows_current implies repeated row counts; runtime_contract pins no count bounding, refresh/cache interval, or statement_timeout for the scrape path.\nMINOR:\n  - Gate-1 context has affected_components/affected_files \"Not specified\" while design_pack declares 5 files — sync needed per CL-006.\n  - Checklist items 1-6, 8-9 unanswered: no alert lead-time / exporter-down detection story; rollback is \"remove metrics\" with no cleanup of dashboards/alert rules.\n  - out_of_scope and risks are \"Not specified\"; config_contract artifact is only config/review-budget.json with no metric-specific config key.\nNIT:\n  - FR-2 title truncated mid-sentence in functional_spec; failure_matrix covers only 'missing metric', not absence of prune/projection-failure signals.\n  - spec_pack release_verification cites one generic test file as evidence for every APPLICABLE spec.\nSUMMARY:\n  - Not ready for Gate 1.5: missing red proof (CL-010) and undocumented owner/threshold make AC-1/AC-2 unverifiable as designed.\n  - Top risks: contradictory test evidence, unresolved tenant-label cardinality, unnamed single-writer ownership, and unbounded scrape-time counting.\n  - Direction is right (reuse existing metrics owner, Go-only files, low-cardinality guardrail); close the four MAJORs and answer the checklist before approval.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e1b56e43559b\nBLOCKER:\n  - AC-1 not met: no real metrics implementation or registration anywhere in the diff — `EventMetrics` only has a `nopEventMetrics` default and no shipped caller of `WithMetrics`, so `outbox_rows_current` / `EVENT_OUTBOX_BOUND_EXCEEDED` are never exposed to any scraper (spec's failure matrix: \"missing signal blocks release\").\n  - AC-1 \"owner and alert threshold documented\" unmet: the diff contains no documentation change (no runbook/design doc) stating the metric owner or the alert threshold; `docs/EVENTING-ALERTING-SSOT-DESIGN.md` is cited as evidence but is not in the diff.\nMAJOR:\n  - New `EventMetrics` interface invented inside `edpdata` instead of reusing the existing Prometheus-compatible observability owner the design assumes (\"Use existing metrics owner\", CL-001 single-writer/ownership) — parallel metric owners and duplicated registration risk.\n  - Gauge is emitted only as a side effect inside `EnforceOutboxBound`, not via a scrape-time collector: tenants/paths that don't run bound enforcement report no or stale gauge, so \"when metrics are scraped, then outbox rows are visible\" fails.\n  - Only the hardcoded status `\"pending\"` label is ever produced; AC-1 requires the gauge by tenant/status, other statuses are never reported.\n  - Tests only assert calls into a local `recordingMetrics` stub; nothing verifies the real owner exposes an `outbox_rows_current` gauge or a counter named/evented `EVENT_OUTBOX_BOUND_EXCEEDED`, so AC \"tested\" is against a fake contract.\n  - AC-2 \"not ad-hoc stderr logging\": `log.Printf(\"EVENT_OUTBOX_BOUND_EXCEEDED ...\")` is retained in `EnforceOutboxBound` alongside the new metric, leaving two divergent emission paths for the same signal.\nMINOR:\n  - `OutboxBoundExceeded(tenant)` discards pending/max values carried by the log line, so the structured signal is strictly less diagnosable than the log it is meant to replace.\n  - `ProjectionFailed(tenant)` drops the error/reason; the detail remains only in the response body (`projection_error`), reducing post-hoc diagnosis.\n  - `WithMetrics` mutates a live `EventStore` field without synchronization; racy if attached after the store is serving (interface itself demands concurrency safety).\n  - `OutboxPruned` is skipped whenever `err != nil`, so partially-applied prunes (n > 0 with error) produce no signal.\nNIT:\n  - `recordingMetrics` counters are not concurrency-safe despite the interface contract; harmless today but will mask races if tests go parallel.\n  - `nopEventMetrics` methods could be grouped, and `RecordProjectionFailure` is a one-line wrapper only used at a single call site.\nSUMMARY:\n  - Direction (interface-based observability owner in Go, tenant-scoped signals, unit tests) is right, but the AC is not delivered: no real metric implementation/wiring, no owner/threshold documentation, and gauge semantics are push-on-demand rather than scrape-time.\n  - Top risks: release-blocking \"missing signal\", a second metrics owner alongside the assumed Prometheus one, and tests that only prove the stub contract.\n  - Recommend blocking until a real owner is wired, documentation lands, and tests assert the exported metric names/labels.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "PR #367 merged to develop at 0ddf7c5e80ad76cdb20e0b34ed3bec7866b4ef05"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-17T11:06:35.252501",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/events.py, core/event_bus.py, core/quality_metrics.py, /api/v1/events",
+    "existing_components": [
+      "core/events.py",
+      "core/event_bus.py",
+      "core/quality_metrics.py"
+    ],
+    "existing_apis": [
+      "/api/v1/events",
+      "/api/v1/events/types",
+      "/api/v1/evidence/events",
+      "/api/v1/workers/metrics"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "d0e620b821e15fa1"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-17T11:06:35.819431"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-17T11:06:14.934115",
+  "updated_at": "2026-11-19T15:17:55.121235",
+  "score": 0.75,
+  "_note": "Delivered via PR #367",
+  "functional_spec": {
+    "version": 1,
+    "status": "approved",
+    "owner": "Srinikc",
+    "source": "BI-EVENTS-1539",
+    "outcome": "Outbox metrics and alerts expose backlog health.",
+    "actors": [
+      "operator",
+      "on-call"
+    ],
+    "scope": [
+      "metrics",
+      "alerts"
+    ],
+    "non_goals": [
+      "transport implementation"
+    ],
+    "assumptions": [
+      "Prometheus-compatible metrics owner exists"
+    ],
+    "dependencies": [
+      "event outbox"
+    ],
+    "domain": "eventing",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Expose an outbox_rows_current gauge by tenant/status and an EVENT_OUTBOX_BOUND_E",
+        "priority": "P0",
+        "source": "BI-EVENTS-1539",
+        "preconditions": "Event authority is deployed.",
+        "trigger": "Metrics are scraped or alert evaluated.",
+        "inputs": [
+          "outbox rows",
+          "projection result"
+        ],
+        "outputs": [
+          "metric/alert"
+        ],
+        "errors": [
+          "missing signal blocks release"
+        ],
+        "auth": "metrics read only",
+        "idempotency": "scrape idempotent",
+        "data_rules": [
+          "tenant/status labels"
+        ],
+        "edge_cases": [
+          "no rows"
+        ],
+        "acceptance": [
+          "Given event authority, when metrics are scraped, then outbox rows and bound rejections are visible."
+        ],
+        "verification": [
+          "metrics test"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Emit structured outbox prune and projection-failure signals through the existing",
+        "priority": "P0",
+        "source": "BI-EVENTS-1539",
+        "preconditions": "Event authority is deployed.",
+        "trigger": "Metrics are scraped or alert evaluated.",
+        "inputs": [
+          "outbox rows",
+          "projection result"
+        ],
+        "outputs": [
+          "metric/alert"
+        ],
+        "errors": [
+          "missing signal blocks release"
+        ],
+        "auth": "metrics read only",
+        "idempotency": "scrape idempotent",
+        "data_rules": [
+          "tenant/status labels"
+        ],
+        "edge_cases": [
+          "no rows"
+        ],
+        "acceptance": [
+          "Given event authority, when metrics are scraped, then outbox rows and bound rejections are visible."
+        ],
+        "verification": [
+          "metrics test"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "scrape",
+        "owner": "metrics",
+        "failure": "missing signal"
+      }
+    ],
+    "config_contract": {
+      "metrics": "existing"
+    },
+    "nfr": [
+      "low cardinality"
+    ],
+    "data_lifecycle": "metrics retained per platform",
+    "compatibility": "no breaking change",
+    "rollback": "remove metrics",
+    "observability": "outbox_rows_current and bound counter",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "go/edpdata/event_metrics_test.go",
+        "evidence": [
+          "go/edpdata/event_metrics_test.go"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+        "test": "go/edpdata/event_metrics_test.go",
+        "evidence": [
+          "go/edpdata/event_metrics_test.go"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: implementation follows the existing metrics owner."
+    ],
+    "dod": [
+      "Delivery Complete requires all five states"
+    ],
+    "functional_sha": "398ed853b17c"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "approved",
+    "functional_ref": "engineering/specs/BI-EVENTS-1539.md",
+    "design_ref": "docs/IMPLEMENTATION-CONTROLS-DESIGN.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metrics design",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no public API change"
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "existing outbox tables"
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metric config",
+        "artifact": "config/review-budget.json",
+        "sections": [
+          "checks"
+        ],
+        "evidence": [
+          "config/review-budget.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metric only"
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "tenant labels",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no migration"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "code revert only"
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metric runbook",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no user interface"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-EVENTS-1539",
+        "reason": "no personal data"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "metrics plan",
+        "artifact": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-EVENTS-1539",
+        "reason": "test evidence",
+        "artifact": "tests/test_review_material_change.py",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md"
+    ],
+    "requirements": [
+      "Expose an outbox_rows_current gauge by tenant/status and an EVENT_OUTBOX_BOUND_E",
+      "Emit structured outbox prune and projection-failure signals through the existing"
+    ],
+    "invariants": [
+      "metrics are tenant-scoped"
+    ],
+    "contracts": {
+      "api": "N/A",
+      "db": "existing outbox",
+      "files": {
+        "metrics": "go/edpdata/event_metrics.go"
+      },
+      "config": {
+        "metrics": "existing"
+      }
+    },
+    "failure_matrix": [
+      {
+        "case": "missing metric",
+        "behavior": "release blocked",
+        "code": "METRIC_MISSING"
+      }
+    ],
+    "dependencies": [
+      "event outbox"
+    ],
+    "security": "tenant labels only",
+    "observability": "outbox_rows_current; bound counter",
+    "performance": "low cardinality",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "metrics test"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "metrics test"
+      }
+    ],
+    "rollout": "with next event release",
+    "rollback": "remove metrics",
+    "decisions": [
+      "Use existing metrics owner"
+    ],
+    "guardrails": [
+      "no high-cardinality tenant-id labels"
+    ],
+    "learnings": [
+      "BI-PF-1268"
+    ],
+    "design_areas": [
+      {
+        "area": "observability",
+        "status": "APPLICABLE",
+        "reason": "metrics scope",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "docs/IMPLEMENTATION-CONTROLS-DESIGN.md"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-EVENTS-1539.md",
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "tests": "tests/test_review_material_change.py",
+        "evidence": [
+          "tests/test_review_material_change.py"
+        ]
+      }
+    ],
+    "scope": [
+      "metrics",
+      "alerts"
+    ],
+    "non_goals": [
+      "new transport"
+    ],
+    "runtime_contract": {
+      "trigger": "scrape",
+      "entrypoint": "metrics exporter",
+      "call_sites": [
+        "outbox"
+      ],
+      "adapter": "existing",
+      "contract": "outbox metrics",
+      "failure_behavior": "missing signal blocks release",
+      "observable_result": "metrics"
+    },
+    "proof_plan": {
+      "failing_test": "metrics missing",
+      "red_evidence": "absent",
+      "green_evidence": "present"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "tests"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "tests"
+      }
+    ],
+    "stop_conditions": [
+      "high cardinality"
+    ],
+    "affected_files": [
+      "go/edpdata/event_metrics.go",
+      "go/edpdata/eventstore.go",
+      "go/edpdata/event_outbox_prune.go",
+      "go/pfcore/eventstore.go",
+      "go/edpdata/event_metrics_test.go"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Go metrics owner only; no API surface change.",
+    "routes": []
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "5149c260d175f7a498fbb00eb8d58952ab14479f",
+      "review_sha": "3bd78fc68352",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T09:13:41.674515+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5149c260d175f7a498fbb00eb8d58952ab14479f",
+      "findings": {
+        "BLOCKER": [
+          "CL-010 violated: proof_plan red_evidence = 'absent'; no current-run red/failing proof for the real metrics exporter entrypoint — declared tests/prose are not proof.",
+          "AC-1 requires owner + alert threshold documented and tested; design names no threshold value and no accountable owner (only \"existing metrics owner\") — AC unverifiable as written."
+        ],
+        "MAJOR": [
+          "Evidence conflict: functional_spec traceability points AC-1/AC-2 to go/edpdata/event_metrics_test.go, design_pack coverage points to tests/test_review_material_change.py — neither is shown to assert the gauge, counter, or structured prune/projection-failure signals.",
+          "CL-001 unresolved: \"existing metrics owner\"/observability owner is never named or registered as single writer; no route-by-kind decision proving no duplicate exporter/registry is introduced.",
+          "Label cardinality contradiction: invariant \"metrics are tenant-scoped\" vs guardrail \"no high-cardinality tenant-id labels\" — tenant label set must be bounded (allow-list/registry) before Gate 1.5.",
+          "CL-012 not addressed: outbox_rows_current implies repeated row counts; runtime_contract pins no count bounding, refresh/cache interval, or statement_timeout for the scrape path."
+        ],
+        "MINOR": [
+          "Gate-1 context has affected_components/affected_files \"Not specified\" while design_pack declares 5 files — sync needed per CL-006.",
+          "Checklist items 1-6, 8-9 unanswered: no alert lead-time / exporter-down detection story; rollback is \"remove metrics\" with no cleanup of dashboards/alert rules.",
+          "out_of_scope and risks are \"Not specified\"; config_contract artifact is only config/review-budget.json with no metric-specific config key."
+        ],
+        "NIT": [
+          "FR-2 title truncated mid-sentence in functional_spec; failure_matrix covers only 'missing metric', not absence of prune/projection-failure signals.",
+          "spec_pack release_verification cites one generic test file as evidence for every APPLICABLE spec."
+        ],
+        "SUMMARY": [
+          "Not ready for Gate 1.5: missing red proof (CL-010) and undocumented owner/threshold make AC-1/AC-2 unverifiable as designed.",
+          "Top risks: contradictory test evidence, unresolved tenant-label cardinality, unnamed single-writer ownership, and unbounded scrape-time counting.",
+          "Direction is right (reuse existing metrics owner, Go-only files, low-cardinality guardrail); close the four MAJORs and answer the checklist before approval."
+        ]
+      },
+      "evidence": "BI-EVENTS-1539-3bd78fc68352.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5149c260d175f7a498fbb00eb8d58952ab14479f",
+      "review_sha": "e1b56e43559b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-19T09:15:27.629015+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5149c260d175f7a498fbb00eb8d58952ab14479f",
+      "findings": {
+        "BLOCKER": [
+          "AC-1 not met: no real metrics implementation or registration anywhere in the diff — `EventMetrics` only has a `nopEventMetrics` default and no shipped caller of `WithMetrics`, so `outbox_rows_current` / `EVENT_OUTBOX_BOUND_EXCEEDED` are never exposed to any scraper (spec's failure matrix: \"missing signal blocks release\").",
+          "AC-1 \"owner and alert threshold documented\" unmet: the diff contains no documentation change (no runbook/design doc) stating the metric owner or the alert threshold; `docs/EVENTING-ALERTING-SSOT-DESIGN.md` is cited as evidence but is not in the diff."
+        ],
+        "MAJOR": [
+          "New `EventMetrics` interface invented inside `edpdata` instead of reusing the existing Prometheus-compatible observability owner the design assumes (\"Use existing metrics owner\", CL-001 single-writer/ownership) — parallel metric owners and duplicated registration risk.",
+          "Gauge is emitted only as a side effect inside `EnforceOutboxBound`, not via a scrape-time collector: tenants/paths that don't run bound enforcement report no or stale gauge, so \"when metrics are scraped, then outbox rows are visible\" fails.",
+          "Only the hardcoded status `\"pending\"` label is ever produced; AC-1 requires the gauge by tenant/status, other statuses are never reported.",
+          "Tests only assert calls into a local `recordingMetrics` stub; nothing verifies the real owner exposes an `outbox_rows_current` gauge or a counter named/evented `EVENT_OUTBOX_BOUND_EXCEEDED`, so AC \"tested\" is against a fake contract.",
+          "AC-2 \"not ad-hoc stderr logging\": `log.Printf(\"EVENT_OUTBOX_BOUND_EXCEEDED ...\")` is retained in `EnforceOutboxBound` alongside the new metric, leaving two divergent emission paths for the same signal."
+        ],
+        "MINOR": [
+          "`OutboxBoundExceeded(tenant)` discards pending/max values carried by the log line, so the structured signal is strictly less diagnosable than the log it is meant to replace.",
+          "`ProjectionFailed(tenant)` drops the error/reason; the detail remains only in the response body (`projection_error`), reducing post-hoc diagnosis.",
+          "`WithMetrics` mutates a live `EventStore` field without synchronization; racy if attached after the store is serving (interface itself demands concurrency safety).",
+          "`OutboxPruned` is skipped whenever `err != nil`, so partially-applied prunes (n > 0 with error) produce no signal."
+        ],
+        "NIT": [
+          "`recordingMetrics` counters are not concurrency-safe despite the interface contract; harmless today but will mask races if tests go parallel.",
+          "`nopEventMetrics` methods could be grouped, and `RecordProjectionFailure` is a one-line wrapper only used at a single call site."
+        ],
+        "SUMMARY": [
+          "Direction (interface-based observability owner in Go, tenant-scoped signals, unit tests) is right, but the AC is not delivered: no real metric implementation/wiring, no owner/threshold documentation, and gauge semantics are push-on-demand rather than scrape-time.",
+          "Top risks: release-blocking \"missing signal\", a second metrics owner alongside the assumed Prometheus one, and tests that only prove the stub contract.",
+          "Recommend blocking until a real owner is wired, documentation lands, and tests assert the exported metric names/labels."
+        ]
+      },
+      "evidence": "BI-EVENTS-1539-e1b56e43559b.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:00d22ef40383eeb5": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:166c54d52a3a0d3c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:1b04c571523fcd19": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:70225b22d6491780": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:711a2495e4a195c9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:95fb326b285518c4": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:73b6d33e9e61d9f7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:40a7a5ae8c5fc8a9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:ff52aa5e41318042": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:639273a5c4986bbc": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      },
+      "sig:927310c3fe2d27de": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for the outbox metrics deliverable."
+      }
+    },
+    "diff": {
+      "sig:1ff66083b5ca5fd9": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:885b694b296fcd23": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:abc83301bad2f2fb": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:b271ed60b0a62341": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:859ee7176e7f071f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:a6b85f47e6f7cea7": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:7cfa126bc45de702": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:8ace322d38255f3f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:3e0bef97fb399b5f": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:a59e5060c99da13c": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:fa11e87bac8b7227": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:e47b1cce75df7f7e": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      },
+      "sig:19b05293f29b9e75": {
+        "status": "SCOPE",
+        "note": "HIL-accepted for outbox metrics deliverable."
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:1ff66083b5ca5fd9",
+      "finding": "AC-1 not met: no real metrics implementation or registration anywhere in the diff — `EventMetrics` only has a `nopEventMetrics` default and no shipped caller of `WithMetrics`, so `outbox_rows_current` / `EVENT_OUTBOX_BOUND_EXCEEDED` are never exposed to any scraper (spec's failure matrix: \"missing signal blocks release\").",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:885b694b296fcd23",
+      "finding": "AC-1 \"owner and alert threshold documented\" unmet: the diff contains no documentation change (no runbook/design doc) stating the metric owner or the alert threshold; `docs/EVENTING-ALERTING-SSOT-DESIGN.md` is cited as evidence but is not in the diff.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:abc83301bad2f2fb",
+      "finding": "New `EventMetrics` interface invented inside `edpdata` instead of reusing the existing Prometheus-compatible observability owner the design assumes (\"Use existing metrics owner\", CL-001 single-writer/ownership) — parallel metric owners and duplicated registration risk.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:b271ed60b0a62341",
+      "finding": "Gauge is emitted only as a side effect inside `EnforceOutboxBound`, not via a scrape-time collector: tenants/paths that don't run bound enforcement report no or stale gauge, so \"when metrics are scraped, then outbox rows are visible\" fails.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:859ee7176e7f071f",
+      "finding": "Only the hardcoded status `\"pending\"` label is ever produced; AC-1 requires the gauge by tenant/status, other statuses are never reported.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:a6b85f47e6f7cea7",
+      "finding": "Tests only assert calls into a local `recordingMetrics` stub; nothing verifies the real owner exposes an `outbox_rows_current` gauge or a counter named/evented `EVENT_OUTBOX_BOUND_EXCEEDED`, so AC \"tested\" is against a fake contract.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:7cfa126bc45de702",
+      "finding": "AC-2 \"not ad-hoc stderr logging\": `log.Printf(\"EVENT_OUTBOX_BOUND_EXCEEDED ...\")` is retained in `EnforceOutboxBound` alongside the new metric, leaving two divergent emission paths for the same signal.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json",
+      "files": [
+        "go/edpdata/event_metrics.go",
+        "go/edpdata/event_metrics_test.go"
+      ],
+      "rollback": "Revert BI-EVENTS-1539.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:1ff66083b5ca5fd9",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    },
+    {
+      "finding_sig": "sig:885b694b296fcd23",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    },
+    {
+      "finding_sig": "sig:abc83301bad2f2fb",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    },
+    {
+      "finding_sig": "sig:b271ed60b0a62341",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    },
+    {
+      "finding_sig": "sig:859ee7176e7f071f",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    },
+    {
+      "finding_sig": "sig:a6b85f47e6f7cea7",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    },
+    {
+      "finding_sig": "sig:7cfa126bc45de702",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "go/edpdata/event_metrics_test.go",
+      "controls_rerun": [
+        "go test ./... (edpdata,pfcore)"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/reviews/BI-EVENTS-1539-e1b56e43559b.json"
+    }
+  ],
+  "verified_by": "Srinikc HIL"
+}

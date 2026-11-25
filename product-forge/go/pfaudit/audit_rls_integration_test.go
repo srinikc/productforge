@@ -1,0 +1,184 @@
+package pfaudit
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"strings"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"productforge/migrate"
+	"productforge/store"
+)
+
+func setup(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	dsn := os.Getenv("PF_DB_DSN")
+	if dsn == "" {
+		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
+	}
+	// This harness drops and recreates the schema: only ever point it at a disposable database.
+	if os.Getenv("PF_DB_TEST_RESET") != "1" || !strings.Contains(dsn, "test") {
+		t.Skip("destructive harness: set PF_DB_TEST_RESET=1 and a DSN whose database name contains 'test'")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	// AC requires PostgreSQL >= 14 (declarative partitioning + FORCE RLS semantics).
+	var version int
+	if err := pool.QueryRow(ctx, `SELECT current_setting('server_version_num')::int`).Scan(&version); err != nil {
+		t.Fatalf("server version: %v", err)
+	}
+	if version < 140000 {
+		t.Fatalf("PostgreSQL >= 14 required, got %d", version)
+	}
+	// disposable test DB: start from a clean schema so tests never inherit each other's state.
+	// Roles are cluster-scoped and survive a schema reset; 0004 is idempotent so it is simply re-run.
+	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE`); err != nil {
+		t.Fatalf("reset schema: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `CREATE SCHEMA public`); err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	pg, err := store.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(pg.Close)
+	migs, err := migrate.LoadDir(filepath.Join("..", "..", "migrations"))
+	if err != nil {
+		t.Fatalf("load migrations: %v", err)
+	}
+	if _, err := migrate.Up(ctx, pg, migs); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return pool
+}
+
+// TestAuditRLSIntegration proves tenant isolation at the parent AND that the app role cannot write a leaf
+// directly (privilege-enforced hardening), covering two Gate-1.5 findings.
+func TestAuditRLSIntegration(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+
+	tenant := fmt.Sprintf("rls-a-%d", time.Now().UnixNano())
+	other := tenant + "-b"
+	for _, tn := range []string{tenant, other} {
+		if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','rls',now())`, tn); err != nil {
+			t.Fatalf("seed %s: %v", tn, err)
+		}
+	}
+
+	// same-tenant read through RLS
+	run := func(fn func(tx pgx.Tx) error) error {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback(ctx)
+		if _, err := tx.Exec(ctx, `SET LOCAL ROLE pf_app`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, tenant); err != nil {
+			return err
+		}
+		if err := fn(tx); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	var see int64
+	if err := run(func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM audit WHERE tenant_id LIKE 'rls-%'`).Scan(&see)
+	}); err != nil {
+		t.Fatalf("tenant select: %v", err)
+	}
+	if see != 1 {
+		t.Fatalf("tenant saw %d rows, want 1 (RLS leak or over-filter)", see)
+	}
+	if err := run(func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE audit SET action='tampered' WHERE tenant_id = $1`, tenant)
+		return err
+	}); err == nil {
+		t.Fatal("app role UPDATE must be denied (append-only)")
+	}
+	if err := run(func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','b',now())`, tenant)
+		return err
+	}); err != nil {
+		t.Fatalf("app role INSERT on parent must be allowed: %v", err)
+	}
+	if err := run(func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO public.audit_202601 (tenant_id, actor, action, at)
+			VALUES ($1,'a','leaf',now())`, tenant)
+		return err
+	}); err == nil {
+		t.Fatal("direct INSERT into a leaf must be denied (no leaf grants)")
+	}
+}
+
+// TestUnhardenedLeafDetected proves audit_assert_hardened catches a privileged raw ATTACH.
+func TestUnhardenedLeafDetected(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+
+	// a unique future month, so re-runs never reuse an already-hardened leaf
+	y := 2100 + int(time.Now().UnixNano()%200)
+	m := time.Month(int(time.Now().UnixNano()%12) + 1)
+	from := time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 1, 0)
+	leaf := "audit_" + from.Format("200601")
+	var parent string
+	if err := pool.QueryRow(ctx, `SELECT audit_parent()::text`).Scan(&parent); err != nil || parent == "" {
+		t.Fatalf("audit_parent: %v (%q)", err, parent)
+	}
+	if _, err := pool.Exec(ctx, fmt.Sprintf(
+		`CREATE TABLE IF NOT EXISTS public.%s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')`,
+		leaf, parent, from.Format("2006-01-02 15:04:05+00"), to.Format("2006-01-02 15:04:05+00"))); err != nil {
+		t.Skipf("cannot create a raw partition (needs owner): %v", err)
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_assert_hardened()`); err == nil {
+		t.Fatalf("unhardened leaf %s was not detected", leaf)
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_harden_partition($1)`, leaf); err != nil {
+		t.Fatalf("harden: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_assert_hardened()`); err != nil {
+		t.Fatalf("assert after harden: %v", err)
+	}
+}
+
+// TestPrivilegeBoundary proves the runtime role cannot call SECURITY DEFINER primitives (forge an archive,
+// approve a purge) nor attach a partition of its own.
+func TestPrivilegeBoundary(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+	cases := []string{
+		`SELECT audit_mark_archived('audit_202001', 0, 'x', '[]'::jsonb)`,
+		`SELECT audit_approve_purge('audit_202001', 'attacker', 'forged')`,
+		`SELECT audit_drop_partition('audit_202001')`,
+		`CREATE TABLE public.audit_202001 PARTITION OF audit FOR VALUES FROM ('2020-01-01') TO ('2020-02-01')`,
+	}
+	for _, q := range cases {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, `SET LOCAL ROLE pf_app`); err != nil {
+			t.Fatal(err)
+		}
+		_, err = tx.Exec(ctx, q)
+		_ = tx.Rollback(ctx)
+		if err == nil || !(strings.Contains(err.Error(), "permission denied") || strings.Contains(err.Error(), "must be owner")) {
+			t.Fatalf("pf_app must be denied %q, got %v", q, err)
+		}
+	}
+}

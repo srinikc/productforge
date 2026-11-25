@@ -1,0 +1,28 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "9d76adf3c64a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-10T09:55:19.523020+00:00",
+  "review_scope": "delta",
+  "base_sha": "5309b578bc8ff83040aa4afd81ada6c598943eac",
+  "head_sha": "358280032e3f9721b3091c48dd78a5c7efff64ff",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "No delta test drives an item dict through `backlog_db_parity.py`'s `db_tenant(d.get(\"scope\"), d.get(\"project\"))`; the resolver is asserted in isolation, leaving that call-site's field/argument mapping unpinned against future edits."
+    ],
+    "NIT": [
+      "Function-level `from core import backlog` duplicates the module-level `backlog` binding already used by the adjacent test (`backlog.delete(...)`).",
+      "Test name covers only the project-priority assertion; the second assertion pins the legacy `portfolio \u2192 product_forge` alias, so an alias regression reports as a priority failure."
+    ],
+    "SUMMARY": [
+      "Delta is a minimal, standards-compliant test addition (Python tests permitted) that resolves the prior MAJOR: project-over-scope priority and the `(scope, project)` argument order are now asserted; no blockers or majors.",
+      "Top residual risk is the unpinned parity call-site mapping (MINOR) plus indirect-only coverage of the legacy alias contract; all other prior findings are untouched by this delta."
+    ]
+  },
+  "rereview_reason": "fix 81e8e8c2f8af blockers/majors",
+  "rereview_reason_sha256": "bb108672845f0058aa092227c1fb9055b5c70eafc3197e64b32d308cb1dbcc81"
+}

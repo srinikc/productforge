@@ -8,6 +8,8 @@ Verifies (acceptance):
   * the Go host and the Python core exchange a valid payload (Go consumes Python's
     wire-request, Python validates Go's wire-response; required-field shapes match).
 """
+import hashlib
+import hmac
 import json
 import os
 import shutil
@@ -96,9 +98,10 @@ def test_eventing_contracts_present_and_validate():
            "occurred_at": "2026-01-01T00:00:00", "seq": 1}
     assert contracts.validate("event-envelope", env)["valid"]
     assert contracts.validate("subscription", {"schema": "product-forge/subscription@1",
-                                               "id": "s1", "transport": "webhook"})["valid"]
+                                               "id": "s1", "tenant_id": "t1",
+                                               "transport": "webhook", "auth_ref": "secret:1"})["valid"]
     assert contracts.validate("alert-rule", {"schema": "product-forge/alert-rule@1",
-                                             "event_type": "run_failed",
+                                             "tenant_id": "t1", "event_type": "run_failed",
                                              "channels": ["email"]})["valid"]
     assert contracts.validate("webhook-delivery", {"schema": "product-forge/webhook-delivery@1",
                                                    "delivery_id": "d1", "event_id": "e1",
@@ -170,3 +173,85 @@ def test_go_host_and_python_core_exchange(tmp_path):
     ping = _go_call(host, contracts.wire_request("ping", id="p-1"))
     assert ping["result"]["version"] == contracts.WIRE_VERSION
     assert ping["result"]["host"] == "go"
+
+# BI-PF-1267 strict eventing contracts
+def test_eventing_unknown_top_level_field_is_rejected():
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00", "seq": 1, "unexpected": "x"}
+    assert contracts.validate("event-envelope", env)["valid"] is False
+
+
+def test_eventing_extensions_are_allowed():
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00", "seq": 1,
+           "extensions": {"vendor": {"trace": "x"}}}
+    assert contracts.validate("event-envelope", env)["valid"] is True
+
+
+def test_eventing_seq_is_required():
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00"}
+    assert contracts.validate("event-envelope", env)["valid"] is False
+
+
+def test_webhook_hmac_is_constant_time_and_fail_closed():
+    body = b'{"event_id":"e1"}'
+    sig = contracts.webhook_signature(body, "secret")
+    assert contracts.verify_webhook_signature(body, sig, "secret") is True
+    assert contracts.verify_webhook_signature(body, sig, "wrong") is False
+    assert contracts.verify_webhook_signature(body, "", "secret") is False
+
+
+def test_eventing_header_contract_names():
+    assert contracts.WEBHOOK_SIGNATURE_HEADER == "X-PF-Signature"
+    assert contracts.WEBHOOK_IDEMPOTENCY_HEADER == "X-PF-Idempotency-Key"
+
+
+def test_eventing_tenant_and_idempotency_contract():
+    assert contracts.validate("subscription", {"schema": "product-forge/subscription@1",
+                                               "id": "s1", "transport": "webhook"})["valid"] is False
+    body = b'{"event_id":"e1"}'
+    sig = contracts.webhook_signature(body, "secret")
+    assert contracts.verify_webhook_signature(body, sig, "secret") is True
+    assert contracts.webhook_signature(body, "") == ""
+    headers = contracts.webhook_headers("e1", body, "secret")
+    assert headers[contracts.WEBHOOK_IDEMPOTENCY_HEADER] == "e1"
+    assert headers[contracts.WEBHOOK_SIGNATURE_HEADER] == sig
+
+
+@pytest.mark.skipif(_go_bin() is None, reason="go toolchain not installed")
+def test_pfcore_eventing_field_parity(tmp_path):
+    go = _go_bin()
+    go_dir = ROOT / "go" / "pfcore"
+    host = tmp_path / ("pfcore-host" + (".exe" if os.name == "nt" else ""))
+    build = subprocess.run([go, "build", "-o", str(host), "."], cwd=str(go_dir),
+                           capture_output=True, text=True, timeout=300)
+    assert build.returncode == 0, build.stderr
+    for name in contracts.EVENTING_CONTRACTS:
+        desc = _go_call(host, contracts.wire_request("describe", name, id="d-" + name))
+        assert set(desc["result"]["fields"]) == set(contracts.CONTRACTS[name].field_names()), name
+        assert set(desc["result"]["required"]) == set(contracts.required_fields(name)), name
+
+
+def test_metric_and_empty_secret_contract():
+    assert contracts.CONTRACT_METRICS["validation_failures"] == "contract_validation_failures_total"
+    assert contracts.CONTRACT_METRIC_LABELS["validation_failures"] == ("code",)
+    assert contracts.webhook_signature(b"x", "") == ""
+    empty_key_sig = "sha256=" + hmac.new(b"", b"x", hashlib.sha256).hexdigest()
+    assert contracts.verify_webhook_signature(b"x", empty_key_sig, "") is False
+
+
+def test_eventing_cross_language_unknown_field_and_version():
+    assert contracts.validate("subscription", {"schema": "product-forge/subscription@1", "id": "s1", "tenant_id": "t", "transport": "webhook", "auth_ref": "x", "unexpected": 1})["valid"] is False
+    assert contracts.validate("alert-rule", {"schema": "product-forge/alert-rule@1", "tenant_id": "t", "event_type": "run_failed", "channels": ["email"], "unexpected": 1})["valid"] is False
+    assert contracts.validate("webhook-delivery", {"schema": "product-forge/webhook-delivery@1", "delivery_id": "d", "event_id": "e", "subscription_id": "s", "target_url": "https://example.test", "unexpected": 1})["valid"] is False
+    assert contracts.validate("event-envelope", {"schema": "product-forge/event-envelope@1", "event_id": "e", "event_type": "x", "event_version": "2", "occurred_at": "2026-01-01", "seq": 1})["valid"] is False
+    assert contracts.validate("event-envelope", {"schema": "product-forge/event-envelope@1", "event_id": "e", "event_type": "x", "event_version": "1", "occurred_at": "2026-01-01", "seq": "1"})["valid"] is False
+
+
+def test_event_cursor_ordering():
+    rows = [{"seq": 3}, {"seq": 1}, {"seq": 2}]
+    assert [r["seq"] for r in contracts.events_after_cursor(rows, 1)] == [2, 3]

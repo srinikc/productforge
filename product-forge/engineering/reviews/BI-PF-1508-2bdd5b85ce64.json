@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "2bdd5b85ce64",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-11T11:20:52.928216+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "7e1afe7881b6e53f4869e80763fde1a32aabc695",
+  "findings": {
+    "BLOCKER": [
+      "Prior AC-5 CI-wiring finding's disposition is wrong: `.github/workflows/pf-sb-scope-guard.yml` (or equivalent) is still absent from `affected_files`, so either the guard job does not exist or adding it violates the scope guard itself; AC-5 \"guard runs in pipeline\" remains unverifiable."
+    ],
+    "MAJOR": [
+      "CL-010 not satisfied: `ac_evidence[].sha` is empty for all five ACs and `proof_plan.red_evidence` is prose (\"returns 404 before wiring\"), not attached current-run red proof; Gate 1.5 cannot verify the failing-before/passing-after claim from the design pack.",
+      "`design_pack.review.at` is empty and `reviewed_by: 'worker'` \u2014 review provenance is unattributed, so the impact_review verdicts are not auditable against the operating standard."
+    ],
+    "MINOR": [
+      "Startup parity test pins tenant `'product_forge'` while the endpoint accepts arbitrary tenants; parity proof covers only one tenant binding path.",
+      "Actioned alert/metric changes (success timestamp, item_count gauge, reason codes) are evidenced only by runbook prose \u2014 no test or rule snippet in `affected_files` is referenced as executable proof."
+    ],
+    "NIT": [
+      "`edp_backlog_authority_startup_ok` is now updated by the 5m recheck but retains a startup-only name; misleading when querying staleness.",
+      "Duplicate AC/scope lists across `acceptance_criteria`, `design_pack.requirements`, and `design_pack.scope` persist despite the prior disposition claiming a single source."
+    ],
+    "SUMMARY": [
+      "Design is fundamentally sound and fail-closed, with most prior findings genuinely actioned (transaction-atomic reads, trigger coverage incl. TRUNCATE, alert hysteresis, parity test).",
+      "Top risks: CI wiring for the scope guard still undeclared in `affected_files` (AC-5 unmet), and CL-010 red-proof/SHA evidence remains prose-only, blocking Gate 1.5 verification.",
+      "Recommend resolving the workflow-file scope contradiction and attaching concrete red-run evidence before proceeding."
+    ]
+  }
+}

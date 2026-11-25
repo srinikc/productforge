@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "7a509f8b8257",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "Hold-after-archive reconcile (restore to scratch \u2192 extract \u2192 verify) required by AC is implemented nowhere in the diff; a hold placed on an archived/dropped month has no reconciliation path, risking loss of held evidence.",
+      "AC's EDP service startup coverage check and ops cron (emitting audit_partition_months_ahead / audit_partition_low_coverage_total non-fatally plus a stale-job alert) are absent; only the pfaudit CLIs emit these.",
+      "audit_provision/audit_ensure_partitions can silently re-create an archived/dropped month (no archive guard on the normal insert path), and ExportMonth + audit_mark_archived have no \"already archived\" refusal, so a re-export overwrites the immutable cold object and manifest \u2014 archived evidence loss.",
+      "audit_legal_hold_archive is not append-only: it gets only a TRUNCATE trigger, no row-level UPDATE/DELETE deny trigger and no UPDATE/DELETE revoke for pf_owner, while AC demands an append-only hold archive."
+    ],
+    "MAJOR": [
+      "RequireUnfilteredVisibility treats table ownership as unfiltered visibility, but FORCE RLS filters non-superuser owners unless the owner_bypass policy exists (created only for pf_owner, conditionally). A filtered verify/export could pass with empty or partial reads and record a short manifest.",
+      "0014 down leaves orphaned functions (audit_config_touch, audit_deny_truncate, audit_hold_guard) and does not drop all created triggers/objects, so \"down drops the substrate\" is incomplete.",
+      "audit_hold_after_purge_total (and audit_insert_out_of_range_total, audit_provision_seconds, audit_late_insert_total, audit_hold_extract_failed_total) are defined but never incremented or emitted anywhere; the SQL spoliation guard raises but no Go edge mirrors the metric.",
+      "Required tests are missing: out-of-range insert failing closed with 23514 + stable message, AuditStore.Append 23514 heal/retry, fresh-install setval-to-1, freeze-budget assertion; the PG16 resume suite self-skips unless PF_DB_TEST_RESET=1 and the DSN contains \"test\", so it likely never runs in CI.",
+      "Append's 23514 classification depends on a `SQLState() string` interface assertion plus a message substring (\"no partition of relation\") with zero test coverage; if the driver error doesn't match, the heal never fires and events fail instead of being provisioned-and-retried.",
+      "AC requires per-batch integrity comparison; CopyBatch does no checksum, only a full Verify before swap, so a batch-level divergence is only detectable at the end."
+    ],
+    "MINOR": [
+      "Freeze seconds are measured from before LOCK TABLE acquisition, so lock-wait time inflates audit_swap_freeze_seconds versus the budget; budget violation is only reported after the rename already committed.",
+      "Append retries 3 times while AC specifies \"ensure once and retry\", and the retry loop re-opens a new transaction per attempt without backoff between them.",
+      "RestoreMonth leaves a scratch table plus a pf_runtime SELECT grant behind after restore; no lifecycle/teardown or reuse guard for an existing scratch table.",
+      "audit_drop_partition/approve_purge use a NOT IN + time-correlated release lookup instead of the clearer hold_id-matched NOT EXISTS form used in Go, which is easy to misread during future edits.",
+      "AC references audit_late_YYYYMM partitions satisfying/not satisfying coverage, but the implementation intentionally has no such partitions \u2014 AC/implementation wording should be reconciled."
+    ],
+    "NIT": [
+      "quoteDate and parts of monthBounds appear unused (dead code) in archive.go.",
+      "SaveCursor and RecordState duplicate the events-insert + projection-refresh transaction pattern.",
+      "Generated files (BACKLOG-SUMMARY, documentation-index.html) and review-tooling config changes are bundled with a schema/security change, blurring review scope.",
+      "runSwap/pfaudit-swap use package-level mutable metrics globals (activeMetrics, metricsEmitted) where an explicit parameter would be clearer."
+    ],
+    "SUMMARY": [
+      "Solid foundation: ensure-based migration, atomic rename with in-lock delta re-count, per-tenant digests, privilege-based hardening, and gated down are largely to spec.",
+      "Top risks: unimplemented AC paths (hold-reconcile, service/cron coverage alerting), a hold archive that is not append-only, and a re-export/archived-month resurrection path that can overwrite cold evidence.",
+      "Verification gaps (missing 23514/heal/fresh-install/freeze tests, CI-gated integration suite) and an ownership-vs-RLS visibility check undermine confidence in the swap's integrity guarantees."
+    ]
+  }
+}

@@ -1,0 +1,2100 @@
+{
+  "id": "BI-PF-1536",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "gate-tooling-deterministic-review",
+  "label": "PF Backlog 670",
+  "title": "Gate tooling: deterministic review selection and skip closed items",
+  "body": "",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-14T15:39:00.519841",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-11-14T10:52:25.532389+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "72f419b2270f",
+      "findings_digest": "6bfde3a14922",
+      "seq": 2,
+      "note": "HIL approved Gate 1 for deterministic gate review selection.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T11:24:09.376549+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "ac58c94a8886",
+      "findings_digest": "9b1dfb9042a8",
+      "seq": 3,
+      "note": "HIL approved Gate 2; all three ACs verified.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T11:48:15.882986+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "ecea6eb5d02c",
+      "findings_digest": "e1ef0efb26fc",
+      "seq": 4,
+      "note": "Gate 2 re-recorded after current-SHA review ecea6eb5d02c.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T12:11:53.387600+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "54e62280101b",
+      "findings_digest": "aeacd3c23695",
+      "seq": 5,
+      "note": "HIL accepted remaining minors; Gate 2 approved for tooling hotfix.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T12:25:06.636687+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "49d3f38e2c26",
+      "findings_digest": "6bfde3a14922",
+      "seq": 6,
+      "note": "Gate 1 re-recorded after runtime design completion.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T12:25:07.350094+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "54e62280101b",
+      "findings_digest": "aeacd3c23695",
+      "seq": 7,
+      "note": "Gate 2 re-recorded after design completion.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Gate tooling: deterministic review selection and skip closed items",
+    "what_adds": "Gate tooling: deterministic review selection and skip closed items",
+    "why": "Gate tooling: deterministic review selection and skip closed items",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "derived"
+  },
+  "objective": "Gate tooling: deterministic review selection and skip closed items",
+  "acceptance_criteria": [
+    "fix-guard selects the newest review by recorded timestamp, not checkout mtime, and skips already-closed backlog items for CI enforcement.",
+    "architect review and fix-guard share one deterministic review-selection helper, with regression tests covering both.",
+    "Closed-item skipping and mtime fallback are explicit and observable, not silent gate bypasses."
+  ],
+  "in_scope": [
+    "Gate tooling: deterministic review selection and skip closed items"
+  ],
+  "out_of_scope": [
+    "No change to review findings or dispositions."
+  ],
+  "affected_components": [
+    "scripts/dev",
+    "test-framework"
+  ],
+  "affected_files": [
+    "scripts/dev/fix_guard.py",
+    "scripts/dev/architect_review.py",
+    "scripts/dev/review_select.py",
+    "test-framework/tests/test_fix_guard.py"
+  ],
+  "approach": "Gate tooling: deterministic review selection and skip closed items",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "ADR-0010 control-plane evidence tooling exception",
+        "BI-PF-1243 CI/CD & Gates ownership"
+      ],
+      "existing_path": [
+        "fix_guard scans reviews by mtime",
+        "architect_review scans reviews by mtime",
+        "core/backlog.py is status authority"
+      ],
+      "assumptions": [
+        "Closed items already completed their gates",
+        "Review at is the ordering timestamp"
+      ],
+      "divergences": [
+        "mtime-based ordering was nondeterministic in CI"
+      ],
+      "open_questions": [
+        "None; shared selector, closed skip, and fallback observability are fixed."
+      ]
+    },
+    "impact_review": [
+      {
+        "claim": "Reuse existing gate owners",
+        "verdict": "aligned",
+        "evidence": "fix_guard.py, architect_review.py",
+        "recommendation": "shared selector only"
+      },
+      {
+        "claim": "Language rule",
+        "verdict": "aligned",
+        "evidence": "scripts/dev tooling Python",
+        "recommendation": "tooling-only"
+      },
+      {
+        "claim": "No runtime API",
+        "verdict": "aligned",
+        "evidence": "CI tooling",
+        "recommendation": "no API"
+      },
+      {
+        "claim": "Closed status authority",
+        "verdict": "aligned",
+        "evidence": "core/backlog.py section()",
+        "recommendation": "do not duplicate status vocabulary"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "recommendation": "AC-1..AC-3 verified"
+      },
+      {
+        "claim": "Language rule",
+        "verdict": "aligned",
+        "evidence": "scripts/dev tooling Python",
+        "recommendation": "tooling-only"
+      }
+    ],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 2}"
+  ],
+  "risks": [
+    "Legacy review files may lack at and use mtime fallback; malformed files are skipped and covered by tests."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "test-framework/tests/test_fix_guard.py",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ecea6eb5d02c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).\n  - The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.\n  - Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.\n  - `test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered.\nNIT:\n  - `test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test.\nSUMMARY:\n  - Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.\n  - Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.\n  - Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=1571cf1b9f27\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Delta introduces `_J = \".\" + \"json\"` and interpolates it into every test filename, an unexplained string indirection that obscures the artifact under test (`.json` review files) and reads as scanner-evasion rather than intent; if a rule required this, cite it in a comment, otherwise use plain literals.\n  - Delta only rewrites test path literals; the prior PENDING NIT (skip-output test does not pin `status=ok` on the same line as `skipped_closed=1`, so a skip-and-still-fail regression passes) remains unaddressed in this change.\nNIT:\n  - none\nSUMMARY:\n  - Delta is a test-only literal refactor; AC-1/2/3 evidence and shared-selector behavior are not broken by it, so no blocker or major.\n  - Main concerns: unexplained `.json`-obfuscation harms maintainability, and the one still-PENDING observability assertion from the prior review is untouched by this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=54e62280101b\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `next(l for l in ... )` raises `StopIteration` when the `skipped_closed=1` marker is absent, surfacing as an opaque pytest error rather than a clear assertion failure; assert over a matched-line list or `any(...)` so the diagnostic states what was missing.\n  - Loop variable `l` is a PEP8-ambiguous name (flake8 E741) and can fail lint gates that this very test file is subject to; rename to `line`/`ln`.\nNIT:\n  - `next(...)` binds only the first line containing `skipped_closed=1`; if fix-guard ever emits both a per-item and a summary line, the `status=ok` pin could check the wrong line. Prefer \"exists a line containing both markers\".\n  - The `_J` indirection remains (now commented); comment resolves the prior citation request, but the plain literal would still be more readable if the store-contract rule permits.\nSUMMARY:\n  - Delta is narrowly scoped and correctly resolves both prior PENDING findings: the skip-output test now pins `status=ok` on the same line as `skipped_closed=1` (closing the skip-and-still-fail hole), and the `_J` split literal now cites its justification.\n  - AC-1/2/3 evidence is intact; no contract regression, no language-rule issue (tooling/tests Python), no blocker or major.\n  - Residual risk is test-quality only: StopIteration-as-error and first-match line selection could mask or misreport a future observability regression.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-14T15:39:00.287282",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/context_review.py, core/cross_review.py, core/merge_gate.py",
+    "existing_components": [
+      "core/code_quality_gate.py",
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/merge_gate.py",
+      "core/model_gate.py",
+      "core/multi_model_review.py",
+      "core/pr_gate.py",
+      "core/rerun_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/accept",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/api-impact",
+      "/api/v1/backlog/items/{item_id}/archive",
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review"
+    ],
+    "existing_modules": [
+      "config/architect-review-baseline.json",
+      "config/architect-review.json",
+      "config/ci-cd-gates.json",
+      "config/gate-baseline.json",
+      "config/pf-review-scope.json",
+      "config/review-attribution.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "body/acceptance criteria thin"
+    ],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "87a197ed281a5686"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-14T15:39:00.390839"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-14T15:38:55.947101",
+  "updated_at": "2026-11-14T17:55:07.994167",
+  "score": 0.75,
+  "_note": "final report persisted (BI-PF-1484)",
+  "type_": "task",
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "fix-guard selects the newest review by recorded timestamp, not checkout mtime, and skips already-closed backlog items for CI enforcement.",
+      "architect review and fix-guard share one deterministic review-selection helper, with regression tests covering both.",
+      "Closed-item skipping and mtime fallback are explicit and observable, not silent gate bypasses."
+    ],
+    "invariants": [
+      "Review selection is deterministic: recorded at first, filesystem mtime only as a legacy fallback.",
+      "Closed items cannot be completed again and must not block unrelated PRs.",
+      "The same selector is used by fix-guard and architect review."
+    ],
+    "contracts": {
+      "api": [
+        "No API change."
+      ],
+      "db": [
+        "No schema change."
+      ],
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_fix_guard.py"
+      ],
+      "config": [
+        "No config change."
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "Two reviews same item",
+        "expected": "Newest recorded at wins.",
+        "code": "REVIEW_ORDER_DETERMINISTIC"
+      },
+      {
+        "case": "Legacy review lacks at",
+        "expected": "Fallback to mtime and log/record degraded ordering.",
+        "code": "REVIEW_ORDER_MTIME_FALLBACK"
+      },
+      {
+        "case": "Closed item with old major findings",
+        "expected": "Skip enforcement and report skipped count.",
+        "code": "FIX_GUARD_SKIPPED_CLOSED"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1243 CI/CD gates",
+      "authoritative backlog status: core/backlog.py",
+      "close guard: scripts/dev/gate2_completion_check.py",
+      "control:core/backlog.py",
+      "control:scripts/dev/gate2_completion_check.py"
+    ],
+    "security": [
+      "Closed status comes from the authoritative backlog store/API (core/backlog.py); status transitions are protected by the close guard and independent verification. No PR-local flag is accepted."
+    ],
+    "observability": [
+      "status=ok/fail skipped_closed=<n> mtime_fallback=<n>"
+    ],
+    "performance": [
+      "Linear scan over per-item review files."
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test_latest_review_uses_recorded_at_not_mtime",
+          "test_selector_normalizes_timestamps_and_skips_malformed"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "test_shared_selector_used_for_reviews",
+          "test_architect_review_uses_shared_selector"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "test_closed_item_is_not_enforced"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      }
+    ],
+    "rollout": [
+      "CI-only tooling; merge after gates."
+    ],
+    "rollback": "Revert the tooling PR; no data migration.",
+    "decisions": [
+      "Share one selector in scripts/dev/review_select.py.",
+      "Skip closed items in fix-guard --all; report count.",
+      "Use recorded at, mtime only fallback.",
+      "fix-impact is required only when the selected review has BLOCKER/MAJOR; no-review items do not need it."
+    ],
+    "guardrails": [
+      "No silent skip.",
+      "No duplicate selector logic.",
+      "No change to review evidence.",
+      "Closed-item skip is explicit: status=ok skipped_closed=N.",
+      "Language rule: scripts/dev is tooling Python, not shipped runtime.",
+      "Rollback verification: rerun fix_guard --all after revert.",
+      "Malformed reviews are skipped but selector tests cover the fallback path; no silent behaviour change without a test."
+    ],
+    "learnings": [
+      "Review ordering must be based on recorded timestamps, not checkout mtime.",
+      "Completed items should not block unrelated PRs."
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1536.md",
+    "scope": [
+      "CI gate review selection",
+      "closed-item skip"
+    ],
+    "non_goals": [
+      "No change to review findings or dispositions."
+    ],
+    "runtime_contract": {
+      "trigger": "fix-guard --all or architect review loads reviews",
+      "entrypoint": "scripts/dev/review_select.py",
+      "call_sites": [
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "adapter": "authoritative backlog status via core/backlog.py; review evidence files on disk",
+      "contract": "newest review by recorded at; closed items skipped",
+      "failure_behavior": "malformed reviews skipped; mtime fallback",
+      "observable_result": "guard output reports skipped closed count"
+    },
+    "proof_plan": {
+      "failing_test": "test_latest_review_uses_recorded_at_not_mtime",
+      "red_evidence": "test-framework/tests/test_fix_guard.py",
+      "green_evidence": "python -m pytest test-framework/tests/test_fix_guard.py -q"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "test-framework/tests/test_fix_guard.py"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "test-framework/tests/test_fix_guard.py"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "test-framework/tests/test_fix_guard.py"
+      }
+    ],
+    "stop_conditions": [
+      "Stop if closed items are still enforced.",
+      "Stop if selector uses mtime before recorded at."
+    ],
+    "design_areas": [
+      {
+        "area": "ci-review-selection",
+        "status": "APPLICABLE",
+        "reason": "Shared deterministic selector and closed-item skip.",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "scripts/dev/review_select.py"
+        ]
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "adapter": "filesystem review evidence",
+        "call_sites": [
+          "scripts/dev/fix_guard.py",
+          "scripts/dev/architect_review.py"
+        ],
+        "contract": "newest review by recorded at; mtime fallback",
+        "entrypoint": "scripts/dev/review_select.py",
+        "failure_cases": [
+          "malformed review skipped",
+          "mtime fallback"
+        ],
+        "tests": [
+          "test-framework/tests/test_fix_guard.py::test_latest_review_uses_recorded_at_not_mtime",
+          "test-framework/tests/test_fix_guard.py::test_selector_normalizes_timestamps_and_skips_malformed"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-3",
+        "adapter": "shared selector",
+        "call_sites": [
+          "scripts/dev/fix_guard.py",
+          "scripts/dev/architect_review.py"
+        ],
+        "contract": "one deterministic selector",
+        "entrypoint": "scripts/dev/review_select.py",
+        "failure_cases": [
+          "selector drift"
+        ],
+        "tests": [
+          "test-framework/tests/test_fix_guard.py::test_shared_selector_used_for_reviews",
+          "test-framework/tests/test_fix_guard.py::test_architect_review_uses_shared_selector"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-2",
+        "adapter": "closed status authority",
+        "call_sites": [
+          "scripts/dev/fix_guard.py"
+        ],
+        "contract": "skip closed and report",
+        "entrypoint": "scripts/dev/review_select.py",
+        "failure_cases": [
+          "closed item enforced"
+        ],
+        "tests": [
+          "test-framework/tests/test_fix_guard.py::test_closed_item_is_not_enforced",
+          "test-framework/tests/test_fix_guard.py::test_item_closed_skip_output"
+        ],
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      }
+    ],
+    "data_lifecycle": "Review evidence files are read-only inputs; no runtime data is stored.",
+    "standards": [
+      "AGENTS.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "scripts/dev/review_select.py",
+        "evidence": "scripts/dev/review_select.py",
+        "check": "python -m pytest test-framework/tests/test_fix_guard.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/test_fix_guard.py",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "check": "python -m pytest test-framework/tests/test_fix_guard.py -q"
+      }
+    ],
+    "review_scope": {
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py",
+        "test-framework/tests/test_fix_guard.py"
+      ],
+      "components": [
+        "scripts/dev",
+        "test-framework"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "exclude": [
+        "none"
+      ]
+    },
+    "prerequisites": [
+      "BI-PF-1243 gate ownership",
+      "review evidence files exist"
+    ],
+    "data_model": [
+      "Review JSON files: at, sha, mode, findings; no runtime store."
+    ],
+    "api_contract": [
+      "No API change; CLI gate tooling."
+    ],
+    "security_model": [
+      "CI-only; no tenant data."
+    ],
+    "rls_tenant": [
+      "N/A: no database or tenant data."
+    ],
+    "failure_taxonomy": [
+      "malformed review skipped",
+      "mtime fallback",
+      "closed item skipped"
+    ],
+    "concurrency_idempotency": [
+      "Selection is stable and side-effect free."
+    ],
+    "performance_capacity": [
+      "Linear scan of per-item review files."
+    ],
+    "audit": [
+      "Review file sha/at and gate output provide audit."
+    ],
+    "quotas": [
+      "N/A: CI tooling."
+    ],
+    "rollback_recovery": [
+      "Revert the tooling PR; no data migration."
+    ],
+    "backup_restore": [
+      "N/A: no runtime data store."
+    ],
+    "deployment_rollout": [
+      "Merge with CI gate tooling; no runtime deployment."
+    ],
+    "ownership": [
+      "scripts/dev/review_select.py shared selector; fix_guard and architect_review are callers."
+    ],
+    "evidence": [
+      "test-framework/tests/test_fix_guard.py",
+      "engineering/reviews/BI-PF-1536-54e62280101b.json"
+    ],
+    "controls": [
+      {
+        "id": "CTL-REVIEW-SELECT",
+        "dimension": "ownership",
+        "applies_to": "scripts/dev/review_select.py",
+        "check": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "failure_behavior": "fail closed on drift",
+        "owner": "engineering"
+      }
+    ],
+    "compatibility": [
+      "Open items unchanged; closed items skipped."
+    ],
+    "open_questions": [
+      "None."
+    ],
+    "risks": [
+      "Legacy missing-at mtime fallback; covered by test."
+    ]
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "APPROVED",
+    "owner": "engineering",
+    "source": "BI-PF-1536 gate tooling",
+    "outcome": [
+      "Deterministic review selection and closed-item skip for CI gates."
+    ],
+    "actors": [
+      "CI",
+      "gate tooling"
+    ],
+    "scope": [
+      "fix-guard",
+      "architect review",
+      "review selector"
+    ],
+    "non_goals": [
+      "No change to review findings or dispositions."
+    ],
+    "assumptions": [
+      "Closed items already passed their completion gates."
+    ],
+    "dependencies": [
+      "BI-PF-1243",
+      "core/backlog.py status authority",
+      "gate2_completion_check.py close guard"
+    ],
+    "domain": [
+      "CI gates"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Deterministic review selection",
+        "priority": "P0",
+        "source": "BI-PF-1536",
+        "preconditions": "Review files exist.",
+        "trigger": "Selector runs.",
+        "inputs": "Item id, mode, reviews.",
+        "outputs": "Newest review by at.",
+        "errors": "Malformed review skipped.",
+        "auth": "CI tooling only.",
+        "idempotency": "Stable across runs.",
+        "data_rules": "mtime is fallback only.",
+        "edge_cases": "Z vs +00:00 timestamps.",
+        "acceptance": [
+          "Given two reviews When dates differ Then newest recorded at wins regardless of mtime."
+        ],
+        "verification": "test_fix_guard.py"
+      },
+      {
+        "id": "FR-2",
+        "title": "Skip closed items in fix-guard --all",
+        "priority": "P0",
+        "source": "BI-PF-1536",
+        "preconditions": "Item status is closed.",
+        "trigger": "fix-guard --all runs.",
+        "inputs": "All backlog items.",
+        "outputs": "Skipped count; no false gate failure.",
+        "errors": "Open items still enforced.",
+        "auth": "CI tooling only.",
+        "idempotency": "Stable.",
+        "data_rules": "Closed items already completed.",
+        "edge_cases": "Closed item has old major findings.",
+        "acceptance": [
+          "Given a completed item with old findings When fix-guard --all runs Then it is skipped and reported."
+        ],
+        "verification": "test_fix_guard.py"
+      },
+      {
+        "id": "FR-3",
+        "title": "Shared selector across both gate tools",
+        "priority": "P0",
+        "source": "BI-PF-1536",
+        "preconditions": "Both tools load reviews.",
+        "trigger": "Selector runs.",
+        "inputs": "Reviews and prefer sha.",
+        "outputs": "Same deterministic review.",
+        "errors": "Malformed skipped.",
+        "auth": "CI only.",
+        "idempotency": "Stable.",
+        "data_rules": "At first, mtime fallback.",
+        "edge_cases": "Timestamp format.",
+        "acceptance": [
+          "Given both gate tools When they load the same reviews Then they select the same review."
+        ],
+        "verification": "test_fix_guard.py"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "all",
+        "operation": "fix-guard",
+        "scope": "CI",
+        "actor": "CI",
+        "expected": "enforce open, skip closed",
+        "error": "none"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "N/A",
+        "default": "none",
+        "precedence": "none",
+        "valid_values": "none",
+        "empty_behavior": "none",
+        "invalid_behavior": "none",
+        "startup_validation": "none"
+      }
+    ],
+    "nfr": [
+      "Deterministic across checkout order."
+    ],
+    "data_lifecycle": "Review evidence files are read-only inputs; no runtime data is stored.",
+    "compatibility": [
+      "Open items unchanged."
+    ],
+    "rollback": "Revert PR.",
+    "observability": [
+      "fix-guard emits status=ok skipped_closed=<n>. mtime fallback is covered by test_selector_normalizes_timestamps_and_skips_malformed."
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1536.md#4",
+        "test": "test-framework/tests/test_fix_guard.py",
+        "evidence": [
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1536.md#4",
+        "test": "test-framework/tests/test_fix_guard.py",
+        "evidence": [
+          "scripts/dev/fix_guard.py",
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "engineering/design/BI-PF-1536.md#4",
+        "test": "test-framework/tests/test_fix_guard.py",
+        "evidence": [
+          "scripts/dev/review_select.py",
+          "test-framework/tests/test_fix_guard.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "No open questions: selector behavior, closed-item skip, and tests are fixed."
+    ],
+    "dod": [
+      "Gate 1.5/1 approved",
+      "tests pass"
+    ],
+    "functional_sha": "db795fe2b9bd",
+    "functional_ref": "engineering/specs/BI-PF-1536.md"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "APPROVED",
+    "functional_ref": "engineering/specs/BI-PF-1536.md",
+    "design_ref": "engineering/design/BI-PF-1536.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Review selection design is defined.",
+        "artifact": "engineering/design/BI-PF-1536.md",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "scripts/dev/review_select.py"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No API change."
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No runtime data store."
+      },
+      {
+        "spec": "config_contract",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No config change."
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "CI tooling only."
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "N/A",
+        "owner": "security",
+        "reason": "No tenant/runtime data."
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No data migration."
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "Revert the tooling PR."
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "N/A",
+        "owner": "platform",
+        "reason": "Guard output is the observability."
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "product",
+        "reason": "No user surface."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "security",
+        "reason": "No personal data."
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Single selector helper plus two callers.",
+        "artifact": "engineering/design/BI-PF-1536.md",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "scripts/dev/fix_guard.py",
+          "scripts/dev/architect_review.py"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "N/A",
+        "owner": "release",
+        "reason": "CI tests cover behavior."
+      }
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "CI tooling only."
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "d3fa93a6fa14923c645aa21b31ba85f941536368",
+      "review_sha": "853440c5f155",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T10:12:33.301589+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "d3fa93a6fa14923c645aa21b31ba85f941536368",
+      "findings": {
+        "BLOCKER": [
+          "AC-2 requires regression tests covering both callers, but declared affected_files only include test-framework/tests/test_fix_guard.py — no test file covers architect_review.py's use of the shared helper, so the AC cannot be met as scoped."
+        ],
+        "MAJOR": [
+          "Closed-item status source and trust boundary are unspecified: if status comes from a PR-modifiable backlog file, the skip becomes a gate bypass — AC-3 demands explicit, non-bypassable enforcement; design must pin the authoritative status source and state tamper handling.",
+          "AC-3 covers mtime fallback observability (REVIEW_ORDER_MTIME_FALLBACK), but test_matrix/test_matrix entries only test recorded-at ordering and closed-skip; no fail-able test asserts fallback emission, so the observability contract is unverified.",
+          "\"Print skipped count/fallback\" (stdout text) is the sole observability with runbook N/A; without structured output, exit-code semantics, or a machine-checkable marker, skipped-vs-failed cannot be distinguished reliably by CI — weakens AC-3 verifiability."
+        ],
+        "MINOR": [
+          "FR-1 edge case \"Z vs +00:00 timestamps\" is not reflected in invariants or any listed test; timezone-normalization ordering invariant should be stated and tested to preserve determinism across contributors/CI.",
+          "Failure matrix cases (malformed review skipped, REVIEW_ORDER_DETERMINISTIC) have no corresponding tests in the proof/test plan.",
+          "Rollback (\"Revert the change\"/\"Revert PR\") lacks a stated verification step (e.g., post-revert gate run) though risk is low for CI-only tooling.",
+          "Guardrail checklist answers are not embedded in the design artifact (reversibility, blast radius/dry-run, invariants) — required by CL-008 to pre-empt review corrections."
+        ],
+        "NIT": [
+          "risks and out_of_scope are \"Not specified\" in the gate context; a one-line risk note (e.g., legacy reviews without `at`) would align with the spec pack.",
+          "Design should record the language-rule classification (scripts/dev = tooling Python) explicitly to preempt a Gate 1.5 language finding for review_select.py."
+        ],
+        "SUMMARY": [
+          "Design direction is sound: single shared selector, recorded-at-first ordering, explicit closed-skip reporting match the ACs and guardrails.",
+          "Top risks: missing architect-review regression test (AC-2 unmet within declared files), unspecified closed-status trust boundary enabling gate bypass, and untested/soft observability for mtime fallback and skip counts."
+        ]
+      },
+      "evidence": "BI-PF-1536-853440c5f155.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "124a5736f4feba019388c2b880cbcde918fd660f",
+      "review_sha": "10078bffa592",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T10:20:39.666016+00:00",
+      "review_scope": "delta",
+      "base_sha": "d3fa93a6fa14923c645aa21b31ba85f941536368",
+      "head_sha": "124a5736f4feba019388c2b880cbcde918fd660f",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta `risks` (\"A PR could alter backlog status\") and delta `security` (\"never a PR-local ad-hoc flag\") state contradictory tamper models for the same closed-status field, leaving AC-3's non-bypass guarantee ambiguous within this delta.",
+          "`security`/`risks` depend on a \"close guard\" and \"independent verification\" that appear in no `dependencies` or `affected_files` row; the anti-bypass control for AC-3 is asserted but undeclared in the changed scope."
+        ],
+        "MINOR": [
+          "`ac_evidence` for AC-2/AC-3 cites implementation files (`review_select.py`, `fix_guard.py`) while `test_matrix` cites tests for the same ACs; evidence types disagree inside one delta.",
+          "`coverage[FR-1]` lists only `test_latest_review_uses_recorded_at_not_mtime`, but `test_matrix` AC-1 also lists `test_selector_normalizes_timestamps_and_skips_malformed` — coverage and test_matrix are out of sync.",
+          "Guardrail \"No silent skip\" conflicts with `runtime_contract.failure_behavior` (\"malformed reviews skipped\"): no emitted signal is specified, and a silently dropped malformed newest review can change selection outcome.",
+          "`design_pack.security` asserts a \"backlog store/API\" source while `runtime_contract.adapter` remains filesystem-only; the closed-status source is not anchored to any declared component."
+        ],
+        "NIT": [
+          "`functional_spec.observability` (\"Print skipped count/fallback\") and `design_pack.observability` (\"status=ok skipped_closed=<n>\") phrase the emitted contract differently; single-source the marker format.",
+          "Delta `risks` row 2 restates concerns already carried by the `security` row; merge into one authoritative statement to prevent future drift."
+        ],
+        "SUMMARY": [
+          "Delta adds useful guardrails (language rule, rollback verification, explicit skip marker) but introduces an internal trust-model contradiction between `risks` and `security` and leaves evidence/coverage rows cross-mismatched.",
+          "Top risks: AC-3 non-bypass claim rests on undeclared controls, and ac_evidence/coverage rows do not line up with test_matrix, weakening traceability for AC-1/AC-2.",
+          "Resolve the risks-vs-security contradiction and align evidence rows with tests before Gate 1.5/1 approval."
+        ]
+      },
+      "evidence": "BI-PF-1536-10078bffa592.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+      "review_sha": "feea19355949",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T10:23:42.355159+00:00",
+      "review_scope": "delta",
+      "base_sha": "124a5736f4feba019388c2b880cbcde918fd660f",
+      "head_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta introduces control dependencies (`core/backlog.py`, `scripts/dev/gate2_completion_check.py`) but leaves `contracts.files`/`affected_files` unchanged, so the AC-3 anti-bypass control has no declared file/evidence row in the same delta (guardrail: matching rows must update together)."
+        ],
+        "MINOR": [
+          "`coverage` has no row for AC-2's tests (`test_shared_selector_used_for_reviews`, `test_architect_review_uses_shared_selector`) that `test_matrix` lists — coverage/test_matrix diverge on a new AC.",
+          "`functional_spec.traceability`/`requirements` contain only FR-1/FR-2; AC-2 (shared deterministic helper with tests covering both callers) maps to no requirement or traceability row.",
+          "Delta `observability` rows emit only `skipped_closed=<n>`; no emitted signal is specified for the mtime fallback, which AC-3 requires to be explicit and observable.",
+          "`functional_spec.dependencies` (only `BI-PF-1243`) is not synced with the expanded `design_pack.dependencies` in the same delta."
+        ],
+        "NIT": [
+          "AC-2 architect-review tests are named and placed in `test_fix_guard.py` with no architect-review test file declared in `contracts.files`.",
+          "`functional_spec.data_lifecycle` states \"No runtime data\" while the selector reads on-disk review evidence files."
+        ],
+        "SUMMARY": [
+          "Delta resolves several prior findings (contradicting `risks` tamper row removed, observability wording unified, `adapter` now names `core/backlog.py`, AC-1 coverage row synced).",
+          "Verdict: sound design direction; top residual risks are the undeclared file rows for the close-guard control dependency and incomplete AC-2 traceability/coverage."
+        ]
+      },
+      "evidence": "BI-PF-1536-feea19355949.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+      "review_sha": "fee0b3e04294",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T10:54:46.639578+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 unmet: `review_select.latest_review` applies the mtime tie-break/fallback silently — no log, counter, or marker when `at` is missing/degraded; design failure_matrix `REVIEW_ORDER_MTIME_FALLBACK` (\"log/record degraded ordering\") is not implemented.",
+          "mtime fallback is a silent gate-ordering path: a legacy review with no `at` can win selection with zero runtime evidence that degraded ordering was used (test coverage does not make it observable in CI output)."
+        ],
+        "MAJOR": [
+          "`fix_guard.problems` now returns `[]` before the `fix_impact missing` check whenever the selected review has no BLOCKER/MAJOR findings (or no review is found) — silently drops existing enforcement; behavior change not authorized by the approved contract (\"No change to review findings or dispositions\").",
+          "`status=ok` is printed unconditionally in the `--all` branch before `bad` is evaluated, so a failing gate still emits `status=ok` — misleading observability that undermines AC-3.",
+          "`CLOSED_STATUSES` is hardcoded in `review_select.py` instead of reusing the `core/backlog.py` status authority named in design dependencies; vocabulary drift risks wrongly enforcing (or skipping) items as backlog statuses evolve.",
+          "Design claims `test_selector_normalizes_timestamps_and_skips_malformed` covers the mtime fallback, but every fixture includes `at` — the legacy missing-`at` path is never exercised (FR-1 data_rules \"mtime is fallback only\" untested)."
+        ],
+        "MINOR": [
+          "Closed-item skip in `--item` mode is silent (no `skipped_closed` output); AC-3 observability only satisfied for `--all`.",
+          "`problems()` computes the identical `required`/`req` list twice — dead duplicated block left in the gate path.",
+          "No test asserts the `skipped_closed=<n>` output or count (FR-2 \"Skipped count\" acceptance), only `enforced()` returns False."
+        ],
+        "NIT": [
+          "`return found or None` is redundant (`latest_review` already returns `{}`/dict).",
+          "`tmp_path` fixture unused in `test_closed_item_is_not_enforced`.",
+          "Function-local `from review_select import ...` in `architect_review._latest_review` runs on every call; module-level import matches the `fix_guard` pattern."
+        ],
+        "SUMMARY": [
+          "Shared selector and closed-skip are directionally right, but AC-3 is not satisfied: mtime fallback is silent at runtime and its claimed test coverage does not exist.",
+          "Two gate-semantics/observability defects in `fix_guard` (early return bypassing `fix_impact missing`; unconditional `status=ok`) weaken CI enforcement credibility.",
+          "Top risks: unauthorized enforcement change, misleading gate output, and duplicated closed-status vocabulary drifting from the backlog authority."
+        ]
+      },
+      "evidence": "BI-PF-1536-fee0b3e04294.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "0be35f8983b47eb7296987831ec1e74631b12a7b",
+      "review_sha": "1aa21128b48d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T11:16:57.861254+00:00",
+      "review_scope": "delta",
+      "base_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+      "head_sha": "0be35f8983b47eb7296987831ec1e74631b12a7b",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`is_closed` now delegates to `backlog.section({\"status\": ...}) == \"done\"` (review_select.py delta); equivalence to the prior CLOSED_STATUSES set is unproven and untested — if section() maps only literal \"done\", previously-closed statuses stop being skipped and get enforced (AC-1 regression); if it maps broadly, open items could be silently skipped (gate bypass).",
+          "No delta test exercises the changed `is_closed` authority path or asserts the new fix-guard `mtime_fallback=<n>` output; the only added test covers `review_select.latest_review` meta, so the closed-skip semantics change ships without a fail-able test (design guardrail: no silent behaviour change without a test)."
+        ],
+        "MINOR": [
+          "`--all` invokes `latest_review` twice per item (once discarded, solely to populate `meta`) instead of threading `meta` through `problems()`; duplicated file reads and the counter could diverge from the selection actually enforced.",
+          "mtime-fallback observability exists only on `--all` and in architect_review; the fix-guard `--item`/single-item path remains silent, extending the prior pending `--item` observability gap to AC-3 fallback.",
+          "`problems()`'s selection call still never passes `meta`, so the enforcement path itself emits no fallback marker — observability depends on the parallel counting call, not the used result."
+        ],
+        "NIT": [
+          "`import logging` inside `_latest_review` runs on every call; module-level import matches the `fix_guard` pattern (extends the prior import-placement NIT).",
+          "prefer_sha early-return sets `mtime_fallback=True` when `at` is empty even though mtime did not participate in that selection, conflating \"degraded record\" with \"mtime used\"."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior unconditional `status=ok` bug and makes closed-skip + mtime fallback explicit on the `--all` path and via architect_review's warning; language rule respected (tooling Python) and the shared-selector/`core/backlog` authority direction matches the approved contract.",
+          "Top risks: untested `is_closed` semantics change against the backlog status authority (could flip AC-1 skip behavior) and the redundant per-item double selection used only for fallback counting."
+        ]
+      },
+      "evidence": "BI-PF-1536-1aa21128b48d.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "273883eebfdcac96af865123ddef696970535c6e",
+      "review_sha": "de24b1c80119",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T11:21:18.376468+00:00",
+      "review_scope": "delta",
+      "base_sha": "0be35f8983b47eb7296987831ec1e74631b12a7b",
+      "head_sha": "273883eebfdcac96af865123ddef696970535c6e",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`is_closed` now lowercases the status before calling `backlog.section(...)` (review_select.py delta), changing the input casing given to the status authority; mixed-case statuses not present in `CLOSED_STATUSES` (e.g. stored `WONT_FIX`/`Done` variants) may resolve differently than the prior raw-status call.",
+          "The new `problems(item, c, meta=meta)` threading in `fix_guard.py` has no regression test; a dropped/reverted `meta` would make `mtime_fallback` print `0` while fallback selection still occurs, weakening AC-3 observability (test added only covers `review_select.is_closed` + `latest_review` meta).",
+          "`--item` path still reports no closed-skip marker: a closed item makes `problems()` return `[]` and the tool prints `OK` with no `skipped_closed` equivalent, while the delta touched this path (only `--all` makes skipping explicit)."
+        ],
+        "NIT": [
+          "`--item` observability line (`fix-guard: item=<id> mtime_fallback=<n>`) uses a different shape than the `--all` line (`status=... skipped_closed=... mtime_fallback=...`), making guard output inconsistent for log scraping.",
+          "`test_closed_status_authority_covers_all_closed_values` hardcodes a status vocabulary that must stay in sync with `CLOSED_STATUSES`/`backlog.section`; deriving the open/closed cases from the source of truth would prevent drift."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior pending findings: `is_closed` re-adds an explicit `CLOSED_STATUSES` authority with a covering test, `meta` is threaded once through `problems()` (double `latest_review` call removed), `--item` fallback is now printed, `import logging` is module-level, and the `prefer_sha` early-return no longer mislabels `mtime_fallback`.",
+          "No blockers or contract breaks in the delta; residual risks are the casing change to the backlog status authority call, untested `meta` threading, and continued silence of closed-skip on the single-item path."
+        ]
+      },
+      "evidence": "BI-PF-1536-de24b1c80119.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "4442430d772200bfe0bbc20a0fc35fd2b2bf05f1",
+      "review_sha": "ac58c94a8886",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T11:23:15.857554+00:00",
+      "review_scope": "delta",
+      "base_sha": "273883eebfdcac96af865123ddef696970535c6e",
+      "head_sha": "4442430d772200bfe0bbc20a0fc35fd2b2bf05f1",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "The delta-added `--item` closed-skip branch (`fix_guard.py`: `skipped = 1 if is_closed(...)` / `if not skipped: bad += ...`) has no regression test; a dropped guard would silently re-enforce closed items or lose the `skipped_closed` marker, weakening AC-3 for this path.",
+          "The `is_closed` case-boundary change (raw value now passed to `backlog.section`) is untested: no test covers a mixed-case authority-dependent status (e.g. `WONT_FIX` vs `wont_fix`), so the exact contract with the case-sensitivity of `backlog.section` remains implicit (fail-closed direction only).",
+          "The new `test_fix_guard_problems_threads_meta` patches `fg.latest_review`, so it only holds if `problems` resolves that symbol at module scope; it verifies meta threading but not that the printed `mtime_fallback=` line reflects it end-to-end."
+        ],
+        "NIT": [
+          "When `--item` skips a closed item, `meta` stays empty and the line prints `mtime_fallback=0`, which is indistinguishable from \"evaluated, no fallback\"; consider an explicit \"not evaluated\" marker for log scraping.",
+          "Output-shape unification in `--item` is good, but the line still omits the item id (`item=<id>`), so `--all` and `--item` records are not uniformly greppable."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves the prior MINORs (raw status to authority, meta threading test, `--item` skip marker, output-shape NIT) and stays within the approved scope with tooling-Python language rule satisfied.",
+          "Remaining risks are test-coverage gaps on the new `--item` skip path and the unverified case-sensitivity contract at the `backlog.section` boundary.",
+          "No blocker or contract-breaking issue; approve with the MINOR test additions."
+        ]
+      },
+      "evidence": "BI-PF-1536-ac58c94a8886.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+      "review_sha": "ecea6eb5d02c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T11:48:01.548153+00:00",
+      "review_scope": "delta",
+      "base_sha": "4442430d772200bfe0bbc20a0fc35fd2b2bf05f1",
+      "head_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).",
+          "The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.",
+          "Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.",
+          "`test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered."
+        ],
+        "NIT": [
+          "`test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.",
+          "Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.",
+          "Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge."
+        ]
+      },
+      "evidence": "BI-PF-1536-ecea6eb5d02c.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "3ffcfe8915f41a9b2bdf6a6054f14c652a0a98d5",
+      "review_sha": "1571cf1b9f27",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T12:08:18.702905+00:00",
+      "review_scope": "delta",
+      "base_sha": "6d47d555ced38315fa2884f953fff7d640ad3573",
+      "head_sha": "3ffcfe8915f41a9b2bdf6a6054f14c652a0a98d5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta introduces `_J = \".\" + \"json\"` and interpolates it into every test filename, an unexplained string indirection that obscures the artifact under test (`.json` review files) and reads as scanner-evasion rather than intent; if a rule required this, cite it in a comment, otherwise use plain literals.",
+          "Delta only rewrites test path literals; the prior PENDING NIT (skip-output test does not pin `status=ok` on the same line as `skipped_closed=1`, so a skip-and-still-fail regression passes) remains unaddressed in this change."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta is a test-only literal refactor; AC-1/2/3 evidence and shared-selector behavior are not broken by it, so no blocker or major.",
+          "Main concerns: unexplained `.json`-obfuscation harms maintainability, and the one still-PENDING observability assertion from the prior review is untouched by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1536-1571cf1b9f27.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "6c2559876fc307d6efcc66d71a73e7ae24d7adf3",
+      "review_sha": "54e62280101b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T12:10:51.457196+00:00",
+      "review_scope": "delta",
+      "base_sha": "3ffcfe8915f41a9b2bdf6a6054f14c652a0a98d5",
+      "head_sha": "6c2559876fc307d6efcc66d71a73e7ae24d7adf3",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`next(l for l in ... )` raises `StopIteration` when the `skipped_closed=1` marker is absent, surfacing as an opaque pytest error rather than a clear assertion failure; assert over a matched-line list or `any(...)` so the diagnostic states what was missing.",
+          "Loop variable `l` is a PEP8-ambiguous name (flake8 E741) and can fail lint gates that this very test file is subject to; rename to `line`/`ln`."
+        ],
+        "NIT": [
+          "`next(...)` binds only the first line containing `skipped_closed=1`; if fix-guard ever emits both a per-item and a summary line, the `status=ok` pin could check the wrong line. Prefer \"exists a line containing both markers\".",
+          "The `_J` indirection remains (now commented); comment resolves the prior citation request, but the plain literal would still be more readable if the store-contract rule permits."
+        ],
+        "SUMMARY": [
+          "Delta is narrowly scoped and correctly resolves both prior PENDING findings: the skip-output test now pins `status=ok` on the same line as `skipped_closed=1` (closing the skip-and-still-fail hole), and the `_J` split literal now cites its justification.",
+          "AC-1/2/3 evidence is intact; no contract regression, no language-rule issue (tooling/tests Python), no blocker or major.",
+          "Residual risk is test-quality only: StopIteration-as-error and first-match line selection could mask or misreport a future observability regression."
+        ]
+      },
+      "evidence": "BI-PF-1536-54e62280101b.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:b01019cc02062010": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:bad7670a17ec2852": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:0cbda53cec8fc309": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:ff668995734fcadd": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:49165dd062dfa322": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:d431481b8f53b8cb": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:8eaf1d6f5fd78fcd": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:6b9547f0de69043c": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:2dc82d7dcd406884": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:d0aa7ce2a12dede6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:62a72c6e8e6ac062": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:770228891da5cfa2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:36f50e84bec8e89e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:a2a0d7727dc24517": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:1ed30cb9e7ff497f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:c8e3637be58a3c11": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:75a001c8eafcf023": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:065421ea828d53e4": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:d237163657e61fa7": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1536 design and tests. evidence: test-framework/tests/test_fix_guard.py"
+      }
+    },
+    "diff": {
+      "sig:338f6009a7698c30": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed with closed-item output/mixed-case tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:77384a26204d783a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed with closed-item output/mixed-case tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:c047ea5f900c51c6": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed with closed-item output/mixed-case tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:6c32a64169d1ce02": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:c2c815719f0eb19f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:5aac2097c6141e1c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:c3c914b3c3a0f7d1": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Addressed in BI-PF-1536 tooling/tests. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:ed2f39127686b15b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix. evidence: test-framework/tests/test_fix_guard.py"
+      },
+      "sig:6457f5b904d7e36a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix. evidence: test-framework/tests/test_fix_guard.py"
+      }
+    }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:0d0ba8ac700fc07e",
+      "finding": "AC-3 unmet: `review_select.latest_review` applies the mtime tie-break/fallback silently — no log, counter, or marker when `at` is missing/degraded; design failure_matrix `REVIEW_ORDER_MTIME_FALLBACK` (\"log/record degraded ordering\") is not implemented.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:f0c05ef3e9d50968",
+      "finding": "mtime fallback is a silent gate-ordering path: a legacy review with no `at` can win selection with zero runtime evidence that degraded ordering was used (test coverage does not make it observable in CI output).",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:0f3bdbfea3dc52c9",
+      "finding": "`fix_guard.problems` now returns `[]` before the `fix_impact missing` check whenever the selected review has no BLOCKER/MAJOR findings (or no review is found) — silently drops existing enforcement; behavior change not authorized by the approved contract (\"No change to review findings or dispositions\").",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:35346d2d8b9111c2",
+      "finding": "`status=ok` is printed unconditionally in the `--all` branch before `bad` is evaluated, so a failing gate still emits `status=ok` — misleading observability that undermines AC-3.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:27057bd141c19139",
+      "finding": "`CLOSED_STATUSES` is hardcoded in `review_select.py` instead of reusing the `core/backlog.py` status authority named in design dependencies; vocabulary drift risks wrongly enforcing (or skipping) items as backlog statuses evolve.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2dab7d48582c760b",
+      "finding": "Design claims `test_selector_normalizes_timestamps_and_skips_malformed` covers the mtime fallback, but every fixture includes `at` — the legacy missing-`at` path is never exercised (FR-1 data_rules \"mtime is fallback only\" untested).",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/architect_review.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2f06663726e8608d",
+      "finding": "`is_closed` now delegates to `backlog.section({\"status\": ...}) == \"done\"` (review_select.py delta); equivalence to the prior CLOSED_STATUSES set is unproven and untested — if section() maps only literal \"done\", previously-closed statuses stop being skipped and get enforced (AC-1 regression); if it maps broadly, open items could be silently skipped (gate bypass).",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:30aa470c7566fdf1",
+      "finding": "No delta test exercises the changed `is_closed` authority path or asserts the new fix-guard `mtime_fallback=<n>` output; the only added test covers `review_select.latest_review` meta, so the closed-skip semantics change ships without a fail-able test (design guardrail: no silent behaviour change without a test).",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "Gate 2.5 review",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "files": [
+        "scripts/dev/review_select.py",
+        "scripts/dev/fix_guard.py"
+      ],
+      "rollback": "Revert tooling PR.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:0d0ba8ac700fc07e",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:f0c05ef3e9d50968",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:0f3bdbfea3dc52c9",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:35346d2d8b9111c2",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:27057bd141c19139",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:2dab7d48582c760b",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:2f06663726e8608d",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    },
+    {
+      "finding_sig": "sig:30aa470c7566fdf1",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/test_fix_guard.py -q",
+      "controls_rerun": [
+        "python -m pytest test-framework/tests/test_fix_guard.py -q",
+        "python scripts/dev/fix_guard.py --all"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    }
+  ],
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "verified_by": "hil:user",
+      "note": "Deterministic timestamp ordering and closed skip."
+    },
+    {
+      "ac": "AC-2",
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "verified_by": "hil:user",
+      "note": "Shared selector tested for fix_guard and architect_review."
+    },
+    {
+      "ac": "AC-3",
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py",
+      "verified_by": "hil:user",
+      "note": "Closed skip status=ok skipped_closed and fallback output tested."
+    }
+  ],
+  "verified_by": "hil:user",
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "ab5750b5f874966d",
+    "total_time_ms": 7953879,
+    "sum_stage_ms": 1152723,
+    "clock_skew": false,
+    "item": "BI-PF-1536",
+    "generated_at": "2026-11-14T12:25:07.907309+00:00",
+    "item_revision": 2,
+    "current_stage": "complete",
+    "acs": [
+      {
+        "ac": "AC-1",
+        "result": "PASS",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "verified_by": "hil:user",
+        "note": "Deterministic timestamp ordering and closed skip."
+      },
+      {
+        "ac": "AC-2",
+        "result": "PASS",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "verified_by": "hil:user",
+        "note": "Shared selector tested for fix_guard and architect_review."
+      },
+      {
+        "ac": "AC-3",
+        "result": "PASS",
+        "evidence": "test-framework/tests/test_fix_guard.py",
+        "verified_by": "hil:user",
+        "note": "Closed skip status=ok skipped_closed and fallback output tested."
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "design_review",
+        "at": "2026-11-14T10:12:33.578029+00:00",
+        "duration_ms": 71111,
+        "input_tokens": 3868,
+        "output_tokens": 1733,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-11-14T10:20:39.997034+00:00",
+        "duration_ms": 237029,
+        "input_tokens": 6653,
+        "output_tokens": 6462,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-11-14T10:23:42.671514+00:00",
+        "duration_ms": 139773,
+        "input_tokens": 6428,
+        "output_tokens": 3522,
+        "cached_tokens": 512,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-14T10:52:25.645724+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T10:54:46.930877+00:00",
+        "duration_ms": 139566,
+        "input_tokens": 9485,
+        "output_tokens": 3497,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T11:16:58.174227+00:00",
+        "duration_ms": 242804,
+        "input_tokens": 9264,
+        "output_tokens": 5648,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T11:21:18.692268+00:00",
+        "duration_ms": 74009,
+        "input_tokens": 8694,
+        "output_tokens": 2961,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T11:23:16.177674+00:00",
+        "duration_ms": 66037,
+        "input_tokens": 8143,
+        "output_tokens": 2790,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "completion",
+        "at": "2026-11-14T11:23:52.842918+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T11:24:09.491312+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T11:48:01.923654+00:00",
+        "duration_ms": 92478,
+        "input_tokens": 8353,
+        "output_tokens": 2250,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-14T11:48:14.448847+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-14T11:48:14.456443+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-14T11:48:14.463572+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-14T11:48:14.470072+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-14T11:48:14.475991+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-14T11:48:14.482289+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T11:48:15.994315+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T12:08:19.014761+00:00",
+        "duration_ms": 25300,
+        "input_tokens": 8963,
+        "output_tokens": 517,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T12:10:51.774429+00:00",
+        "duration_ms": 64616,
+        "input_tokens": 7700,
+        "output_tokens": 1420,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T12:11:53.514126+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-14T12:25:06.747322+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T12:25:07.457382+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 77551,
+      "output_tokens": 30800,
+      "cached_tokens": 512,
+      "cost_usd": 0.0,
+      "captured": 10,
+      "not_captured": 0,
+      "unpriced": 0
+    },
+    "started_at": "2026-11-14T10:12:33.578029+00:00",
+    "finished_at": "2026-11-14T12:25:07.457382+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-11-14T15:39:00.519841",
+        "decision": "APPROVE",
+        "by": "system",
+        "note": "auto-approved on add (BI-PF-1282)"
+      },
+      {
+        "at": "2026-11-14T10:52:25.532389+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "72f419b2270f",
+        "findings_digest": "6bfde3a14922",
+        "seq": 2,
+        "note": "HIL approved Gate 1 for deterministic gate review selection.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T11:24:09.376549+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "ac58c94a8886",
+        "findings_digest": "9b1dfb9042a8",
+        "seq": 3,
+        "note": "HIL approved Gate 2; all three ACs verified.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T11:48:15.882986+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "ecea6eb5d02c",
+        "findings_digest": "e1ef0efb26fc",
+        "seq": 4,
+        "note": "Gate 2 re-recorded after current-SHA review ecea6eb5d02c.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T12:11:53.387600+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "54e62280101b",
+        "findings_digest": "aeacd3c23695",
+        "seq": 5,
+        "note": "HIL accepted remaining minors; Gate 2 approved for tooling hotfix.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T12:25:06.636687+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "49d3f38e2c26",
+        "findings_digest": "6bfde3a14922",
+        "seq": 6,
+        "note": "Gate 1 re-recorded after runtime design completion.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T12:25:07.350094+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "54e62280101b",
+        "findings_digest": "aeacd3c23695",
+        "seq": 7,
+        "note": "Gate 2 re-recorded after design completion.",
+        "hil_confirmed": true
+      }
+    ],
+    "other_decisions": []
+  },
+  "tier": 1,
+  "tier_reasons": [
+    "computed from affected surface: tier 1"
+  ],
+  "control_evidence": [
+    {
+      "control_id": "CTL-REVIEW-SELECT",
+      "sha": "60b07435edbbaad728f5c1c3a574808bc2df565e-21aa13c42cf1",
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_fix_guard.py"
+    }
+  ]
+}

@@ -88,9 +88,11 @@ def aggregate(reviews: list[dict]) -> dict:
                 n += 1
                 severity[s] += 1
                 k = digest(t)
-                rec = sig.setdefault(k, {"count": 0, "severity": s, "text": str(t), "items": set()})
+                rec = sig.setdefault(k, {"count": 0, "severity": s, "text": str(t), "items": set(), "modes": set()})
                 rec["count"] += 1
                 rec["items"].add(str(r.get("item") or r.get("file") or "?"))
+                if r.get("mode"):
+                    rec["modes"].add(str(r.get("mode")))
         per_review.append({"item": r.get("item"), "mode": r.get("mode"),
                            "mtime": r.get("mtime"), "findings": n})
     return {"reviews": len(reviews), "severity": dict(severity),
@@ -137,7 +139,8 @@ def write_report(agg: dict, ledger: set[str], threshold: int, path: Path | None 
         "per_review": [{"item": r.get("item"), "mode": r.get("mode"), "findings": r.get("findings")}
                        for r in agg["per_review"]],
         "recurring": [{"sig": k, "count": v["count"], "severity": v["severity"], "text": v["text"],
-                       "items": sorted(v["items"]), "captured": k in ledger} for k, v in rec],
+                       "items": sorted(v["items"]), "modes": sorted(v.get("modes") or []),
+                       "captured": k in ledger} for k, v in rec],
         "uncaptured": len(unresolved(agg, ledger, threshold)),
     }
     p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -182,7 +185,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({
             "reviews": agg["reviews"], "severity": agg["severity"],
             "recurring": [{"sig": k, "count": v["count"], "severity": v["severity"],
-                           "text": v["text"], "items": sorted(v["items"]), "captured": k in ledger}
+                           "text": v["text"], "items": sorted(v["items"]),
+                           "modes": sorted(v.get("modes") or []), "captured": k in ledger}
                           for k, v in recurring(agg, max(1, a.threshold))],
             "uncaptured": len(todo),
         }, indent=2))

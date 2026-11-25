@@ -35,11 +35,41 @@ def _cfg() -> dict:
         return {}
 
 
+def _is_ancestor(base: str, head: str) -> bool:
+    try:
+        r = subprocess.run(["git", "merge-base", "--is-ancestor", base, head], cwd=str(ROOT),
+                           capture_output=True, text=True)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def valid_base(base: str, head: str, prior_heads: set, merge_base: str) -> bool:
+    """A delta base must be a real ancestor and either merge-base or a prior reviewed head."""
+    if not base or not head or base == head:
+        return False
+    if base != merge_base and base not in prior_heads:
+        return False
+    return _is_ancestor(base, head)
+
+
 def _baseline_shas() -> set:
     try:
         return set(json.loads(BASELINE.read_text(encoding="utf-8")).get("shas") or [])
     except Exception:
         return set()
+
+
+def is_full_candidate(evidence: dict) -> bool:
+    """Legacy evidence without the field is treated as full; explicit delta is never Gate 2.5."""
+    return str(evidence.get("review_scope") or "full_candidate") != "delta"
+
+
+def is_full_evidence_path(path: Path) -> bool:
+    try:
+        return is_full_candidate(json.loads(path.read_text(encoding="utf-8")))
+    except Exception:
+        return False
 
 
 def is_applicable(files: list, skip_globs: list) -> bool:
@@ -58,6 +88,9 @@ def main() -> int:
         if not is_applicable(files, skip):
             print(f"architect-review: OK (skip - no code/schema/security change; {len(files)} file(s))")
             return 0
+        if not ar.has_review_changes():
+            print("architect-review: OK (skip - no review-relevant changes)")
+            return 0
         sha = ar.diff_sha()
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as e:
         print(f"architect-review: FAIL - cannot compute the change set (fail-closed): {e}")
@@ -67,6 +100,56 @@ def main() -> int:
         print(f"architect-review: OK (baseline sha {sha})")
         return 0
     hits = list(EVID.glob(f"*-{sha}.json")) if EVID.is_dir() else []
+    hits = [p for p in hits if is_full_evidence_path(p)]
+    if not hits and EVID.is_dir():
+        head = ar._git_text(["rev-parse", "HEAD"]).strip()
+        mb = ar._merge_base()
+        evs = []
+        for p in EVID.glob("*.json"):
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            evs.append((p, d))
+        evs.sort(key=lambda pd: str(pd[1].get("at") or ""))
+        by_item = {}
+        for p, d in evs:
+            iid = str(d.get("item") or "")
+            if iid:
+                by_item.setdefault(iid, []).append(d)
+        for path, d in reversed(evs):
+            if d.get("mode") != "diff":
+                continue
+            iid = str(d.get("item") or "")
+            if not iid:
+                continue
+            scope = str(d.get("review_scope") or "full_candidate")
+            base = str(d.get("base_sha") or "")
+            reviewed_head = str(d.get("head_sha") or "")
+            prior_heads = {str(x.get("head_sha") or "") for x in by_item.get(iid, [])
+                           if x.get("mode") == "diff" and x.get("head_sha") and str(x.get("head_sha")) != head}
+            if scope == "delta":
+                fulls = [x for x in by_item.get(iid, [])
+                         if x.get("mode") == "diff" and str(x.get("review_scope") or "full_candidate") != "delta"]
+                if not fulls or not base or base == head:
+                    continue
+                # A true delta must start from an already reviewed head, not the merge base.
+                if base not in prior_heads:
+                    continue
+            else:
+                if not is_full_candidate(d) or not base or base == head:
+                    continue
+                if not valid_base(base, head, prior_heads, mb):
+                    continue
+            if not reviewed_head or not ar._is_ancestor(reviewed_head, head):
+                continue
+            if reviewed_head != head:
+                since = ar._git_text(["diff", "--name-only", f"{reviewed_head}..HEAD", "--", ".", *ar.EXCLUDE])
+                if since.strip():
+                    continue
+            if path.is_file():
+                hits = [path]
+                break
     if hits:
         print(f"architect-review: OK (evidence {hits[0].name})")
         return 0

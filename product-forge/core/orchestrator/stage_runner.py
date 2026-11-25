@@ -171,6 +171,11 @@ class StageRunnerMixin:
         """Execute a single stage sequentially."""
         stage_start = time.time()
         
+        # BI-PF-1286: pipeline stage execution boundary - entitlement check (fail-closed).
+        from core import licensing
+        tenant = getattr(self, "tenant", None) or os.getenv("PF_TENANT", "").strip() or None
+        licensing.enforce_stage(stage_id, tenant=tenant)
+
         stage_name = ""
         try:
             stage_name = (self.pipeline_def.get("stages", {}).get(stage_id, {}) or {}).get("name", "")

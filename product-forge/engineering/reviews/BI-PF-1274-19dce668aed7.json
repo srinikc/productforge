@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1274",
+  "sha": "19dce668aed7",
+  "model": "gemini-2.5-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-21T04:18:06.400633+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "ec0948e50ee9fd3c36407db8a221cda4b30e5b83",
+  "findings": {
+    "BLOCKER": [
+      "The design states \"per-tenant dictionary locking\" for subscriptions, which, if implying in-memory storage, contradicts the requirement for subscriptions to \"persist for lifetime of tenant configuration\" and be stored in a \"Tenant-scoped subscriptions store\". This poses a critical data loss risk for subscriptions upon API restarts."
+    ],
+    "MAJOR": [
+      "The \"per-tenant dictionary locking\" approach for subscriptions, if in-memory, creates a severe scalability bottleneck and consistency issues across horizontally scaled API instances, preventing enterprise-level scalability.",
+      "Introducing entirely new core event streaming and subscription management functionality in Python, rather than Go, creates long-term technical debt and deviates from the \"new shipped logic -> Go\" standard."
+    ],
+    "MINOR": [
+      "The observability plan, while listing specific metrics in controls, is generally vague in the functional spec (\"FastAPI request logs and event counts\") and should detail a comprehensive monitoring strategy for streaming and CRUD operations.",
+      "\"Per-tenant dictionary locking\" could introduce a performance bottleneck for high-frequency subscription mutations within a single tenant, potentially impacting the 20ms CRUD latency NFR.",
+      "The API contract should explicitly document that \"Duplicate ID overwrites existing subscription\" for POST /subscriptions to ensure clear consumer understanding and prevent unintended data changes."
+    ],
+    "NIT": [
+      "The design states NFRs for latency but lacks explicit details on how these will be continuously monitored and alerted upon in a production environment.",
+      "The rollback plan for code changes is clear, but it should explicitly address how data changes (new subscriptions) are handled during a rollback, even if no schema mutations are involved."
+    ],
+    "SUMMARY": [
+      "The design introduces critical new functionality but contains a significant ambiguity regarding subscription persistence, which could lead to data loss.",
+      "The choice to implement new core logic in Python, despite the language rule, creates long-term technical debt and impacts scalability.",
+      "Further refinement is needed in observability, concurrency handling, and API contract clarity to meet enterprise standards."
+    ]
+  }
+}

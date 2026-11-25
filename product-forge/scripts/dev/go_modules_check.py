@@ -45,6 +45,68 @@ def _run(bin_path, args, cwd, env):
     return p.returncode, (p.stdout + p.stderr).strip()
 
 
+def _normalize_paths(diff_out: str, status_out: str) -> list:
+    """Repo-relative paths from diff + porcelain status (strip XY columns, renames, product-forge/)."""
+    out = []
+    for ln in (diff_out or "").splitlines():
+        p = ln.strip().strip('"')
+        if p:
+            out.append(p)
+    for ln in (status_out or "").splitlines():
+        if len(ln) < 4:
+            continue
+        p = ln[3:].strip().strip('"')
+        if " -> " in p:
+            p = p.split(" -> ", 1)[1]
+        if p:
+            out.append(p)
+    norm = []
+    for p in out:
+        p = p.replace("\\", "/")
+        if p.startswith("product-forge/"):
+            p = p[len("product-forge/"):]
+        norm.append(p)
+    return norm
+
+
+def _git_changed() -> list:
+    try:
+        base = subprocess.run(["git", "merge-base", "origin/develop", "HEAD"], cwd=str(_ROOT),
+                              capture_output=True, text=True).stdout.strip() or "HEAD"
+        diff = subprocess.run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd=str(_ROOT),
+                              capture_output=True, text=True).stdout
+        status = subprocess.run(["git", "status", "--porcelain", "-uall"], cwd=str(_ROOT),
+                                capture_output=True, text=True).stdout
+        return _normalize_paths(diff, status)
+    except Exception:
+        return []
+
+
+def _changed_modules(modules: list) -> list:
+    """Changed Go modules + modules that replace them. Empty => no Go change."""
+    hit = set()
+    for c in _git_changed():
+        c = c[len("product-forge/"):] if c.startswith("product-forge/") else c
+        if c.startswith("go/") and c.endswith((".go", "go.mod", "go.sum")):
+            hit.add(c.split("/")[1])
+    if not hit:
+        return []
+    names = [os.path.basename(m.rstrip("/\\")) for m in modules]
+    if hit.issubset(set(names)) and len(hit) >= len(names):
+        return modules
+    for name in names:
+        if name in hit:
+            continue
+        try:
+            with open(os.path.join(_GO_DIR, name, "go.mod"), encoding="utf-8") as fh:
+                mod = fh.read()
+        except OSError:
+            continue
+        if any(f"../{h}" in mod for h in hit):
+            hit.add(name)
+    return [m for m in modules if os.path.basename(m.rstrip("/\\")) in hit]
+
+
 def _modules() -> list:
     """Every directory under go/ that holds a go.mod (its own module)."""
     out = []
@@ -104,6 +166,13 @@ def main() -> int:
             print("   -", f)
         return 1
 
+    scoped = mods if "--all" in sys.argv[1:] else _changed_modules(mods)
+    if not scoped:
+        print(f"go-modules: OK ({len(mods)} module(s); no Go changes)")
+        return 0
+    mods = scoped
+    print("go-modules: scoped modules: " + ", ".join(os.path.basename(m) for m in mods))
+
     gofmt = os.path.join(os.path.dirname(go), "gofmt.exe" if os.name == "nt" else "gofmt")
     changed = _changed_files()
     for d in mods:
@@ -137,3 +206,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

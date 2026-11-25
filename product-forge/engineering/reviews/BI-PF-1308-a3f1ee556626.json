@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "a3f1ee556626",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:53:47.616048+00:00",
+  "findings": {
+    "BLOCKER": [
+      "- none"
+    ],
+    "MAJOR": [
+      "Scan calls `store.Head` for every manifest entry although `List` already returns the same `ObjectInfo` (Size/Checksum): O(N) extra round trips, rate-limit and runtime risk on large enterprise manifests.",
+      "Any `Head` error is reported as `Missing`; transient/permission failures are indistinguishable from true absence, producing false drift that can trigger needless repairs. Must branch on a typed NotFound.",
+      "`LifecycleCapable` has no version parameter, yet S3 object lock is per object version and the store already tracks `Version`; retention/legal-hold can only be read/applied for \"latest\" \u2014 an auditability gap for versioned, legally-held objects.",
+      "The diff sets `Capabilities{ObjectLock: true}` and reads `Capabilities().ObjectLock`, but never introduces the `ObjectLock` field; if it is not already present in the shown file, this does not compile \u2014 the \"go build/test PASS\" claim needs proof.",
+      "New modules `objpolicy` / `objreconcile` arrive with no `go.work`, CI, Makefile or lint wiring, and no `go.sum`; absent wiring they will never be built, vetted or tested in pipeline.",
+      "Local `Put` silently accepts `Immutable: true` with no retention: the caller believes immutability is enforced while nothing is locked. Fail closed or at minimum emit an explicit rejection, consistent with the retention path."
+    ],
+    "MINOR": [
+      "S3 `PutOptions` retention is hardcoded to GOVERNANCE with no COMPLIANCE path at put time; document the limitation or extend the option.",
+      "`cleanPath`'s `strings.Contains(c, \"..\")` is dead code (`path.Clean` already resolves \"..\"); the traversal test passes only because Clean rewrites the path, giving false confidence in a check that never fires.",
+      "`Mint` silently rewrites the caller's key via `cleanPath` before signing, so a URL can be minted for a different object than requested; prefer rejecting non-canonical keys.",
+      "Checksum comparison assumes bare hex sha256 on both sides with no algorithm-prefix normalization (`sha256:...` vs raw hex) \u2192 whole-manifest false mismatches if formats differ.",
+      "`Scan` prefix guard is a raw `strings.HasPrefix`, so prefix \"p\" (no trailing slash) makes \"pother/...\" valid; normalize prefix as `objpolicy` does.",
+      "`ObjectLifecycle` calls `GetBucketVersioning` on every invocation; cache it per store instance.",
+      "Two divergent ObjectStore test fakes (`stubStore`, `fakeStore`) plus separate local/S3 lifecycle tests instead of one reusable conformance suite."
+    ],
+    "NIT": [
+      "Stdlib `log.Printf` with concatenated deny reasons instead of the repo's structured logger; reasons should be fields, not string fragments.",
+      "No boundary tests for TTL exactly at 30s and 15m, only out-of-range cases.",
+      "`Report.Invalid` conflates duplicate and out-of-prefix entries with no reason code, forcing re-parsing to act.",
+      "Signed PUT/DELETE URLs are mintable based only on a caller-supplied method string; consider gating by caller role/scope."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped foundation: typed `ErrUnsupported`, a central privilege boundary for signed URLs, a read-only deterministic reconciler, and fail-closed local behavior \u2014 the shape is right.",
+      "Top risks: reconciliation correctness (Head errors \u2192 false \"missing\", N+1 Head) and lifecycle integrity (no version-scoped retention/legal hold), plus unproven build wiring for the two new modules and the possibly-missing `Capabilities.ObjectLock` field.",
+      "Address the MAJOR items before merge; nothing here blocks the overall direction."
+    ]
+  }
+}

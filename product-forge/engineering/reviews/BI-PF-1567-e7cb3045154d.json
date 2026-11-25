@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "e7cb3045154d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-24T09:05:37.945485+00:00",
+  "review_scope": "delta",
+  "base_sha": "962cf069588a4a39f539196019fb33a695c3b588",
+  "head_sha": "ea71adcdbac1d803dc6f4ac04da81b701d32d335",
+  "findings": {
+    "BLOCKER": [
+      "`TestRolePostureBypassRejected` (C-8 designated negative test) is an empty no-op: with `PF_TEST_MEMORY_DSN` set it asserts nothing and always passes, so the bypass-rejection control has vacuous evidence and can never fail the build.",
+      "New `go/dualvec/pg_scoped_test.go` skips silently when no DSN is set and never enforces the config contract's \"empty = CI fails when CI=true\", so all PostgreSQL AC-2 scoped evidence can disappear in CI without a red build."
+    ],
+    "MAJOR": [
+      "`LoadLimitsFromEnv` is called per request inside `resolveOrchestrator`, not at startup: an invalid `PF_MEMORY_MAX_SEARCH_K`/`PF_MEMORY_OP_TIMEOUT` yields per-request 503 `MEMORY_STORE_UNAVAILABLE` instead of fail-closed startup rejection, contradicting C-6 (\"startup: validated, invalid: fail closed\") and the \"immutable after startup\" contract.",
+      "Audit output misses the approved contract: no safe record ID and only a process `log.Printf` rather than the specified existing EDP audit retention path; the design-pack audit row explicitly requires record ID + EDP audit.",
+      "PostgreSQL/edpdata Search SQL filters (C-17/C-18) still have zero leakage evidence \u2014 `pg_scoped_test` covers only `GetScoped`/`DeleteScoped`, leaving the production search predicate path untested for AC-2.",
+      "`memoryAudit` is wired only in `resolveOrchestrator`; if any other memory path constructs `pfmemory.New` without `WithAuditor`, `o.audit` silently no-ops, so audit completeness relies on a single call site with no test asserting an event is emitted per operation (C-5 evidence still weak)."
+    ],
+    "MINOR": [
+      "`fmt.Errorf(\"%w: %v\", ErrValidation, err)` drops the canonical validation cause from the unwrap chain, so diagnostics can't recover the underlying field error.",
+      "Default branch now always returns `MEMORY_STORE_UNAVAILABLE` via `WriteErrorCode`; unlike the removed `s.fail`, the underlying error is no longer recorded anywhere, hurting incident diagnosis.",
+      "`auditOutcome` classifies store/unknown failures as `outcome=deny reason=error`, conflating availability failures with policy denials in `memory_audit_total` and rollout alerting.",
+      "`pfmemory` governance module now carries a direct `pgx/v5` dependency (test-only stdlib driver) plus version skew (`x/sync` 0.22 vs edpsvc 0.24), coupling policy code to a DB driver.",
+      "Unrelated dependency bumps (pgx 5.11\u21925.13, puddle 2.2.2\u21922.2.3, `golang.org/x/text` 0.29\u21920.41) are bundled into this item's diff with no stated rationale or rollback note.",
+      "`pg_scoped_test` uses fixed row/tenant/project IDs with no teardown; leftovers are masked by `ON CONFLICT DO NOTHING`/upsert on rerun.",
+      "`go/dualvec/pg_scoped_test.go` is not in the approved `affected_files`/review-scope list for BI-PF-1567."
+    ],
+    "NIT": [
+      "The two `var _ interface{...}` assertions in `pg_store.go` can be one block; they only restate method existence already exercised by tests.",
+      "`TestLoadLimitsFromEnv` doesn't cover malformed duration strings, zero/negative k, or empty-env defaults.",
+      "`resolveOrchestrator` re-parses env and rebuilds audit/limit state per request, extending the existing per-request orchestrator rebuild churn."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully closes most prior findings: concurrent-load assertions, role-posture assertions, config limits, structured error codes, validation 400s, and read-verify-delete are now present.",
+      "Top risks: a brand-new designated negative control (`TestRolePostureBypassRejected`) is vacuous, PG tests still skip without a CI gate, limits are validated per-request instead of at startup, and audit lacks record ID/EDP sink \u2014 leaving C-5/C-6/C-8 evidence not fully trustworthy.",
+      "Residual from prior review still open: CI must fail when `PF_TEST_MEMORY_DSN` is empty (config contract) \u2014 verify before Gate 2."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-8e78149685b1; added real concurrency/role proofs, env config, audit, error codes",
+  "rereview_reason_sha256": "fb03518999caae8b672c2e6c2954668eaf1e6537822cab8ed2b607ebbe04c7c4"
+}

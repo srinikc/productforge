@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "c081f229715c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Delta rows drained inside the ACCESS EXCLUSIVE lock are never digest-verified before the rename: `Swap` copies `id > lastID` with `ON CONFLICT DO NOTHING` and commits immediately, so an id-reuse masked by ON CONFLICT or a divergent row in the delta bypasses the per-tenant count/SHA-256 comparison the AC requires \"before the rename\".",
+      "The out-of-range insert contract is broken: `audit_provision` raises `P0001` (plain RAISE EXCEPTION) for any month outside the 24-month/horizon window, so clients matching the AC-specified `23514` + stable message never see it; the only 23514 path (partition routing) is mostly preempted by the trigger.",
+      "AC deviation: `audit_late_YYYYMM` partitions (\"strictly below grace, non-overlapping, cannot satisfy coverage\") are not implemented; `audit_append_late` writes into canonical month partitions. The rationale is documented, but the AC and the coverage bullet are silently unmet \u2014 this needs an explicit AC/ADR amendment, not a comment.",
+      "AC gap: the \"EDP service startup check\" that must emit `audit_partition_months_ahead`/`audit_partition_low_coverage_total` non-fatally is absent from the diff; only the offline CLIs emit coverage, so a stale-coverage alert never fires in the running service.",
+      "TRUNCATE guard is inconsistent with its own comment (\"owners ignore REVOKE: a statement trigger is the only guard\"): statement triggers exist only on `audit_migration_state_events`/`audit_legal_hold_events`, while `audit_partitioned` and `audit_legal_hold_archive` rely on REVOKE, which the table owner bypasses \u2014 the live journal and hold archive remain owner-truncatable.",
+      "`VerifyHoldExtraction` digests use `string_agg(t::text, ...)`: record `::text` rendering depends on DateStyle/extra_float_digits/session settings, so the hold-archive vs live digest is not the reproducible, environment-independent SHA-256 the AC requires."
+    ],
+    "MINOR": [
+      "`PurgeMonth` records `purged_at` before deleting cold objects; a mid-delete failure leaves a \"purged\" month with surviving objects and makes the hold guard emit a false spoliation rejection.",
+      "`RestoreMonth` leaves the `audit_restore_YYYYMM` scratch table and its `pf_runtime` SELECT grant behind indefinitely; no cleanup/teardown path exists.",
+      "0014 down drops most functions but orphans `audit_config_touch`, `audit_hold_guard`, `audit_deny_truncate` (and their definitions survive schema rollback).",
+      "`Down` copy-back uses a correlated `NOT EXISTS` against `audit_legacy` while holding ACCESS EXCLUSIVE \u2014 a seq scan on a large legacy table directly inflates the freeze window it is trying to keep short.",
+      "`edpdata.Append` classifies the heal case by `strings.Contains(err.Error(), \"no partition of relation\")` on top of SQLSTATE; message-text matching is locale/driver-fragile \u2014 prefer SQLSTATE 23514 plus the check-constraint name."
+    ],
+    "NIT": [
+      "AC names the exhaustion signal `audit_swap_retry_exhausted`; the metric constant is `audit_swap_retry_exhausted_total` \u2014 confirm dashboards/alerts key off the implemented name.",
+      "`pfaudit-swap` uses package-level `activeMetrics`/`metricsEmitted` globals where a small struct would do.",
+      "`ExportMonth` re-reads the file twice (SHA-512... SHA-256 then Put) instead of Tee-ing during the initial read."
+    ],
+    "SUMMARY": [
+      "Solid, unusually rigorous implementation: catalog-driven crash recovery, privilege-enforced hardening, separate advisory-lock namespaces, SSE-KMS fail-closed plumbing, and a genuinely destructive-test harness \u2014 the architecture direction is right.",
+      "Top risks are all integrity-boundary issues: the unverified delta drain under the swap lock, the broken 23514 out-of-range contract, the owner-bypassable TRUNCATE on the live journal/hold archive, and non-reproducible hold-archive digests.",
+      "One AC (audit_late partitions) and one AC (EDP startup coverage check) are effectively unimplemented and should be either delivered or formally amended before sign-off."
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "6634ffba4dcf",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T15:13:03.844426+00:00",
+  "base_sha": "",
+  "head_sha": "df6d14f62e7c73cae117c3192199e7a8023bca59",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Design does not address checklist items 1\u201310 explicitly (reversibility/backup, availability, authz boundary, blast radius, invariants, tests/rollback, language rule, API decision, tenant isolation, reuse/observability); only rollback/risk notes are present. Pre-empt per CL-008.",
+      "CL-006 (Gate 1 must embed latest Gate 1.5 findings + dispositions; approval invalid while BLOCKER/MAJOR is PENDING) is enforced but not represented in affected_files/design; `gate1_check.py` change scope unclear \u2192 risk of gate regression.",
+      "CL-008/CL-009 (design-time and coding-time learnings injection via `core/design_guardrails.py`, `core/worker.py`, `core/orchestrator/agent_runner.py`) not in scope; delivery-review classes may repeat.",
+      "Evidence naming invariant `(item_id, mode, base, head, diff_sha)` vs existing evidence layout: rollback claims \"no persisted state migration\" but prior evidence files may be orphaned/unreadable \u2192 prior-findings/dispositions continuity risk; needs explicit migration/back-compat rule.",
+      "\"Data-only commit does not invalidate review\" lacks rule for fast-forwarding `last_reviewed_head` when diff is empty; evidence stays bound to stale head \u2192 subsequent delta base drift.",
+      "Determination of \"review-relevant diff is empty\" is undefined (heuristics/classification); misclassification could silently skip real changes; needs fail-closed, auditable rule.",
+      "Test matrix omits coverage for `_render_review`/`_item_dispositions` (index alignment, missing-item, unknown-status paths) \u2014 recurring MAJOR; gate output correctness untested.",
+      "No explicit handling of secret redaction/retention in evidence JSON despite provider call with env/key-file secrets."
+    ],
+    "MINOR": [
+      "Encoding gate scanning index+worktree+untracked risks false positives on large derived artifacts; exclude-lists and allow-exceptions policy not specified.",
+      "Observability limited to exit codes/stderr; no structured metrics/trail for delta vs full reviews (e.g., review mode, diff size, gate durations).",
+      "Rollout \"T1 applies to 1484/1485 only\" leaves enforcement migration plan for later items undefined (`enforce_items/enforce_from` semantics underspecified).",
+      "Risk-tier config `config/risk-tiers.json` schema/precedence vs `item.risk_tier` not pinned."
+    ],
+    "NIT": [
+      "Design-pack generated `engineering/design/<ID>.md` determinism (stable ordering, no timestamps) not stated \u2192 diff noise in reviews.",
+      "Probe-key uniqueness via wall-clock nanos (recurring) \u2014 negligible but note."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound (delta reviews, design pack, encoding gate) and respects language rule (tooling Python) and CL-002 (reviewer advisory).",
+      "Top risks: guardrail checklist and CL-006/008/009 wiring not evidenced; evidence-chain continuity/migration and empty-diff fast-forward rule undefined; render/disposition test coverage gap.",
+      "Recommend resolving MAJORs before Gate 1.5; no blocker-level defect identified."
+    ]
+  },
+  "rereview_reason": "design_pack now included in design context; full spec v2",
+  "rereview_reason_sha256": "9fb4571d65365a8096b609ed60aa26b3ba9ae739f393f42aa32457eb380a2240"
+}

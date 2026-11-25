@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "2d9a0b7d3ba6",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T12:24:00.370947+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "45526439c5ed614c9d4de5b35564d3a45cbf2da5",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "hil:<actor> validation method is unspecified: design requires the field but does not say it is verified against an authenticated identity/allowlist, so any operator could self-assert HIL confirmation and satisfy the guard at the new endpoint.",
+      "AC-2 requires the delta reason to cite the latest review SHA, but FR-2/design_pack contracts only list \"refuse unreviewed/non-ancestor\" and omit the reason-citation rule, leaving the AC-2 half of validation unimplemented/tested by design.",
+      "New network endpoint contract (guardrail 8/9) states no tenant/subject scoping for /items/{id}/decisions; with only \"operator role\" authz, item-ID enumeration could cross scope \u2014 design must declare scoping or explicitly assert single-tenant.",
+      "Design pack does not answer the design-guardrail checklist (CL-008): availability/defence-in-depth, observability depth, and invariant ordering are absent; only rollback and tests are addressed."
+    ],
+    "MINOR": [
+      "Rollback claims \"code revert only / no data migration\", but append-only decisions written via the new route persist after revert with no purge/statement of post-rollback handling.",
+      "Observability is limited to \"API errors and budget output\": no structured log/metric for decision appends, HIL rejections, or budget refusals (guardrail 10).",
+      "Append ordering/sequence invariant is not stated (append-only yes, but ordering and duplicate-POST behavior beyond the revision guard is undefined).",
+      "Failure matrix defines only VALIDATION_FAILED while FR-1 declares 400/404/409; error-code contract is not aligned across design_pack and functional spec.",
+      "Language-rule classification of the new route (new shipped logic vs. edit to shipped Python in api/routers/backlog.py) should be explicitly asserted in the design."
+    ],
+    "NIT": [
+      "FR-3 test only asserts route existence in OpenAPI; a contract snapshot/diff would catch schema drift more reliably.",
+      "\"no added runtime latency\" NFR has no stated measurement or threshold."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound (operator-only, append-only, revision guard, reviewed-ancestor + ancestor-of-HEAD check, tests with a named failing test), and rollback is code-only with no migration.",
+      "Top risks: unspecified HIL actor verification, missing reason-cites-latest-SHA rule in FR-2 contracts, and undefined tenant/subject scoping on the new endpoint \u2014 all must be resolved before Gate 1.5.",
+      "Guardrail checklist responses (availability, observability, invariants) and error-code contract alignment should be added to the design pack."
+    ]
+  }
+}

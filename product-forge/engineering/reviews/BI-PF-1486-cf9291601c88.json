@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "cf9291601c88",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:47:16.240929+00:00",
+  "base_sha": "",
+  "head_sha": "f797740f5257eb1a304d914642c4f278ddb32a36",
+  "findings": {
+    "BLOCKER": [
+      "`content_policy` declares `engineering/design/**` MD \"generated-only\" and subject to generator-output comparison, but design MDs are hand-authored (this item's own design is authored prose). Enforcing generator-authority there would fail every existing design with DERIVED_DOC_STALE; authority must be scoped to genuinely derived artifacts (BACKLOG-SUMMARY, documentation-index) only."
+    ],
+    "MAJOR": [
+      "Grandfather expiry `2026-11-01` is a hard wall-clock cutoff with no named enforcement owner, gate check, or alert lead-time. Without an on-run check (e.g., warn N days before, fail after), legacy `MATERIAL_CHANGE` approvals persist silently if gates are not exercised near the date.",
+      "`DESIGN_PACK_CONFIG` appears in the observability contract but is absent from `failure_matrix` and `test_matrix`; prior Gate 1.5 MINOR (pin error codes by test) has not been demonstrably closed for this code.",
+      "Item-level `rollback` still says only \"Revert the change\" while `design_pack.rollback` is the full ordered sequence (revert \u2192 regenerate docs \u2192 re-run gates); the short form remains the authoritative field, recurring the prior MINOR.",
+      "`scope_owner` names `REVIEW_EXCLUDES` as the single path set, but no invariant/test asserts that `architect_review_check` ancestry coverage and `review_budget` consume the identical set from `excluded_content_check`; divergence would silently weaken coverage (recurring MAJOR class)."
+    ],
+    "MINOR": [
+      "`performance_bound`'s 20MB/file cap has no defined behavior on exceedance (skip vs fail vs truncate) \u2014 an undefined edge in the freshness gate.",
+      "`generator_determinism` specifies timestamp normalization and sorting but not locale/timezone pinning or tie-break ordering for equal keys; render could still diverge across environments.",
+      "No dry-run/report mode specified for derived-doc regeneration before commit, weakening blast-radius review of doc-only churn.",
+      "`review_scope` lists `config/architect-review-baseline.json` and `config/id-blocks.json` but no invariant states how baseline changes interact with ancestry checks (baseline bump invalidating evidence is unspecified)."
+    ],
+    "NIT": [
+      "`requirements` still contains the process note \"One 2.5 on the hardening candidate; precheck passes\" \u2014 recurring prior NIT; belongs in `acceptance_evidence`."
+    ],
+    "SUMMARY": [
+      "Design is largely sound: Gate 1.5 findings embedded and actioned, migration cutoff pinned to UTC+SHA, single content-class owner named, language rule (tooling Python) respected, observability codes enumerated.",
+      "Top risks: the \"design MD generated-only\" content policy is self-contradictory and would brick all authored designs; the grandfather expiry lacks an enforcement/alert mechanism; and two recurring classes (error-code test pinning, single path-set assertion) are claimed but not demonstrably test-backed."
+    ]
+  },
+  "rereview_reason": "generator authority + pinned cutoff/expiry; HIL material",
+  "rereview_reason_sha256": "53a2c23dd7ba3fa5a17da10f8ccbc14f6999391b834508eaf9f4085a17baa75a"
+}

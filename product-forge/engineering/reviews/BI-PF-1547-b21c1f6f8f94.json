@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1547",
+  "sha": "b21c1f6f8f94",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T06:19:22.246890+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "b58f96c2d9b3e5928012bcfda940579a5fa6c88e",
+  "findings": {
+    "BLOCKER": [
+      "AC3 requires a generated impact-review table; no such artifact, field, or test appears anywhere in design_pack/spec_pack/functional_spec.",
+      "AC2 requires failing on duplicate symbols/IDs; no implementation_control, negative test, or failure case covers duplicate detection (only drift/SHA/N/A/config/rollback).",
+      "Design never answers the mandatory DESIGN GUARDRAILS checklist (reversibility/backup, SPOF, authz/RLS, blast radius, invariants, tests/rollback, API decision, tenant isolation, reuse/observability); CL-008 requires these before Gate 1.5."
+    ],
+    "MAJOR": [
+      "design_pack declares `POST /api/v1/backlog/items/{item_id}/context` (auth, validation, tenant) and spec_pack marks `api_contract` APPLICABLE via 'context field addition', but scope is 'tooling only' with no API in FRs/operation_matrix \u2014 approved contract is internally contradictory.",
+      "If that context field/endpoint is new shipped logic, the language rule (Go) vs. the Python `api/routers/backlog.py` target is unresolved; design_pack files list only the compiler.",
+      "AC/FR/control/test coverage check (AC2) is only represented by one negative test (`test_missing_control_fails`); coverage of AC\u2194FR\u2194control\u2194test matrix drift is not designed as a distinct fail-closed rule.",
+      "'before architect review' ordering is asserted in prose but no test asserts gate sequencing/ordering, only `test_precheck_registered`.",
+      "Rollback is 'Revert the change' / 'remove gate/field' with no verified restore/verification path or interruption recovery stated (checklist item 1/6)."
+    ],
+    "MINOR": [
+      "`test_matrix` and `ac_evidence` reference AC-1/AC-2/AC-3, but no AC identifiers are defined in the contract; only FR IDs exist.",
+      "`tech_stack_evidence` lists go-*, pg-*, object-store items unrelated to a Python dev-tooling compiler \u2014 misleading evidence for Gate reviewers.",
+      "`failure_matrix` has a single case (`SPEC_DRIFT`); no enumerated machine-readable problem codes for duplicate-ID, missing-SHA, invalid-N/A classes that observability claims to surface.",
+      "`security_threat_model` is APPLICABLE with reason 'tooling only' (a non-applicability-style justification); evidence is a generic design doc, not a threat analysis.",
+      "operation_matrix covers only `compile`; precheck wiring/exit-code behavior has no owning operation entry."
+    ],
+    "NIT": [
+      "`rollback` wording differs across packs ('Revert the change' vs 'remove gate/field') \u2014 align to one canonical phrase since this item's whole purpose is single-source consistency.",
+      "'learnings: 1270 design loops' is unexplained metadata with no reference or retention policy.",
+      "`open_questions` states 'No open questions' inline rather than an empty list \u2014 schema-shape inconsistency for a validator meant to enforce schema."
+    ],
+    "SUMMARY": [
+      "Verdict: not Gate-1 ready. Two AC gaps are objective blockers (missing impact-review table; no duplicate symbol/ID validation) and the mandatory guardrail checklist is unanswered.",
+      "Top risks: internally contradictory API contract vs. tooling-only scope (could drag in Go/language-rule and tenant/authz work undeclared); gate-ordering and coverage-drift rules asserted but not designed or tested.",
+      "Remediation focus: add duplicate-ID and impact-table controls with tests, reconcile the API/field declaration, and answer all 10 guardrail items with evidence before Gate 1.5."
+    ]
+  }
+}

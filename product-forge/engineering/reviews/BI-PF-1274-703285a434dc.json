@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1274",
+  "sha": "703285a434dc",
+  "model": "gemini-2.5-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-21T04:59:08.786759+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "5244b6ea28ead7297450314b416e2d66b1b27555",
+  "findings": {
+    "BLOCKER": [
+      "The `events_stream` endpoint does not provide a continuous \"live stream\" of active events; it sends only 3 keepalives and then effectively terminates, failing AC-1 and AC-2's spirit.",
+      "The `events.read(d, limit=0)` call in `events_stream` reads *all* historical events for a project into memory, posing a critical scalability and OOM risk for large event backlogs.",
+      "The `_SUBS_CACHE` is an in-memory cache without cross-process synchronization, leading to stale subscription data in multi-process deployments."
+    ],
+    "MAJOR": [
+      "Explicit logging and metrics for stream connections, replay, and subscription CRUD operations are missing, failing the observability requirements in the design contract.",
+      "The `events.read` call for backlog replay lacks error handling; a failure during read will abruptly terminate the client's stream without a clear error.",
+      "Relying on flat files (`subscriptions.json`) for persistence limits horizontal scalability and lacks transactional guarantees for enterprise-grade subscription management."
+    ],
+    "MINOR": [
+      "The `for _ in range(3)` loop for keepalives in the event stream is hardcoded and arbitrary, not reflecting a robust continuous streaming mechanism.",
+      "The `project_or_tenant` string stripping and defaulting logic is duplicated across `_subscription_store_path` and `_load_subscriptions`.",
+      "The fallback logic for `_subscription_store_path` is overly complex and brittle, potentially leading to inconsistent storage locations."
+    ],
+    "NIT": [
+      "The use of `limit=0` in `events.read` to mean \"no limit\" can be confusing, as `0` often implies \"no results\" in other contexts.",
+      "Timestamps for `created_at` and `updated_at` use `time.strftime(\"%Y-%m-%dT%H:%M:%SZ\")`, which lacks millisecond precision.",
+      "The docstring for `events_stream` is misleading as the implementation does not actually \"Stream live events\" continuously."
+    ],
+    "SUMMARY": []
+  }
+}

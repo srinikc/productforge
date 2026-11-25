@@ -10,7 +10,7 @@
   "title": "EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue)",
   "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md.",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -38,6 +38,88 @@
       "decision": "APPROVE",
       "by": "cli",
       "note": ""
+    },
+    {
+      "at": "2026-11-04T14:16:26.549589+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL approved a third independent design review to verify fixes for the 15 Gate 1.5 findings."
+    },
+    {
+      "at": "2026-11-05T05:52:12.087308+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "cb04eccda0f5",
+      "findings_digest": "d14f3e178f53",
+      "seq": 4,
+      "note": "HIL approved EDP-22 Gate 1 after design review and implementation evidence.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-05T10:24:44.823357+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "269e14304e70",
+      "findings_digest": "729238398914",
+      "seq": 5,
+      "note": "HIL accepted remaining review risk (option 1) and approved Gate 2 for EDP-22.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-05T10:34:12.644481+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL accepted option 1: proceed to EDP-22 closure with documented residual review risk."
+    },
+    {
+      "at": "2026-11-05T10:34:26.157741+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "7f8e5b373ca1",
+      "findings_digest": "d14f3e178f53",
+      "seq": 7,
+      "note": "HIL refreshed Gate 1 for EDP-22 at current design SHA.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-05T11:03:21.823152+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "8dfd66af6118",
+      "findings_digest": "e0550003799f",
+      "seq": 8,
+      "note": "HIL option 1: accept documented residual review risk and approve EDP-22 Gate 2.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-05T11:20:17.706242+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "4d3aeade24b7",
+      "findings_digest": "af51c984d0ac",
+      "seq": 9,
+      "note": "HIL option 1: accept documented residual risk and approve EDP-22 closure.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-05T11:33:07.413195+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "10602e3d10d6",
+      "findings_digest": "e6a18879ec5d",
+      "seq": 10,
+      "note": "HIL option 1: accept documented residual risk and approve final EDP-22 closure.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -66,39 +148,120 @@
     "Backup/restore drills (BI-PF-1315)"
   ],
   "affected_components": [
-    "core/code_analyzer.py",
-    "core/product_analyzer.py",
-    "components/storage (all stores)",
-    "components/orchestrator/storage.py"
+    "go/edpsvc/internal/bench",
+    "go/edpsvc/cmd/bench",
+    "go/edpsvc/internal/observe",
+    "go/edpsvc/internal/degrade",
+    "scripts/dev",
+    "ops/prometheus",
+    "ops/grafana",
+    "config",
+    "docs",
+    "go/edpsvc/internal/explain",
+    "go/edpsvc/cmd/explain",
+    "go/edpsvc/internal/limits"
   ],
   "affected_files": [
-    "components/perf/benchmark_harness.py",
-    "components/perf/explain_capture.py",
-    "components/perf/quotas.py",
-    "tests/test_perf_slo.py"
+    "go/edpsvc/internal/bench/harness.go",
+    "go/edpsvc/internal/bench/scenarios.go",
+    "go/edpsvc/internal/bench/slo.go",
+    "go/edpsvc/internal/bench/prometheus.go",
+    "go/edpsvc/internal/bench/slo_test.go",
+    "go/edpsvc/cmd/bench/main.go",
+    "go/edpsvc/internal/observe/metrics.go",
+    "go/edpsvc/internal/observe/metrics_test.go",
+    "go/edpsvc/internal/degrade/policy.go",
+    "go/edpsvc/internal/degrade/policy_test.go",
+    "scripts/dev/db_explain_capture.py",
+    "scripts/dev/validate_edp_slo.py",
+    "test-framework/tests/test_db_explain_capture.py",
+    "test-framework/tests/test_edp_slo_config.py",
+    "test-framework/tests/test_edp_degrade_config.py",
+    "test-framework/tests/test_validate_edp_slo.py",
+    "config/edp-slo.json",
+    "config/edp-degradation.json",
+    "ops/prometheus/edp-slo.rules.yml",
+    "ops/grafana/edp-slo-dashboard.json",
+    "docs/EDP-22-BENCHMARKS-SLOS.md",
+    "docs/EDP-22-RUNBOOK.md",
+    "engineering/benchmarks/BI-PF-1314/README.md",
+    "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+    "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom",
+    "config/edp-baselines.json",
+    "scripts/dev/gen_edp_slo.py"
   ],
   "approach": "Define workload scenarios, capture EXPLAIN baselines, wire metrics, add quota checks and store-specific degradation switches.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "EDP-06 baseline harness landed with a Sink seam reserved for EDP-22.",
+        "EDP-19/20/21 stores and EDP-18 migration framework are complete."
+      ],
+      "existing_path": [
+        "go/edpsvc/internal/bench",
+        "go/edpsvc/internal/limits",
+        "scripts/dev/db_explain_check.py",
+        "ops/prometheus"
+      ],
+      "assumptions": [
+        "PostgreSQL is the primary store.",
+        "Prometheus/Grafana-compatible observability is the target.",
+        "SLO numbers are set from measured local baselines first.",
+        "EDP-24 scale-out remains evidence-gated."
+      ],
+      "divergences": [
+        "EDP-22 does not add replicas or partitioning; it produces the evidence those decisions require."
+      ],
+      "open_questions": [
+        "Which deployment-specific SLO targets should override conservative defaults?"
+      ]
     },
-    "impact_review": [],
+    "impact_review": [
+      {
+        "claim": "API CHECK: no new public API; benchmark CLI and ops tooling only.",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/cmd/bench",
+        "recommendation": "keep internal/ops-only"
+      },
+      {
+        "claim": "AC CHECK: four acceptance criteria mapped to four slices.",
+        "verdict": "aligned",
+        "evidence": "design_pack.coverage AC-1..AC-4",
+        "recommendation": "verify at Gate 2"
+      },
+      {
+        "claim": "LANGUAGE CHECK: shipped performance tooling in Go; EXPLAIN helper in Python tooling.",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/internal/bench + scripts/dev",
+        "recommendation": "no new shipped Python path"
+      },
+      {
+        "claim": "SLO CHECK: bounded metric labels per store/scenario; no tenant labels.",
+        "verdict": "aligned",
+        "evidence": "ops/prometheus/edp-slo.rules.yml",
+        "recommendation": "no high-cardinality labels"
+      },
+      {
+        "claim": "DEGRADATION CHECK: switches must fail closed and be observable.",
+        "verdict": "aligned",
+        "evidence": "config/edp-slo.json",
+        "recommendation": "alert on each degradation transition"
+      }
+    ],
     "reviewed_by": "derived",
     "at": ""
   },
   "verification": [
-    "Benchmark suite runs in CI with regression thresholds",
-    "Chaos/degradation test per store",
-    "SLO alert firing test in staging"
+    "go test ./... in go/edpsvc",
+    "benchmark CLI produces baseline JSON and Prometheus text",
+    "db_explain_capture sampling guard test",
+    "prometheus/grafana config validation"
   ],
   "risks": [
-    "No baseline metrics exist — SLO targets may be aspirational",
-    "EXPLAIN overhead must be sampling-only in prod",
-    "Degradation switches can mask failures"
+    "SLO thresholds can be aspirational without measured baselines.",
+    "EXPLAIN ANALYZE must be sampling-only in production.",
+    "Degradation switches can mask failures if not bounded and alerted.",
+    "Benchmark scenarios must remain deterministic and tenant-safe."
   ],
   "rollback": "Benchmarks and metrics are additive; degradation switches default off and can be disabled per store.",
   "evidence": [
@@ -232,13 +395,2624 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-10-15T19:52:08.946273",
+  "updated_at": "2026-11-05T17:03:07.510263",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "dependencies set",
+  "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
-  }
+    "reason": "Internal benchmark CLI, SLO rules, and ops tooling; no product API surface."
+  },
+  "tier": 3,
+  "tier_reasons": [
+    "cross-cutting DB/object/cache/queue performance, SLO, quota, and degradation surface"
+  ],
+  "language_rule": "Go for shipped benchmark/SLO code; Python only for repo ops tooling.",
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/go/pf-go.md",
+      "docs/guidelines/coding/go/style-guide.md",
+      "docs/guidelines/testing/standards.md",
+      "docs/guidelines/database/postgresql.md",
+      "docs/guidelines/coding/python/style-guide.md"
+    ],
+    "requirements": [
+      "Benchmark suite produces repeatable results for each store with recorded baselines",
+      "EXPLAIN(ANALYZE,BUFFERS) capture tooling available and sampling-only in prod",
+      "SLO dashboards/alerts exist for DB/object/cache/queue",
+      "Quota enforcement and degradation switches demonstrated per store"
+    ],
+    "scope": [
+      "Slice 1: benchmark CLI + repeatability protocol + versioned baseline artifact schema.",
+      "Slice 2: EXPLAIN(ANALYZE,BUFFERS) capture with read-only role, allowlist, timeout, rollback, redaction, retention, audit, rate/load caps.",
+      "Slice 3: per-store metrics + quota enforcement + bounded degradation with persistent expiry.",
+      "Slice 4: generate SLO rules/dashboard from measured baselines and validate with promtool/Grafana schema checks."
+    ],
+    "non_goals": [
+      "No read replicas, partitioning, or region cells (EDP-24).",
+      "No new public API.",
+      "No production EXPLAIN sampling without an explicit switch."
+    ],
+    "invariants": [
+      "Benchmark labels never include tenant IDs; run timestamp is an unlabeled gauge, not a label.",
+      "Benchmarks use PF_BENCH_DSN with pf_readonly (NOSUPERUSER/NOBYPASSRLS), synthetic t-bench tenant, and deterministic cleanup.",
+      "Missing DSN fails closed unless --allow-skip records BENCH_STORE_SKIPPED as non-success.",
+      "EXPLAIN runs are read-only, allowlisted, timed out, rolled back, redacted, audited, retained, and capped by both probability and per-minute/concurrency budgets.",
+      "Degradation requires owner, reason, expires_at, max_duration<=15m; expiry is reloaded and enforced; renewals are alerted and bounded.",
+      "SLO rules/dashboard are generated only after measured baselines; config references baseline IDs and validation checks drift."
+    ],
+    "contracts": {
+      "api": [
+        "No new public API; internal benchmark CLI only."
+      ],
+      "db": [
+        "Uses existing stores; EXPLAIN ANALYZE only on sampled queries."
+      ],
+      "files": [
+        "go/edpsvc/internal/bench/harness.go",
+        "go/edpsvc/internal/bench/scenarios.go",
+        "go/edpsvc/internal/bench/slo.go",
+        "go/edpsvc/internal/bench/prometheus.go",
+        "go/edpsvc/internal/bench/slo_test.go",
+        "go/edpsvc/cmd/bench/main.go",
+        "go/edpsvc/internal/observe/metrics.go",
+        "go/edpsvc/internal/observe/metrics_test.go",
+        "go/edpsvc/internal/degrade/policy.go",
+        "go/edpsvc/internal/degrade/policy_test.go",
+        "scripts/dev/db_explain_capture.py",
+        "scripts/dev/validate_edp_slo.py",
+        "test-framework/tests/test_db_explain_capture.py",
+        "test-framework/tests/test_edp_slo_config.py",
+        "test-framework/tests/test_edp_degrade_config.py",
+        "test-framework/tests/test_validate_edp_slo.py",
+        "config/edp-slo.json",
+        "config/edp-degradation.json",
+        "ops/prometheus/edp-slo.rules.yml",
+        "ops/grafana/edp-slo-dashboard.json",
+        "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "docs/EDP-22-RUNBOOK.md",
+        "engineering/benchmarks/BI-PF-1314/README.md",
+        "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom",
+        "config/edp-baselines.json",
+        "scripts/dev/gen_edp_slo.py"
+      ],
+      "config": [
+        "config/edp-slo.json",
+        "config/edp-slo.schema.json",
+        "config/edp-degradation.json",
+        "config/edp-degradation.schema.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "benchmark regression",
+        "expected": "non-zero exit and alert",
+        "code": "SLO_REGRESSION"
+      },
+      {
+        "case": "missing DSN",
+        "expected": "non-zero exit",
+        "code": "BENCH_DSN_MISSING"
+      },
+      {
+        "case": "skipped store",
+        "expected": "non-success skipped evidence",
+        "code": "BENCH_STORE_SKIPPED"
+      },
+      {
+        "case": "prod sample >0.05",
+        "expected": "refuse",
+        "code": "EXPLAIN_SAMPLE_CAP"
+      },
+      {
+        "case": "rate/concurrency cap",
+        "expected": "refuse",
+        "code": "EXPLAIN_RATE_CAP"
+      },
+      {
+        "case": "unsafe statement",
+        "expected": "refuse",
+        "code": "EXPLAIN_NOT_ALLOWED"
+      },
+      {
+        "case": "degradation expired/renewed too often",
+        "expected": "fail closed + alert",
+        "code": "DEGRADED_EXPIRED"
+      },
+      {
+        "case": "invalid config",
+        "expected": "startup refuse",
+        "code": "CONFIG_INVALID"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1298 (bench harness Sink seam)",
+      "BI-PF-1311/1312/1313 stores",
+      "BI-PF-1310 migration framework",
+      "BI-PF-1317 evidence gate (EDP-24)"
+    ],
+    "security": [
+      "Bench/EXPLAIN DSN must be a read-only role (pf_readonly) with no superuser/bypassrls.",
+      "Benchmark labels exclude tenant IDs, DSNs, and secrets.",
+      "EXPLAIN uses static allowlisted SQL with no bound tenant parameters; output is redacted and access-controlled.",
+      "Degradation/config changes are operator-only; no public API.",
+      "Explain runs are recorded in an audit log with actor, statement label, sample decision, and artifact path; artifacts are access-controlled and retained per config.",
+      "EXPLAIN artifacts are written to access-controlled retention paths with owner/expiry metadata."
+    ],
+    "observability": [
+      "Benchmark metrics: edp_bench_p50_ms/p95/p99/errors by bounded group/scenario; last run is edp_bench_last_run_unixtime (no labels).",
+      "Store metrics: edp_store_requests_total, errors, latency histogram, degraded gauge by bounded store label.",
+      "Quota metrics: edp_quota_allowed_total, edp_quota_denials_total{scope,store}.",
+      "SLO rules and dashboard are generated from config/edp-slo.json and validated for drift/schema."
+    ],
+    "performance": [
+      "Benchmarks declare warmup, iteration count, concurrency, deterministic seed, outlier policy, and host class.",
+      "EXPLAIN has sample probability <=0.05 plus max_per_minute and max_concurrent load-shed caps."
+    ],
+    "rollout": [
+      "Benchmark scheduling and EXPLAIN sampling default off.",
+      "Enable per environment with operator-owned config and runbooks."
+    ],
+    "rollback": [
+      "Disable sampling/scheduling and remove rules/dashboard; no schema change.",
+      "Degradation auto-expires; force-expiry command documented."
+    ],
+    "decisions": [
+      "Use measured local baselines before tightening SLO thresholds.",
+      "Keep EDP-24 scale-out evidence-gated."
+    ],
+    "guardrails": [
+      "Instrument existing adapters; no new store.",
+      "No high-cardinality labels.",
+      "No silent degradation."
+    ],
+    "learnings": [
+      "EDP-06 deferred the Sink intentionally; EDP-22 supplies it."
+    ],
+    "open_questions": [
+      "Deployment-specific SLO overrides are allowed only after a measured baseline and must reference the baseline ID.",
+      "Prometheus/Grafana intervals are deployment-owned; generation validates both."
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "go test ./..."
+        ],
+        "adapter": "bench CLI + baseline JSON + Prometheus sink",
+        "contract": "six groups emit versioned baseline JSON and bounded p50/p95/p99 metrics; missing DSN fails unless explicit skip",
+        "evidence": [
+          "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+          "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
+        ],
+        "call_sites": [
+          "cmd/bench -> bench.RunAllWithSink -> PrometheusSink"
+        ],
+        "entrypoint": "go/edpsvc/cmd/bench/main.go",
+        "failure_cases": [
+          "missing DSN -> non-zero",
+          "SLO regression -> non-zero"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+        ],
+        "adapter": "psycopg sampled EXPLAIN capture",
+        "contract": "allowlisted read-only capture, statement_timeout, rollback, production sample<=0.05, rate cap, redaction",
+        "evidence": [
+          "scripts/dev/db_explain_capture.py",
+          "docs/EDP-22-RUNBOOK.md"
+        ],
+        "call_sites": [
+          "operator -> db_explain_capture.py -> PostgreSQL read-only tx"
+        ],
+        "entrypoint": "scripts/dev/db_explain_capture.py",
+        "failure_cases": [
+          "prod sample>0.05 -> refuse",
+          "rate cap -> refuse"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "python -m pytest test-framework/tests/test_edp_slo_config.py test-framework/tests/test_validate_edp_slo.py -q",
+          "go test ./..."
+        ],
+        "adapter": "Prometheus rules + Grafana dashboard + store metrics",
+        "contract": "alerts/dashboard cover DB/object/cache/queue with freshness, latency, errors, degradation, quota; assets validate offline",
+        "evidence": [
+          "ops/prometheus/edp-slo.rules.yml",
+          "ops/grafana/edp-slo-dashboard.json",
+          "go/edpsvc/internal/observe/metrics.go"
+        ],
+        "call_sites": [
+          "store recorder -> metrics -> Prometheus/Grafana"
+        ],
+        "entrypoint": "go/edpsvc/internal/observe/metrics.go",
+        "failure_cases": [
+          "stale baseline -> alert",
+          "store errors -> alert",
+          "degraded -> alert"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "go test ./...",
+          "python -m pytest test-framework/tests/test_edp_degrade_config.py -q"
+        ],
+        "adapter": "degrade policy + bounded config",
+        "contract": "per-store switch requires owner/reason/expiry, max 900s, expires fail closed, metrics/alert state",
+        "evidence": [
+          "go/edpsvc/internal/degrade/policy.go",
+          "config/edp-degradation.json"
+        ],
+        "call_sites": [
+          "store adapter -> degrade.Check -> fixed degraded error + observe metrics"
+        ],
+        "entrypoint": "go/edpsvc/internal/degrade/policy.go",
+        "failure_cases": [
+          "expired -> fail closed",
+          "missing reason/owner -> config invalid"
+        ],
+        "runtime_capability": false
+      }
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/contract",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py test-framework/tests/test_validate_edp_slo.py -q"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit/contract",
+        "test": "go test ./..."
+      }
+    ],
+    "ac_evidence": {
+      "AC-1": {
+        "sha": "4cf6d7aa",
+        "evidence": "engineering/benchmarks/BI-PF-1314/db/local/baseline.json"
+      },
+      "AC-2": {
+        "sha": "4cf6d7aa",
+        "evidence": "test-framework/tests/test_db_explain_capture.py"
+      },
+      "AC-3": {
+        "sha": "4cf6d7aa",
+        "evidence": "test-framework/tests/test_edp_slo_config.py"
+      },
+      "AC-4": {
+        "sha": "4cf6d7aa",
+        "evidence": "go/edpsvc/internal/degrade/policy_test.go"
+      }
+    },
+    "proof_plan": {
+      "failing_test": "go test ./...; python -m pytest test-framework/tests/test_db_explain_capture.py -q",
+      "red_evidence": "Baseline CLI/SLO sink absent; EXPLAIN guard absent; degradation policy absent.",
+      "green_evidence": "Benchmark CLI/SLO, EXPLAIN guard, store metrics, and degradation tests pass with measured baselines."
+    },
+    "runtime_contract": {
+      "trigger": "scheduled operator benchmark or sampled EXPLAIN request",
+      "entrypoint": "go/edpsvc/cmd/bench/main.go",
+      "call_sites": "cmd/bench -> bench.RunAllWithSink -> Prometheus sink",
+      "adapter": "edpsvc bench + Prometheus/Grafana + psycopg EXPLAIN tool",
+      "contract": "bounded, versioned baselines and sampled plans; no tenant labels",
+      "failure_behavior": "fail closed on regression/unsampled prod; fixed degradation errors",
+      "observable_result": "operators see latency/error/freshness/degradation alerts per store"
+    },
+    "review_scope": {
+      "files": [
+        "go/edpsvc/internal/bench/harness.go",
+        "go/edpsvc/internal/bench/scenarios.go",
+        "go/edpsvc/internal/bench/slo.go",
+        "go/edpsvc/internal/bench/prometheus.go",
+        "go/edpsvc/internal/bench/slo_test.go",
+        "go/edpsvc/cmd/bench/main.go",
+        "go/edpsvc/internal/observe/metrics.go",
+        "go/edpsvc/internal/observe/metrics_test.go",
+        "go/edpsvc/internal/degrade/policy.go",
+        "go/edpsvc/internal/degrade/policy_test.go",
+        "scripts/dev/db_explain_capture.py",
+        "scripts/dev/validate_edp_slo.py",
+        "test-framework/tests/test_db_explain_capture.py",
+        "test-framework/tests/test_edp_slo_config.py",
+        "test-framework/tests/test_edp_degrade_config.py",
+        "test-framework/tests/test_validate_edp_slo.py",
+        "config/edp-slo.json",
+        "config/edp-degradation.json",
+        "ops/prometheus/edp-slo.rules.yml",
+        "ops/grafana/edp-slo-dashboard.json",
+        "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "docs/EDP-22-RUNBOOK.md",
+        "engineering/benchmarks/BI-PF-1314/README.md",
+        "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "exclude": [
+        "EDP-24 scale-out",
+        "unrelated stores"
+      ],
+      "evidence": [
+        "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "docs/EDP-22-RUNBOOK.md"
+      ],
+      "components": [
+        "go/edpsvc/internal/bench",
+        "go/edpsvc/cmd/bench",
+        "go/edpsvc/internal/observe",
+        "go/edpsvc/internal/degrade",
+        "scripts/dev",
+        "ops",
+        "config",
+        "docs",
+        "engineering/benchmarks"
+      ]
+    },
+    "controls": [
+      {
+        "id": "CTL-BENCH-SLO",
+        "dimension": "performance_capacity",
+        "applies_to": "go/edpsvc/cmd/bench/main.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-STORE-METRICS",
+        "dimension": "observability",
+        "applies_to": "go/edpsvc/internal/observe/metrics.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-DEGRADATION",
+        "dimension": "failure_taxonomy",
+        "applies_to": "go/edpsvc/internal/degrade/policy.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-QUOTA",
+        "dimension": "quotas",
+        "applies_to": "go/edpsvc/internal/limits/quota.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-CONFIG-SCHEMA",
+        "dimension": "compatibility",
+        "applies_to": "config/edp-slo.schema.json",
+        "check": "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "ops",
+        "cwd": "."
+      },
+      {
+        "id": "CTL-SLO-GEN",
+        "dimension": "compatibility",
+        "applies_to": "scripts/dev/validate_edp_slo.py",
+        "check": "python -m pytest test-framework/tests/test_validate_edp_slo.py -q",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "ops",
+        "cwd": "."
+      },
+      {
+        "id": "CTL-EXPLAIN-SAMPLING",
+        "dimension": "audit",
+        "applies_to": "scripts/dev/db_explain_capture.py",
+        "check": "python -m pytest test-framework/tests/test_db_explain_capture.py -q",
+        "evidence": "docs/EDP-22-RUNBOOK.md",
+        "failure_behavior": "block",
+        "owner": "ops",
+        "cwd": "."
+      }
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/go/pf-go.md",
+        "applies_to": "go/edpsvc/internal/bench/harness.go",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/coding/go/style-guide.md",
+        "applies_to": "go/edpsvc/cmd/bench/main.go",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "go/edpsvc/internal/degrade/policy_test.go",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/database/postgresql.md",
+        "applies_to": "scripts/dev/db_explain_capture.py",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "check": "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "scripts/dev/db_explain_capture.py",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "check": "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+      }
+    ],
+    "api_contract": [
+      "See EDP-22 design: no new schema; bounded labels; sampling-only EXPLAIN; degradation fail-closed."
+    ],
+    "audit": [
+      "Benchmark runs, sampling decisions, redaction, and degradation start/expiry are logged/auditable."
+    ],
+    "backup_restore": [
+      "No data-model change; benchmark and EXPLAIN artifacts follow existing backup/retention."
+    ],
+    "compatibility": [
+      "New internal CLI/config; no public API change."
+    ],
+    "concurrency_idempotency": [
+      "Baseline compare is deterministic for a fixed seed; EXPLAIN is read-only."
+    ],
+    "data_model": [
+      "No DB schema change. Baseline artifacts: engineering/benchmarks/BI-PF-1314/<store>/<env>/<git-sha>.json with version, seed, warmup, ops, concurrency, host, duration, variance."
+    ],
+    "deployment_rollout": [
+      "Benchmark scheduling/EXPLAIN sampling default off; enable with config + runbook.",
+      "Degradation is operator-owned, persistent, and auto-expires; SLO generation runs after baseline capture."
+    ],
+    "failure_taxonomy": [
+      "SLO_REGRESSION",
+      "BENCH_DSN_MISSING",
+      "BENCH_STORE_SKIPPED",
+      "EXPLAIN_SAMPLE_CAP",
+      "EXPLAIN_RATE_CAP",
+      "EXPLAIN_NOT_ALLOWED",
+      "DEGRADED_EXPIRED",
+      "CONFIG_INVALID",
+      "STORE_UNAVAILABLE"
+    ],
+    "ownership": [
+      "edpsvc owns bench/SLO/degrade; ops owns sample execution and dashboards."
+    ],
+    "performance_capacity": [
+      "Measured baselines define thresholds; explicit ops/concurrency; bounded sampling."
+    ],
+    "prerequisites": [
+      "EDP-06 Sink seam; EDP-19/20/21 stores; EDP-18 migration tooling."
+    ],
+    "quotas": [
+      "Per-store quota denied/allowed counters; degradation is bounded and expires automatically."
+    ],
+    "rls_tenant": [
+      "Bench/EXPLAIN DSNs use read-only non-bypass roles; no tenant parameters in EXPLAIN; labels contain no tenant IDs."
+    ],
+    "rollback_recovery": [
+      "Disable benchmarks/sampling; remove rules/dashboard; degradation auto-expires."
+    ],
+    "security_model": [
+      "Read-only least-privilege DB roles; redacted plans; operator-only controls."
+    ],
+    "affected_components": [
+      "go/edpsvc/internal/bench",
+      "go/edpsvc/cmd/bench",
+      "go/edpsvc/internal/observe",
+      "go/edpsvc/internal/degrade",
+      "scripts/dev",
+      "ops/prometheus",
+      "ops/grafana",
+      "config",
+      "docs"
+    ],
+    "stop_conditions": [
+      "missing measured baseline",
+      "unsafe EXPLAIN statement or role",
+      "degradation without max_duration/owner",
+      "high-cardinality labels",
+      "scope creep into EDP-24"
+    ]
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "77a41ec87e474a46ab47040d91f74fca33312cc8",
+      "review_sha": "2e18a4d28fff",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T14:02:02.026724+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "77a41ec87e474a46ab47040d91f74fca33312cc8",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 is not designed: open question on whether object/cache/queue expose counters means per-store SLO dashboards/alerts cannot be shown to exist; no adapter instrumentation files are in scope.",
+          "AC-4 is not designed: quota enforcement and per-store degradation switches reference `go/edpsvc/internal/limits` but no affected file, config schema, or test defines quotas/switch behavior per store.",
+          "DB access for benchmark and EXPLAIN capture has no least-privilege/read-only role or RLS enforcement; “tenant-safe” invariant lacks a boundary control and risks admin/RLS-bypass DSNs."
+        ],
+        "MAJOR": [
+          "AC-1 lacks baseline artifact definition: no storage location, versioning, environment fingerprint, variance tolerance, or retention for recorded baselines, so repeatability is not verifiable.",
+          "AC-1 failure case “missing DSN -> skipped scenarios” can produce a green run without per-store coverage; it should fail closed or record explicit skipped-store evidence.",
+          "AC-2 prod enforcement is underspecified: no environment detection and no hard production cap preventing `sample_rate=1.0`; sampling-only policy can be bypassed by config.",
+          "AC-2 `EXPLAIN ANALYZE` executes statements; no read-only transaction, statement allowlist, statement timeout, or rollback guard is defined.",
+          "AC-2 redaction of parameters/tenant data is declared but has no mechanism or test evidence; captured plans can leak literals/tenant data.",
+          "AC-3 validation is weak: Python config tests do not prove Prometheus rule semantics, alert lead time, or Grafana dashboard/schema validity; scrape/eval intervals remain open.",
+          "AC-4 “bounded” degradation is not quantified: no max duration, auto-expiry, quota-denied metric, or alert-routing handoff is defined.",
+          "SLO thresholds are not tied to measured baselines; open deployment overrides and aspirational values risk alert noise or missed regressions."
+        ],
+        "MINOR": [
+          "Benchmark reconstruction metadata is incomplete: concurrency, dataset seed/size, host class, and run duration should be recorded with baselines.",
+          "Mixing SLO policy and runtime quota/degradation policy in `config/edp-slo.json` blurs ownership and rollback boundaries.",
+          "Captured EXPLAIN artifacts need explicit retention and access-control policy beyond “redacted”.",
+          "Quota enforcement observability lacks clear denied/allowed counters and bounded store labels."
+        ],
+        "NIT": [
+          "`scripts/dev/db_explain_capture.py` is acceptable as tooling, but its prod guardrails should be documented alongside ops runbooks.",
+          "Single evidence doc `docs/EDP-22-BENCHMARKS-SLOS.md` should index baseline artifacts, rule files, dashboards, and per-store proof."
+        ],
+        "SUMMARY": [
+          "Design is directionally sound on bounded labels, fail-closed regression, and default-off rollout, but AC-3 and AC-4 are not yet demonstrable.",
+          "Top risks: missing per-store SLO/counter coverage, undefined quota/degradation implementation evidence, and insufficient DB privilege/RLS and EXPLAIN redaction controls.",
+          "AC-1/AC-2 need stronger repeatability, environment, sampling, and read-only execution contracts before Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1314-2e18a4d28fff.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "99aac187982a5263dc3e0557a0a3fffc1d8fad75",
+      "review_sha": "d7b740c5a2cb",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T14:06:19.646942+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "99aac187982a5263dc3e0557a0a3fffc1d8fad75",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 quota enforcement is not designed: no quota hook in `affected_files`, `call_sites`, or test matrix; `limits/quota.go` is only cited as evidence and remains out of scope, so “quota enforcement … demonstrated per store” cannot pass.",
+          "AC-1 can pass without per-store baselines: `--allow-skip` records skipped evidence but no gate/test rejects it, and the test matrix is only `go test ./...` with no repeat-run/variance or baseline-artifact validation."
+        ],
+        "MAJOR": [
+          "AC-3/AC-4 review scope omits `go/edpsvc/internal/observe/metrics.go` and `go/edpsvc/internal/degrade/policy.go`, the declared entrypoints for store metrics and degradation; the binding review cannot verify those ACs.",
+          "AC-3 test matrix covers only `test_edp_slo_config.py`; `metrics_test.go` exists but store metric emission from `observe/metrics.go` is not part of AC-3 evidence.",
+          "AC-2 production EXPLAIN sampling relies on operator-run `scripts/dev/db_explain_capture.py`; no deployment path, persistent sampling switch, audit sink, access-control enforcement, or retention control is designed beyond assertions.",
+          "Benchmark tenant safety is underspecified: no synthetic tenant/fixture or RLS session context is defined, so a NOSUPERUSER/NOBYPASSRLS role with no tenant parameters may produce empty/error benchmarks or rely on unforced RLS.",
+          "SLO thresholds exist in both `config/edp-slo.json` and `ops/prometheus/edp-slo.rules.yml`; no single-source generation/contract is stated, so config/rule drift is likely."
+        ],
+        "MINOR": [
+          "`edp_quota_denials_total{scope,store}` leaves `scope` undefined; if not allowlisted it is a high-cardinality label risk.",
+          "Failure matrix `BENCH_DSN_MISSING` wording/exit semantics are contradictory for `--allow-skip`; define whether skipped evidence is non-success.",
+          "Baseline and EXPLAIN artifact retention/access control are asserted but not specified in scoped files.",
+          "“Six store groups” vs DB/object/cache/queue mapping is unspecified; baseline artifact naming is not tied to a declared store enum.",
+          "No on-startup validation/compatibility check for `config/edp-slo.json` and `config/edp-degradation.json`; invalid config fails at runtime."
+        ],
+        "NIT": [
+          "Metric naming mixes `edp_store_latency_ms_bucket` with `edp_bench_p95_ms`; ensure histogram/summary conventions are consistent.",
+          "`run_timestamp` in benchmark metrics may undermine baseline equality unless excluded from comparisons.",
+          "Docs are the only evidence for multiple ACs; add machine-checkable evidence references."
+        ],
+        "SUMMARY": [
+          "Design is directionally sound: additive, read-only, bounded degradation, and no public API.",
+          "Gate-1 cannot approve AC-1/AC-4 as written; quota enforcement and repeatability/baseline evidence are materially missing.",
+          "Top risks: prod EXPLAIN sampling controls, metrics/degradation outside verifiable scope, and config/rule drift."
+        ]
+      },
+      "evidence": "BI-PF-1314-d7b740c5a2cb.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "5bc4c552cfad1273072de5c7c1f3cc2a33a1bcda",
+      "review_sha": "ddf6e36036d0",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T14:18:41.851223+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5bc4c552cfad1273072de5c7c1f3cc2a33a1bcda",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 quota enforcement is not designed: `go/edpsvc/internal/limits/quota.go` is cited as evidence/control target but is absent from affected_files/review_scope, with no quota config, enforcement point, persistence/consistency model, or per-store behavioral test.",
+          "AC-2 control mapping is wrong: runtime entrypoint is Go `cmd/explain`/`explain.Capture`, but CTL-EXPLAIN-SAMPLING and AC-2 evidence/check target `scripts/dev/db_explain_capture.py`; sampling cap, allowlist, rollback, and redaction are not tied to the actual runtime path."
+        ],
+        "MAJOR": [
+          "SLO rules/dashboard are delivered in Slice 1 while measured baselines arrive in Slice 4, contradicting the invariant that thresholds come from measured baselines; no baseline-to-config linkage or validation prevents aspirational SLOs.",
+          "Generated Prometheus rules and Grafana dashboard lack `promtool`/Grafana schema validation and drift checks in the test matrix, so the single-source config invariant is not enforced.",
+          "Degradation auto-expiry persistence and renewal limits are undefined; file-based config may not expire without reload, and repeated renewals can mask failures despite `max_duration<=15m`.",
+          "EXPLAIN sampling is probability-capped only; no global/per-query rate limit or load-shed budget means 0.05 sampling can still overload production at high QPS.",
+          "Benchmark repeatability protocol is underspecified: no warmup, iteration count, outlier policy, or deterministic dataset provisioning; “six store groups” is also not mapped to the AC’s DB/object/cache/queue stores.",
+          "AC-1 recorded baselines have no defined artifact schema/path per store; only `engineering/benchmarks/BI-PF-1314/README.md` is listed, so baseline evidence cannot be reviewed."
+        ],
+        "MINOR": [
+          "`run_timestamp` is listed among benchmark metrics; if emitted as a label it violates the bounded-cardinality/no-high-cardinality-label invariant.",
+          "`failure_taxonomy` omits `BENCH_STORE_SKIPPED` and `CONFIG_INVALID`, which appear in the failure matrix.",
+          "Scope/component lists omit `go/edpsvc/internal/explain` and `cmd/explain` despite being declared files and AC-2 entrypoints.",
+          "EXPLAIN artifact retention, access-control, and redaction details are asserted but not concretely specified or tested.",
+          "Synthetic `t-bench` tenant provisioning/cleanup is not defined, so RLS-scoped non-empty-read assertions may be non-deterministic."
+        ],
+        "NIT": [
+          "Only `docs/EDP-22-BENCHMARKS-SLOS.md` is listed as evidence; no operator runbook link for enabling sampling/degradation is declared.",
+          "`runtime_capability: false` on AC-2/AC-3/AC-4 coverage is unexplained and conflicts with “tooling available/demonstrated” acceptance language."
+        ],
+        "SUMMARY": [
+          "Design direction is sound, but Gate-1 readiness is blocked by quota-enforcement and EXPLAIN control gaps.",
+          "Top risks: SLO thresholds not grounded in measured baselines, generated artifacts not validated, and degradation expiry/renewal semantics undefined.",
+          "Baseline artifact definition and per-store behavioral evidence need to be explicit before approval."
+        ]
+      },
+      "evidence": "BI-PF-1314-ddf6e36036d0.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "ac18202080ef89107e73ea0be57c93c9ae4fa211",
+      "review_sha": "13f8a92ccb58",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T05:53:28.933278+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "ac18202080ef89107e73ea0be57c93c9ae4fa211",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 quota enforcement is entirely absent: no `internal/limits/quota.go`, no call sites, and nothing emits `edp_quota_allowed_total`/`edp_quota_denials_total` yet the alert `ProductForgeQuotaDenied` and dashboard panel 5 query them — AC-4 cannot be satisfied and the alert can never fire.",
+          "AC-1 baseline evidence declared in the contract (`engineering/benchmarks/BI-PF-1314/README.md`, `db/local/baseline.json`, `db/local/metrics.prom`) is not in the diff, and `config/edp-slo.json` contains thresholds with no baseline ID reference — violates the \"SLO thresholds are set from measured baselines, not invented targets\" invariant.",
+          "Store metrics and degradation are dead code: `observe.Recorder` and `degrade.Check` have no store-adapter call sites in the diff, so AC-3/AC-4 (\"demonstrated per store\") and the runtime contract `store adapter -> degrade.Check -> fixed degraded error + observe metrics` are unproven."
+        ],
+        "MAJOR": [
+          "`bench.Compare` ignores `MaxError` when a result has an error (`if r.Err != \"\" { violation; continue }`), and `MaxError==0` is treated as \"unset\" in the group override — `max_errors` config is effectively dead.",
+          "`edp_store_latency_ms` is emitted as a last-value gauge via `Set`, not the histogram the observability contract requires; p95/p99 store SLOs are therefore impossible from this metric.",
+          "`edp_bench_errors_total` is written as 0/1 per run from a file sink — non-monotonic value under a `_total` counter name, so any `rate()`/`increase()` over it is wrong.",
+          "`observe.Recorder.Request` passes the caller-supplied `outcome` string straight into a label with no allowlist; only `store` is bounded, so cardinality/leak risk remains.",
+          "`ProductForgeBenchmarkLatencyRegression` hardcodes `> 500` while `config/edp-slo.json` sets db to 250 — rules are hand-written, not generated/validated for drift against config as Slice 4 requires.",
+          "`db_explain_capture.py` validates but never enforces `--per-minute` or any concurrency cap; the design invariant requires both probability and per-minute/concurrency budgets.",
+          "No audit record (actor, statement label, sample decision, artifact path) is produced for EXPLAIN runs, and `--out` writes to an arbitrary path with no retention/access-control enforcement — violates the audit/security contract.",
+          "Production cap is client-asserted: `--env` defaults to `PF_ENV`/`dev`, so a mis-set env allows `--sample-rate 0.1` against production; no separate explicit prod-enable switch as the non-goal requires.",
+          "`expires_at` renewal tracking/\"renewals are alerted and bounded\" is not implemented; `Config` is loaded once with no reload path, so operators cannot force-expire without a redeploy.",
+          "`config/edp-slo.schema.json` and `config/edp-degradation.schema.json` (contract + CTL-CONFIG-SCHEMA) are missing; `validate_edp_slo.py` only asserts alert names/panel presence, which is a tautological no-drift check.",
+          "`[OUT_OF_SCOPE]` `scripts/dev/review_ledger.py` now returns `[]` when no delta entries exist, silently disabling the `FULL_REVIEW_MISSING` gate for delta items (review-tooling behavior change, CL-002 territory)."
+        ],
+        "MINOR": [
+          "`config/edp-degradation.json` has `\"stores\": {}` — no per-store switch demonstrated and the test loop is vacuous.",
+          "Bench scenario semantics silently changed (`kind 'note'→'semantic'`, `acl_scope 'team'→'project'`) with no rationale; this alters what is measured and is close to the out-of-scope \"data-model changes of the stores\" line.",
+          "Freshness alert `time() - edp_bench_last_run_unixtime > 86400` never fires when the metric is absent; needs an `absent()` companion for a never-run suite.",
+          "`cmd/bench` default `-baseline config/edp-slo.json` is cwd-relative while the documented invocation runs from `go/edpsvc`; only the doc example's explicit path saves it.",
+          "No `Load` validation test for `expires_at` exceeding `max_duration_seconds` or for `max_errors` handling; `slo_test` only exercises `Compare` happy paths.",
+          "EXPLAIN redaction is regex-only (quoted literals, 4+ digit numbers); UUIDs/emails/timestamps outside quotes and `tenant_id` column values in plan output are not covered.",
+          "`max_errors` sentinel ambiguity and lack of `p50` budget in config mean partial budget semantics are undocumented."
+        ],
+        "NIT": [
+          "`psycopg` is imported lazily with no pinned dependency/requirements entry for the tooling path.",
+          "`PrometheusSink` overwrites the sink file per run; there is no rotation or run-id comment header for traceability.",
+          "`validate_edp_slo.py` hardcodes `REQUIRED_GROUPS` including `artifact` while bench `scenarios()` groups are not cross-checked against config."
+        ],
+        "SUMMARY": [
+          "Direction is right: bounded labels, fail-closed degradation errors, sampled EXPLAIN guard, and offline asset validation are solid foundations.",
+          "Not mergeable as-is: quota enforcement is missing entirely (AC-4), baseline evidence artifacts and baseline-ID linkage are absent (AC-1), and neither metrics nor degradation is wired into store adapters, so AC-3/AC-4 are only unit-tested, not demonstrated.",
+          "Observability contract mismatches (gauge latency, non-monotonic `_total`, hand-written rule thresholds) will let SLO drift go undetected; fix before the EDP-24 evidence gate relies on these baselines."
+        ]
+      },
+      "evidence": "BI-PF-1314-13f8a92ccb58.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "268cf64cd02d3cc81319e53f7f0d0f743c4e14f2",
+      "review_sha": "ec0b61506276",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T08:54:17.987771+00:00",
+      "review_scope": "delta",
+      "base_sha": "ac18202080ef89107e73ea0be57c93c9ae4fa211",
+      "head_sha": "268cf64cd02d3cc81319e53f7f0d0f743c4e14f2",
+      "findings": {
+        "BLOCKER": [
+          "`go/edpsvc/internal/observe/metrics.go`: after replacing `edp_store_latency_ms` with `ObserveHistogram`, the local `ms` and its negative clamp are left unused; Go rejects unused locals, so `go test ./...` cannot build.",
+          "`go/edpsvc/main.go` `cacheHandle`: `tenant` is required but never namespaces the key; `/admin/cache` GET/PUT/DELETE can read or overwrite another tenant’s cached bytes, bypassing tenant isolation."
+        ],
+        "MAJOR": [
+          "`main.go`: any error from `degrade.NewPolicy` — including invalid `config/edp-degradation.json` — is swallowed and replaced by an empty policy instead of startup refusal, violating `CONFIG_INVALID` and fail-closed behavior.",
+          "`degrade/policy.go`: the new renewal counter is only returned by unused `RenewalCount`; no metric/alert/bound is emitted, so degradation can be renewed indefinitely without detection.",
+          "`cache/memory.go` + `main.go`: the store has no capacity/eviction bound and the handler always calls `Set` with `ttl=0`; the admin cache can grow without limit and never expires.",
+          "`bench/slo.go`: for `MaxError > 0`, any scenario with `Err != \"\"` is accepted, so a positive `max_errors` disables all error violations rather than bounding counts.",
+          "`scripts/dev/db_explain_capture.py`: `--state`/`--audit` are optional, the rate check is non-atomic, and there is no concurrency cap; the required per-minute/concurrency/audit guarantees remain bypassable.",
+          "`main.go` object store: quota is only reached via `/admin/object-store/conform` with `tenant=\"\"`, so `Quota` is skipped for object store and real object operations remain unguarded."
+        ],
+        "MINOR": [
+          "`db_explain_capture.py`: `rate_ok` consumes a slot even when sampling later skips the run, causing false `REFUSE` under normal sampled-out traffic.",
+          "`degrade/policy.go`: `Policy.Check` takes a global mutex and `os.Stat`s the config on every store operation, serializing hot-path calls and adding filesystem I/O.",
+          "`storeguard/guard.go`: `Do` checks only `g == nil`, not `g.Degrade`; a zero-value `Guard` panics instead of failing safe.",
+          "`validate_edp_slo.py`: sibling `import gen_edp_slo` inside `problems()` depends on `sys.path`; imported-module/pytest execution can fail with `ModuleNotFoundError`.",
+          "`validate_edp_slo.py`: alert presence is checked by substring, not exact rule/alert name, so a summary or comment can satisfy the check."
+        ],
+        "NIT": [
+          "`db_explain_capture.py`: state/audit file opens are not context-managed; state writes are not atomic.",
+          "`audit` records are append-only with no rotation/fsync/retention enforcement in the tool.",
+          "`gen_edp_slo.py` hardcodes non-benchmark alerts while `validate_edp_slo.py` separately hardcodes required names; generation and validation can drift in the non-generated portion."
+        ],
+        "SUMMARY": [
+          "The delta fixes several prior gaps (generated SLO rules, store guard wiring, histogram metrics, baseline references) but introduces a build blocker and a tenant-isolation bug in the new admin cache.",
+          "Remaining enterprise risks: silent degradation-config fallback, unbounded cache, incomplete `max_errors` semantics, and EXPLAIN controls that remain optional/non-atomic.",
+          "AC-4 per-store quota is not demonstrated for object store; the only object guard path skips quota with an empty tenant.",
+          "Blockers must be fixed before merge; majors should be fixed or explicitly accepted with runbook controls."
+        ]
+      },
+      "evidence": "BI-PF-1314-ec0b61506276.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "60bcd70e611f55f21dec07fff61eb0ac95dec724",
+      "review_sha": "14b0efa0485d",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:24:38.946467+00:00",
+      "review_scope": "delta",
+      "base_sha": "268cf64cd02d3cc81319e53f7f0d0f743c4e14f2",
+      "head_sha": "60bcd70e611f55f21dec07fff61eb0ac95dec724",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`main.go` degradation startup guard: only refuses when `PF_EDP_DEGRADATION_CONFIG` is set; an invalid/malformed default `config/edp-degradation.json` still falls back to an empty policy, silently disabling AC-4 fail-closed `CONFIG_INVALID` behavior.",
+          "`degrade/policy.go`: hardcoded `p.renewals[store] > 3` makes `Check` return `ErrDegradedExpired` for every operation once a store has accumulated renewals, with no reset/alert in the hunk; healthy or removed rules cannot recover without process restart.",
+          "`bench/harness.go` + `bench/slo.go`: `Measure` breaks on the first error, so `Errors` is effectively 0/1; any `max_errors >= 2` can never be exceeded, silently disabling the error SLO bound the delta intends to enforce.",
+          "`cache/memory.go`: eviction triggers on `len >= 10000` by deleting a random live entry, including when `Set` is only updating an existing key; capacity is hardcoded and untracked by an eviction metric, so one tenant's writes can churn/evict other tenants without visibility."
+        ],
+        "MINOR": [
+          "`cache/memory.go` / `main.go`: tenant namespacing is implemented only at the handler (`tenant + \":\" + key`); the cache store API remains tenant-unaware, so any future direct caller can bypass isolation.",
+          "`db_explain_capture.py`: a sampled-in request refused by `rate_ok` is returned without an audit record, so the audit log does not capture the sample/refusal decision.",
+          "`main.go` object conform now requires `tenant`; no delta update to callers/runbook, so existing operator scripts invoking the admin endpoint without `tenant` will break."
+        ],
+        "NIT": [
+          "`cache/memory.go`: random map-range eviction is non-deterministic and ignores TTL/expiry, which can make cache/bench behavior less repeatable.",
+          "`db_explain_capture.py`: the new state/audit requirement applies only when `sample_rate > 0`; the skip path still calls `audit(None)` if audit is absent."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior build/unused-local and handler tenant-prefix issues, but several fixes are incomplete at the boundaries.",
+          "Top risks: default degradation config can still be silently swallowed; renewal cap can permanently fail-closed without recovery; benchmark error counts cannot enforce `max_errors>1`; cache eviction can cause cross-tenant churn without metrics."
+        ]
+      },
+      "evidence": "BI-PF-1314-14b0efa0485d.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "4e86eed3eff15334e775a8932fe35582d7c5e42b",
+      "review_sha": "bf32496f7503",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:33:38.798267+00:00",
+      "review_scope": "delta",
+      "base_sha": "60bcd70e611f55f21dec07fff61eb0ac95dec724",
+      "head_sha": "4e86eed3eff15334e775a8932fe35582d7c5e42b",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "**AC-4 / `go/edpsvc/internal/degrade/policy.go`**: the delta *deletes* the renewal bound entirely instead of bounding it with reset+alert; design invariant \"renewals are alerted and bounded\" and failure-matrix `degradation expired/renewed too often -> fail closed + alert (DEGRADED_EXPIRED)` are now unenforced, and `p.renewals` becomes write-only dead state.",
+          "**AC-2 / `scripts/dev/db_explain_capture.py`**: the new rate-cap audit record persists the raw `query` text rather than an approved statement label; this contradicts the design's \"audit log with actor, **statement label**, sample decision\" and redaction/retention model, and re-introduces sensitive SQL text into long-lived logs that the redacted artifact path deliberately avoids."
+        ],
+        "MINOR": [
+          "**AC-1 / `go/edpsvc/internal/bench/harness.go`**: with `continue`, latency samples exclude failed ops while `Ops` counts attempts, so p50/p95/p99 are computed on a smaller denominator than reported; a store failing all ops now runs to completion with an empty sample set, risking a passing baseline/SLO from zero samples (no delta test covers this path).",
+          "**AC-4 / `go/edpsvc/main.go`**: config failure is now a bare `log.Fatalf`; there is no `CONFIG_INVALID` code/metric/alert distinction, so operators cannot separate misconfiguration from other fatal starts, and \"switches default off\" no longer permits starting without a valid degradation file (dev/local flows need a documented escape).",
+          "**`scripts/dev/db_explain_capture.py`**: `refused_rate_cap` is written before DSN/allowlist validation, so an unrunnable invocation still produces a decision record; the `decision` field becomes ambiguous for forensics (rate refusal vs config-invalid), and repeated refusals amplify audit volume.",
+          "**[OUT_OF_SCOPE]** `go/edpsvc/internal/cache/memory.go`: the TTL sweep is a full 10k-entry scan under the write mutex on every insert-at-capacity (write latency spikes), expired entries are otherwise never reclaimed below capacity, and a live entry is still evicted at random (the prior NIT is not actually resolved by this hunk)."
+        ],
+        "NIT": [
+          "**`go/edpsvc/internal/bench/harness_test.go`**: the updated assertion (`Errors != 1 || Ops != 9`) no longer pins \"first error message retained over later, different errors\"; only the single-error case is exercised.",
+          "**`go/edpsvc/internal/bench/harness.go`**: errors after the first are only counted, never summarised (no error class/aggregate), making SLO regression triage harder than necessary."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves the earlier startup-guard and `Measure` fail-fast defects, and adds the missing rate-refusal audit; no new blockers.",
+          "Top risks: the degradation renewal invariant was removed rather than bounded (AC-4 regression), and the EXPLAIN audit now stores raw SQL instead of a statement label (AC-2 redaction drift).",
+          "Secondary: benchmark latency/SLO denominators diverge from attempt counts (AC-1 repeatability), and fail-closed startup lacks an observable `CONFIG_INVALID` signal."
+        ]
+      },
+      "evidence": "BI-PF-1314-bf32496f7503.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+      "review_sha": "bb913cb20574",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:35:00.692920+00:00",
+      "review_scope": "delta",
+      "base_sha": "4e86eed3eff15334e775a8932fe35582d7c5e42b",
+      "head_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "**AC-4 / `go/edpsvc/internal/degrade/policy.go`**: the new `renewals[store] > 3` gate fails closed for a store that is not currently degraded, and the counter is never time-windowed or reset; with `max_duration<=15m` a legitimate sustained incident needs >3 renewals, so the store locks out indefinitely until process restart or config toggle.",
+          "**AC-4 / `degrade/policy.go`**: `delete(p.renewals, store)` on any `!ok || !nr.Enabled` makes the \"bounded\" invariant defeatable — flipping the switch off/on silently resets renewals to 0, so the bound is not enforceable and the reset is unaudited/unalerted contrary to \"renewals are alerted and bounded\".",
+          "**AC-4 / `degrade/policy.go`**: the delta adds the bound but emits no metric/alert for renewal count or threshold crossings; failure-matrix `DEGRADED_EXPIRED -> fail closed + alert` is only half met, and `ErrDegradedExpired` conflates true-expiry with renewal-limit so operators cannot distinguish causes.",
+          "**AC-2 / `scripts/dev/db_explain_capture.py`**: only the audit *key* is renamed to `statement_label`; the value is still `a.query` (raw statement text), so the prior redaction concern is relabelled not remediated — disposition \"ACTIONED\" is not evidenced by this hunk."
+        ],
+        "MINOR": [
+          "**`scripts/dev/db_explain_capture.py`**: renaming `query` -> `statement_label` is an unversioned schema change to persisted audit records; existing/retained audit logs and any consumer parsing `query` break, and runbook/docs in the delta are not updated.",
+          "**AC-4 / `degrade/policy.go`**: renewal threshold `3` is a hardcoded magic number decoupled from `config/edp-degradation.json` / `max_duration`, so it cannot be tuned per environment without a code change.",
+          "**AC-4 tests**: the delta adds renewal-reset and `>3` fail-closed semantics without corresponding changes to `policy_test.go`, so the new behavior is not fail-ably pinned."
+        ],
+        "NIT": [
+          "**`test-framework/tests/test_db_explain_capture.py`**: assertion still only checks `\"captured\" in text`; it does not assert the `statement_label` key is present or that raw text is absent, so the rename is untested.",
+          "**`degrade/policy.go`**: `> 3` (fourth renewal) vs `>= 3` boundary is undocumented and off-by-one ambiguous for reviewers/ops."
+        ],
+        "SUMMARY": [
+          "Prior MAJOR (renewal bound) and audit-label findings are only partially addressed: the bound was re-added but is unbounded-lifetime, resettable, and unalerted; the audit change is a key rename, not redaction.",
+          "Top risks: indefinite store lockout during legitimate extended incidents, silent bound bypass via switch toggle, and unversioned audit schema drift with raw statement text still persisted.",
+          "Verdict: not ready — AC-4 bounding is not robust/observable and AC-2 redaction is not demonstrably fixed by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1314-bb913cb20574.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "90c19405fcb79dda1af1aec226860ca6dad5d961",
+      "review_sha": "269e14304e70",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:42:45.545620+00:00",
+      "review_scope": "delta",
+      "base_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+      "head_sha": "90c19405fcb79dda1af1aec226860ca6dad5d961",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 / `degrade/policy.go`: window pruning runs only inside the \"expiry extended\" branch of `reload()`, while `Check` compares raw `len(p.renewals[store])`; once renewals exceed `RenewalLimit` and no further config edit occurs, the store stays fail-closed indefinitely (no time-based recovery), so the advertised time-windowed bound does not actually apply at read time.",
+          "Recovery from that state exists only via process restart or switch off/on (which wipes the ledger), i.e. the fail-closed state has no bounded expiry — violates the availability guardrail and the \"renewals are bounded\" invariant."
+        ],
+        "MAJOR": [
+          "AC-4 `ACTIONED` disposition not evidenced: the `!ok || !nr.Enabled` branch still does `delete(p.renewals, store)`, so the renewal bound remains bypassable by toggling a switch; the new `resets` counter merely records it and is never read.",
+          "AC-4 observability: new `edp_store_degradation_renewals_total` / `..._resets_total` metrics have no matching rule/alert in this delta (`ops/prometheus` unchanged), so failure-matrix \"DEGRADED_EXPIRED -> fail closed + alert\" is still alert-less.",
+          "Tests: `TestPolicyRenewalLimitFailsClosed` only seeds a pre-filled ledger; no fail-able test covers window pruning/expiry (would have caught the lockout above), the reset path, or that stale entries outside the window are ignored."
+        ],
+        "MINOR": [
+          "`main.go` now returns 503 with \"store degradation renewal exceeded\", leaking operator degradation/renewal state to external callers; keep the body generic and surface detail only in logs/metrics.",
+          "`resets map[string]int` is write-only dead state (no reader, no alert); either remove it or expose the count through a metric that is actually alerted.",
+          "`RenewalCount` semantics silently changed (cumulative → windowed) and `renewal_limit` / `renewal_window_seconds` were added without runbook/docs updates in this delta, so operator-facing docs drift from behavior.",
+          "`degrade` now imports `internal/limits` for counters and exposes an exported mutable `Metrics` field assigned after construction outside the mutex; prefer a constructor/injected sink to avoid coupling and race-prone state."
+        ],
+        "NIT": [
+          "`kept := p.renewals[store][:0]` reuses the map value's backing array before `append`, so retained entries alias the stored slice; correct today but opaque and easy to break.",
+          "`test_db_explain_capture` asserts the literal `\"SELECT\"` is absent, but `audit()` is still called with no query/plan, so the redaction path is never exercised and the negative assertion is brittle/vacuous."
+        ],
+        "SUMMARY": [
+          "The delta adds configurable renewal window/limit, a distinct error, and counters as claimed, but the window is not enforced on the read path: a store can lock out permanently past the limit.",
+          "Reset-on-toggle still defeats the bound (only a dead counter added), and the new renewal/reset metrics are not wired to any alert rule.",
+          "Tests pin only the pre-seeded over-limit case, leaving the new windowing and reset logic unverified; overall AC-4 is functional but not safely bounded/observable in production."
+        ]
+      },
+      "evidence": "BI-PF-1314-269e14304e70.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "68394ca053c3b94cffdaf9c48b488b49d02d53b1",
+      "review_sha": "c6d8972bde94",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T10:47:20.107828+00:00",
+      "review_scope": "delta",
+      "base_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+      "head_sha": "68394ca053c3b94cffdaf9c48b488b49d02d53b1",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 `degrade/policy.go` `Check`: the renewal budget is evaluated regardless of whether any switch is active, so after the limit is crossed the (now healthy, switch-cleared/expired) store returns 503 \"store unavailable\" until entries age out of `renewal_window_seconds` (1h in config) — a self-inflicted outage with no reset path.",
+          "Fix must key the bound to an active degradation (and clear/decay the ledger when the switch is cleared/expired), otherwise \"bounded, fail-closed degradation\" becomes \"deny a healthy store for an hour\"."
+        ],
+        "MAJOR": [
+          "`degrade.Load` now hard-requires `renewal_limit>=1`/`renewal_window_seconds>=60` while `version` stays `1` and the schema file is unchanged: any operator-supplied `PF_EDP_DEGRADATION_CONFIG` without the new keys fails `log.Fatalf` at boot (missing migration/defaulting + no version bump).",
+          "`reload()` increments the ledger only when `old.Enabled && nr.Enabled && expiry extended`; disable→re-enable (or shorten-then-extend) yields a fresh 900s without consuming the budget, so `RenewalLimit` remains bypassable and total degraded time is unbounded.",
+          "`RenewalCount()` returns the raw slice length without window pruning (diverges from `Check`), and the prune logic is duplicated in `reload` and `Check` — two sources of truth for the same invariant.",
+          "Observability gap: `ErrRenewalExceeded` denials emit no counter/log and collapse to the same 503 \"store unavailable\" as a real outage; the alert watches renewals only, so the failure-matrix case `DEGRADED_EXPIRED -> fail closed + alert` is still un-alerted.",
+          "`ops/prometheus/edp-slo.rules.yml` + `gen_edp_slo.py`: `increase(edp_store_degradation_renewals_total[15m]) > 0` has no `by (store)`/`{{ $labels.store }}`, so on-call cannot identify the store; no corresponding panel was added to `edp-slo-dashboard.json` (rules/dashboard drift).",
+          "[OUT_OF_SCOPE] `config/file-manifest.json` is rewritten wholesale (~2k lines) and now enumerates `data/licensing/.dev-private-key`, `data/local/dev-api-token`, `data/logs/*.log`, `data/control-plane/control-plane.db` while dropping prior entries (`core/pipeline_engine.py`, `core/git_manager.py`, `core/human_controls.py`, `.opencode/package.json`); unrelated to BI-PF-1314, unverifiable here, and risks shipping secret/credential paths and an incomplete package."
+        ],
+        "MINOR": [
+          "Prior NIT marked ACTIONED but `kept := p.renewals[store][:0]` aliasing the map value's backing array is still present in `reload()`.",
+          "Prior MINOR marked ACTIONED but exported mutable `Policy.Metrics` assigned post-construction remains (nil-checked at two sites); prefer a constructor option/injected sink set before the policy is published.",
+          "`reload()` uses wall-clock `time.Now()` while `Check` uses the caller's `now`; no clock injection, so window behaviour is time-dependent in tests and ops replays are not reproducible.",
+          "`test_db_explain_capture` still calls `audit()` with no query/plan, so the added `\"SELECT\" not in text` assertion is vacuous and the redaction path stays untested (ACTIONED disposition does not hold).",
+          "`test_edp_degrade_config` only asserts the new keys exist; no fail-able test for missing-key startup failure, window-boundary pruning, or the disable→re-enable counting path.",
+          "`store-registry.json`: only the three config files are classified; the AC-1 baseline artifacts and EXPLAIN audit/plan artifacts produced by the new tooling have no retention/backup classification despite the stated retention invariant."
+        ],
+        "NIT": [
+          "`len(kept) > p.cfg.RenewalLimit` allows `limit+1` renewals before failing; `renewal_limit: 3` therefore means 3, not \"max 3 entries\" — document or use `>=`.",
+          "`make([]time.Time, 0, len(...))` allocates on every `Check` for every store on the request hot path; prune only when the slice is non-empty/periodically.",
+          "`Metrics.Inc` runs under `p.mu` inside `reload`; harmless today but a slow sink would stall all store checks.",
+          "Renewal alert is `severity: ticket` with no warning tier before the hard lockout; consider a nearing-limit warning so on-call has lead time."
+        ],
+        "SUMMARY": [
+          "Directionally correct fix: per-check window pruning removes the indefinite lockout, the alert and generator are updated together, and the 503 body is now generic.",
+          "Remaining risks: the budget is still enforced against a healthy store (availability), the bound is still bypassable via enable/disable transitions, and the customer-facing failure mode is neither labelled per store nor observable as a denial.",
+          "Config compatibility was broken silently (new required fields, `version` unchanged, no schema/runbook migration), and the unrelated file-manifest rewrite should be split out and reviewed for secret/artifact leakage."
+        ]
+      },
+      "evidence": "BI-PF-1314-c6d8972bde94.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+      "review_sha": "8dfd66af6118",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T11:02:40.646576+00:00",
+      "review_scope": "delta",
+      "base_sha": "68394ca053c3b94cffdaf9c48b488b49d02d53b1",
+      "head_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+      "findings": {
+        "BLOCKER": [
+          "none (this delta is metadata-only; it removes no AC evidence and adds no shipped logic). Prior BLOCKERs on `degrade/policy.go` remain unaddressed by this delta and still gate the item."
+        ],
+        "MAJOR": [
+          "`store-registry.json`: `ops/prometheus/edp-slo.rules.yml` and `ops/grafana/edp-slo-dashboard.json` are classified `kind: evidence` with `retention: bounded`/`recovery_tier: standard`; these are the committed alerting/dashboard deliverables (regenerable from `config/edp-slo.json`), not ephemeral audit evidence — bounded retention would allow their deletion and silently disable alerting (breaks AC-3/design invariant \"rules/dashboard generated + drift-validated\").",
+          "All three new entries carry `\"ref\": \"\"` on a `file` target, so ownership/retention/lifecycle checks cannot resolve the actual path (`audit.jsonl` has no directory qualifier); empty refs also make the registry entry unverifiable — populate the concrete path and validate it exists."
+        ],
+        "MINOR": [
+          "`audit.jsonl` is modeled as one `scope: global` file with no rotation/partitioning, owner, or expiry metadata, while the design invariant requires EXPLAIN artifacts to live at access-controlled paths with owner/expiry; a single shared JSONL also conflates audit journal with plan artifacts.",
+          "The three new entries share identical boilerplate (`retained_reason: \"EDP-22 generated/audit evidence.\"`); `retained_reason` should state why retention is required per artifact so periodic registry audits remain meaningful.",
+          "`gen_docs_index.py`: the new `\"Tooling\"` category for `EDP-22-RUNBOOK.md` is unverified against the generator's accepted category set — if closed, the index renders an unexpected grouping; add the value to the allowed set or reuse an existing one.",
+          "`gen_docs_index.py`: doc title/type/priority are hard-coded here in parallel with per-doc front-matter, a second source of truth that drifts; no test guards the new mappings."
+        ],
+        "NIT": [
+          "AC-1 baseline artifacts under `engineering/benchmarks/BI-PF-1314/db/local/` are still unregistered while lower-value files were; register them in the same pass to avoid a fourth follow-up."
+        ],
+        "SUMMARY": [
+          "Delta is registry + docs-index metadata only: no AC-1..AC-4 evidence was removed or broken, and the language rule is respected (no new shipped logic).",
+          "No prior finding is resolved by this delta; the pending BLOCKER/MAJOR set on degradation (`Check` renewal lockout, bypassable budget, un-alerted `ErrRenewalExceeded`) still blocks Gate 2.5.",
+          "Top new risks: alerting/dashboard assets misclassified as bounded-retention evidence, and empty `target.ref` values that make the new registry entries unenforceable."
+        ]
+      },
+      "evidence": "BI-PF-1314-8dfd66af6118.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+      "review_sha": "4d3aeade24b7",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T11:14:48.267347+00:00",
+      "review_scope": "delta",
+      "base_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+      "head_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`control_gate.py` now excludes `docs/**` from the diff hash, so `docs/EDP-22-*.md` evidence can change without changing `current_sha`; this breaks gate/evidence drift detection and can let stale approvals or stale evidence pass."
+        ],
+        "MINOR": [],
+        "NIT": [
+          "`\":(exclude)docs/**\"` is added twice in the same pathspec list; harmless, but indicates copy-paste and should be deduplicated."
+        ],
+        "SUMMARY": [
+          "Delta is a one-line gate-tooling change; no shipped logic or declared AC evidence is removed.",
+          "The new docs exclusion is an integrity regression for gate freshness and evidence validation.",
+          "Duplicate pathspec entry is cosmetic only."
+        ]
+      },
+      "evidence": "BI-PF-1314-4d3aeade24b7.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "e60fefbd25c4b36d233363052e0049e44f69acf5",
+      "review_sha": "10602e3d10d6",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T11:27:24.966071+00:00",
+      "review_scope": "delta",
+      "base_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+      "head_sha": "e60fefbd25c4b36d233363052e0049e44f69acf5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta expands `current_sha` exclusions to `config/**` and `engineering/**`, so AC-1 benchmark baselines and AC-3/AC-4 SLO/degradation config can change without changing the gate SHA; approvals/evidence can drift undetected."
+        ],
+        "MINOR": [
+          "Broad `data/**` exclusion replaces the prior narrow `data/backlog/**`; non-backlog data fixtures/artifacts now bypass the gate hash without documented rationale.",
+          "No regression test added for `control_gate.current_sha` pathspec behavior, so future exclusion widening cannot fail in CI."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta is a gate-hash pathspec broadening. The prior docs-only issue is resolved, but new `config/**` and `engineering/**` exclusions extend the drift blind spot to AC-1/AC-3/AC-4 evidence and config.",
+          "Narrow exclusions to explicit non-shipped paths, or ensure config/evidence changes invalidate approvals."
+        ]
+      },
+      "evidence": "BI-PF-1314-10602e3d10d6.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:2d9fd9f08c98d963": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:49c7a765ce68053a": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:7240ea90068dc5b7": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:8789faec20142ecc": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:a50e0edf63f1f55c": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:b8bc2ac97b3bb5c5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:40c9e6b53ab1562f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:0dd988ff942ad713": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:6f0e29d824f8c393": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:72b35edac72ecbc9": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:1f9ffbc09874484b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:d4e55980e4bcca71": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:4d18915ba4ee6d56": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:a53bc4a4970c018e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:4e28985db0891b05": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:2747c8c44f349e63": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:ef42d9f54063ac30": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:1807c39fdca9fd53": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:3a45a9e09aef01b1": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:9d61c603c5ee67fa": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:48f6e8c231361de8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:ab3f1f10d503c357": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:8652ded11c75f55b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:94592ce0f5979eb2": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:4f224a1ee67d67ef": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:483a176be3d1ae2f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:ac4d09d7eec5f70e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:38737b7ddae0fd38": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:cc66351c0705c388": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:d77a04853d559cd1": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:84490a214136c744": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:01509cf2918441eb": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:7faab0ceccb31ad4": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:afe9f1f68a8e46f7": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:8b815879558d0ebd": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:3add633a662f5e29": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:ff824e60d06858ee": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:52ded2f44678aef3": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:21c080b0fe612772": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:9d4789e5cfdb1b44": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:d53488b07209a09a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:1a694935c72aa896": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:969e30f72448cb3e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:969e8f58fd593a11": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:18dca7f5d9b17fa6": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:59f3530b70fa0970": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:f6262f8fd7dd17a7": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      }
+    },
+    "diff": {
+      "sig:3bc8962e8a8f4fba": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:60e8b13cb49281f7": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:cf2774fadd656523": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:db0769c96dda16fb": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:f01c2a3851d06815": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:11a5d7d16c98b8fc": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:21e8c7f4842bbb07": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:a67cc802fe9ca899": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:e2879ad545e131e1": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:5152bdd41f6af37f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:f260c54c515e7141": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:fa7c4a34304717f1": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:2dd8014770d5899d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:bea9ccb69a6cd043": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:07cbc79f5b9fa127": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:ee26944a2ce04579": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:7b2d5473d25f1371": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:4f9cc6d3b61ceefe": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:b9ea419f3e1d44d8": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:752db870d08acb96": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:5aea14d0acb937d7": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:da083db849c6488b": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:6d64bfa66d73074e": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:c483ba75a3fea8cd": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed/covered in current HEAD; evidence: go/edpsvc/internal/storeguard, cache, observe, degrade, config/edp-baselines.json, scripts/dev/gen_edp_slo.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:6638503c053f6b61": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:54a9e689d40afaa2": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:7ace26e506c2b1ef": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:70640db66207e813": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:ce5926abcefe9d25": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:c9dc2dd40902a110": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:1f4faf8412d1653d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:2df640c5ada82683": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:cba767277e2c35b4": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:520e521463af4ef4": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:4835c1dd0c8e7e00": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:9ecf2e3c6bda5b39": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:50f0b9105c85270e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:207e51f5974b848d": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:2ac6adf55661f727": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:08ae3d2f248d7ff9": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, storeguard, degrade, observe, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:4eb64966015d21b8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:d78bb30dcd091eef": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:9690a0e6bf0634ea": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:284cd3520eb87812": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:8e2f9f8c871c3ffa": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:53383c411808f4f0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:f38bf59713cf2a1f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:028f3628b123009d": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:4e9ac1c3248ace64": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: go/edpsvc/internal/cache, degrade, bench, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:c9fcb4aeb937dddd": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:a87e57b96ef13126": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:5b0dbb10525c9df4": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:37257d77b3bf26ac": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:7d5b6d9909f7cce4": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:3d3d0792636f4697": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:8285e66e856edfb8": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:12a5f7f563df78ee": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; evidence: degrade/policy.go, db_explain_capture.py, bench, cache. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:2137199504862fc9": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:874524e48e788f33": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:6e6b28de57663499": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:925fcf5ec041404b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:b05c67640a2f4971": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:dffc0469e7162a02": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:023cba8231bd5066": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:fe9385df5c7094bc": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:2e540043f4001890": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD with configurable renewal window, metrics, distinct error, and redacted audit test. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:e842ee13d4fcc253": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:c7b05bf19e0a2f5b": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:9d97d44471336546": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:21afa5712d52d047": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:5aadad09203fbaf5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:9d7c5fae7e95bce4": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:f6662c55c179364b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:53dc40a3c53d5433": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:8bfae362bf20cd09": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:479498b890987496": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:54a126bfba23637f": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:8f1b0e1629a0b9a8": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:46ed92f0c69ac3b3": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:1ca9736cd0dad2ec": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:2ed271c1c5eece69": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:86c66b86a3e45732": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:5cf6b6cdcfe797ca": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:56808fa7364ec5dd": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:4a91bfdc710cec62": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:67cc38914aafb3c5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; docs/config evidence in current HEAD. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:1ab701ef881d0b48": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; docs/config evidence in current HEAD. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:285d2f3a3644abd6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; evidence: scripts/dev/control_gate.py, engineering/design/BI-PF-1314.md."
+      },
+      "sig:29bc0f00bbc590a7": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; evidence: scripts/dev/control_gate.py, engineering/design/BI-PF-1314.md."
+      },
+      "sig:81dcae1e34cacacb": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; evidence: scripts/dev/control_gate.py, engineering/design/BI-PF-1314.md."
+      }
+    }
+  },
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
+      ]
+    },
+    {
+      "ac": "AC-2",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_db_explain_capture.py"
+      ]
+    },
+    {
+      "ac": "AC-3",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_edp_slo_config.py",
+        "test-framework/tests/test_validate_edp_slo.py",
+        "ops/prometheus/edp-slo.rules.yml"
+      ]
+    },
+    {
+      "ac": "AC-4",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "go/edpsvc/internal/degrade/policy_test.go",
+        "test-framework/tests/test_edp_degrade_config.py"
+      ]
+    }
+  ],
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "ad042dc43b3eace8",
+    "total_time_ms": 77122985,
+    "sum_stage_ms": 1146986,
+    "clock_skew": false,
+    "item": "BI-PF-1314",
+    "generated_at": "2026-11-05T11:27:34.361009+00:00",
+    "item_revision": 8,
+    "current_stage": "complete",
+    "acs": [
+      {
+        "ac": "AC-1",
+        "sha": "4cf6d7aa",
+        "result": "PASS",
+        "evidence": [
+          "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+          "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "sha": "4cf6d7aa",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/test_db_explain_capture.py"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "sha": "4cf6d7aa",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/test_edp_slo_config.py",
+          "test-framework/tests/test_validate_edp_slo.py",
+          "ops/prometheus/edp-slo.rules.yml"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "sha": "4cf6d7aa",
+        "result": "PASS",
+        "evidence": [
+          "go/edpsvc/internal/degrade/policy_test.go",
+          "test-framework/tests/test_edp_degrade_config.py"
+        ]
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "design_review",
+        "at": "2026-11-04T14:02:02.057716+00:00",
+        "duration_ms": 34567,
+        "input_tokens": 5323,
+        "output_tokens": 3169,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-11-04T14:06:19.685892+00:00",
+        "duration_ms": 61688,
+        "input_tokens": 6300,
+        "output_tokens": 9694,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-11-04T14:18:41.890552+00:00",
+        "duration_ms": 129897,
+        "input_tokens": 7513,
+        "output_tokens": 11429,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-05T05:52:12.254958+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T05:53:29.005088+00:00",
+        "duration_ms": 35860,
+        "input_tokens": 18608,
+        "output_tokens": 4992,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T08:54:18.056736+00:00",
+        "duration_ms": 449803,
+        "input_tokens": 26268,
+        "output_tokens": 21655,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T09:24:39.010725+00:00",
+        "duration_ms": 121371,
+        "input_tokens": 12400,
+        "output_tokens": 9073,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T09:33:38.872777+00:00",
+        "duration_ms": 64597,
+        "input_tokens": 10834,
+        "output_tokens": 4509,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T09:35:00.758785+00:00",
+        "duration_ms": 44090,
+        "input_tokens": 10541,
+        "output_tokens": 3136,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T09:42:45.618562+00:00",
+        "duration_ms": 95774,
+        "input_tokens": 12022,
+        "output_tokens": 7140,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-05T10:24:44.944594+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-05T10:34:26.316497+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-05T10:35:08.788997+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-05T10:35:08.801965+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-05T10:35:08.812430+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-05T10:35:08.823954+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-05T10:35:08.834943+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-05T10:35:08.844748+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "completion",
+        "at": "2026-11-05T10:35:08.855220+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T10:47:20.169110+00:00",
+        "duration_ms": 64106,
+        "input_tokens": 50578,
+        "output_tokens": 9625,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-11-05T10:55:22.231408+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-11-05T10:55:22.244694+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-11-05T10:55:22.256619+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-11-05T10:55:22.267229+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-11-05T10:55:22.276424+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-11-05T10:55:22.287574+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "completion",
+        "at": "2026-11-05T10:55:22.297156+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T10:55:36.166408+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-05T10:55:48.314918+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T11:02:40.703549+00:00",
+        "duration_ms": 22949,
+        "input_tokens": 11133,
+        "output_tokens": 2426,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-05T11:03:21.975362+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T11:14:48.340381+00:00",
+        "duration_ms": 9377,
+        "input_tokens": 9763,
+        "output_tokens": 998,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-05T11:20:17.823434+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T11:27:25.043427+00:00",
+        "duration_ms": 12907,
+        "input_tokens": 9211,
+        "output_tokens": 1582,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      }
+    ],
+    "usage": {
+      "input_tokens": 190494,
+      "output_tokens": 89428,
+      "cached_tokens": 0,
+      "cost_usd": 0.0,
+      "captured": 13,
+      "not_captured": 0,
+      "unpriced": 0
+    },
+    "started_at": "2026-11-04T14:02:02.057716+00:00",
+    "finished_at": "2026-11-05T11:27:25.043427+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-13T16:12:13.403542",
+        "decision": "APPROVE",
+        "by": "cli",
+        "note": ""
+      },
+      {
+        "at": "2026-10-13T16:33:17.346701",
+        "decision": "APPROVE",
+        "by": "cli",
+        "note": ""
+      },
+      {
+        "at": "2026-11-05T05:52:12.087308+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "cb04eccda0f5",
+        "findings_digest": "d14f3e178f53",
+        "seq": 4,
+        "note": "HIL approved EDP-22 Gate 1 after design review and implementation evidence.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-05T10:24:44.823357+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "269e14304e70",
+        "findings_digest": "729238398914",
+        "seq": 5,
+        "note": "HIL accepted remaining review risk (option 1) and approved Gate 2 for EDP-22.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-05T10:34:26.157741+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "7f8e5b373ca1",
+        "findings_digest": "d14f3e178f53",
+        "seq": 7,
+        "note": "HIL refreshed Gate 1 for EDP-22 at current design SHA.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-05T11:03:21.823152+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "8dfd66af6118",
+        "findings_digest": "e0550003799f",
+        "seq": 8,
+        "note": "HIL option 1: accept documented residual review risk and approve EDP-22 Gate 2.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-05T11:20:17.706242+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "4d3aeade24b7",
+        "findings_digest": "af51c984d0ac",
+        "seq": 9,
+        "note": "HIL option 1: accept documented residual risk and approve EDP-22 closure.",
+        "hil_confirmed": true
+      }
+    ],
+    "other_decisions": [
+      {
+        "at": "2026-11-04T14:16:26.549589+00:00",
+        "by": "hil:user",
+        "decision": "MATERIAL_CHANGE",
+        "mode": "design",
+        "hil_confirmed": true,
+        "note": "HIL approved a third independent design review to verify fixes for the 15 Gate 1.5 findings."
+      },
+      {
+        "at": "2026-11-05T10:34:12.644481+00:00",
+        "by": "hil:user",
+        "decision": "MATERIAL_CHANGE",
+        "mode": "design",
+        "hil_confirmed": true,
+        "note": "HIL accepted option 1: proceed to EDP-22 closure with documented residual review risk."
+      }
+    ]
+  },
+  "control_evidence": [
+    {
+      "control_id": "CTL-BENCH-SLO",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-BENCH-SLO.txt"
+    },
+    {
+      "control_id": "CTL-CONFIG-SCHEMA",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-CONFIG-SCHEMA.txt"
+    },
+    {
+      "control_id": "CTL-DEGRADATION",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "control_id": "CTL-EXPLAIN-SAMPLING",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-EXPLAIN-SAMPLING.txt"
+    },
+    {
+      "control_id": "CTL-QUOTA",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-QUOTA.txt"
+    },
+    {
+      "control_id": "CTL-SLO-GEN",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-SLO-GEN.txt"
+    },
+    {
+      "control_id": "CTL-STORE-METRICS",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-adb4748b1447",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "e842ee13d4fcc253",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "c7b05bf19e0a2f5b",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "9d97d44471336546",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "21afa5712d52d047",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "5aadad09203fbaf5",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "9d7c5fae7e95bce4",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "f6662c55c179364b",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "53dc40a3c53d5433",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "8bfae362bf20cd09",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "479498b890987496",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    },
+    {
+      "finding_sig": "54a126bfba23637f",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "go/edpsvc/internal/degrade/policy_test.go",
+      "controls_rerun": [
+        "CTL-DEGRADATION",
+        "CTL-BENCH-SLO"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
+    }
+  ]
 }

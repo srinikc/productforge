@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "134d506fdd21",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:10:00.279786+00:00",
+  "findings": {
+    "BLOCKER": [
+      "None of the 11 registry entries can actually be reconciled to a real backfill: `status:\"exists\"` + `migration_status:\"migrated\"` is asserted while `backfill_status:\"pending\"` and no ingest has demonstrably run \u2014 the registry now claims a state that has no evidence behind it (integrity: the store registry is being used to declare migration complete before it is).",
+      "gate0_check.py behavior change (fail-closed JSON parse aborting Gate 0) is bundled into this item; it changes CI semantics for unrelated backlog items with no test \u2014 scope creep with blast radius on every pipeline run."
+    ],
+    "MAJOR": [
+      "The per-store `command` in store-registry.json (`--bucket intake --root <source-root> --verify`) contradicts the per-store `source_glob` it is stored next to: running the documented command ingests *every* file under root into one bucket, not the named store. Registry now encodes a runnable-looking but wrong procedure (x11).",
+      "11 near-identical `command`/`ingest_prefix`/`ingest_writer` blocks copy-pasted: any future flag or prefix change must be edited in 11 places with no test or generator enforcing consistency (reuse/maintainability).",
+      "`Ingest` writes the object and then the metadata in separate non-atomic steps; a `register` failure after `Put` leaves an unreferenced object. Comment acknowledges reuse-on-retry, but `--orphans` is opt-in and nothing drives it \u2014 eventual consistency of the artifact substrate is unverified by default.",
+      "`register` allocates `MAX(revision)` over all rows including soft-deleted ones and uses `stage=artifact_type=bucket`; `artifact_type` is overloaded with the bucket string, losing real artifact-type semantics and breaking any downstream consumer that filters on type.",
+      "Report `store` field is `bucket/name` (e.g. `intake/conversations.json`) while the store-registry keys are bare names (`conversations.json`); the acceptance criterion \"names each store\" cannot be mechanically correlated with the registry.",
+      "No CI/build wiring for `pfingest` (no make target, no workflow, no go.mod workspace reference) \u2014 the Go module can rot undetected and the documented backfill command has never been executed anywhere in this diff."
+    ],
+    "MINOR": [
+      "`Ingest`'s `storedSum != res.Checksum` drift branch is dead code: the artifact id is a hash of the checksum, so an id match with a different checksum is unreachable \u2014 misleading code that implies a real integrity path.",
+      "`Verify` re-hash path is bounded by `maxBytes` (256 MiB); a legitimately large stored object makes verification fail rather than stream-hash \u2014 acceptance explicitly called for a streamed re-hash fallback.",
+      "`STORE-DATAFLOW.md` regeneration flips hundreds of unrelated stores' backend/migration_status in one diff (232\u2192244 stores), making this item's registry change unreviewable; also legacy `product_forge_context.json` shows `pending` while the criterion requires it stay `planned`.",
+      "`--allow-bypassrls` gate keys off `PF_CI` unset + `PF_ALLOW_BYPASSRLS=1`, which any operator shell can satisfy; the guard is convention, not control (acceptable for a local test escape hatch, but document it as such).",
+      "`ArtifactID` truncates sha256 to 128 bits with reliance on a unique index for collisions; fine, but the collision-handling story (conflict error surfaces as a retried 23505 loop x10) deserves a comment or test."
+    ],
+    "NIT": [
+      "`logResult` builds a log line via ad-hoc struct instead of reusing the existing structured log conventions (`core/log_router` contract); two competing log shapes in one codebase.",
+      "`NewRunID` hand-rolls UUIDv4 bits; fine, but a shared uuid helper already exists in the Go tree \u2014 reuse it.",
+      "`preflightWritable` opens with `O_CREATE` and leaves a zero-byte file behind if ingest later fails."
+    ],
+    "SUMMARY": []
+  }
+}

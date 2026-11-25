@@ -7,7 +7,8 @@
 //
 //	PF_CAP_ADDR     listen address (default 127.0.0.1:8020)
 //	PF_CAP_TOKEN    required bearer token for inbound calls
-//	PF_BACKLOG_API  backlog API base (default http://127.0.0.1:8010/api/v1)
+//	PF_CONTROL_API_URL control-plane API base (default http://127.0.0.1:8000/api/v1)
+//	PF_BACKLOG_API  deprecated alias for PF_CONTROL_API_URL
 //	PF_BACKLOG_TOKEN outbound token (default PF_CAP_TOKEN)
 package main
 
@@ -33,11 +34,18 @@ type server struct {
 	client       *http.Client
 }
 
+func controlAPIURL() string {
+	if v := os.Getenv("PF_CONTROL_API_URL"); v != "" {
+		return v
+	}
+	return envOr("PF_BACKLOG_API", "http://127.0.0.1:8000/api/v1")
+}
+
 var docRoute = regexp.MustCompile(`^/backlog/epics/(BI-PF-\d+)/context:from-doc$`)
 
 func main() {
 	s := &server{
-		backlogAPI:   envOr("PF_BACKLOG_API", "http://127.0.0.1:8010/api/v1"),
+		backlogAPI:   controlAPIURL(),
 		capToken:     os.Getenv("PF_CAP_TOKEN"),
 		backlogToken: envOr("PF_BACKLOG_TOKEN", os.Getenv("PF_CAP_TOKEN")),
 		client:       &http.Client{Timeout: 60 * time.Second},

@@ -1,0 +1,183 @@
+{
+  "id": "BI-PF-1569",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "agent-memory-platform:memory-consolidator",
+  "label": "PF Backlog 704",
+  "title": "Memory Consolidator: post-execution distillation, episodic trace distillation into semantic/procedural patterns, and failure promotion guards",
+  "body": "## Problem / why\nFailed or unverified agent outputs pollute memory, causing agents to hallucinate falsehoods or repeat buggy code patterns.\n\n## Goal & value\nBuild the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memory while gating unverified traces.\n\n## Reference Documents\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-9`\n- `docs/Product_Forge_Agent_Memory_Architecture_Integration.md#section-26`\n\n## In scope\n- Post-execution distillation pipeline.\n- Verification gate: only runs passing verification/tests can be promoted to authoritative memory.\n- Pattern extractor converting episodic run logs into reusable procedural skills.\n- Deduplication merging redundant run observations.\n\n## Out of scope\n- Automatic promotion of unverified agent claims or failed runs.\n\n## Definition of Done\n- Consolidation test verifies that simulated failed runs never promote to authoritative procedures.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1567"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:11:49.135126",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Failed or unverified agent outputs pollute memory, causing agents to hallucinate falsehoods or repeat buggy code patterns.",
+    "what_adds": "Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memory while gating unverified traces.",
+    "why": "Failed or unverified agent outputs pollute memory, causing agents to hallucinate falsehoods or repeat buggy code patterns.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Build the Memory Consolidator to distill verified execution outcomes into lasting semantic and procedural memory while gating unverified traces.",
+  "acceptance_criteria": [
+    "AC-1: Failed runs are marked as failure lessons/anti-patterns, never as successful procedures.",
+    "AC-2: Successful runs with passing tests distill reusable patterns into procedural memory.",
+    "AC-3: Deduplication clusters similar observations and updates existing knowledge entries."
+  ],
+  "in_scope": [
+    "Post-execution distillation pipeline.",
+    "Verification gate: only runs passing verification/tests can be promoted to authoritative memory.",
+    "Pattern extractor converting episodic run logs into reusable procedural skills.",
+    "Deduplication merging redundant run observations."
+  ],
+  "out_of_scope": [
+    "Automatic promotion of unverified agent claims or failed runs."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/memory_consolidator.py",
+    "go/pfmemory/consolidator.go",
+    "go/pfmemory/consolidator_test.go"
+  ],
+  "approach": "Post-execution distillation pipeline.; Verification gate: only runs passing verification/tests can be promoted to authoritative memory.; Pattern extractor converting episodic run logs into reusable procedural skills.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Consolidation test verifies that simulated failed runs never promote to authoritative procedures.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfmemory/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1569): sig:0424e53bee8e807f (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_Agent_Memory_Architecture_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1565",
+  "parent": "BI-PF-1565",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-11-22T14:11:48.790014",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/memory_api.py, core/traceability.py",
+    "existing_components": [
+      "core/agent_memory.py",
+      "core/memory_api.py",
+      "core/traceability.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=3",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1567",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:11:48.953265"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:11:44.185042",
+  "updated_at": "2026-11-22T14:12:32.278253",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "background post-execution distillation service; no public HTTP route"
+  }
+}

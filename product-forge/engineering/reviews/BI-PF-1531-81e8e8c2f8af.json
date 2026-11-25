@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "81e8e8c2f8af",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-07T18:34:48.854604+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "3f0f8357610bc29f2336480feadbf814670f3344",
+  "findings": {
+    "BLOCKER": [
+      "`backlog.delete()` now unconditionally removes `items/<id>.json` and `history/<id>.jsonl` even when `_db_for(...)` is true, so on-mode deletes destroy file projections \u2014 directly violates the approved non-goal \"No deletion of file projections\" and removes the artifact AC-5/FR-5 rollback (export \u2192 parity \u2192 off) depends on.",
+      "That deletion happens before any export/parity step and is not covered by a test asserting projections survive an on-mode delete; once executed it is unrecoverable except from DB export, i.e. latent data loss on the documented rollback path.",
+      "Guardrail 1/4 (reversibility, blast radius) fails for this path: a routine item delete in default-on mode irreversibly mutates the rollback baseline outside any dry-run or confirmation."
+    ],
+    "MAJOR": [
+      "New precheck gate `scripts/dev/backlog_scope_check.py` fails whenever `allowed != active`, forcing every `products/*` dir into `PF_BACKLOG_DB_SCOPES`; this contradicts the approved invariant \"unlisted scopes remain file-authoritative until parity evidence is added\" (scopes get DB authority without parity) and hard-fails precheck for PF-GP tenants whose sources live outside the repo, which `docs/BACKLOG-DB-SSOT.md` explicitly allows.",
+      "Backfill/rollback sequencing contract mismatch: `backlog_db_backfill.py` exits unless `PF_BACKLOG_DB=on`, and `store_item_to_db` raises for non-on modes, but the approved rollout is \"backfill/parity first, then flip\" with `dual`/`shadow` as the advertised migration modes \u2014 the documented migration sequence cannot actually be executed as written.",
+      "AC-4/AC-5 evidence (`failclosed-rollback-tests.txt`) is a local Windows pytest run with `PF_TEST_DB_MODE` unset, not the DB-mode CI job the AC requires; it demonstrates unit-level behavior only, and being UTF-16 it is not greppable/diffable as review evidence."
+    ],
+    "MINOR": [
+      "`PF_TEST_DB_MODE=1` disables the autouse `PF_BACKLOG_DB=off` pin for the *entire* suite in the DB job, so unrelated tests inherit ambient on-mode; isolation is all-or-nothing rather than scoped to DB tests.",
+      "CI exercises preflight/export/parity/backfill with `PF_DB_DSN` = `pf_owner` (superuser); the `pf_app` runtime role and RLS-scoped paths are never exercised, so guardrail 3 is only partially verified.",
+      "`migrations/0022_*.up/down.sql` use `CREATE/DROP INDEX CONCURRENTLY` outside a `BEGIN` block while sibling migrations are transactional \u2014 it fails under any migration runner that wraps files in a transaction, and leaves session-level `lock_timeout`/`statement_timeout` set.",
+      "`0023`'s trigger `EXISTS (... WHERE id=NEW.id ...)` has no non-partial index on `id` after the composite PK replaces `(id)` (the partial index can't serve that predicate), causing a seq scan of `backlog_items` on every insert/update as the table grows.",
+      "On-mode `delete` skips `_write_indexes`, leaving stale index files; a flag-only rollback (set `off` + restart, without export+parity) would resurrect deleted items \u2014 no test covers this stale-index window.",
+      "The \"Assert file-mode backlog\" steps in `structure.yml`/`full-sweep.yml` are tautological (re-asserting the env var the job just set) and provide no independent evidence that tests ran file-mode."
+    ],
+    "NIT": [
+      "`backlog_scope_check.py` uses dense single-line style (`ROOT=Path(...)` etc.), repeating the same Python style-guide departure already flagged for `fix_guard.py`.",
+      "Obfuscation concatenations (`_J = \".\" + \"json\"`, `\"fac\" + \"tory\"`, `\"backlog-\" + \"db\" + _Y`) are scattered through new tests/scripts with no stated scanner constraint, hurting readability.",
+      "The evidence mirror of `backlog-db.yml` must stay byte-identical (`test_workflow_mirror_matches`) with no sync mechanism; any comment or formatting edit to the workflow breaks CI."
+    ],
+    "SUMMARY": [
+      "Default-on, fail-closed, tenant-scoped Go paths, migrations with preflight, and CI job structure largely match the approved contract, but the on-mode `delete` removing file projections is a blocking violation of an explicit non-goal and of AC-5's rollback baseline.",
+      "Top risks: irreversible projection loss on delete, a new precheck gate that forces unverified PF-GP scopes into DB authority (or hard-fails when GP sources are external), and acceptance evidence produced outside the required DB-mode CI job.",
+      "Address the blocker and the scope-gate/backfill sequencing majors before merge; the remaining items are hardening and evidence-quality improvements."
+    ]
+  }
+}

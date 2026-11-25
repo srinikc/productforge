@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "3a30e8436cfd",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T13:51:37.919596+00:00",
+  "base_sha": "6950e220afe8b69132db966380ec25c5ee3cd373",
+  "head_sha": "80d1f7e577fd7b56472b6b472aa656352b7e2960",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Prior NIT dispositioned ACTIONED but the diff adds no test for the new `enforce_from missing` config guard, nor for main-vs-`evaluate` parity / the empty-item-id `\": item not found: \"` formatting path; claimed coverage is not delivered.",
+      "The `enforce_from missing/invalid` guard is applied only inside `main()`'s `--all` branch; Gate 1, Gate 2 and merge-gate direct callers of `evaluate()` still lack the one-time config validation, so a missing/invalid `enforce_from` makes `should_enforce` silently return False (fail-open) on those paths unless `_date_problems` happens to catch it first.",
+      "No single-item (`--item`) path in `main()` runs the new config validation, so `enforce_from` defects surface inconsistently depending on invocation mode \u2014 observability and gate consistency gap."
+    ],
+    "MINOR": [
+      "`_parse_date` relies on `datetime.fromisoformat` falling through to `date.fromisoformat`; behavior is Python-version dependent (date-only accepted natively only on 3.11+). With no interpreter-pin or test asserting date-only inputs, a runtime upgrade could silently shift acceptance semantics.",
+      "The added test only covers one malformed value (`2026-10-05T25`); whitespace-suffixed / extra-segment values that motivated the original blocker are untested, so regression coverage is thinner than the fix's intent."
+    ],
+    "NIT": [
+      "`_date_problems` labels values as `created_at`/`enforce_from` even when the value originates from the config, mixing item-scoped and config-scoped diagnostics in one problem list."
+    ],
+    "SUMMARY": [
+      "The unified `_parse_date` plus the test through `evaluate()` close the original fail-open blocker and remove the duplicated date contract \u2014 good direction.",
+      "Residual risk: config validation is scoped to the `--all` CLI path only, leaving gate/merge direct callers and `--item` invocations without the guard, and the \"ACTIONED\" coverage claim for the missing-`enforce_from`/parity tests is not backed by the diff.",
+      "Recommend landing the missing tests and hoisting config validation to a gate-scope check before considering this complete."
+    ]
+  },
+  "rereview_reason": "prior sha 32b39e8c40f3; date parser/config scope",
+  "rereview_reason_sha256": "2ae1bcab03631812d23f4ac16976643ed5b09c55b961a1a815ba8b39afe12d41"
+}

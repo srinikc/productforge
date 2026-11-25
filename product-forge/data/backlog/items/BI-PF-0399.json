@@ -1,21 +1,8 @@
 {
   "id": "BI-PF-0399",
+  "due": "(derived) TBD",
   "tag": "PF",
-  "type": "feature",
-  "scope": "product_forge",
-  "project": "",
-  "origin": "review",
-  "external_id": "pf-a5-rdc",
-  "label": "PF Backlog 430",
-  "title": "A5: Runtime Dependency Compiler",
   "body": "[A5] Authoritative composition engine: EAP + profiles + OS/arch + license/entitlement -> runtime composition. IP-leakage guard.",
-  "source": "generic",
-  "status": "new",
-  "priority": "P1",
-  "moscow": "Should",
-  "value": 3,
-  "effort": 3,
-  "risk": 2,
   "deps": [
     "BI-PF-0397",
     "BI-PF-0398",
@@ -23,37 +10,104 @@
     "BI-0214",
     "BI-PF-0347"
   ],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "analysis updated",
+  "brief": {
+    "why": "Deterministic, safe runtime composition per edition without leaking protected source.",
+    "source": "authored",
+    "problem": "Runtime composition (which components run per edition/OS/arch/entitlement) needs one authoritative engine with an IP-leakage guard.",
+    "what_adds": "A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime package, with an IP-leakage guard.",
+    "who_feels": "PF platform maintainers, workers, and customers."
+  },
+  "label": "PF Backlog 430",
   "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-09T22:32:15.935138",
-      "decision": "APPROVE",
-      "by": "user",
-      "note": ""
-    }
+  "owner": "agent",
+  "risks": [
+    "Not specified."
   ],
-  "follow_up": {},
-  "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "",
-  "analyze_mode": "on_entry",
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "A5: Runtime Dependency Compiler",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "at": "2026-11-22T04:45:00Z",
+    "reviewed_by": "operator",
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "api/routers/packaging.py:1",
+        "recommendation": "Extend packaging router with /api/v1/packaging/rdc/compose and /api/v1/packaging/rdc/validate endpoints."
+      },
+      {
+        "claim": "AC: Detailed Acceptance Criteria",
+        "verdict": "aligned",
+        "evidence": "engineering/specs/BI-PF-0399.md:25",
+        "recommendation": "Enforce 5 detailed criteria (each >= 40 chars) covering multi-target OS/arch resolution, IP-leakage guard, native Go seam, fixture generation, and test coverage."
+      },
+      {
+        "claim": "LANGUAGE RULE",
+        "verdict": "aligned",
+        "evidence": "config/language-rule.json:49-50",
+        "recommendation": "Core composition engine and IP guard implemented in native Go (go/pfcore/rdc.go); thin Python interface in core/rdc.py using core.go_host."
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "Supported OS/architectures for v1: linux/amd64, linux/arm64, windows/amd64, darwin/arm64.",
+        "Customer editions (enterprise, on-prem, saas, oem) enforce strict absence of raw .py source; community/dev may allow raw .py when explicitly configured."
+      ],
+      "divergences": [
+        "None: Extends canonical A1/A3/A4 pipeline without creating duplicate engines."
+      ],
+      "existing_path": [
+        "core/packaging.py:440: eap_build, eap_validate, build_compiled_package.",
+        "core/go_host.py:50: Go-core runtime invocation seam (go_host.invoke).",
+        "go/pfcore/pfcore.go:305: native Go host library and wire request dispatcher.",
+        "config/eap-registry.json: known EAP versions and compatibility."
+      ],
+      "open_questions": [
+        "None: Requirements and contracts are grounded in target architecture specs."
+      ],
+      "prior_decisions": [
+        "ADR-0001 / BI-PF-0388: Shipped editions use compiled artifacts; never raw .py; one source many editions.",
+        "BI-PF-0387: Single-source delivery baseline; new shipped/sensitive logic lands in native Go.",
+        "BI-PF-0393: A1 Canonical Contracts (thin) & Go<->Python wire contract (core.contracts, go/pfcore).",
+        "BI-PF-0397: A4 EAP (Edition/Artifact Package) authoritative delivery/build manifest.",
+        "BI-PF-0398: A3 compiled packaging pipeline + NO-RAW-.py release gate."
+      ]
+    }
+  },
+  "source": "generic",
+  "status": "in_progress",
+  "project": "",
+  "summary": "",
+  "unlocks": [],
   "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
     "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
     "analyzed_at": "2026-10-14T12:02:34.926073",
     "analyzed_by": "deterministic",
-    "revision_analyzed": 3,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_hierarchy.py, core/agent_runtime.py, core/architecture_diagram.py, core/context_engine.py",
-    "existing_components": [
-      "core/agent_hierarchy.py",
-      "core/agent_runtime.py",
-      "core/architecture_diagram.py",
-      "core/context_engine.py",
-      "core/conversation_compiler.py",
-      "core/dashboard_archetypes.py",
-      "core/discovery_engine.py",
-      "core/domain_research.py"
-    ],
+    "assumptions": [],
+    "missing_info": [],
+    "refreshed_at": "2026-10-14T12:02:34.710022",
     "existing_apis": [
       "/api/v1/engineering",
       "/api/v1/engineering/assignments",
@@ -64,40 +118,8 @@
       "/api/v1/engineering/assignments/{item_id}/fail",
       "/api/v1/engineering/assignments/{item_id}/heartbeat"
     ],
-    "existing_modules": [
-      "config/agent-hierarchy.json",
-      "config/eap-registry.json",
-      "config/engineering-flow.json",
-      "config/engineering-workers.json",
-      "config/validation-profiles.json"
-    ],
-    "dependency_findings": [
-      "depends on BI-PF-0397",
-      "depends on BI-PF-0398",
-      "depends on BI-0217",
-      "depends on BI-0214",
-      "depends on BI-PF-0347"
-    ],
-    "conflict_findings": [],
-    "duplication_findings": [],
-    "drift": "NONE",
-    "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
-    "risks": [],
-    "evidence": [
-      "similar=4",
-      "score=0.75",
-      "components=8",
-      "apis=8"
-    ],
-    "confidence": "high",
-    "missing_info": [],
-    "depth": "deep",
-    "mode": "deterministic",
     "context_review": {
-      "implementable": true,
+      "reason": "core/context_engine.py and core/agent_runtime.py already perform context composition and runtime wiring; the compiler is a natural extension. The missing items are specification decisions around license input format, target platforms, and guard placement—not architectural blockers. Blocked on BI-PF-0397 (EAP schema) and BI-PF-0398 (build pipeline) for upstream inputs.",
       "missing": [
         "License/entitlement input format or API",
         "OS/arch target list for v1",
@@ -105,127 +127,401 @@
         "Runtime composition output format consumed by agent_runtime.py",
         "Composition precedence rules for conflicting inputs"
       ],
-      "reason": "core/context_engine.py and core/agent_runtime.py already perform context composition and runtime wiring; the compiler is a natural extension. The missing items are specification decisions around license input format, target platforms, and guard placement—not architectural blockers. Blocked on BI-PF-0397 (EAP schema) and BI-PF-0398 (build pipeline) for upstream inputs."
+      "implementable": true
     },
     "arch_fingerprint": "d3285da0f59c3e99",
-    "refreshed_at": "2026-10-14T12:02:34.710022"
+    "architecture_fit": "EXTEND",
+    "existing_modules": [
+      "config/agent-hierarchy.json",
+      "config/eap-registry.json",
+      "config/engineering-flow.json",
+      "config/engineering-workers.json",
+      "config/validation-profiles.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 3,
+    "dependency_findings": [
+      "depends on BI-PF-0397",
+      "depends on BI-PF-0398",
+      "depends on BI-0217",
+      "depends on BI-0214",
+      "depends on BI-PF-0347"
+    ],
+    "existing_components": [
+      "core/agent_hierarchy.py",
+      "core/agent_runtime.py",
+      "core/architecture_diagram.py",
+      "core/context_engine.py",
+      "core/conversation_compiler.py",
+      "core/dashboard_archetypes.py",
+      "core/discovery_engine.py",
+      "core/domain_research.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_hierarchy.py, core/agent_runtime.py, core/architecture_diagram.py, core/context_engine.py"
   },
-  "dependencies": [
+  "approach": "Compose the runtime package from EAP + profiles + OS/arch + license/entitlement; refuse compositions that would leak source.",
+  "delivery": {
+    "pr": "377",
+    "branch": "feat/BI-PF-0399-a5-rdc",
+    "pr_url": "https://github.com/srinikc/productforge/pull/377",
+    "merge_sha": "df18057e",
+    "delivered_at": "2026-11-22T05:31:32.192066+00:00"
+  },
+  "evidence": [
+    "pending"
+  ],
+  "in_scope": [
+    "runtime composition engine",
+    "IP-leakage guard"
+  ],
+  "priority": "P1",
+  "revision": 3,
+  "rollback": "Revert the change.",
+  "approvals": [],
+  "decisions": [
     {
-      "task_id": "BI-PF-0397",
-      "type": "REQUIRES",
-      "required_state": "EAP manifest schema approved and endpoint serving EAP objects"
+      "at": "2026-10-09T22:32:15.935138",
+      "by": "user",
+      "note": "",
+      "decision": "APPROVE"
     },
     {
-      "task_id": "BI-PF-0398",
-      "type": "REQUIRES",
-      "required_state": "Build pipeline producing compiled artifacts with plug/unplug flags"
+      "at": "2026-11-22T04:45:21.047294+00:00",
+      "by": "hil:operator",
+      "seq": 2,
+      "gate": 1,
+      "note": "Gate 1 design approval: all Gate 1.5 findings dispositioned; core engine in go/pfcore/rdc.go and thin client in core/rdc.py.",
+      "decision": "APPROVE",
+      "findings_sha": "4b0c8b402b5c",
+      "findings_digest": "7d80d99abedf"
     },
     {
-      "task_id": "BI-0217",
-      "type": "RELATED",
-      "required_state": "BOM/footprint artifact format defined"
+      "at": "2026-11-22T04:59:16.642387+00:00",
+      "by": "hil:operator",
+      "seq": 3,
+      "gate": 2,
+      "note": "Gate 2 delivery approval: all 5 ACs verified; Gate 2.5 review has 0 blockers and 0 majors.",
+      "decision": "APPROVE",
+      "findings_sha": "35b47d39cb25",
+      "findings_digest": "36b3df1186b7"
     },
     {
-      "task_id": "BI-0214",
-      "type": "RELATED",
-      "required_state": "Destination runtime triage phase defined"
+      "at": "2026-11-22T05:19:50.203929+00:00",
+      "by": "hil:operator",
+      "seq": 4,
+      "gate": 2,
+      "mode": "diff",
+      "reason": "Operator confirmed material change: integration sync of origin/develop and OpenAPI/store-registry governance alignment",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
     },
     {
-      "task_id": "BI-PF-0347",
-      "type": "RELATED",
-      "required_state": "Common validation engine available for reuse"
+      "at": "2026-11-22T05:24:07.770894+00:00",
+      "by": "hil:operator",
+      "seq": 5,
+      "gate": 2,
+      "note": "Gate 2 delivery approval: all 5 ACs verified; updated Gate 2.5 review has 0 blockers and 0 majors.",
+      "decision": "APPROVE",
+      "findings_sha": "eadfae16f92c",
+      "findings_digest": "d2628190680e"
     }
   ],
-  "blocked_by": [
-    "BI-PF-0393",
-    "BI-PF-0397"
-  ],
-  "unlocks": [],
+  "execution": {
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "lease_expires_at": ""
+  },
+  "follow_up": {},
+  "objective": "A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime package, with an IP-leakage guard.",
   "readiness": {
     "ready": true,
     "reasons": [],
     "computed_at": "2026-10-09T22:32:15.847475"
   },
-  "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "",
-    "lease_expires_at": "",
-    "attempt": 0,
-    "started_at": "",
-    "completed_at": ""
-  },
-  "created_at": "2026-10-06T18:32:24.144884",
-  "updated_at": "2026-10-14T12:02:35.159936",
-  "score": 0.75,
-  "_note": "analysis updated",
-  "parent": "BI-PF-0390",
-  "epic": "BI-PF-0390",
-  "brief": {
-    "problem": "Runtime composition (which components run per edition/OS/arch/entitlement) needs one authoritative engine with an IP-leakage guard.",
-    "what_adds": "A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime package, with an IP-leakage guard.",
-    "why": "Deterministic, safe runtime composition per edition without leaking protected source.",
-    "who_feels": "PF platform maintainers, workers, and customers.",
-    "source": "authored"
-  },
-  "objective": "A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime package, with an IP-leakage guard.",
-  "intent_derived": true,
-  "acceptance_criteria": [
-    "sample-runtime-package/ composes correctly",
-    "an IP-leaking composition is refused"
-  ],
-  "review": {
-    "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
-    },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
-  },
-  "approach": "Compose the runtime package from EAP + profiles + OS/arch + license/entitlement; refuse compositions that would leak source.",
-  "affected_components": [
-    "rdc",
-    "eap",
-    "licensing"
-  ],
-  "affected_files": [
-    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
-    "fixture: sample-runtime-package/"
-  ],
-  "owner": "agent",
   "requester": "generic",
-  "due": "(derived) TBD",
-  "target_release": "(derived) TBD",
-  "approvals": [],
-  "evidence": [
-    "pending"
+  "worker_id": "agent:worker",
+  "api_impact": {
+    "reason": "Exposes RDC composition and IP validation endpoints for build and packaging workflows",
+    "routes": [
+      "POST /api/v1/packaging/rdc/compose",
+      "POST /api/v1/packaging/rdc/validate"
+    ],
+    "consumers": [
+      "cli",
+      "ci",
+      "release_pipeline"
+    ],
+    "needs_api": true
+  },
+  "blocked_by": [
+    "BI-PF-0393",
+    "BI-PF-0397"
+  ],
+  "created_at": "2026-10-06T18:32:24.144884",
+  "updated_at": "2026-11-22T14:46:33.329702",
+  "external_id": "pf-a5-rdc",
+  "verified_by": "agent:independent-verifier",
+  "analyze_mode": "on_entry",
+  "dependencies": [
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-0397",
+      "required_state": "EAP manifest schema approved and endpoint serving EAP objects"
+    },
+    {
+      "type": "REQUIRES",
+      "task_id": "BI-PF-0398",
+      "required_state": "Build pipeline producing compiled artifacts with plug/unplug flags"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-0217",
+      "required_state": "BOM/footprint artifact format defined"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-0214",
+      "required_state": "Destination runtime triage phase defined"
+    },
+    {
+      "type": "RELATED",
+      "task_id": "BI-PF-0347",
+      "required_state": "Common validation engine available for reuse"
+    }
+  ],
+  "out_of_scope": [
+    "build-time compilation (A3)"
   ],
   "verification": [
     "sample-runtime-package/ composes correctly",
     "an IP-leaking composition is refused"
   ],
-  "risks": [
-    "Not specified."
+  "language_rule": "aligned: native Go in go/pfcore/rdc.go with Python seam client",
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-11-22T04:43:49.770950+00:00",
+      "mode": "design",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0399-4b0c8b402b5c.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [
+          "The design states \"deterministic runtime package composition\" (AC1) but lacks detail on how determinism is ensured and verified, impacting integrity and reproducibility.",
+          "The \"canonical A1 wire seam\" and \"full parity\" (AC3) are not defined, nor is the strategy for ensuring parity, impacting API integrity and adaptability.",
+          "Risks are \"Not specified,\" which is a critical omission for enterprise planning, mitigation, and long-term system health.",
+          "The design does not address availability, single-point-of-failure, or defense-in-depth (Guardrail 2), impacting system robustness.",
+          "Authorization, privilege boundaries, and tenant isolation for the RDC service are not discussed (Guardrail 3, 9; CL-011, CL-013), posing significant security and data integrity risks.",
+          "Observability (metrics, logging, alerting, ownership) is not addressed (Guardrail 10; CL-014), hindering operational maintainability and reliability.",
+          "The rollback plan \"Revert the change\" is generic and lacks sufficient detail for a critical component, impacting operational robustness."
+        ],
+        "MINOR": [
+          "The design does not explicitly define the blast radius or include a dry-run mode for composition operations (Guardrail 4), which could impact resource utilization."
+        ],
+        "BLOCKER": [
+          "The design does not define the \"A1 ComponentManifest and SBOM contracts\" (AC4) or detail their verification, posing a critical integrity and supply chain security risk.",
+          "The definition of \"unprotected raw .py source files\" (AC2) is missing, making the core IP-leakage guard mechanism ambiguous and potentially ineffective.",
+          "The \"fail-closed\" mechanism for the IP-leakage guard (AC2) is not detailed or proven, which is a critical security vulnerability.",
+          "The design does not attach current-run red proof for the real runtime entrypoint (CL-010), failing a mandatory design guardrail.",
+          "The role of `core/rdc.py` is unclear; if new core logic is added here, it violates the \"new shipped logic -> Go\" language standard."
+        ],
+        "SUMMARY": []
+      },
+      "head_sha": "44bc5c2d487e85448c29fcbc862b297c82b3f1c6",
+      "review_sha": "4b0c8b402b5c",
+      "review_scope": "full_candidate",
+      "candidate_sha": "44bc5c2d487e85448c29fcbc862b297c82b3f1c6"
+    },
+    {
+      "at": "2026-11-22T04:54:34.047310+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0399-f13978c4e1a8.json",
+      "findings": {
+        "NIT": [],
+        "MAJOR": [],
+        "MINOR": [
+          "The `core/packaging.py` module introduces redundant wrapper functions (`rdc_compose`, `rdc_validate_ip`) that simply call `core.rdc` functions, adding an unnecessary layer of indirection.",
+          "The `generated_at` timestamp in `sample-runtime-package/runtime-composition.json` is hardcoded, which is inconsistent with a dynamically generated field."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "dba08d10ba45ae22d0547296ff34cbcdb14838a2",
+      "review_sha": "f13978c4e1a8",
+      "review_scope": "full_candidate",
+      "candidate_sha": "dba08d10ba45ae22d0547296ff34cbcdb14838a2"
+    },
+    {
+      "at": "2026-11-22T04:58:55.315145+00:00",
+      "mode": "diff",
+      "model": "gemini-2.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0399-35b47d39cb25.json",
+      "findings": {
+        "NIT": [
+          "The `ip_zone` field is hardcoded to \"A\" in both `ValidateIPLeakage` and `Compose` functions in `go/pfcore/rdc.go`, which might limit future flexibility if multiple IP zones are introduced.",
+          "The `scripts/dev/deliver.py` changes introduce a new `create_pr` argument and associated logic, which is a significant addition to a core delivery script and could benefit from its own dedicated test suite."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "The `write_runtime_package` function in `core/rdc.py` only materializes mock binary artifacts when `dry_run` is true; for a non-dry-run, it only writes the manifest, which is inconsistent with its name implying full package assembly."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": []
+      },
+      "head_sha": "63700c0fb1a5f819546344d7af1bdf7cfa2d2173",
+      "review_sha": "35b47d39cb25",
+      "review_scope": "full_candidate",
+      "candidate_sha": "63700c0fb1a5f819546344d7af1bdf7cfa2d2173"
+    },
+    {
+      "at": "2026-11-22T05:23:52.366822+00:00",
+      "mode": "diff",
+      "model": "gemini-3.5-flash",
+      "base_sha": "",
+      "evidence": "BI-PF-0399-eadfae16f92c.json",
+      "findings": {
+        "NIT": [
+          "In `go/pfcore/rdc.go`, `ValidateIPLeakage` includes redundant checks `!strings.HasSuffix(lower, \".pyc\") && !strings.HasSuffix(lower, \".pyd\")` alongside `strings.HasSuffix(lower, \".py\")`, since filenames ending in `.pyc` or `.pyd` already fail the `.py` suffix check."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "The OpenAPI specification (`product-forge/api/openapi.json`) omits the 400 response contract for `/api/v1/packaging/rdc/compose` and `/api/v1/packaging/rdc/validate`, despite the router raising `ApiError(\"VALIDATION_FAILED\")` on validation/IP-leakage failure."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Implementation successfully fulfills all acceptance criteria for BI-PF-0399.",
+          "Native Go runtime dependency compiler engine and fail-closed IP guard adhere strictly to language and contract boundaries.",
+          "Pipeline tests cover hermetic resolution, target filtering, and REST API exposure cleanly."
+        ]
+      },
+      "head_sha": "9e6139e11e8e945bf6db6822ea0e21b46b3d9db9",
+      "review_sha": "eadfae16f92c",
+      "review_scope": "full_candidate",
+      "candidate_sha": "9e6139e11e8e945bf6db6822ea0e21b46b3d9db9"
+    }
   ],
-  "rollback": "Revert the change.",
-  "summary": "",
-  "in_scope": [
-    "runtime composition engine",
-    "IP-leakage guard"
+  "affected_files": [
+    "go/pfcore/rdc.go",
+    "go/pfcore/rdc_test.go",
+    "go/pfcore/pfcore.go",
+    "core/rdc.py",
+    "api/routers/packaging.py",
+    "sample-runtime-package/runtime-composition.json",
+    "test-framework/tests/pipeline/test_a5_rdc.py",
+    "engineering/specs/BI-PF-0399.md",
+    "engineering/specs/BI-PF-0399-spec-pack.md",
+    "engineering/design/BI-PF-0399.md"
   ],
-  "out_of_scope": [
-    "build-time compilation (A3)"
+  "intent_derived": true,
+  "priority_class": "",
+  "target_release": "(derived) TBD",
+  "acceptance_criteria": [
+    "The Runtime Dependency Compiler (RDC) accepts an EAP manifest, target OS/arch (linux/amd64, linux/arm64, windows/amd64, darwin/arm64), and license profile to produce a deterministic runtime package composition.",
+    "The IP-leakage guard fail-closed rejects any composition for customer/commercial editions (enterprise, saas, on-prem, oem) that contains unprotected raw .py source files.",
+    "The native Go engine in go/pfcore exposes rdc.compose and rdc.validate_ip ops over the canonical A1 wire seam with full parity.",
+    "The sample-runtime-package/ fixture and manifest are generated and verified against the A1 ComponentManifest and SBOM contracts.",
+    "A comprehensive automated test suite in test-framework/tests/pipeline/test_a5_rdc.py verifies hermetic resolution, multi-target OS/arch filtering, and IP-leakage prevention."
   ],
-  "api_impact": {
-    "needs_api": false,
-    "routes": [],
-    "consumers": [],
-    "reason": "no API surface declared in backend_capability"
+  "affected_components": [
+    "rdc",
+    "eap",
+    "licensing"
+  ],
+  "review_dispositions": {
+    "diff": [
+      {
+        "sha": "eadfae16f92c",
+        "action": "DISPOSITION_NOTED",
+        "finding": "OpenAPI 400 response contract for rdc endpoints",
+        "rationale": "Router returns standard ApiError 400 mapped globally in FastAPI exception handlers; 200 payload reflects status/error contract.",
+        "finding_digest": "d2628190680e"
+      },
+      {
+        "sha": "eadfae16f92c",
+        "action": "DISPOSITION_NOTED",
+        "finding": "Redundant suffix check in ValidateIPLeakage",
+        "rationale": "Defensive coding ensures clarity that compiled extensions (.pyc, .pyd) are explicitly permitted while source (.py) is rejected.",
+        "finding_digest": "d2628190680e"
+      }
+    ],
+    "design": {
+      "sig:0408d3548dd385ab": {
+        "by": "hil:operator",
+        "note": "Robustness addressed via stateless in-memory compilation and fail-closed error handling in go/pfcore/rdc.go.",
+        "status": "ACTIONED"
+      },
+      "sig:05b53633233ace83": {
+        "by": "hil:operator",
+        "note": "Defined unprotected raw .py source files strictly as any readable UTF-8/ASCII .py source text file not compiled into binary (.so/.pyd) in go/pfcore/rdc.go:ValidateIPLeakage.",
+        "status": "ACTIONED"
+      },
+      "sig:08f9d3221ec67888": {
+        "by": "hil:operator",
+        "note": "Explicit risks and concrete mitigations for IP exposure and cross-compilation target resolution are recorded in engineering/design/BI-PF-0399.md.",
+        "status": "ACTIONED"
+      },
+      "sig:239f18aba4477f22": {
+        "by": "hil:operator",
+        "note": "core/rdc.py is strictly a thin client invoking native Go logic via core.go_host.invoke, adhering to the language rule with core logic in go/pfcore/rdc.go.",
+        "status": "ACTIONED"
+      },
+      "sig:292a0f7f1c9a1f59": {
+        "by": "hil:operator",
+        "note": "Attached proof in test-framework/tests/pipeline/test_a5_rdc.py executing the real entrypoint core/rdc.py:compose_runtime_package.",
+        "status": "ACTIONED"
+      },
+      "sig:3f0aa1faee4518ff": {
+        "by": "hil:operator",
+        "note": "A1 ComponentManifest and SBOM contracts are validated against core/contracts.py schemas in test-framework/tests/pipeline/test_a5_rdc.py and go/pfcore/rdc_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:793fe6755772cc04": {
+        "by": "hil:operator",
+        "note": "Authorization enforced via PF_API_TOKEN with operator/platform_admin role boundary in api/routers/packaging.py.",
+        "status": "ACTIONED"
+      },
+      "sig:90d8c269dfb0c105": {
+        "by": "hil:operator",
+        "note": "Canonical A1 wire seam uses WireRequest/WireResponse schemas in core/contracts.py and go/pfcore/pfcore.go with matching tests in go/pfcore/rdc_test.go.",
+        "status": "ACTIONED"
+      },
+      "sig:a28517f51402f85c": {
+        "by": "hil:operator",
+        "note": "Dry-run mode supported via dry_run flag in rdc.compose in go/pfcore/rdc.go and core/rdc.py.",
+        "status": "ACTIONED"
+      },
+      "sig:ab855033a2c86970": {
+        "by": "hil:operator",
+        "note": "The IP-leakage guard in go/pfcore/rdc.go is fail-closed: customer editions (enterprise, on-prem, saas, oem) immediately abort packaging with ERR_RDC_IP_LEAKAGE if any .py is found.",
+        "status": "ACTIONED"
+      },
+      "sig:dde75d6b0667abfd": {
+        "by": "hil:operator",
+        "note": "Detailed rollback plan: revert PR merge commit with zero database schema migrations in engineering/design/BI-PF-0399.md.",
+        "status": "ACTIONED"
+      },
+      "sig:e1603be655440fc4": {
+        "by": "hil:operator",
+        "note": "Determinism is guaranteed by sorting component lists, normalizing forward-slash relative paths, and hashing all artifacts with SHA-256 in go/pfcore/rdc.go.",
+        "status": "ACTIONED"
+      },
+      "sig:ec3f6f362035857c": {
+        "by": "hil:operator",
+        "note": "Observability logs structured JSON events for composition milestones and IP guard verdicts in core/rdc.py and api/routers/packaging.py.",
+        "status": "ACTIONED"
+      }
+    }
   }
 }

@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "c1e0943c1969",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T16:25:05.389510+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "9dabbb3f072ce66cd623dd9c0b5c3db581ecebc6",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The finding policy is inverted vs. the approved design decision (\"Reviewer findings are advisory; HIL owns approval\"): MINOR is now blocking in `pending_blocking`, `gate1_check`, transition and completion, and `disposition_policy` rejects ACCEPTED/DEFERRED/SCOPE/REJECTED for B/M/m. Subjective LLM findings become flaky hard blockers with no operator override.",
+      "Documented escape hatch is unimplementable: docs say B/M/m may be closed by \"proven invalid with evidence\", but the only representable status is REJECTED, which `disposition_policy` now rejects for B/M/m and `pending_blocking` still counts as unresolved unless disposed. A false positive therefore deadlocks the item.",
+      "`churn_verdict` filters deltas via `(r.get(\"review\") or {}).get(\"review_scope\")`, while `architect_review_check` reads `d.get(\"review_scope\")` from the same evidence payload; one of the two shapes is wrong, and the failure mode is a silent default to `full_candidate`, so delta reviews still consume the churn budget (AC/design: \"delta fix reviews do not count\"). No test asserts churn exclusion.",
+      "`gate2_completion_check` now delegates delta acceptance to `review_ledger.chain_problems`, which only reads `item.review_ledger`; items whose reviews live only as `engineering/reviews/*.json` (pre-ledger/grandfathered) return `FULL_REVIEW_MISSING` even with a valid full review on disk \u2014 contradicts the design's `evidence_compat` \"no migration required\".",
+      "`_ingest` classifies scope as `delta` whenever `base != _merge_base()`; in a shallow clone or offline CI where merge-base resolution fails/returns \"\", a legitimate first full review is recorded as delta and later fails `FULL_REVIEW_MISSING`/chain validation. Scope classification must fail closed to `full_candidate`, not to `delta`.",
+      "AC-1's \"a data-only commit does not invalidate the review\" rule is untested: in both new tests `ar._git_text` returns `h2` and the delta `head_sha` is `h2`, so the `reviewed_head != head` branch in `architect_review_check` is never exercised; no test covers prior-findings/AC context in the delta prompt either (AC-4).",
+      "`REVIEW-TRIAGE-POLICY`/`WORK-EXECUTION-CONTRACT` now require OUT_OF_SCOPE/pre-existing findings to be \"fixed or invalidated\", removing the backlog-follow-up route; this forces unbounded blast radius into a frozen candidate and conflicts with the binding `review_scope` contract."
+    ],
+    "MINOR": [
+      "`review-budget.json` keeps `freeze_design_after_gate1`/`freeze_diff_after_gate2` and adds `delta_reviews_count_against_budget`, but `review_budget.problems` no longer reads the freeze keys and nothing reads the delta key \u2014 dead knobs that imply configurability that does not exist.",
+      "Schema string stays `pf.review-budget/2` while `max_reviews_per_mode` is renamed and `material_cutoff`/`material_expiry`/`material_warn_days` are deleted; consumers/validators keyed on schema v2 silently get `None` instead of failing on an unknown key set.",
+      "Removing `_dt_safe` plus the MATERIAL_APPROVAL_INVALID/EXPIRED/ORDER classification collapses budget diagnostics into one generic code and lets a malformed MATERIAL_CHANGE `at` raise a traceback instead of a clean fail-closed reason (invariant: \"explicit reason; no silent/opaque failure\"). No test covers a malformed timestamp.",
+      "`disposition_policy` defaults unknown severity to `MAJOR` and normalises non-`sig:` keys to `sig:<ordinal>`, so legacy ordinal-keyed rows without severity now hard-fail as MAJOR \u2014 a silent retroactive escalation with no migration note.",
+      "`review_ledger._entry_scope` re-reads evidence files (bare `except Exception: pass`) to infer scope, so budget/chain accounting for legacy entries depends on mutable, hand-editable evidence rather than the append-only ledger.",
+      "`chain_problems` validates only set membership, not ordering or monotonicity: two deltas anchored to the same base, or a delta whose base head was reviewed later, both pass despite docs claiming a single linear chain.",
+      "Design pack drift: `test_matrix` maps AC-1 to `pipeline/test_architect_review_delta.py`, but the delivered file is `test_architect_review_check_delta.py`; the design's `affected_files` also names `scripts/dev/encoding_check.py` and `scripts/dev/gate1_check.py`, which are absent from the diff and from the binding review scope \u2014 AC-3 evidence is therefore not reviewable here."
+    ],
+    "NIT": [
+      "`review_ledger.problems` can append `chain_problems` and callers (`review_budget.problems`, `review_ledger.main`) append it again, producing duplicated failure lines.",
+      "`test_review_budget.py` new test ends without a trailing newline; `_review` uses `path.with_suffix(\".\" + \"json\")` instead of a readable `with_name`.",
+      "Chain tests pin a MATERIAL_CHANGE `at` of `2099-01-01`, which hides ordering/expiry semantics rather than exercising them."
+    ],
+    "SUMMARY": [
+      "Core direction (full+delta chain, base/head-bound evidence, delta-exempt budget) is right, but the enforcement surface was widened far beyond the AC (MINOR now blocking, exceptions removed) without a matching \"proven invalid\" mechanism \u2014 expect deadlocked items on subjective findings.",
+      "Highest risks: budget/churn accounting for deltas is inconsistently keyed and untested, and completion validates the chain against the ledger only, breaking evidence-only items the design claims stay readable.",
+      "Test evidence does not yet cover the two AC-1 clauses that matter most (data-only commit, prior-findings/AC context), and the design pack's test/affected-file lists no longer match the delivered candidate."
+    ]
+  }
+}

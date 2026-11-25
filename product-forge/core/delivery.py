@@ -26,6 +26,11 @@ import time
 from core.paths import PRODUCTS_DIR, ROOT
 
 _LOCK_TTL = 900  # seconds
+_GIT_ENV_DENY = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_CEILING_DIRECTORIES")
+
+
+def _git_env() -> dict:
+    return {k: v for k, v in os.environ.items() if k not in _GIT_ENV_DENY}
 
 
 def repo_dir(scope: str, project: str | None) -> str:
@@ -66,7 +71,7 @@ def _block(scope: str, project: str | None, item_id: str, reason: str) -> dict:
 
 
 def _git_in(cwd: str, *args: str):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=300)
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=300, env=_git_env())
 
 
 def _gh() -> str:
@@ -115,7 +120,8 @@ def _land(v, repo: str, item_id: str, target: str, branch: str, pr: dict, title:
     try:
         m = _git_in(wt["path"], "merge", "--no-ff", branch, "-m", f"merge {item_id}: {title or ''}")
         if m.returncode != 0:
-            return {"ok": False, "reason": "integrate merge conflict"}
+            detail = ((m.stderr or "") + (m.stdout or "")).strip()[:300]
+            return {"ok": False, "reason": f"integrate merge conflict: {detail}"}
         # BI-PF-1254: run the gate on the PF code root (the product-forge/ subtree in a framework
         # repo), not the repo root, so repo-level layouts don't spuriously fail wired_audit.
         code_root = wt["path"]

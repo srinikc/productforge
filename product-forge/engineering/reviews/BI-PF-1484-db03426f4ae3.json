@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "db03426f4ae3",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:21:17.683757+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "finalize_item writes `item_revision = revision + 1` and gate2 `completion_gaps` compares it to the live revision. Any backlog write between finalize and merge (status, delivery, note) bumps revision \u2192 permanent `FINAL_REPORT_STALE` hard-block on merge; the contract is an off-by-one race, not a durable snapshot.",
+      "gate_decisions derives mode with `int(gate)`: gate \"1.5\"/\"2.5\" either raises ValueError inside decision recording or silently maps to the wrong mode, so disposition policy runs against the wrong finding set.",
+      "Gate 2 enforces only diff-mode policy (design-mode violations recorded post-Gate-1 pass Gate 2 and are caught only by finalize/trail-check) \u2014 the three enforcement points are not equivalent, contrary to the AC.",
+      "`completion_gaps` is an early `continue` before design-evidence/churn checks in gate2_completion_check.check, so only the first failing dimension is reported and other merge blockers are masked."
+    ],
+    "MINOR": [
+      "AC-completeness logic is duplicated in gate_decisions.py (gate 2) and finalize_item.py `ac_problems` \u2014 two sources of truth that will drift.",
+      "execution_trail_check imports `core.backlog` inside the per-item loop and rebuilds the backlog lambda per item/mode; hoist to module scope (also avoids repeated imports in a loop).",
+      "finalize_item mixes a count message (`\"only N of M ACs recorded\"`) into `ac_problems`, then prints every entry as \"AC not PASS\" \u2014 misleading diagnostics.",
+      "final_report embeds the same test dicts twice (`tests` and `tests_by_kind.rows`), bloating the persisted item record and the store.",
+      "test_deferred_needs_id_and_approval uses the item's own id (BI-PF-1484) as the \"external\" follow-up because the fixture lacks an `id` key \u2014 the self-reference exclusion path is never exercised."
+    ],
+    "NIT": [
+      "disposition_decide.py: unused `json` and `disposition_policy` imports.",
+      "`--hil-confirmed` declared with both `action=\"store_true\"` and `required=True` \u2014 redundant.",
+      "review-dispositions.json `approval_decision`/`approval_scope` duplicate literals already hardcoded in disposition_decide.py; the config is not fully authoritative."
+    ],
+    "SUMMARY": [
+      "Well-scoped, AC-aligned change; language rule respected (tooling Python + permitted edit to shipped Python); cap/approval policy, final-report persistence and completion guards are tested.",
+      "Top risks: revision-coupled `FINAL_REPORT_STALE` check can hard-block merges after any legitimate backlog write; fragile gate\u2192mode derivation for 1.5/2.5; duplicated AC-completeness logic across gate_decisions and finalize_item.",
+      "Recommend fixing the revision/snapshot contract and centralizing AC + policy checks into one shared module before merge."
+    ]
+  },
+  "rereview_reason": "prior sha 6e74990a104b; gate short-circuit, producer, AC cross-check committed",
+  "rereview_reason_sha256": "a68a8442d62c5175b88a634fb71cf50111f7190b255ef771b3bb6867a8b4301b"
+}

@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "777a37413b14",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T15:07:41.206267+00:00",
+  "review_scope": "delta",
+  "base_sha": "ee7ee1791cbd8fc884c433fa1d272dd7a3fcf3d1",
+  "head_sha": "5a25e4c14cc809655e0d023072c2d4c8ff5fa4c2",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`guardrail_answers.5_invariants_ordering` covers only the API route sequence (authz \u2192 revision \u2192 HIL \u2192 reason/SHA \u2192 append) and omits the delta-base control ordering (reviewed-head check \u2192 ancestry check \u2192 latest-SHA citation \u2192 budget exemption), leaving the AC-2 fail-closed ordering unstated in the changed field.",
+      "`guardrail_answers.6_rollback` says to remove \"AC-2 tests\" while the design_pack.rollback row says to retain core validation/audit tests; the boundary (which of `test_material_change_*` vs `test_valid_delta_base_*` survives) is ambiguous and could drive an over-broad test deletion on rollback."
+    ],
+    "NIT": [
+      "`proof_plan.green_evidence` explicitly states only \"arbitrary SHA returns false\" and omits an explicit green assertion for the non-reviewed-base rejection, though the test name implies it; adding it would complete AC-2 acceptance/rejection symmetry.",
+      "`proof_plan.failing_test` remains a single semicolon-concatenated string rather than a list, so per-test Gate 2.5 matching still requires manual splitting (prior NIT unchanged)."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior availability (startup check) and red-evidence findings, and `accepted_case_test` now provides a resolvable accepted-case node id, clearing the prior MAJOR.",
+      "Design is sound on authz, blast radius, language rule, and rollback direction; residual gaps are ordering-precision and rollback-test-scope wording in the changed guardrail rows.",
+      "No blockers; proceed once the two MINORs are tightened in the same delta."
+    ]
+  },
+  "rereview_reason": "Delta for prior 58c6a8ada447: exact accepted-case test node and startup defence",
+  "rereview_reason_sha256": "55dc15b8fc26f9c662d1901ef4d4cb4e5adf7ec137aaa7e8bc8b78ec6ae778ee"
+}

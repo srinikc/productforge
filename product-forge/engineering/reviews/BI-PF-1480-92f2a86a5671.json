@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "92f2a86a5671",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:14:05.094743+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`_ingest` renames an existing review to `{sha}-prev-<ms>.json` and writes a new one; `diff_reviews()` globs `{item_id}-*.json` and both files carry `\"mode\": \"diff\"`, so a single re-review permanently inflates the churn count (and creates unprompted evidence files that other gates may also pick up). Untested and self-defeating for the budget.",
+      "Redaction is regex-heuristic only (`redact_reason`); novel secret formats (e.g. `sk-...`, JWTs, bare passwords in prose) pass through into committed evidence. Combined with `--reason` free-text from operators, this is a weak guarantee for \"redacted\" as an acceptance promise \u2014 needs an explicit allowlist/post-hoc secret scan or a documented limitation.",
+      "`_after_epoch` uses strict `at > epoch`, but the acceptance criterion and the new doc say \"at/after the Gate 1 epoch\"; a review stamped exactly at the decision time is silently excluded, so boundary semantics differ from the stated contract (and no test pins this).",
+      "`review_churn_check.py` imports and calls `ar._git_text` (a module-private helper) for base-ref resolution; this cross-module coupling to a private symbol will break silently on refactor and bypasses any logging/observability that `_git_text` might later add.",
+      "Tests never exercise the `--rereview` main() flow end-to-end (refusal \u2192 override \u2192 `_ingest` prev-rename \u2192 `rereview_reason` persisted), which is precisely where the count-inflation bug lives; the acceptance criterion's \"reasoned override ... stored as rereview_reason in the evidence\" is only covered at function level."
+    ],
+    "MINOR": [
+      "`reason_flag_error` / `review_guard` are gated on `a.mode == \"diff\"` only; `--reason` with design mode is silently ignored instead of erroring, inconsistent with the \"--reason requires --rereview\" symmetry.",
+      "Citation check (`latest_sha in reason`) runs on the raw reason, but the stored/capped (500-char) copy may truncate the sha citation \u2014 evidence can lose the very reference that authorized the override; also `rereview_reason_sha256` hashes the post-redaction string, so it does not attest the operator's original input.",
+      "`redact_reason()` calls `review_budget()` (config read + validation) on every invocation, including per-row usage paths \u2014 small but avoidable I/O and a hidden dependency on config validity in a pure string function.",
+      "`diff_reviews(committed=True)` does `git show HEAD:<rel>` per evidence file (N+1 subprocesses); on repos with many reviews this is a measurable precheck latency cost \u2014 consider `cat-file --batch` or a single `git grep`.",
+      "`--report` docstring says \"always exit 0\" but scan errors still return 2; fine per fail-closed intent, yet the docstring and the doc line \"--report exits 0\" should state the exception to avoid operator confusion.",
+      "`evaluate()` synthesizes `warn_after: 0, fail_after: 0` for error rows; harmless because errors force exit 2, but the fabricated budget values leak into `--json` output and could mislead downstream consumers."
+    ],
+    "NIT": [
+      "Reformatting of unrelated config keys (`blocking_findings`, `skip_globs`) to multi-line inflates the diff and churns a file the churn gate itself watches \u2014 keep formatting-only changes out of behavioral PRs.",
+      "Table header prints \"diff reviews after the Gate 1 epoch\" even when `scope` is configured to something other than `after_gate1`; header should derive from the active scope.",
+      "Missing blank line before `def test_reason_flag_requires_rereview` (PEP8 E302-adjacent) in the new test file."
+    ],
+    "SUMMARY": [
+      "Solid single-owner design: `review_budget()/diff_reviews()/churn_verdict()` are genuinely consumed by both the run path and the new gate, thresholds live only in config, and fail-closed handling plus tests cover the 2/3/4/5 boundaries, epoch, attestation, and exit codes.",
+      "Top risks: the `-prev-` rename silently double-counts reviews (corrupting the very metric this feature enforces, and untested), regex-only redaction provides a weaker-than-stated secret guarantee, and the strict `>` epoch comparison diverges from the documented \"at/after\" semantics.",
+      "Recommend fixing the double-count and adding an end-to-end `--rereview` test before merge; the rest is hardening and observability polish."
+    ]
+  },
+  "rereview_reason": "supersedes fd5330e4b7a2; fail-closed evidence, committed item state, same-sha history",
+  "rereview_reason_sha256": "8230f76b2b7cfc288f76dc84d2b4da9ea3c257efe46d32cc493ae16e3769618e"
+}

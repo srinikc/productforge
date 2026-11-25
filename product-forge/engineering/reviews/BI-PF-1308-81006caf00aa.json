@@ -1,0 +1,47 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "81006caf00aa",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T05:19:52.718472+00:00",
+  "findings": {
+    "BLOCKER": [
+      "EDP-16 declares objpolicy the \"ONE minting boundary\", \"wired by objpolicy.HTTPMiddleware with a credential-validating resolver\", but the diff ships no caller of `Mint`/`HTTPMiddleware` and migrates no existing signed-URL path \u2014 the documented control is not actually in force.",
+      "Reconciliation scanner and signed-URL policy are shipped as libraries with no entrypoint, no wiring and no consumer; the decision record asserts operational controls that the code does not provide."
+    ],
+    "MAJOR": [
+      "`objreconcile.MaxObjects` is checked only *after* `store.List` has already materialised the full slice; the stated \"fail closed rather than OOM\" bound does not actually bound memory.",
+      "`Scan` issues one sequential `Head` per expected key (up to 100k) with no concurrency/pagination; S3 `List` never carries checksums, so every manifest entry costs a round trip \u2014 the scanner is unusable at its own stated bound.",
+      "`S3Store.Capabilities()` hardcodes `ObjectVersioning: true` while `Put` gates `Immutable` on the probed `s.versioned` \u2014 capability advertisement contradicts enforcement.",
+      "`New()` swallows `probeLock`/`probeVersioning` errors (log only); a permissions/network failure at startup permanently degrades the store to \"no object lock\", so retention fails at request time instead of failing fast at construction.",
+      "Reconcile double-reports: a manifest entry with a malformed checksum is classified `Invalid`, excluded from `want`, and its real store object is then additionally reported `Orphaned` \u2014 an untrustworthy report that invites a destructive \"repair\".",
+      "`LocalStore.Put` enforces `Immutable` only when existing meta has a non-empty `Checksum`; objects without a stored checksum are silently overwritable \u2014 `Immutable` fails open.",
+      "`s3store.Delete` and `stat` now map missing keys to `os.ErrNotExist`: an unannounced behaviour change to existing public API for idempotent-delete callers, not covered by the AC and with no migration note.",
+      "`objstore_test.go` newly calls `errors.Is` but the diff does not add an `errors` import \u2014 verify the module builds before merge.",
+      "`objpolicy.stats.byReason` (keyed by tenant) and `LocalStore.keyLocks` (keyed by object) are unbounded process-global maps with no eviction; long-lived multi-tenant processes grow without bound and are trivially inflatable.",
+      "`datastore.Lifecycle()` requires both `Capabilities().ObjectLock` *and* the `LifecycleCapable` assertion \u2014 two sources of truth: S3 can advertise lock support while `ObjectLifecycle` errors, and a `LifecycleCapable` provider is hidden when its probe fails."
+    ],
+    "MINOR": [
+      "Local `Immutable` check runs only after the full body is streamed and hashed into tmp; rejection is not fail-fast and wastes I/O on hostile input.",
+      "`ApplyLifecycle` with an empty policy (no mode, no hold) is a silent no-op returning nil \u2014 callers get no signal that nothing was applied.",
+      "`ApplyLifecycle` lazily re-probes object lock but `Put` never re-probes versioning; `objectLock` is set true once and never invalidated if bucket config changes \u2014 inconsistent refresh policy.",
+      "`cleanPath` silently collapses `//` and `.` segments, so a URL can be minted for a key different from the caller-supplied string; canonicalisation should be detected and rejected, not rewritten.",
+      "`objpolicy` uses stdlib `log` and process-global state rather than an injectable, metric-emitting sink; no metrics hook for denials, and tenant IDs appear in logs.",
+      "`ComplianceOptIn`/`RetentionMode` are duplicated across `PutOptions` and `LifecyclePolicy`; one shared policy type would prevent drift.",
+      "The COMPLIANCE \"cannot be shortened or released\" invariant is enforced only by S3 \u2014 no client-side guard or test covers it.",
+      "Reconciliation drift surfaces only via `log.Printf`; no metric, exit-code contract, or report sink, so drift is not observable by ops."
+    ],
+    "NIT": [
+      "`ErrUnsupported` re-exported as a package-level var in `objpolicy` invites divergence from `datastore.ErrUnsupported`.",
+      "`errLocalLifecycle` is a shared package-level error instance returned by every call; return a fresh `UnsupportedError` for per-call diagnostics.",
+      "`PartialApplyError.Applied` is a free-form string; use typed constants.",
+      "New modules hardcode `go 1.21` \u2014 confirm against the repo toolchain directive."
+    ],
+    "SUMMARY": [
+      "Capability-shaped design is sound (optional `LifecycleCapable`, typed errors, explicit COMPLIANCE opt-in, read-only deterministic reconcile) with good unit coverage.",
+      "Top risks: the \"single signed-URL minting boundary\" is documented but not wired anywhere, so the control is aspirational; the reconcile memory bound and N+1 HEAD pattern do not scale; S3 capability advertisement and swallowed probe failures can silently degrade compliance enforcement.",
+      "Recommend wiring at least one real call path and fixing the report double-counting before this is treated as a shipped control."
+    ]
+  }
+}

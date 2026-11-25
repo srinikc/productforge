@@ -1,7 +1,7 @@
 ---
 description: Design agent. Extracts formal requirements and produces a design doc from the product plan.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: design
 version: 1.0.0
 spec_version: "1.0"

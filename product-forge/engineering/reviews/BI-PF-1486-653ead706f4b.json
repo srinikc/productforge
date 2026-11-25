@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "653ead706f4b",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:34:56.825809+00:00",
+  "base_sha": "",
+  "head_sha": "5cc9a448b35638517f55c83004498e0520a97c25",
+  "findings": {
+    "BLOCKER": [
+      "AC-1/AC-2/AC-3 acceptance evidence unspecified: affected_files, affected_components, risks all \"Not specified\" \u2014 Gate-1 cannot bind ACs to verifiable surfaces.",
+      "AC-4 \"One 2.5 on the hardening candidate\" is a review-plan step, not an engineering requirement; its inclusion as an AC makes the design non-deterministic and gate-incomparable.",
+      "CL-006: no embedded Gate 1.5 findings/dispositions block in the design pack; approval is invalid while any BLOCKER/MAJOR is PENDING."
+    ],
+    "MAJOR": [
+      "AC-2 migration/back-compat rule for pre-existing older MATERIAL_CHANGE approvals is not stated (grandfather vs. re-approve vs. fail-closed); without it, rollout may break in-flight reviews.",
+      "Guardrail 5 (invariants/ordering) incomplete: only three invariants listed; the approval `at` timestamp ordering invariant lacks an explicit timezone/clock-skew/monotonicity rule.",
+      "Guardrail 6: test_matrix lists one test per AC but does not cover the mandated negative cases (older approval, stale/older evidence, non-ancestor head) as distinct fail-able tests.",
+      "Guardrail 1/rollback: \"Revert the change\" with no note on already-emitted gate failures or previously persisted derived docs \u2014 no migration-interrupted recovery path.",
+      "Guardrail 10 observability: only \"Gate stderr/exit\"; no distinct metric/log signal per failure code (DERIVED_DOC_STALE, MATERIAL_APPROVAL_ORDER, REVIEW_HEAD_NOT_ANCESTOR) for diagnosis.",
+      "AC-1 \"cannot carry arbitrary executable content\" has no stated content-class rules or allowlist; the invariant only covers generator-freshness, leaving the executable-content half unaddressed.",
+      "out_of_scope/affected_files are placeholders, so scope creep and file-level blast radius are not bounded (guardrail 4)."
+    ],
+    "MINOR": [
+      "contracts.files \"docs generated\" is ambiguous; the exact generated artifacts and their authority source should be pinned (CL-003 terminology).",
+      "performance \"bounded\" lacks a concrete bound or timeout for the docs generator check.",
+      "dependencies list names scripts but no version/owner, so reuse-vs-duplicate detection is not provable.",
+      "Recurring MINOR classes (response-body close duplication, query-param-only redaction) are not pre-empted in learnings/guardrails despite CL-008/CL-009 requiring injection at design and coding time."
+    ],
+    "NIT": [
+      "learnings/guardrails are terse bullets; expanding each into a checkable statement would make Gate-1.5 scoring deterministic.",
+      "rollback \"Revert; prior gates unchanged\" repeats the AC-level rollback without adding a verification step."
+    ],
+    "SUMMARY": [
+      "The design captures the three hardening goals but leaves Gate-1 metadata (files, components, risks, out_of_scope) unspecified and omits the CL-006 Gate-1.5 findings/dispositions block, so approval cannot proceed.",
+      "Top risks: unspecified migration rule for older MATERIAL_CHANGE approvals, unaddressed \"no executable content\" rule beyond generator freshness, and rollback without recovery for already-failed gates.",
+      "Recommend: pin affected files, add the negative-test matrix, define the approval ordering/clock rule, and embed Gate-1.5 dispositions before resubmitting."
+    ]
+  }
+}

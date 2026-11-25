@@ -14,37 +14,105 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"productforge/artifacts"
+	"productforge/azurestore"
 	"productforge/datastore"
+	"productforge/dualvec"
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/auth"
+	"productforge/edpsvc/internal/cache"
+	"productforge/edpsvc/internal/degrade"
+	"productforge/edpsvc/internal/limits"
+	"productforge/edpsvc/internal/observe"
+	"productforge/edpsvc/internal/storeguard"
+	"productforge/gcsstore"
+	"productforge/gdrivestore"
 	"productforge/migrate"
+	"productforge/objpolicy"
 	"productforge/objstore"
+	"productforge/objstorerest"
+	"productforge/pfmemory"
 	"productforge/s3store"
 	"productforge/store"
 )
 
-type server struct {
-	dsn    string
-	admin  string
-	migDir string
-	obj    datastore.ObjectStore
+const (
+	backlogAuthorityRecheck = 5 * time.Minute
+	authorityGlobal         = "global"
+	itemScopeTenant         = "tenant"
+	reservationScopeGlobal  = "global"
+)
+
+type backlogStore interface {
+	Authority(context.Context) (edpdata.Authority, error)
+	Reserve(context.Context, string, string, string, int) (edpdata.IDBlock, error)
+	StatementTimeout() time.Duration
 }
 
-// buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
+type server struct {
+	admin          string
+	authenticator  *auth.Authenticator
+	migDir         string
+	obj            datastore.ObjectStore
+	cfg            limits.Config
+	st             *store.PgStore
+	quota          *limits.Quota
+	metrics        *limits.Metrics
+	role           *limits.RoleGuard
+	backlogFactory func(tenant string, reserve bool) backlogStore
+	guard          *storeguard.Guard
+	cacheStore     *cache.Store
+	authorityMu    sync.Mutex
+	memRepo        datastore.MemoryRepository
+	memoryMaxK     int
+	memoryTimeout  time.Duration
+	memoryAuditor  *memoryAudit
+}
+
+func (s *server) newBacklog(db datastore.RelationalStore) backlogStore {
+	return edpdata.NewBacklog(db).WithTimeout(s.cfg.DBTimeout)
+}
+
+func (s *server) authorityBacklog(tenant string) backlogStore {
+	if s.backlogFactory != nil {
+		return s.backlogFactory(tenant, false)
+	}
+	return s.newBacklog(store.BindTenant(s.st, tenant))
+}
+
+func (s *server) reserveBacklog() backlogStore {
+	if s.backlogFactory != nil {
+		return s.backlogFactory("", true)
+	}
+	return s.newBacklog(s.st)
+}
+
+// buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3 / EDP-14 GCS) by PF_OBJECT_BACKEND.
 func buildObjectStore() (datastore.ObjectStore, error) {
-	if strings.EqualFold(os.Getenv("PF_OBJECT_BACKEND"), "s3") {
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("PF_OBJECT_BACKEND")))
+	switch backend {
+	case "s3":
 		return s3store.New(context.Background(), s3store.Config{
 			Endpoint:  os.Getenv("PF_S3_ENDPOINT"),
 			AccessKey: os.Getenv("PF_S3_ACCESS_KEY"),
@@ -54,47 +122,457 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 			UseSSL:    os.Getenv("PF_S3_USE_SSL") == "1",
 			Ensure:    os.Getenv("PF_S3_ENSURE") == "1",
 		})
+	case "gcs":
+		bucket := strings.TrimSpace(os.Getenv("PF_GCS_BUCKET"))
+		if bucket == "" {
+			return nil, errors.New("edpsvc: PF_GCS_BUCKET is required when PF_OBJECT_BACKEND=gcs")
+		}
+		var auth objstorerest.Auth
+		if tok := strings.TrimSpace(os.Getenv("PF_GCS_TOKEN")); tok != "" {
+			auth = gcsstore.TokenAuth{Token: tok}
+		} else if credsFile := strings.TrimSpace(os.Getenv("PF_GCS_CREDENTIALS_FILE")); credsFile != "" {
+			data, err := os.ReadFile(credsFile)
+			if err != nil {
+				return nil, fmt.Errorf("edpsvc: read PF_GCS_CREDENTIALS_FILE: %w", err)
+			}
+			auth = gcsstore.AuthFromCredentials(data)
+		} else if credsJSON := strings.TrimSpace(os.Getenv("PF_GCS_CREDENTIALS_JSON")); credsJSON != "" {
+			auth = gcsstore.AuthFromCredentials([]byte(credsJSON))
+		}
+		return gcsstore.New(gcsstore.Config{
+			Bucket:  bucket,
+			BaseURL: strings.TrimSpace(os.Getenv("PF_GCS_BASE_URL")),
+			Auth:    auth,
+		})
+	case "azure", "azblob":
+		container := strings.TrimSpace(os.Getenv("PF_AZURE_CONTAINER"))
+		if container == "" {
+			return nil, errors.New("edpsvc: PF_AZURE_CONTAINER is required when PF_OBJECT_BACKEND=azure")
+		}
+		account := strings.TrimSpace(os.Getenv("PF_AZURE_ACCOUNT"))
+		key := strings.TrimSpace(os.Getenv("PF_AZURE_KEY"))
+		sas := strings.TrimSpace(os.Getenv("PF_AZURE_SAS_TOKEN"))
+		token := strings.TrimSpace(os.Getenv("PF_AZURE_TOKEN"))
+		auth := azurestore.AuthFromCredentials(account, key, sas, token)
+		return azurestore.New(azurestore.Config{
+			Account:   account,
+			Container: container,
+			BaseURL:   strings.TrimSpace(os.Getenv("PF_AZURE_BASE_URL")),
+			Auth:      auth,
+		})
+	case "gdrive", "googledrive":
+		rootFolder := strings.TrimSpace(os.Getenv("PF_GDRIVE_ROOT_FOLDER_ID"))
+		if rootFolder == "" {
+			return nil, errors.New("edpsvc: PF_GDRIVE_ROOT_FOLDER_ID is required when PF_OBJECT_BACKEND=gdrive")
+		}
+		token := strings.TrimSpace(os.Getenv("PF_GDRIVE_TOKEN"))
+		return gdrivestore.New(gdrivestore.Config{
+			RootFolderID:  rootFolder,
+			BaseURL:       strings.TrimSpace(os.Getenv("PF_GDRIVE_BASE_URL")),
+			UploadBaseURL: strings.TrimSpace(os.Getenv("PF_GDRIVE_UPLOAD_BASE_URL")),
+			Auth:          gdrivestore.AuthFromToken(token),
+		})
+	default:
+		return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
 	}
-	return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
+}
+
+func (s *server) storeGuard(store, tenant string, fn func() error) error {
+	if s.guard == nil {
+		return fn()
+	}
+	return s.guard.Do(store, tenant, fn)
+}
+
+func (s *server) storeGuardError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, storeguard.ErrQuota) {
+		w.Header().Set("Retry-After", "1")
+		s.bad(w, r, http.StatusTooManyRequests, "store quota exceeded")
+		return true
+	}
+	if errors.Is(err, degrade.ErrDegraded) || errors.Is(err, degrade.ErrDegradedExpired) {
+		s.bad(w, r, http.StatusServiceUnavailable, "store temporarily degraded")
+		return true
+	}
+	if errors.Is(err, degrade.ErrRenewalExceeded) {
+		s.bad(w, r, http.StatusServiceUnavailable, "store unavailable")
+		return true
+	}
+	return false
 }
 
 func main() {
-	s := &server{dsn: os.Getenv("PF_DB_DSN"), admin: os.Getenv("PF_ADMIN_TOKEN"),
-		migDir: envOr("PF_MIGRATIONS_DIR", findMigrations())}
-	if s.dsn == "" {
+	cfg, err := limits.Load(os.Getenv)
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+	if err := limits.ValidateProfile(cfg, os.Getenv); err != nil {
+		log.Fatalf("profile: %v", err)
+	}
+	dsn := os.Getenv("PF_DB_DSN")
+	if dsn == "" {
 		log.Fatal("PF_DB_DSN is required")
 	}
-	if s.admin == "" {
+	admin := os.Getenv("PF_ADMIN_TOKEN")
+	if admin == "" {
 		log.Fatal("PF_ADMIN_TOKEN is required")
 	}
+	st, err := store.OpenWithPool(context.Background(), dsn, store.PoolOptions{
+		MaxConns:          cfg.Pool.MaxConns,
+		MinConns:          cfg.Pool.MinConns,
+		MaxConnLifetime:   cfg.Pool.MaxConnLifetime,
+		MaxConnIdleTime:   cfg.Pool.MaxConnIdleTime,
+		HealthCheckPeriod: cfg.Pool.HealthCheckPeriod,
+		ConnectTimeout:    cfg.Pool.ConnectTimeout,
+	})
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	guard := limits.NewRoleGuard()
+	role, err := limits.CheckDBRole(context.Background(), st, cfg.AllowSuperuserDSN)
+	if err != nil {
+		st.Close()
+		log.Fatalf("runtime DB role: %v", err)
+	}
+	guard.Set(role)
+	if role.Superuser || role.BypassRLS {
+		log.Printf("WARNING runtime DB role %q is superuser/BYPASSRLS (explicitly allowed)", role.Name)
+	}
+	m := limits.NewMetrics()
+	q := limits.NewQuota(cfg, nil, m)
+	tenantTokens := envOr("PF_TENANT_TOKENS", "")
+	gwSecret := envOr("PF_GATEWAY_SECRET", "")
+	gwSecretOld := envOr("PF_GATEWAY_SECRET_OLD", "")
+	authenticator := auth.NewAuthenticator(admin, tenantTokens, gwSecret, gwSecretOld)
+	memMaxK, memTimeout, err := pfmemory.LoadLimitsFromEnv()
+	if err != nil {
+		st.Close()
+		log.Fatalf("memory config: %v", err)
+	}
+	s := &server{admin: admin, authenticator: authenticator, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
+		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New(),
+		memoryMaxK: memMaxK, memoryTimeout: memTimeout}
+	s.memoryAuditor = newMemoryAudit(m, st)
+	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
+	dcfg, derr := degrade.NewPolicy(dcfgPath)
+	var dcheck degrade.Checker = dcfg
+	if dcfg != nil {
+		dcfg.Metrics = m
+	}
+	if derr != nil {
+		st.Close()
+		log.Fatalf("degradation config: %v", derr)
+	}
+	s.guard = &storeguard.Guard{Quota: q, Degrade: dcheck, Metrics: observe.Recorder{M: m}, Meter: m}
 	obj, err := buildObjectStore()
 	if err != nil {
+		st.Close()
 		log.Fatalf("object store: %v", err)
 	}
 	s.obj = obj
+	recheckCtx, stopRecheck := context.WithCancel(context.Background())
+	defer stopRecheck()
+	go guard.RecheckLoop(recheckCtx, st, cfg.AllowSuperuserDSN, cfg.RoleRecheckInterval, func(err error) {
+		log.Printf("WARNING runtime DB role recheck failed: %v", err)
+		m.Inc("edp_role_check_failures_total")
+	})
+	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
+	s.checkAuditCoverage()
+	s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+	go s.checkBacklogAuthority(recheckCtx)
+	go s.backlogAuthorityLoop(recheckCtx)
+	handler := limits.Chain(limits.EnvelopeFallback(s.buildMux()), cfg, q, m, guard.OK, s.authorize)
+	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		MaxHeaderBytes:    int(cfg.MaxHeaderBytes),
+	}
+	sigCtx, stopSig := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSig()
+	go func() {
+		log.Printf("edpsvc listening on %s (migrations=%s, profile=%s)", addr, s.migDir, cfg.Profile)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("edpsvc: %v", err)
+		}
+	}()
+	<-sigCtx.Done()
+	stopRecheck()
+	drain := cfg.WriteTimeout
+	if drain < 30*time.Second {
+		drain = 30 * time.Second
+	}
+	shutCtx, cancel := context.WithTimeout(context.Background(), drain)
+	defer cancel()
+	if err := srv.Shutdown(shutCtx); err != nil {
+		log.Printf("edpsvc shutdown: %v; force-closing the listener", err)
+		_ = srv.Close()
+	}
+	s.memoryAuditor.Close()
+	st.Close()
+}
+
+func (s *server) buildMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	mux.HandleFunc("/ready", s.ready)
+	mux.HandleFunc("/metrics", s.adminOnly(s.metricsHandler))
 	mux.HandleFunc("/admin/migrations/status", s.adminOnly(s.migrationsStatus))
 	mux.HandleFunc("/admin/migrations/up", s.adminOnly(s.migrationsUp))
 	mux.HandleFunc("/admin/migrations/down", s.adminOnly(s.migrationsDown))
 	mux.HandleFunc("/admin/schema-check", s.adminOnly(s.schemaCheck))
+	mux.HandleFunc("/admin/backlog/authority", s.adminOnly(s.backlogAuthority))
 	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
-	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
-	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
-	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
-	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
-	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
-	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
-	mux.HandleFunc("/memory", s.adminOnly(s.memoryHandle))
-	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
-	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
-	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
-	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
-	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	mux.HandleFunc("/admin/cache", s.adminOnly(s.cacheHandle))
+	mux.HandleFunc("/admin/limits", s.adminOnly(s.adminLimits))
+	mux.HandleFunc("/artifacts", s.tenantOrAdmin(s.artifactUpload))
+	mux.HandleFunc("/artifacts/", s.tenantOrAdmin(s.artifactRoute))
+	mux.HandleFunc("/audit", s.tenantOrAdmin(s.auditAppend))
+	mux.HandleFunc("/admin/audit-coverage", s.adminOnly(s.auditCoverage))
+	mux.HandleFunc("/admin/objects/url", s.adminOnly(s.objectURL))
+	mux.HandleFunc("/jobs", s.tenantOrAdmin(s.jobSubmit))
+	mux.HandleFunc("/jobs/claim", s.tenantOrAdmin(s.jobClaim))
+	mux.HandleFunc("/jobs/action", s.tenantOrAdmin(s.jobAction))
+	mux.HandleFunc("/memory", s.tenantOrAdmin(s.memoryHandle))
+	mux.HandleFunc("/memory/", s.tenantOrAdmin(s.memoryByID))
+	mux.HandleFunc("/backlog", s.tenantOrAdmin(s.backlogHandle))
+	mux.HandleFunc("/backlog/ids:reserve", s.adminOnly(s.backlogReserve))
+	mux.HandleFunc("/backlog/", s.tenantOrAdmin(s.backlogByID))
+	return mux
+}
+
+// coverageStatus mirrors audit_partition_coverage for the startup probe and the admin endpoint.
+type coverageStatus struct {
+	MonthsAhead       int
+	LeadMonths        int
+	LastRotationHours float64
+	Stale             bool
+}
+
+func (c coverageStatus) Low() bool { return c.MonthsAhead < c.LeadMonths }
+
+// rotationMaxAge reads the stale threshold once (env), defaulting to 48h.
+func rotationMaxAge() float64 {
+	if v := os.Getenv("PF_AUDIT_ROTATION_MAX_AGE_HOURS"); v != "" {
+		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 48
+}
+
+// readCoverage uses the store port (no second pool / provider import in the service layer).
+func (s *server) readCoverage(ctx context.Context, maxAge float64) (coverageStatus, error) {
+	var st coverageStatus
+	_, err := s.withStore(ctx, func(pg *store.PgStore) (any, error) {
+		return nil, pg.WithTx(ctx, func(tx datastore.Tx) error {
+			rows, err := tx.Query(ctx, `SELECT months_ahead, lead_months, last_rotation_hours
+				FROM audit_coverage_status()`)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			if !rows.Next() {
+				return errors.New("audit coverage: no row")
+			}
+			if err := rows.Scan(&st.MonthsAhead, &st.LeadMonths, &st.LastRotationHours); err != nil {
+				return err
+			}
+			st.Stale = maxAge > 0 && (st.LastRotationHours < 0 || st.LastRotationHours > maxAge)
+			return rows.Err()
+		})
+	})
+	return st, err
+}
+
+// checkAuditCoverage emits the AC metrics once on startup; every failure is logged, never fatal.
+func (s *server) checkAuditCoverage() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	st, err := s.readCoverage(ctx, rotationMaxAge())
+	if err != nil {
+		log.Printf("audit coverage: %v (non-fatal)", err)
+		return
+	}
+	metrics := map[string]int64{}
+	if st.Low() {
+		metrics["audit_partition_low_coverage_total"] = 1
+	}
+	stale := 0.0
+	if st.Stale {
+		stale = 1
+	}
+	b, _ := json.Marshal(map[string]any{
+		"metrics": metrics,
+		"gauges": map[string]float64{
+			"audit_partition_months_ahead": float64(st.MonthsAhead),
+			"audit_rotation_stale":         stale,
+		},
+	})
+	fmt.Fprintln(os.Stderr, string(b))
+	if st.Low() {
+		log.Printf("WARNING audit coverage low: months_ahead=%d lead=%d", st.MonthsAhead, st.LeadMonths)
+	}
+	if st.Stale {
+		log.Printf("WARNING audit rotation stale: last_rotation_hours=%.1f", st.LastRotationHours)
+	}
+}
+
+func (s *server) checkBacklogAuthority(parent context.Context) {
+	s.authorityMu.Lock()
+	defer s.authorityMu.Unlock()
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		ctx, cancel := context.WithTimeout(parent, s.cfg.DBTimeout)
+		_, err = edpdata.NewBacklog(store.BindTenant(s.st, "product_forge")).WithTimeout(s.cfg.DBTimeout).Authority(ctx)
+		cancel()
+		if err == nil {
+			s.metrics.Set("edp_backlog_authority_startup_ok", 1)
+			s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
+			return
+		}
+		if attempt < 2 {
+			select {
+			case <-parent.Done():
+				return
+			case <-time.After(time.Duration(1<<attempt) * time.Second):
+			}
+		}
+	}
+	s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+	s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
+	log.Printf("backlog authority principal=admin source=startup %v (non-fatal, reason_code=%s)",
+		limits.Redact(err.Error()), authorityReasonCode(err))
+}
+
+func (s *server) backlogAuthorityLoop(ctx context.Context) {
+	t := time.NewTicker(backlogAuthorityRecheck)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			s.checkBacklogAuthority(ctx)
+		}
+	}
+}
+
+func authorityReasonBounded(reason string) bool {
+	switch reason {
+	case "timeout", "canceled", "migration_missing", "row_missing", "db_unavailable", "internal_error":
+		return true
+	}
+	return false
+}
+
+var dbUnavailableMarkers = [...]string{
+	"conn closed", "closed pool", "unexpected eof", "connection refused",
+	"tls handshake", "password authentication failed", "pg_hba",
+}
+
+var x509StringMarker = regexp.MustCompile(`(^|[^a-zA-Z0-9_.-])x509:`)
+
+func authorityReasonCode(err error) string {
+	switch {
+	case errors.Is(err, edpdata.ErrAuthoritySchema):
+		return "migration_missing"
+	case errors.Is(err, edpdata.ErrAuthorityRow):
+		return "row_missing"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
+		return "timeout"
+	default:
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			if netErr.Timeout() {
+				return "timeout"
+			}
+			return "db_unavailable"
+		}
+		var unknownCA x509.UnknownAuthorityError
+		var hostnameErr x509.HostnameError
+		var certInvalid x509.CertificateInvalidError
+		if errors.As(err, &unknownCA) || errors.As(err, &hostnameErr) || errors.As(err, &certInvalid) {
+			return "db_unavailable"
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "57014" {
+				return "timeout"
+			}
+			return "db_unavailable"
+		}
+		message := strings.ToLower(err.Error())
+		if strings.Contains(message, "statement timeout") {
+			return "timeout"
+		}
+		if x509StringMarker.MatchString(message) {
+			return "db_unavailable"
+		}
+		for _, marker := range dbUnavailableMarkers {
+			if strings.Contains(message, marker) {
+				return "db_unavailable"
+			}
+		}
+		return "internal_error"
+	}
+}
+
+func (s *server) auditCoverage(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	st, err := s.readCoverage(ctx, rotationMaxAge())
+	if err != nil {
+		s.fail(w, r, http.StatusServiceUnavailable, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"months_ahead": st.MonthsAhead, "lead_months": st.LeadMonths, "low": st.Low(),
+		"last_rotation_hours": st.LastRotationHours, "stale": st.Stale,
+	})
+}
+
+// objectURL mints a signed URL through the single objpolicy boundary (admin API; tenant from the request).
+func (s *server) objectURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET")
+		return
+	}
+	q := r.URL.Query()
+	tenant, key := q.Get("tenant"), q.Get("key")
+	if tenant == "" || key == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant and key are required")
+		return
+	}
+	ttl := 5 * time.Minute
+	if v := q.Get("ttl_seconds"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			ttl = time.Duration(n) * time.Second
+		}
+	}
+	method := q.Get("method")
+	if method == "" {
+		method = http.MethodGet
+	}
+	ctx := objpolicy.WithTenant(r.Context(), tenant)
+	u, err := objpolicy.Mint(ctx, s.obj, key, method, ttl)
+	if err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"url": u})
 }
 
 func envOr(k, d string) string {
@@ -122,28 +600,87 @@ func findMigrations() string {
 	}
 }
 
+func (s *server) auth() *auth.Authenticator {
+	if s.authenticator == nil {
+		s.authenticator = auth.NewAuthenticator(s.admin, os.Getenv("PF_TENANT_TOKENS"), os.Getenv("PF_GATEWAY_SECRET"), os.Getenv("PF_GATEWAY_SECRET_OLD"))
+	}
+	return s.authenticator
+}
+
+func (s *server) authorize(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
+	p, err := s.auth().Authenticate(r)
+	if err != nil || p == nil {
+		if errors.Is(err, auth.ErrExpiredCredential) {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "EXPIRED_CREDENTIAL", "credential has expired", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "expired")
+		} else if errors.Is(err, auth.ErrPrematureCredential) {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "PREMATURE_CREDENTIAL", "credential not yet valid", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "premature")
+		} else if errors.Is(err, auth.ErrInvalidClaims) {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "INVALID_CLAIMS", "invalid tenant claim", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "invalid_claims")
+		} else {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required", "auth", false)
+			s.metrics.Inc("edp_auth_failures_total", "reason", "unauthenticated")
+		}
+		return nil, false
+	}
+	s.metrics.Inc("edp_auth_successes_total")
+	return r.WithContext(auth.WithPrincipal(r.Context(), p)), true
+}
+
 func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, "Bearer ") || strings.TrimSpace(strings.TrimPrefix(auth, "Bearer ")) != s.admin {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin authorization required"})
+		p, ok := auth.PrincipalFrom(r.Context())
+		if !ok || p == nil {
+			var authed bool
+			r, authed = s.authorize(w, r)
+			if !authed {
+				return
+			}
+			p, _ = auth.PrincipalFrom(r.Context())
+		}
+		if p == nil || !p.IsAdmin {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "admin authorization required", "auth", false)
 			return
 		}
 		fn(w, r)
 	}
 }
 
-func (s *server) withStore(ctx context.Context, fn func(*store.PgStore) (any, error)) (any, error) {
-	st, err := store.Open(ctx, s.dsn)
-	if err != nil {
-		return nil, err
+func (s *server) tenantOrAdmin(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, ok := auth.PrincipalFrom(r.Context())
+		if !ok || p == nil {
+			var authed bool
+			r, authed = s.authorize(w, r)
+			if !authed {
+				return
+			}
+			p, _ = auth.PrincipalFrom(r.Context())
+		}
+		if p == nil {
+			limits.WriteErrorCode(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required", "auth", false)
+			return
+		}
+		fn(w, r)
 	}
-	defer st.Close()
-	return fn(st)
+}
+
+func (s *server) resolveTenant(r *http.Request, fallback string) string {
+	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && !p.IsAdmin && p.Tenant != "" {
+		return p.Tenant
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func (s *server) withStore(_ context.Context, fn func(*store.PgStore) (any, error)) (any, error) {
+	return fn(s.st)
 }
 
 func (s *server) migrationsStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
 		if err != nil {
@@ -163,14 +700,15 @@ func (s *server) migrationsStatus(w http.ResponseWriter, r *http.Request) {
 		return map[string]any{"migrations": rows}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) migrationsUp(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.migrationCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
 		if err != nil {
@@ -186,14 +724,15 @@ func (s *server) migrationsUp(w http.ResponseWriter, r *http.Request) {
 		return map[string]any{"applied": n}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) migrationsDown(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.migrationCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
 		if err != nil {
@@ -208,14 +747,15 @@ func (s *server) migrationsDown(w http.ResponseWriter, r *http.Request) {
 		return map[string]string{"result": "rolled back one migration"}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		expected, err := store.ExpectedFromDir(s.migDir)
 		if err != nil {
@@ -236,7 +776,7 @@ func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
 		}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	code := http.StatusOK
@@ -246,12 +786,89 @@ func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, code, out)
 }
 
+func (s *server) cacheHandle(w http.ResponseWriter, r *http.Request) {
+	tenant := r.URL.Query().Get("tenant")
+	key := r.URL.Query().Get("key")
+	if tenant == "" || key == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant and key are required")
+		return
+	}
+	if s.cacheStore == nil {
+		s.bad(w, r, http.StatusServiceUnavailable, "cache unavailable")
+		return
+	}
+	ctx := r.Context()
+	key = tenant + ":" + key
+	switch r.Method {
+	case http.MethodGet:
+		var val []byte
+		var ok bool
+		err := s.storeGuard("cache", tenant, func() error {
+			var e error
+			val, ok, e = s.cacheStore.Get(ctx, key)
+			return e
+		})
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		if !ok {
+			s.bad(w, r, http.StatusNotFound, "cache miss")
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(val)
+	case http.MethodPut, http.MethodPost:
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.cfg.MaxBodyBytes))
+		if err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
+			return
+		}
+		err = s.storeGuard("cache", tenant, func() error { return s.cacheStore.Set(ctx, key, body, 5*time.Minute) })
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	case http.MethodDelete:
+		err := s.storeGuard("cache", tenant, func() error { return s.cacheStore.Delete(ctx, key) })
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	default:
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET, PUT/POST, or DELETE")
+	}
+}
+
 func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.obj.Capabilities())
 }
 
 func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
-	errs := datastore.ConformObjectStore(context.Background(), s.obj)
+	tenant := r.URL.Query().Get("tenant")
+	if tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
+		return
+	}
+	var errs []error
+	if err := s.storeGuard("object", tenant, func() error { errs = datastore.ConformObjectStore(r.Context(), s.obj); return nil }); err != nil {
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		s.fail(w, r, http.StatusServiceUnavailable, err)
+		return
+	}
 	msgs := make([]string, 0, len(errs))
 	for _, e := range errs {
 		msgs = append(msgs, e.Error())
@@ -265,49 +882,50 @@ func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
 
 var errTenant = errors.New("tenant query parameter is required")
 
+var errBadJobAction = errors.New("bad job action")
+
 func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(64 << 20); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "multipart body required"})
+	if err := r.ParseMultipartForm(s.cfg.MaxUploadBytes); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	tenant := r.FormValue("tenant")
+	tenant := s.resolveTenant(r, r.FormValue("tenant"))
 	if tenant == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": errTenant.Error()})
+		s.fail(w, r, http.StatusBadRequest, errTenant)
 		return
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file part required"})
+		s.bad(w, r, http.StatusBadRequest, "file part required")
 		return
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, 64<<20))
+	data, err := io.ReadAll(io.LimitReader(f, s.cfg.MaxUploadBytes+1))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	ctx := context.Background()
+	if int64(len(data)) > s.cfg.MaxUploadBytes {
+		s.bad(w, r, http.StatusRequestEntityTooLarge, "upload exceeds the configured limit")
+		return
+	}
 	sum := sha256.Sum256(data)
 	checksum := hex.EncodeToString(sum[:])
-	if _, err := s.obj.Put(ctx, checksum, bytes.NewReader(data), int64(len(data)),
+	if _, err := s.obj.Put(r.Context(), checksum, bytes.NewReader(data), int64(len(data)),
 		datastore.PutOptions{ContentType: hdr.Header.Get("Content-Type")}); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	st, err := store.Open(ctx, s.dsn)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	defer st.Close()
-	svc := artifacts.New(store.BindTenant(st, tenant), s.obj)
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	svc := artifacts.New(store.BindTenant(s.st, tenant), s.obj)
 	a, err := svc.Register(ctx, datastore.Artifact{
 		ID: r.FormValue("id"), TenantID: tenant, Project: r.FormValue("project"), Run: r.FormValue("run"),
 		Stage: r.FormValue("stage"), Type: r.FormValue("type"), Checksum: checksum,
 		Size: int64(len(data)), Version: checksum,
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, a)
@@ -322,43 +940,39 @@ func (s *server) artifactRoute(w http.ResponseWriter, r *http.Request) {
 	s.artifactGet(w, r, rest)
 }
 
-func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, func(), error) {
-	tenant := r.URL.Query().Get("tenant")
+func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, error) {
+	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
 	if tenant == "" {
-		return nil, nil, errTenant
+		return nil, errTenant
 	}
-	st, err := store.Open(context.Background(), s.dsn)
-	if err != nil {
-		return nil, nil, err
-	}
-	return artifacts.New(store.BindTenant(st, tenant), s.obj), st.Close, nil
+	return artifacts.New(store.BindTenant(s.st, tenant), s.obj), nil
 }
 
 func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) {
-	svc, closeFn, err := s.artifactSvc(r)
+	svc, err := s.artifactSvc(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		s.bad(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
-	defer closeFn()
-	a, err := svc.Get(r.Context(), id)
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	a, err := svc.Get(ctx, id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		s.bad(w, r, http.StatusNotFound, "artifact not found")
 		return
 	}
 	writeJSON(w, http.StatusOK, a)
 }
 
 func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id string) {
-	svc, closeFn, err := s.artifactSvc(r)
+	svc, err := s.artifactSvc(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		s.bad(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
-	defer closeFn()
 	rc, err := svc.FetchContent(r.Context(), id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		s.bad(w, r, http.StatusNotFound, "artifact not found")
 		return
 	}
 	defer rc.Close()
@@ -367,66 +981,104 @@ func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id stri
 }
 
 func (s *server) tenantStore(tenant string) (*store.PgStore, error) {
-	st, err := store.Open(context.Background(), s.dsn)
-	return st, err
+	return s.st, nil
 }
 
 func (s *server) auditAppend(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, Actor, Action, Resource, Outcome, CorrelationID string
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Action == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and action are required"})
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Action == "" {
+		s.bad(w, r, http.StatusBadRequest, "action is required")
+		return
+	}
+	b.Tenant = s.resolveTenant(r, b.Tenant)
+	if b.Tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	err = edpdata.NewAudit(store.BindTenant(st, b.Tenant)).Append(r.Context(), datastore.AuditEvent{
+	err = edpdata.NewAudit(store.BindTenant(st, b.Tenant)).Append(ctx, datastore.AuditEvent{
 		TenantID: b.Tenant, Actor: b.Actor, Action: b.Action, Resource: b.Resource,
 		Outcome: b.Outcome, CorrelationID: b.CorrelationID, At: time.Now(),
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, ID, Kind, IdempotencyKey string
 		Priority                         int
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and id are required"})
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.ID == "" {
+		s.bad(w, r, http.StatusBadRequest, "id is required")
+		return
+	}
+	b.Tenant = s.resolveTenant(r, b.Tenant)
+	if b.Tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	j, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(r.Context(), datastore.Job{
-		ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+	var j datastore.Job
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		var e error
+		j, e = edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(ctx, datastore.Job{
+			ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, j)
 }
 
 func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, Worker string
 		TTLSeconds     int
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Worker == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and worker are required"})
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Worker == "" {
+		s.bad(w, r, http.StatusBadRequest, "worker is required")
+		return
+	}
+	b.Tenant = s.resolveTenant(r, b.Tenant)
+	if b.Tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
 		return
 	}
 	if b.TTLSeconds <= 0 {
@@ -434,141 +1086,401 @@ func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	j, ok, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(r.Context(), b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+	var j datastore.Job
+	var ok bool
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		var e error
+		j, ok, e = edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(ctx, b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"claimed": ok, "job": j})
 }
 
 func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, ID, Lease, Action, Reason string
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and id are required"})
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Tenant == "" || b.ID == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant and id are required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	jobs := edpdata.NewJobs(store.BindTenant(st, b.Tenant))
-	switch b.Action {
-	case "complete":
-		err = jobs.Complete(r.Context(), b.ID, b.Lease)
-	case "fail":
-		err = jobs.Fail(r.Context(), b.ID, b.Lease, b.Reason)
-	case "release":
-		err = jobs.Release(r.Context(), b.ID, b.Lease)
-	case "heartbeat":
-		err = jobs.Heartbeat(r.Context(), b.ID, b.Lease)
-	default:
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "action must be complete|fail|release|heartbeat"})
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		switch b.Action {
+		case "complete":
+			return jobs.Complete(ctx, b.ID, b.Lease)
+		case "fail":
+			return jobs.Fail(ctx, b.ID, b.Lease, b.Reason)
+		case "release":
+			return jobs.Release(ctx, b.ID, b.Lease)
+		case "heartbeat":
+			return jobs.Heartbeat(ctx, b.ID, b.Lease)
+		default:
+			return errBadJobAction
+		}
+	})
+	if errors.Is(err, errBadJobAction) {
+		s.bad(w, r, http.StatusBadRequest, "action must be complete|fail|release|heartbeat")
+		return
+	}
+	if s.storeGuardError(w, r, err) {
 		return
 	}
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	tenant := q.Get("tenant")
+func (s *server) resolveMemory(tenant string) (datastore.MemoryRepository, error) {
+	if dsn := os.Getenv("PF_MEMORY_DSN"); dsn != "" {
+		s.authorityMu.Lock()
+		defer s.authorityMu.Unlock()
+		if s.memRepo != nil {
+			return s.memRepo, nil
+		}
+		repo, err := dualvec.New(dualvec.Config{DSN: dsn, Dimension: 1536})
+		if err != nil {
+			return nil, err
+		}
+		s.memRepo = repo
+		return s.memRepo, nil
+	}
 	st, err := s.tenantStore(tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return nil, err
+	}
+	return dualvec.New(dualvec.Config{RelationalStore: store.BindTenant(st, tenant)})
+}
+
+type memoryAudit struct {
+	metrics   *limits.Metrics
+	st        *store.PgStore
+	ch        chan pfmemory.AuditEvent
+	wg        sync.WaitGroup
+	closeOnce sync.Once
+	mu        sync.RWMutex
+	closed    bool
+}
+
+func newMemoryAudit(metrics *limits.Metrics, st *store.PgStore) *memoryAudit {
+	a := &memoryAudit{metrics: metrics, st: st, ch: make(chan pfmemory.AuditEvent, 256)}
+	a.wg.Add(1)
+	go a.worker()
+	return a
+}
+
+func (a *memoryAudit) worker() {
+	defer a.wg.Done()
+	for e := range a.ch {
+		a.write(e)
+	}
+}
+
+func (a *memoryAudit) write(e pfmemory.AuditEvent) {
+	if a.st == nil || e.TenantID == "" {
 		return
 	}
-	defer st.Close()
-	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resource := e.RecordID
+	if e.ProjectID != "" {
+		resource = e.ProjectID + "/" + resource
+	}
+	if err := edpdata.NewAudit(store.BindTenant(a.st, e.TenantID)).Append(ctx, datastore.AuditEvent{
+		TenantID: e.TenantID, Actor: e.Actor, Action: "memory." + e.Op, Resource: resource,
+		Outcome: e.Outcome, CorrelationID: e.Reason, At: time.Now().UTC(),
+	}); err != nil {
+		if a.metrics != nil {
+			a.metrics.Inc("memory_audit_failures_total", "op", e.Op)
+		}
+		log.Printf("memory_audit_failure op=%s tenant=%s project=%s actor=%s record=%s err=%v",
+			e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID, err)
+	}
+}
+
+func (a *memoryAudit) Audit(e pfmemory.AuditEvent) {
+	a.mu.RLock()
+	if a.closed {
+		a.mu.RUnlock()
+		a.drop(e)
+		return
+	}
+	timer := time.NewTimer(50 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case a.ch <- e:
+		a.mu.RUnlock()
+	case <-timer.C:
+		a.mu.RUnlock()
+		a.drop(e)
+	}
+}
+
+func (a *memoryAudit) drop(e pfmemory.AuditEvent) {
+	if a.metrics != nil {
+		a.metrics.Inc("memory_audit_dropped_total", "op", e.Op)
+	}
+	log.Printf("memory_audit_dropped op=%s tenant=%s project=%s actor=%s record=%s",
+		e.Op, e.TenantID, e.ProjectID, e.Actor, e.RecordID)
+}
+
+func (a *memoryAudit) Close() {
+	a.closeOnce.Do(func() {
+		a.mu.Lock()
+		a.closed = true
+		close(a.ch)
+		a.mu.Unlock()
+		a.wg.Wait()
+	})
+}
+
+func (s *server) resolveOrchestrator(tenant, project, principal string) (*pfmemory.Orchestrator, error) {
+	repo, err := s.resolveMemory(tenant)
+	if err != nil {
+		return nil, err
+	}
+	maxK, timeout := s.memoryMaxK, s.memoryTimeout
+	if maxK == 0 {
+		maxK = 20
+	}
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+	obs := pfmemory.ObserverFuncs{
+		ObserveFn: func(op, result string, d time.Duration) {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_ops_total", "op", op, "result", result)
+				s.metrics.ObserveHistogram("memory_op_duration_seconds", []string{"op", op, "result", result}, d)
+			}
+		},
+		DeniedFn: func(reason string) {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_denied_total", "reason", reason)
+			}
+		},
+		FilteredFn: func() {
+			if s.metrics != nil {
+				s.metrics.Inc("memory_filtered_projectless_total")
+			}
+		},
+	}
+	opts := []pfmemory.Option{pfmemory.WithObserver(obs), pfmemory.WithLimits(maxK, timeout)}
+	if s.memoryAuditor != nil {
+		opts = append(opts, pfmemory.WithAuditor(s.memoryAuditor))
+	}
+	return pfmemory.New(repo, opts...)
+}
+
+func (s *server) memoryRequestError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, pfmemory.ErrNotFound):
+		limits.WriteErrorCode(w, r, http.StatusNotFound, "MEMORY_NOT_FOUND", "not found", "memory", false)
+	case errors.Is(err, pfmemory.ErrInvalidScope):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_INVALID_SCOPE", "tenant, project, and principal are required", "memory", false)
+	case errors.Is(err, pfmemory.ErrValidation):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_VALIDATION_FAILED", err.Error(), "memory", false)
+	case errors.Is(err, pfmemory.ErrLimitExceeded):
+		limits.WriteErrorCode(w, r, http.StatusBadRequest, "MEMORY_LIMIT_EXCEEDED", err.Error(), "memory", false)
+	case errors.Is(err, pfmemory.ErrScopedReadUnsupported), errors.Is(err, pfmemory.ErrScopedDeleteUnsupported):
+		limits.WriteErrorCode(w, r, http.StatusServiceUnavailable, "MEMORY_SCOPED_OPERATION_UNSUPPORTED", err.Error(), "memory", true)
+	default:
+		limits.WriteErrorCode(w, r, http.StatusInternalServerError, "MEMORY_STORE_UNAVAILABLE", "memory store unavailable", "memory", true)
+	}
+}
+
+func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	q := r.URL.Query()
+	tenant := s.resolveTenant(r, q.Get("tenant"))
+	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
+	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
+		principal = p.ID
+	}
 	switch r.Method {
 	case http.MethodPost:
-		var b struct{ ID, Tenant, Project, Kind, ObjectRef, ACLScope string }
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
+		var b struct {
+			ID, Tenant, Project, Kind, ObjectRef, ACLScope string
+			Content, Source, Owner                         string
+			Embedding                                      []float32
+		}
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
 			return
 		}
-		e, err := mem.Put(r.Context(), datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
-			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope})
+		if b.ID == "" || b.Tenant == "" {
+			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
+			return
+		}
+		if b.Owner != "" && b.Owner != principal {
+			s.bad(w, r, http.StatusForbidden, "owner is derived from the authenticated principal")
+			return
+		}
+		tenant = s.resolveTenant(r, b.Tenant)
+		orch, err := s.resolveOrchestrator(tenant, b.Project, principal)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		e, err := orch.Put(ctx, pfmemory.Scope{TenantID: tenant, ProjectID: b.Project, Principal: principal},
+			datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project, Kind: b.Kind,
+				ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
+				Owner: principal, Embedding: b.Embedding})
+		if err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, e)
 	case http.MethodGet:
 		k := 20
-		hits, err := mem.Search(r.Context(), q.Get("kind"), datastore.MemoryScope{
-			TenantID: tenant, Project: q.Get("project"), Source: q.Get("source")}, k)
+		if v := q.Get("k"); v != "" {
+			if n, convErr := strconv.Atoi(v); convErr == nil && n > 0 {
+				k = n
+			}
+		}
+		var kinds []string
+		kv := strings.TrimSpace(q.Get("kinds"))
+		if kv == "" {
+			kv = strings.TrimSpace(q.Get("types"))
+		}
+		if kv != "" {
+			for _, part := range strings.Split(kv, ",") {
+				if p := strings.TrimSpace(part); p != "" {
+					kinds = append(kinds, p)
+				}
+			}
+		}
+		text := q.Get("q")
+		if text == "" {
+			text = q.Get("kind")
+		}
+		src, acl := q.Get("source"), ""
+		if src == "private" || src == "project" || src == "tenant" || src == "shared" {
+			acl, src = src, ""
+		}
+		project := q.Get("project")
+		orch, err := s.resolveOrchestrator(tenant, project, principal)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		hits, err := orch.Search(ctx, pfmemory.Scope{TenantID: tenant, ProjectID: project, Principal: principal},
+			pfmemory.SearchRequest{Text: text, K: k, Source: src, ACL: acl, Kinds: kinds})
+		if err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"hits": hits})
 	default:
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET or POST"})
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET or POST")
 	}
 }
 
 func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/memory/")
-	tenant := r.URL.Query().Get("tenant")
-	st, err := s.tenantStore(tenant)
+	q := r.URL.Query()
+	tenant := s.resolveTenant(r, q.Get("tenant"))
+	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
+	if p, ok := auth.PrincipalFrom(r.Context()); ok && p != nil && p.ID != "" {
+		principal = p.ID
+	}
+	project := q.Get("project")
+	orch, err := s.resolveOrchestrator(tenant, project, principal)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
+	scope := pfmemory.Scope{TenantID: tenant, ProjectID: project, Principal: principal}
 	if r.Method == http.MethodDelete {
-		if err := mem.Delete(r.Context(), id); err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		if err := orch.Delete(ctx, scope, id); err != nil {
+			s.memoryRequestError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
-	e, err := mem.Get(r.Context(), id)
+	e, err := orch.Get(ctx, scope, id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		s.memoryRequestError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, e)
 }
 
+func (s *server) backlogTenantError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if errors.Is(err, edpdata.ErrTenantMismatch) {
+		s.bad(w, r, http.StatusForbidden, "tenant context mismatch")
+		return true
+	}
+	if errors.Is(err, edpdata.ErrTenantContext) {
+		s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+		return true
+	}
+	return false
+}
+
 func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	q := r.URL.Query()
-	tenant := q.Get("tenant")
+	tenant := s.resolveTenant(r, q.Get("tenant"))
 	st, err := s.tenantStore(tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	switch r.Method {
 	case http.MethodPost:
 		var b struct {
-			ID, Tenant, Type, Status, Title, Body string
-			Data                                  json.RawMessage
+			ID, Tenant, Scope, Project, Type, Status, Title, Body string
+			Data                                                  json.RawMessage
 		}
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
 			return
 		}
-		it, err := bl.Put(r.Context(), edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Type: b.Type,
-			Status: b.Status, Title: b.Title, Body: b.Body, Data: b.Data})
+		b.Tenant = s.resolveTenant(r, b.Tenant)
+		if b.ID == "" || b.Tenant == "" {
+			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
+			return
+		}
+		it, err := bl.Put(ctx, edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Scope: b.Scope,
+			ProjectID: b.Project, Type: b.Type, Status: b.Status, Title: b.Title, Body: b.Body, Data: b.Data})
+		if errors.Is(err, edpdata.ErrTenantConflict) {
+			s.bad(w, r, http.StatusConflict, "backlog id conflicts with another tenant")
+			return
+		}
+		if s.backlogTenantError(w, r, err) {
+			return
+		}
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, it)
@@ -579,41 +1491,285 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 				limit = n
 			}
 		}
-		items, err := bl.List(r.Context(), q.Get("status"), limit)
+		items, err := bl.List(ctx, q.Get("status"), limit)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			if s.backlogTenantError(w, r, err) {
+				return
+			}
+			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"items": items})
 	default:
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET or POST"})
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET or POST")
 	}
 }
 
-func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/backlog/")
-	tenant := r.URL.Query().Get("tenant")
-	st, err := s.tenantStore(tenant)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+func reservationResponse(id string, blk edpdata.IDBlock) map[string]any {
+	return map[string]any{"reservation_id": id, "start": blk.Start, "end": blk.End}
+}
+
+func (s *server) reservationExhausted(w http.ResponseWriter, r *http.Request) {
+	s.metrics.Inc("edp_backlog_reservation_exhausted_total")
+	log.Printf("backlog reserve: reason_code=exhausted")
+	s.bad(w, r, http.StatusConflict, "backlog id space exhausted")
+}
+
+func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.bad(w, r, http.StatusMethodNotAllowed, "use POST")
 		return
 	}
-	defer st.Close()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	var b struct {
+		Scope         string `json:"scope"`
+		Project       string `json:"project"`
+		ReservationID string `json:"reservation_id"`
+		Size          int    `json:"size"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.ReservationID == "" || b.Size <= 0 {
+		s.bad(w, r, http.StatusBadRequest, "reservation_id and positive size are required")
+		return
+	}
+	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
+	// does not bind a tenant.
+	var blk edpdata.IDBlock
+	err := s.storeGuard("db", "", func() error {
+		var e error
+		blk, e = s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
+	if errors.Is(err, edpdata.ErrReservationInvalid) {
+		log.Printf("backlog reserve: reason_code=invalid_request")
+		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
+		return
+	}
+	if errors.Is(err, edpdata.ErrReservationConflict) {
+		s.metrics.Inc("edp_backlog_reservation_conflicts_total")
+		log.Printf("backlog reserve: reason_code=conflict")
+		s.bad(w, r, http.StatusConflict, "reservation id already has a different block")
+		return
+	}
+	if errors.Is(err, edpdata.ErrReservationExhausted) {
+		s.reservationExhausted(w, r)
+		return
+	}
+	if err != nil {
+		log.Printf("backlog reserve: reason_code=db_error %s", limits.Redact(err.Error()))
+		s.bad(w, r, http.StatusServiceUnavailable, "backlog reservation unavailable")
+		return
+	}
+	s.metrics.Inc("edp_backlog_reservation_requests_total")
+	writeJSON(w, http.StatusOK, reservationResponse(b.ReservationID, blk))
+}
+
+func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	id := strings.TrimPrefix(r.URL.Path, "/backlog/")
+	tenant := s.resolveTenant(r, r.URL.Query().Get("tenant"))
+	st, err := s.tenantStore(tenant)
+	if err != nil {
+		s.fail(w, r, http.StatusInternalServerError, err)
+		return
+	}
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	if r.Method == http.MethodDelete {
-		if err := bl.Delete(r.Context(), id); err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		if err := s.storeGuard("db", tenant, func() error { return bl.Delete(ctx, id) }); err != nil {
+			if s.storeGuardError(w, r, err) {
+				return
+			}
+			if s.backlogTenantError(w, r, err) {
+				return
+			}
+			s.fail(w, r, http.StatusNotFound, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
-	it, err := bl.Get(r.Context(), id)
+	var it edpdata.BacklogItem
+	err = s.storeGuard("db", tenant, func() error {
+		var e error
+		it, e = bl.Get(ctx, id)
+		return e
+	})
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if errors.Is(err, edpdata.ErrTenantContext) {
+			s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+			return
+		}
+		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, it)
+}
+
+func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET")
+		return
+	}
+	tenant := r.URL.Query().Get("tenant")
+	if tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
+		return
+	}
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	a, err := s.authorityBacklog(tenant).Authority(ctx)
+	if err != nil {
+		reason := authorityReasonCode(err)
+		if !authorityReasonBounded(reason) {
+			reason = "internal_error"
+		}
+		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", reason)
+		s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+		s.metrics.Set("edp_backlog_authority_last_request_ok", 0)
+		log.Printf("backlog authority principal=admin source=request %s reason_code=%s",
+			limits.Redact(err.Error()), reason)
+		w.Header().Set("Retry-After", "30")
+		s.bad(w, r, http.StatusServiceUnavailable, "backlog authority unavailable")
+		return
+	}
+	s.metrics.Set("edp_backlog_authority_last_request_ok", 1)
+	s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"authority":         authorityGlobal,
+		"next_id":           a.NextID,
+		"reservation_scope": reservationScopeGlobal,
+		"reservation_count": a.ReservationCount,
+		"tenant":            tenant,
+		"item_scope":        itemScopeTenant,
+		"item_count":        a.ItemCount,
+	})
+}
+
+func (s *server) dbCtx(r *http.Request) (context.Context, context.CancelFunc) {
+	timeout := s.cfg.DBTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	return context.WithTimeout(r.Context(), timeout)
+}
+
+// migrationCtx bounds DDL with the (longer) migration timeout, not the per-query DB timeout.
+func (s *server) migrationCtx(r *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), s.cfg.MigrationTimeout)
+}
+
+func (s *server) bad(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	limits.WriteError(w, r, status, msg)
+}
+
+func (s *server) fail(w http.ResponseWriter, r *http.Request, status int, err error) {
+	if err == nil {
+		s.bad(w, r, status, "request failed")
+		return
+	}
+	var mbe *http.MaxBytesError
+	if errors.As(err, &mbe) {
+		limits.WriteError(w, r, http.StatusRequestEntityTooLarge, "request body exceeds the configured limit")
+		return
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		limits.WriteHandlerError(w, r, err)
+		return
+	}
+	if status >= http.StatusInternalServerError {
+		log.Printf("edpsvc: %s %s: %s", r.Method, r.URL.Path, limits.Redact(err.Error()))
+		limits.WriteError(w, r, status, "internal error")
+		return
+	}
+	// 4xx: never echo storage/client error text (JSON fragments, object keys, SQL); use a fixed message.
+	limits.WriteError(w, r, status, safeStatusMessage(status))
+}
+
+func safeStatusMessage(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "invalid request"
+	case http.StatusUnauthorized:
+		return "unauthenticated"
+	case http.StatusForbidden:
+		return "forbidden"
+	case http.StatusNotFound:
+		return "not found"
+	case http.StatusMethodNotAllowed:
+		return "method not allowed"
+	case http.StatusConflict:
+		return "conflict"
+	case http.StatusRequestEntityTooLarge:
+		return "payload too large"
+	case http.StatusTooManyRequests:
+		return "rate limited"
+	default:
+		return "request failed"
+	}
+}
+
+func (s *server) ready(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.DBTimeout)
+	defer cancel()
+	if err := s.st.Ping(ctx); err != nil {
+		limits.WriteError(w, r, http.StatusServiceUnavailable, "database unavailable")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+}
+
+func (s *server) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	st := s.poolStats()
+	for k, v := range st {
+		s.metrics.Set("edp_db_pool_"+k, int(v))
+	}
+	if mx := st["max"]; mx > 0 {
+		s.metrics.Set("edp_db_pool_saturation_pct", int(100*st["acquired"]/mx))
+	}
+	s.metrics.Set("edp_quota_tenant_buckets", s.quota.TenantBuckets())
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	s.metrics.Write(w)
+}
+
+func (s *server) poolStats() map[string]int32 {
+	if s.st == nil {
+		return map[string]int32{}
+	}
+	return s.st.Stats()
+}
+
+func (s *server) adminLimits(w http.ResponseWriter, r *http.Request) {
+	role := s.role.Role()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"profile": s.cfg.Profile,
+		"enforce": s.cfg.Enforce,
+		"timeouts": map[string]string{
+			"request": s.cfg.RequestTimeout.String(), "db": s.cfg.DBTimeout.String(),
+			"upload": s.cfg.UploadTimeout.String(), "read": s.cfg.ReadTimeout.String(),
+			"write": s.cfg.WriteTimeout.String(), "idle": s.cfg.IdleTimeout.String(),
+		},
+		"limits": map[string]any{
+			"max_body_bytes": s.cfg.MaxBodyBytes, "max_upload_bytes": s.cfg.MaxUploadBytes,
+			"tenant_rpm": s.cfg.TenantRPM, "global_rpm": s.cfg.GlobalRPM,
+			"tenant_concurrency": s.cfg.TenantConcurrency, "global_concurrency": s.cfg.GlobalConcurrency,
+			"max_tenant_buckets": s.cfg.MaxTenantBuckets,
+		},
+		"pool":           s.poolStats(),
+		"tenant_buckets": s.quota.TenantBuckets(),
+		"role": map[string]any{"name": role.Name, "superuser": role.Superuser,
+			"bypassrls": role.BypassRLS, "ok": s.role.OK(), "last_check_unix": s.role.LastCheck()},
+	})
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

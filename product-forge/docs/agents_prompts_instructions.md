@@ -1,5 +1,7 @@
 # Agents — system prompts, instructions, and parameters
 
+> **LEGACY GENERATED SNAPSHOT - NOT AUTHORITY.** The canonical contracts are `AGENTS.md`, `docs/REVIEW-GATES-LIFECYCLE.md`, and `docs/ENGINEERING_OPERATING_STANDARD.md`. Agent prompts are role adapters. Regenerate this snapshot after prompt changes.
+
 > Generated inventory + analysis of **how each agent is prompted** and **what parameters
 > govern it**. Companion: `Agent_llm_process.md`. Source of truth for a card is
 > `.opencode/agent/<id>.md` (verbatim bodies appended at the end of this file).

@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "edcbbea5380a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:17:20.098601+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`show()` re-executes `architect_review.py gate` via subprocess twice per render (up to 60s each). A supposedly read-only projection is now coupled to an external tool's availability, environment, and latency; a hung/slow reviewer blocks the CLI with no logging or partial-degradation signal (errors are silently swallowed into \"cannot render\").",
+      "The stage table now iterates `STAGES` only and `continue`s on missing entries, so any recorded event whose stage is not in `STAGES` (legacy data, or a new stage introduced by another tool before this constant is updated) silently disappears from the audit table \u2014 an observability/append-only-integrity regression versus the previous rank-99 rendering.",
+      "`current_stage` is derived purely from \"first missing stage\", so a stage whose latest event is `fail` (e.g. `gate0: fail`) still advances `current` to the next stage. The header will claim progress past a failing gate; no notion of \"blocked at\" is represented or tested.",
+      "`_parse_recommendation`'s regex and separator normalization couple the renderer to the exact output phrasing of `architect_review.py`. Any wording change (\"Overall recommendation:\", localized/changed labels) silently degrades to `reviewed (recommendation unavailable)` with no test guarding the contract between the two modules; no test covers the `NOT READY` normalization path required by the acceptance criteria."
+    ],
+    "MINOR": [
+      "Current stage is rendered three times (header, section 3, final table row) and the stage checklist duplicates the stage table content \u2014 redundancy that will drift as sections evolve.",
+      "`_stage_status` defaults non-review stages to `\"pass\"` when `status` is absent; a silently-defaulted pass contradicts the \"never fall back to a pass\" principle applied to review stages.",
+      "`current_stage` hardcodes status synonyms (`completed/closed/done/delivered`) instead of reusing the backlog's status vocabulary constant; the two will drift.",
+      "Empty-item test asserts absence of `\"reviewed (recommendation unavailable)\"` by relying on no-review-event early return; it does not exercise the `evidence missing` path or `_review_evidence`'s exception branch."
+    ],
+    "NIT": [
+      "Hardcoded section ordinals (\"## 1.\" \u2026 \"## 11.\") are duplicated verbatim in the test's expected-order list; extracting an ordered section list would make reordering a single-point change.",
+      "`Runs` column appears in the table but the docs describe it only obliquely; worth one line in the lifecycle doc next to the header definition.",
+      "`_review_table` compatibility wrapper is retained but apparently unused in-repo; confirm an external caller exists or drop it to avoid a dead seam."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped rendering improvement with good docs sync, test coverage for order/current-stage/dedupe, and correct no-shell subprocess invocation. Top risks: `show` is no longer a cheap read-only projection (two blocking subprocess calls with swallowed failures), the audit table now hides non-`STAGES` events, and `current_stage` ignores failing gates. Recommend addressing the projection/tool coupling and the visibility regression before relying on this view as the enterprise audit surface."
+    ]
+  },
+  "rereview_reason": "prior review sha b1fc2a280654; all 12 findings dispositioned/actioned",
+  "rereview_reason_sha256": "1fb6b0ecf8cd08d6952ff2f0a9aff0325a8097e97f167b697f49cdd761aa3744"
+}

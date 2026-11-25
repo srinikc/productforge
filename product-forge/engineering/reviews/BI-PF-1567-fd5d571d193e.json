@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1567",
+  "sha": "fd5d571d193e",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T05:58:40.827471+00:00",
+  "review_scope": "delta",
+  "base_sha": "07f5e8a51fff76f4c196519240432c01b0b6a8d9",
+  "head_sha": "f49ac48d4297d6d8e87364c0a0538b170835d296",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "No control row maps the DoD-required \"edpsvc handler tests prove wiring\": C-2 applies_to go/edpsvc/main.go but every cited test lives in go/pfmemory/orchestrator_test.go, and go/edpsvc/main_test.go appears in no control, traceability, or test_matrix row \u2014 AC-1/AC-2 edpsvc evidence would be unmapped at Gate 2."
+    ],
+    "MINOR": [
+      "FR-1 traceability.test lists only go/pfmemory/orchestrator_test.go although FR-1 verification and DoD require \"go test ./... in go/edpsvc\"; traceability omits the second package.",
+      "Controls C-1/C-2/C-3/C-5 cite concurrency_test TestConcurrentCrossBoundary, which appears in no FR verification, suite list, or traceability row (FR-3 pins only TestConcurrentBoundaryLoad); dangling or duplicated test reference.",
+      "functional_spec.observability lists only memory_ops_total, memory_denied_total, memory_op_duration_seconds, omitting memory_filtered_projectless_total that control C-5 and risk D-1 depend on; the two changed sections disagree on the metric contract."
+    ],
+    "NIT": [
+      "Prior NIT disposition appears wrong: traceability and ac_evidence still give all three ACs the single evidence artifact docs/MEMORY-ORCHESTRATOR-DESIGN.md with identical candidate_sha a536d6d1; per-suite Gate 2 test evidence not yet substituted."
+    ],
+    "SUMMARY": [
+      "Delta correctly fixes the prior config contradictions (default 20, 5s cap), declares the controls mirror, adds bypass_test to contracts.files, and adds C-8 role-posture control; no blocker.",
+      "Top risks: unmapped edpsvc wiring test evidence for AC-1/AC-2, a dangling TestConcurrentCrossBoundary reference, and metric-contract drift on memory_filtered_projectless_total between functional_spec and controls."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1567-d9b5a29b50a7; corrected bounds, control mirror, role posture",
+  "rereview_reason_sha256": "67e5b2eca8996f94e30690abdaafc0a86f061fd03c879a931b1b0b7ea6bf4803"
+}

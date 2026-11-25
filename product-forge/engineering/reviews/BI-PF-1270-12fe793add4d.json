@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "12fe793add4d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-20T04:28:53.489065+00:00",
+  "review_scope": "delta",
+  "base_sha": "a3f7bdc0f6075df1d6771d07908a8759c63d4fc4",
+  "head_sha": "976b8bf8377016453dfa5120d5e00bc2e0e03b63",
+  "findings": {
+    "BLOCKER": [
+      "none \u2014 all prior BLOCKER/MAJOR dispositions remain PENDING (CL-006); not re-reported per scope, but Gate 1 approval is still invalid until they are dispositioned."
+    ],
+    "MAJOR": [
+      "C-2 (HMAC security control) is tagged `fr: FR-3` (Permanent failure classification) while its `ac: AC-2` maps to the webhook-signature AC; the control belongs to FR-4 (Security). Control/FR rows are out of sync inside this delta and must be updated together.",
+      "Prior blocker partially open: `functional_spec.config_contract` now carries `PF_WEBHOOK_HMAC_KEY_REF`, but no implementation control or test in the delta binds/stores the per-subscription `auth_ref` key \u2014 C-2's tests still only cover signature shape and a subscription-key lookup, not key resolution/fallback precedence."
+    ],
+    "MINOR": [
+      "`functional_spec.config_contract` describes `PF_WEBHOOK_HMAC_KEY_REF` as \"env key is default\" while `design_pack.contracts.config` says \"default key when subscription auth_ref is empty\" \u2014 same field, two semantics; keep one wording in the delta.",
+      "`functional_spec.rollback` remains the short form (\"remove transports/endpoint\") while the design rollback requires disable-subscriptions, DLQ retention, and verified backup (prior MINOR still open).",
+      "All four FRs in the delta still repeat identical `edge_cases`/`errors` regardless of transport (prior MINOR still open)."
+    ],
+    "NIT": [
+      "`PF_NOTIFY_API_URL` default \"local API\" still lacks a concrete host/port (prior NIT still open)."
+    ],
+    "SUMMARY": [
+      "The delta correctly fixes the swapped coverage/traceability evidence (FR-2\u2192notify_test, FR-3\u2192webhook_test) and the C-3 AC-3 tag; decisions and failure_matrix are now mutually consistent.",
+      "Remaining risks: C-2's FR mapping is wrong, the per-subscription HMAC key binding is still unpinned, and the prior CL-006 pending dispositions block Gate 1 regardless of the SHA-pinned evidence."
+    ]
+  },
+  "rereview_reason": "Delta for prior 219b92621520: HMAC config, AC mapping, evidence and decision alignment",
+  "rereview_reason_sha256": "11548f78c773a63669cd0adcfe28a62100105100428bf07737841d72cbc7d78c"
+}

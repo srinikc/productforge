@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1482",
+  "sha": "7ff7e891170c",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T08:13:53.228090+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Language rule: `price_usage()` and box-table rendering are *new shipped logic* added to Python (`core/execution_trail.py`); AGENTS.md requires new shipped logic in Go. Either move computation/rendering to a Go surface (Python stays a thin CLI) or record an explicit ADR/exception in docs/ARCHITECTURE-DECISIONS.md before Gate 1.5.",
+      "No guardrail checklist answers in the design (CL-008): reversibility, authz/tenant scope, blast radius, invariants, observability are unstated for the new pricing/usage path; approval cannot proceed while these are PENDING."
+    ],
+    "MAJOR": [
+      "Formula invariant unguarded: if `cached > input` (bad/partial telemetry) the term `(input-cached)*input` yields a negative cost. State and test the invariant `0 <= cached <= input`, clamp or mark `cost_source=unavailable` on violation.",
+      "Provider-reported cost precedence is unchecked: a wrong-unit or wrong-currency provider value silently wins. Record `cost_source` + raw value, and log/metric the delta between reported and computed cost for drift detection.",
+      "Model-id normalization absent: variants like `provider/model`, `:latest`, or casing differences will fall through to `unavailable` and silently zero-out spend reporting. Define an alias/normalization strategy with tests.",
+      "Pricing catalog is a snapshot with no freshness signal: record `source`, `fetched_at`/version and emit an alert when upstream `opencode.ai/data` prices diverge from the registered file, else costs drift indefinitely.",
+      "Reuse: confirm no existing price/usage owner (Go pricing table, prior config, provider SDK cost field) is being duplicated by `config/model-pricing.json`; single source of truth must be named in the design."
+    ],
+    "MINOR": [
+      "Registration integrity untested: add a test that `config/model-pricing.json` validates against the store schema and that `config/store-registry.json` entry and on-disk file agree (missing/extra registration fails precheck).",
+      "Float precision: define display rounding (e.g., 6 dp USD) and avoid exact float equality in cost-formula tests; state rounding invariant so aggregated session cost is stable.",
+      "Rendering widths: wrapping must handle wide/CJK glyphs and a deterministic width source (fixed width or explicit env) so box tests aren't terminal-dependent.",
+      "`item.execution.usage` from workers is trusted unvalidated: validate token fields (non-negative ints, known model key) at ingest, else fall back to `not captured`.",
+      "Observability: emit a single structured log/metric for `cost_source=unavailable` and for render failures so silent cost gaps are diagnosable."
+    ],
+    "NIT": [
+      "Consider a `--json` output mode alongside box tables so downstream tooling doesn't parse ANSI/Unicode.",
+      "Docs note should state the pricing formula and unit (USD per 1M tokens) in docs/REVIEW-GATES-LIFECYCLE.md, not only the file path.",
+      "Unknown-model rendering should visually distinguish \"not captured\" from \"$0.00\" to avoid implying free usage."
+    ],
+    "SUMMARY": [
+      "Design is directionally right (versioned pricing config, provider-cost precedence, unknown-model honesty, box rendering with tests) but is blocked on the Go/Python language-rule placement and on missing guardrail-checklist answers (CL-008).",
+      "Top risks: unvalidated provider-reported cost, missing `cached <= input` invariant, model-id drift causing silent `unavailable` costs, and no freshness signal on upstream prices.",
+      "Recommend Gate 1.5 re-review after the language-rule decision, invariant/clamp tests, registration-validation test, and observability of unavailable costs are added."
+    ]
+  }
+}

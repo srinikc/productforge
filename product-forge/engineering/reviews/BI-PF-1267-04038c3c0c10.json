@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "04038c3c0c10",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-14T05:37:42.156731+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "d97bfd96668bd488a61b4a10e5d12026a70c4249",
+  "head_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+  "findings": {
+    "BLOCKER": [
+      "review.impact_review records language-rule verdict \"violates\" (\"New Python module in shipped root\") while affected_files declare only an edit to core/contracts.py; unresolved contradiction \u2014 either an undeclared shipped-Python addition (language-rule violation) or an erroneous verdict \u2014 must be reconciled before Gate approval."
+    ],
+    "MAJOR": [
+      "Residual of prior config-contract finding with new evidence: delta design_pack.contracts.config states \"No new env flag in this item\" while functional_spec.config_contract declares WEBHOOK_HMAC_KEY_REF (required, fail-closed, env/secret precedence, startup validation); the delta spec_pack also silently dropped the config_contract applicability row entirely \u2014 a security-relevant control with no owning spec row and an explicit \"no config\" denial.",
+      "test_matrix pins Go/Python parity only for the envelope (row 1); no named parity test covers subscription, alert-rule, or webhook payload/header shapes although in_scope puts them in the Go mirror, and webhook tests cite core/contracts.py only \u2014 AC \"Go and Python required-field/shape parity tests pass\" is not fully demonstrable for in-scope contracts.",
+      "Rollback remains \"Revert the contract PR\" with no mixed-version consumer guidance beyond \"ship Python and Go mirrors together\"; prior MAJOR on guardrail answers is only partially closed (role posture and CL-011 runtime-role statement still absent even as N/A for a no-DB-change item)."
+    ],
+    "MINOR": [
+      "CL-011 runtime role posture (NOSUPERUSER/NOBYPASSRLS) is never stated, not even declared N/A; tenant binding is now covered but guardrail 3 remains unanswered in the delta.",
+      "design_pack.observability assigns contract_validation_failures_total{code} to platform, but no artifact in affected_files emits it; the emission point/deferred owner is unstated (guardrail 10).",
+      "spec_pack security_threat_model and implementation_plan evidence cite only core/contracts.py although go/pfcore/contracts.go and the parity test are declared in-scope mirrors.",
+      "review.impact_review mixes verdicts (\"violates\" with recommendation \"not needed\"); verdict/recommendation semantics for impact rows are ambiguous and weaken gate evidence."
+    ],
+    "NIT": [
+      "Impact-review evidence cites line numbers (core/bom.py:195,198) that will drift; prefer symbol/contract names for durable evidence."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully closes several prior pendings (unknown-field policy, seq invariant, risks list, FR-2 runtime deferral, constant-time test pin, observability owners/thresholds), but three prior majors persist or evolved: config-contract contradiction (now worsened by a dropped spec_pack row and \"no new env flag\"), incomplete parity-test coverage for non-envelope contracts, and an unresolved language-rule \"violates\" verdict in the review record.",
+      "Top risks before Gate: ship-scope ambiguity on the language rule, a fail-closed security config with no owning design row, and AC parity claimed for contracts with no pinned Go evidence."
+    ]
+  },
+  "rereview_reason": "Delta design fixes for prior 6996429ccf34 findings",
+  "rereview_reason_sha256": "e0879222cb98484e742db47e38250ecde5f2e607858ec10797ed38f50f7c3a92"
+}

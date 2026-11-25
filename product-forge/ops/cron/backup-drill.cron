@@ -1,0 +1,12 @@
+﻿# EDP-23 backup/PITR drills (BI-PF-1315). Install as /etc/cron.d/backup-drill.
+# Env: PF_DB_DSN (staging), PF_BACKUP_DRILL_REPORT_DIR, PF_ALLOW_DESTRUCTIVE_DRILL=1, PF_OBJECT_ROOT/S3.
+SHELL=/bin/sh
+PATH=/usr/local/bin:/usr/bin:/bin
+# Hourly PITR readiness (wal_level/archive_mode/archive_command + archiver freshness).
+17 * * * *  pfbackupdrill --command pitr --report-dir "$PF_BACKUP_DRILL_REPORT_DIR" >> /var/log/backup-drill.log 2>&1
+# Daily full-service restore drill into a disposable scratch DB.
+23 2 * * *  PF_ALLOW_DESTRUCTIVE_DRILL=1 pfbackupdrill --command full --scratch pf_scratch_daily --rto-seconds 900 --report-dir "$PF_BACKUP_DRILL_REPORT_DIR" >> /var/log/backup-drill.log 2>&1
+# Weekly single-tenant isolation drill (set PF_DRILL_TENANT).
+41 3 * * 0  PF_ALLOW_DESTRUCTIVE_DRILL=1 pfbackupdrill --command tenant --tenant "$PF_DRILL_TENANT" --scratch pf_scratch_tenant --report-dir "$PF_BACKUP_DRILL_REPORT_DIR" >> /var/log/backup-drill.log 2>&1
+# Alert hook: non-zero exit (cron mail/alert) when a required drill is missing, failed or stale.
+7 5 * * *   pfbackupdrill --command status --report-dir "$PF_BACKUP_DRILL_REPORT_DIR" --max-age-hours 26 >> /var/log/backup-drill.log 2>&1

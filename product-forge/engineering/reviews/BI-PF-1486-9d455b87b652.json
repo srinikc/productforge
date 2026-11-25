@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "9d455b87b652",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:53:36.407538+00:00",
+  "base_sha": "",
+  "head_sha": "18586ac6eaf50b1d3007573dc7727c8cf9f5c317",
+  "findings": {
+    "BLOCKER": [
+      "AC1 is entirely unaddressed: no validation of derived docs (BACKLOG-SUMMARY, documentation-index) against generator output and no guard against arbitrary/executable content in them \u2014 nothing in the diff touches those artifacts.",
+      "AC3 is entirely unaddressed: `architect_review_check` does not gain any `reviewed_head` ancestor proof or \"no review-relevant changes\" verification, and no stale/older-evidence tests exist.",
+      "AC2/AC4 negative test is missing: no test exercises a MATERIAL_CHANGE approval whose `at` predates the reviews it excuses, and `_material_ok`'s back-compat branch returns `True` for approvals with **no** `at` at all \u2014 an unbounded loophole, not a migration rule."
+    ],
+    "MAJOR": [
+      "`_material_ok` compares timestamps as raw strings across mixed formats (`...Z` vs `...+00:00`); lexical comparison can invert ordering and silently admit stale approvals \u2014 must parse to aware datetimes.",
+      "Error-code selection is wrong: when there is simply *no* MATERIAL_CHANGE approval, the diagnostic reports `MATERIAL_APPROVAL_ORDER`; `MATERIAL_APPROVAL_EXPIRED` also uses a string compare of `material_expiry` vs `now`, and expiry flips gate behavior on a hardcoded date with no warning path (`material_warn_days` is defined but never read).",
+      "`problems(item, only_mode)` plus the \"design frozen after Gate 1\" skip silently loosens budget enforcement (unbounded design re-reviews post-Gate 1) with no AC backing, no config, and no test.",
+      "`disposition_policy` is loosened from \"ACCEPTED forbidden / MAJOR must be fixed\" to \"up to 2 HIL-approved ACCEPTED/DEFERRED including MAJOR\" \u2014 scope creep beyond the ACs that weakens gate integrity; `c.get(\"accepted_allowed\", True)` also defaults to permitting in code, so deleting the config key re-enables it silently.",
+      "`record_gate_decision` now renders and prints a full package, and refuses the HIL decision if render/persist throws \u2014 coupling decision recording to a best-effort side effect and injecting large unprompted output into stdout that downstream parsers may ingest as decision output.",
+      "`schema` bumped to `pf.review-budget/2` but no reader validates the version; old tooling silently ignores `material_cutoff`/`material_expiry` \u2014 no version gating or observability for a semantic change."
+    ],
+    "MINOR": [
+      "`__import__(\"datetime\")` inline hacks in `review_budget.py` instead of a module-level import \u2014 harms readability and greppability.",
+      "No tests at all for the modified `_material_ok`/`problems` behavior (ordering, expiry, mode filtering, design-freeze skip); only disposition tests were updated.",
+      "`gate-packages/*.json` is a mutable, non-append artifact used as HIL evidence with no hash/digest or tamper signal, only a store-registry exclusion glob.",
+      "`grandfather` bypass and the mode filter produce no telemetry when they fire \u2014 hard to detect in production trails."
+    ],
+    "NIT": [
+      "Test file has a stray double blank line inserted before the last test; docstring drops the BI-PF-1486 traceability pointer.",
+      "Config hardcodes absolute wall-clock dates (2026-10-26 / 2026-11-01) as a time bomb with no expiry-day test.",
+      "New shipped logic lands in `scripts/dev/*.py`; confirm with AGENTS.md that this qualifies as tooling under the Go-first language rule."
+    ],
+    "SUMMARY": [
+      "The diff delivers none of the four acceptance criteria: derived-doc validation, approval timestamp ordering with migration + negative test, reviewed_head ancestor verification, and the required negative tests are all absent.",
+      "It instead ships out-of-scope loosening of the disposition policy (ACCEPTED MAJOR) and review-budget enforcement, with fragile string-based timestamp comparisons and dead/unversioned config.",
+      "Recommend blocking merge: implement AC1\u2013AC4 with tests first, and split the disposition/budget policy changes into their own reviewed item."
+    ]
+  }
+}

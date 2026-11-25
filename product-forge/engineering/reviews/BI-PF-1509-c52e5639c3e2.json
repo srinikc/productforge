@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "c52e5639c3e2",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T13:39:16.287860+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "df5982b71498a4054241a44afb0c739aff5f8fd1",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-5 requires an E2E test through the real mux that fails before route wiring; `TestBacklogAuthorityWithDB` is skipped without `PF_RUNTIME_DSN`, so the required red/green proof is environment-conditional and cannot gate CI.",
+      "`Authority` counts `backlog_items WHERE tenant_id = current_setting('app.tenant_id', true)`, but no explicit assertion binds the GUC to the requested `tenant` beyond non-emptiness; a stale/mismatched GUC would return another tenant's count while reporting the requested tenant.",
+      "`migrations/0019` decrements `reservation_count` on `AFTER UPDATE` via the row trigger, but `UPDATE` reservations are not produced anywhere; if an update changes no start/end, the counter drifts silently with only a WARNING \u2014 counter is also not reconstructible by reconciliation without operator action, contradicting the automated-recovery claim.",
+      "`reserve_shared`/`_reserve_db` only request `start`/`end` from edpsvc and return `size` from the caller's request rather than the block's actual span; a mismatched authority reply yields an internally inconsistent block with no validation."
+    ],
+    "MINOR": [
+      "`_delete_item_from_db` performs an unconditional DB DELETE in DB mode but `delete()` still mutates the in-memory bucket first; a DB failure leaves callers with a removed-from-list/not-deleted-persisted inconsistency and no compensating path.",
+      "`backlogReserve` returns 503 for all unexpected errors including `ErrTenantConflict` of the parent row path; only specific sentinels are mapped, so DB-unavailable here lacks `Retry-After` and reason parity with the authority endpoint.",
+      "`Authority` issues four separate round-trips (schema probe, allocation row, item count) inside one tx; item count is last, so a schema-valid but slow count always surfaces as `timeout` rather than distinguishing `db_unavailable` in triage.",
+      "`0018` seeds nothing for `backlog_items`-index bloat control and `0020` down re-creates the `INCLUDE (id)` form, so a rollback restores a heavier index than pre-0018 state without documenting the divergence.",
+      "`scripts/dev/pf_sb_scope_guard.py` allowlist matching is exact-path only with no directory-prefix support; a legitimate new file under an allowed directory is rejected, encouraging broad over-permissive allow entries.",
+      "`checkBacklogAuthority` retries 3\u00d7 with backoff while holding `authorityMu` on the request goroutine startup path; a slow DB delays explicit admin probes rather than failing fast.",
+      "Prometheus example uses `authorization.credentials_file` on `/metrics`, but no rule asserts scrape success; a broken token silently ages `success_timestamp` and triggers only the stale alert, not an auth-specific signal."
+    ],
+    "NIT": [
+      "`TestBacklogAuthorityFailsClosed` reuses a closed `PgStore` rather than a failing fake, so it conflates \"pool closed\" with general DB error classification.",
+      "`authorityReasonCode` string-matches `\"timeout\"`/`57014` after sentinel checks; ordering is fine but substring matching on error text is brittle for future wrappers.",
+      "`MaxReservationSize` bounds one request but `_reserve_db` retries once on any error, including deterministic 4xx-class failures, doubling load on invalid requests.",
+      "`ops/prometheus/prometheus.yml` is an example file shipped in-tree without a header marking it non-authoritative, risking accidental deployment as-is."
+    ],
+    "SUMMARY": [
+      "Direction is sound: admin-gated, fail-closed readiness endpoint with DB-owned ID authority and trigger-maintained counters; tests cover 401/400/405 and schema/row fail-closed paths.",
+      "Main risks: the E2E red/green proof is DB-DSN-conditional (AC-5 not CI-enforceable), tenant binding relies on GUC non-emptiness rather than an explicit match assertion, and the reservation counter can drift on UPDATE with only a WARNING.",
+      "Secondary: Python-side dual-path delete/write consistency and reserve block/size validation are thin; migration 0018\u21920020 index churn adds avoidable hot-table builds.",
+      "Recommend blocking on AC-5 evidence being deterministic (fake store or committed fixture) and on an explicit GUC\u2194tenant equality check before count."
+    ]
+  }
+}

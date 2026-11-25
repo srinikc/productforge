@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "86fcd59fea6c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`pfaudit.Down` copy-back SELECTs live rows into `audit_legacy` with no post-condition asserting the copied-back count equals the post-swap delta; `RequireUnfilteredVisibility` only covers `audit`/`audit_partitioned`, so an RLS-filtered or differently-owned legacy table can silently strand post-swap events during an emergency rollback.",
+      "`reconcile` and `restore` (and their library calls `ReconcileHolds`/`RestoreMonth`) run outside the AURE advisory lock \u2014 only export/purge/holds lock \u2014 so a concurrent export/drop can race hold extraction and lose legally held rows."
+    ],
+    "MAJOR": [
+      "`edpsvc` now imports `pgxpool` directly and opens a fresh pool per `/admin/audit-coverage` request, bypassing the datastore port abstraction and creating unbounded connection churn on a request path.",
+      "The documented crash-resume path (`runSwap` observing `StateSwapped`) has no integration test; only `PostVerify` is called directly, so the resume branch in the shipped CLI is unverified.",
+      "Active-hold detection is duplicated in four places (`audit_drop_partition`, `audit_approve_purge`, `PurgeMonth`, `DownPlan`) with different formulations; drift would allow a held month to be dropped or purged.",
+      "`audit_provision` swallows `exclusion_violation` in addition to `42P07`, masking genuine range-overlap (23P01) defects that AC only sanctions as an attach race.",
+      "`AuditStore.Append` classifies failures by substring-matching the error text (\"no partition of relation\"); brittle across driver/PG versions \u2014 use SQLSTATE plus a stable constraint/errdetail discriminator.",
+      "Threshold drift: `edpsvc.auditCoverage` hardcodes `48` instead of `PF_AUDIT_ROTATION_MAX_AGE_HOURS`; `pfaudit-retention coverage` hardcodes `< 2` instead of `lead_months` from `audit_partition_config`.",
+      "AC requires a fresh-install case (empty audit, `setval` to 1) to be tested; no such test exists in the suite."
+    ],
+    "MINOR": [
+      "Freeze budget is evaluated only after the rename has committed and PostVerify ran; an over-budget run exits non-zero post-commit with no distinct state, complicating operator triage.",
+      "`audit_swap_freeze_seconds` includes pool acquire and transaction setup, so the measured freeze overstates the true ACCESS EXCLUSIVE window.",
+      "Migration 0014 performs DML (`INSERT INTO audit_partition_config`, `setval`) despite the \"DDL-only\" AC wording.",
+      "`close` derives the rollback window from the newest `to_state='swapped'` event, so a crash-resume re-record silently extends the rollback period.",
+      "`RestoreMonth` builds batched multi-row INSERTs via string-concatenated placeholder lists; a `fmt`-based approach is fine but the `ON CONFLICT (id, at) DO NOTHING` path can mask a partial restore that the count check then catches only by luck of ordering."
+    ],
+    "NIT": [
+      "`pfaudit-retention` emits metrics only on success; `fail()` exits without `emitMetrics`, unlike `pfaudit-swap` which emits on failure paths.",
+      "`DefaultSSE()` returning bare `\"aws:kms\"` is always rejected by `CheckSSE` unless `PF_S3_KMS_KEY` is set \u2014 any S3 deployment without the key fails closed by construction; worth documenting explicitly.",
+      "`0004_runtime_role.up.sql` was edited in place to become idempotent; environments that track migration checksums would see applied history invalidated."
+    ],
+    "SUMMARY": [
+      "Solid, unusually thorough implementation: catalog-driven state detection, ensure-based DDL, privilege-enforced hardening, verified two-stage retention and hold reconciliation are all present and mostly tested. Top risks are the unlocked reconcile/restore path (legal-evidence integrity), the unasserted `--down` copy-back, and the pgxpool shortcut introduced into `edpsvc`."
+    ]
+  }
+}

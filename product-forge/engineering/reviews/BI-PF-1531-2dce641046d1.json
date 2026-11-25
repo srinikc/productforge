@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "2dce641046d1",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T14:57:18.177791+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0b21bbc0365d7f6e613a5fc118de0e7b4497db95",
+  "findings": {
+    "BLOCKER": [
+      "`_backlog_db_scopes()` yields an empty set when `PF_BACKLOG_DB_SCOPES` is empty/typo'd, so `PF_BACKLOG_DB=on` (now the default) silently demotes every tenant to file authority and re-enables Git ID allocation \u2014 a silent dual-authority/no-fallback violation with no error or metric.",
+      "Same path via `core/id_allocator._db_enabled` -> `_db_for`: an empty/mistyped scope list re-enables Git ID minting despite the doc rule \"do not re-enable Git ID allocation without an explicit decision\"; risk of cross-tenant duplicate IDs.",
+      "Documented rollback sequence cannot complete: `scripts/dev/backlog_db_export.py` only writes/skips and never deletes projections whose DB rows were deleted, so post-export parity reports `missing_in_db` and the flip to `off` halts with no documented remediation (deleted items otherwise reappear as authoritative files)."
+    ],
+    "MAJOR": [
+      "Migration transaction contract is inconsistent: `0021` opens explicit `BEGIN/COMMIT` while `0022` runs `CREATE INDEX CONCURRENTLY` with no tx control; if the runner wraps files, 0022 hard-fails (CONCURRENTLY cannot run in a transaction block) mid-rollout.",
+      "`0021` non-concurrent `DROP/ADD PRIMARY KEY` + `traceability` FK re-validation run under only `SET lock_timeout = '5s'`, which bounds lock acquisition, not index/FK build duration; no `statement_timeout`, so ACCESS EXCLUSIVE on a shared table is unbounded (same in `0021.down.sql`).",
+      "`PF_BACKLOG_DB_SCOPES` default list is duplicated in `core/backlog.py` (`_DB_DEFAULT_SCOPES`), `config/env-flags.json`, and `.env.example`; three sources of truth for an authority-critical allowlist will drift.",
+      "`scripts/dev/{backlog_db_export,backlog_db_parity,backlog_migration_preflight}.py` connect with a direct `PF_DB_DSN` (likely owner/privileged) while backfill deliberately goes through edpsvc; docs never define the role used, so RLS/audit coverage for export/preflight is unspecified (guardrail 3).",
+      "`config/store-registry.json` gains ignore entries for test/gate artifacts (`BI-PF-1.json`, `BI-PF-700.json`, `BI-PF-9.json`, `full-sweep.yml`, `backlog-db.yml`, `backlog-db.workflow.yml`) \u2014 this masks leaked files instead of fixing test writes, and neuters registry detection repo-wide."
+    ],
+    "MINOR": [
+      "`scripts/dev/backlog_db_backfill.py` usage docstring still shows `PF_API_TOKEN=...` while code requires `PF_EDP_TOKEN`/`PF_ADMIN_TOKEN` (AC-1 docs/code drift, inside the shipped script).",
+      "`test_backlog_db_workflow.py::test_workflow_mirror_matches` requires `engineering/evidence/BI-PF-1531/backlog-db.workflow.yml` to stay byte-identical to the live workflow forever; evidence snapshots should pin a SHA, not track `main` (permanent maintenance coupling).",
+      "AC-2's DB-mode job is only asserted by string matching against `.github/workflows/backlog-db.yml`, which does not appear in this diff; nothing here proves CI actually schedules it with `PF_BACKLOG_DB=on`.",
+      "`_scope_key` lowercases for matching but DB tenant IDs keep original case, so `ProductForge-Dashboard` vs `productforge-dashboard` pass the allowlist yet split into distinct DB tenants."
+    ],
+    "NIT": [
+      "`backlog_db_bench.py` binds `point_ms` only inside `if dsn:` and later references it under `if sql_ms:`; correct today but fragile initialization coupling.",
+      "`requireTenant` ignores `rows.Err()` after iteration; a scan error degrades to `ErrTenantContext` (503) instead of a real fault.",
+      "`_load_all_from_db` adds function-local `import logging as _logging` / `urllib.error` despite module-level import conventions.",
+      "`test_unverified_scope_stays_file_mode` repeats the `product_forge` assertion twice; several new tests re-declare an `importlib.util.spec_from_file_location` loader helper instead of a shared fixture."
+    ],
+    "SUMMARY": [
+      "Default-on, scope gating, DB fail-closed codes, tenant-bound Go reads, and 0021/0022 preflight/backup discipline largely match the approved design; prior findings were addressed.",
+      "Merge risks: silent demotion to file/Git authority on an empty or misspelled `PF_BACKLOG_DB_SCOPES`, an incomplete documented rollback (stale projections), and migration transaction/lock semantics that can abort or block the deploy.",
+      "Also fix the duplicated scope-list source of truth, define the DSN role used by export/parity/preflight, and revert the `store-registry.json` artifact-ignore entries."
+    ]
+  }
+}

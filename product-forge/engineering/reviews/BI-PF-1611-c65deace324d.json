@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1611",
+  "sha": "c65deace324d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-24T13:31:10.911555+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0aeeb9461baf27466212230f971378dcc1cdc53b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-4 (\"precheck fast tier passes with rejected baseline items present and fails closed for unknown statuses\") has no corresponding control, coverage entry, or test: test_matrix is entirely unit pytest against one file, so the approved design cannot evidence this end-to-end AC.",
+      "AC-1's \"one shared predicate\" is asserted but no test or static check proves the three gates actually import `gate_status.should_skip` rather than keeping local copies; behavioral tests alone permit silent re-forking of the terminal set."
+    ],
+    "MINOR": [
+      "Status literals remain inconsistent across artifacts: AC says `won-t-do`/`wont-do`, FR edge_cases say `won't_do`/`wont_do`, failure_matrix says `won-t_do`/`wont_do`; an exact-match predicate using the wrong literal would fail closed on a supposedly terminal item.",
+      "`controls` and `implementation_controls` are byte-identical duplicated blocks \u2014 guaranteed drift as edits land in one and not the other.",
+      "Entrypoint contradiction: coverage/entrypoint lists `scripts/dev/gate_status.py:should_skip` while `runtime_contract.entrypoint` lists `scripts/dev/design_pack.py:should_enforce`; the single source of truth is ambiguous.",
+      "Skips are not observable: gate output reports only a checked count with no skipped-count or skip-reason, so diagnosing why an item was skipped requires reading code (guardrail 10 minimum diagnostics).",
+      "Control kinds are mislabeled (C-2 `kind: config`, C-3 `kind: security` for pure status predicates), misrouting review/security scoping for a tooling-only change."
+    ],
+    "NIT": [
+      "Test file `test_gates_skip_rejected.py` under-describes coverage of cancelled/won't-do/live/unknown statuses.",
+      "`functional_sha` (a38a9e99c9fb) still differs from all `candidate_sha` (bc5a6145) despite the prior disposition claiming this traceability item was ACTIONED."
+    ],
+    "SUMMARY": [
+      "Sound approach overall: shared pure predicate, fail-closed unknown handling, tooling-only Python (language rule compliant), and no data/API/security surface.",
+      "Top risks: AC-4 lacks any precheck-level evidence in the approved controls/tests, and the shared-predicate invariant is asserted rather than structurally enforced.",
+      "Residual artifact-hygiene issues (literal mismatches, duplicated control blocks, contradictory entrypoints) undermine the traceability the design is meant to restore."
+    ]
+  },
+  "rereview_reason": "prior BI-PF-1611-91a97e41a1c4; narrowed ACs, shared predicate, tests, guardrails",
+  "rereview_reason_sha256": "d6a0b6520a995637a8fea414485aafe8230f854954a4c23d7092d7688626a4b0"
+}

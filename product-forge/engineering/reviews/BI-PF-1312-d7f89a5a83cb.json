@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "d7f89a5a83cb",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`edpsvc/main.go` imports `pgxpool` and `productforge/pfaudit` directly, creating a second connection pool beside the datastore port \u2014 this violates the explicit port/adapter boundary (`edpdata.go`: *\"the port layer must not import pgconn\"*) and doubles connection consumption for a non-request-path probe.",
+      "`audit_hold_guard` raises on a purged-month hold but no Go caller catches the exception to emit `audit_hold_after_purge_total`; the metric constant is defined yet never incremented anywhere in the shipped code \u2014 the AC's spoliation signal is a no-op."
+    ],
+    "MAJOR": [
+      "`audit_provision`'s inner exception block swallows 42P07 whenever **any** `audit_grace_%` partition exists, regardless of whether it covers the target month; the insert then fails with PG's native 23514 on a path the Go retry cannot distinguish from a real healable miss.",
+      "The crash-resume path (`DetectState \u2192 StateSwapped \u2192 PostVerify`) is never exercised by an integration test that simulates a real crash between rename and commit; `TestAuditPartitioningIntegration` calls `PostVerify` directly after a successful `Swap`, so the resume logic in `runSwap` is untested.",
+      "`checkAuditCoverage` and `auditCoverage` duplicate the `PF_AUDIT_ROTATION_MAX_AGE_HOURS` env-parse; the startup `pgxpool` is never retried if the DB is unavailable, so `/admin/audit-coverage` returns 503 permanently after a cold start.",
+      "`RestoreMonth` builds the scratch with `LIKE parent INCLUDING ALL` which copies `audit_provision_trg` and `deny_mutation` triggers; the AC says *\"leaves carry the standard RLS\"* but the scratch is a flat table, not a partitioned parent with leaves \u2014 the restore round-trip test therefore does not exercise the leaf RLS path the AC requires.",
+      "`runSwap` measures freeze from `time.Now()` before connection acquisition and transaction setup, not at the `LOCK TABLE \u2026 ACCESS EXCLUSIVE`; the emitted `audit_swap_freeze_seconds` over-counts and may falsely trip the budget check."
+    ],
+    "MINOR": [
+      "`AuditStore.Append` retries up to 3 times but the AC says *\"once\"*; the retry loop matches on the brittle string `\"no partition of relation\"` rather than a stable SQLSTATE+message pair, so a future PG message change silently disables healing.",
+      "`close` records the sign-off event **before** deleting the backup; a crash between the two leaves a duplicate sign-off on retry with no idempotency guard or check that the backup was already destroyed.",
+      "`pg_restore -l` rehearsal checks `strings.Contains(out, \"TABLE public audit\")` which also matches `TABLE public audit_legacy`, `audit_partitioned`, etc. \u2014 the assertion is weaker than intended and could pass on an incomplete dump.",
+      "The `architect_review.py` diff-limit bump (60k\u2192180k) and retry logic are unrelated to BI-PF-1312 and should be a separate change to keep this diff reviewable."
+    ],
+    "NIT": [
+      "`edpsvc` emits metrics as raw JSON to `stderr` via `fmt.Fprintln` rather than through a structured logging or metrics facility \u2014 inconsistent with a long-running service.",
+      "`monthBounds` is defined in `archive.go` but has no production caller; only the unit test references it \u2014 dead code that will drift."
+    ],
+    "SUMMARY": [
+      "The implementation is thorough and largely correct, with strong integrity guarantees around the swap, retention pipeline, and legal holds. The two blockers are an architectural boundary violation in `edpsvc` (direct pgxpool + pfaudit coupling that the codebase explicitly forbids) and a completely unemitted metric (`audit_hold_after_purge_total`) that the AC requires as a spoliation signal. The freeze measurement over-counting and the untested crash-resume path are the highest-risk MAJORs; the `audit_provision` exception handler's loose grace-partition check is a latent correctness hazard."
+    ]
+  }
+}

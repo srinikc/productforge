@@ -1,0 +1,186 @@
+{
+  "id": "BI-PF-1554",
+  "due": "",
+  "tag": "PF",
+  "body": "Regulated enterprises (defense, banking, national infrastructure) require completely air-gapped sovereign installations of Product Forge with zero outbound internet connectivity. This item authors the sovereign edition packaging specification.",
+  "deps": [],
+  "epic": "BI-PF-0390",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Full authoring of context, epic, and ACs",
+  "brief": {
+    "source": "authored",
+    "problem": "Defense, finance, and air-gapped sovereign environments cannot reach external LLM APIs or cloud licensing servers, requiring self-contained offline execution capabilities.",
+    "what_adds": "Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation."
+  },
+  "label": "PF Backlog 689",
+  "links": {},
+  "owner": "eng:security",
+  "risks": [
+    "Hardware acceleration requirements for local model inference mitigated via documentation of minimal GPU/CPU specs."
+  ],
+  "scope": "product_forge",
+  "score": 0.75,
+  "title": "Air-Gapped Sovereign Edition Specification: offline model connector, local RAG vector bundle, and offline license validation",
+  "value": 3,
+  "effort": 3,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-0390",
+  "review": {
+    "impact_review": [
+      {
+        "claim": "Air-gapped edition",
+        "verdict": "aligned",
+        "evidence": "core/packaging.py",
+        "recommendation": "approve"
+      }
+    ],
+    "reconciliation": [
+      {
+        "topic": "Offline sovereignty",
+        "status": "settled"
+      }
+    ]
+  },
+  "source": "generic",
+  "status": "new",
+  "project": "",
+  "summary": "Author the architecture and packaging specification for an air-gapped sovereign edition, including offline model connectors, pre-indexed local RAG knowledge bundles, and cryptographic offline license key verification.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=4"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-11-21T22:00:37.666039",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/engineering/coverage",
+      "/api/v1/enterprise/tenants/{tenant}/license",
+      "/api/v1/packaging/editions",
+      "/api/v1/validation/agents/coverage"
+    ],
+    "arch_fingerprint": "b1eee32488f3e03a",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/agent-capability-vector.json",
+      "config/business-models-kb.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-pricing.json",
+      "config/model-tier.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/business_models_kb.py",
+      "core/ci_cd_model.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/model_catalog.py",
+      "core/model_fit.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/business_models_kb.py, core/ci_cd_model.py, core/conversation_models.py"
+  },
+  "approach": "Define sovereign edition profile in EDITIONS, validate zero outbound network calls in pre-flight checks, and bundle offline licensing keys.",
+  "children": [],
+  "evidence": [
+    "test-framework/tests/pipeline/test_sovereign_edition.py"
+  ],
+  "in_scope": [
+    "config/sovereign-profile.json",
+    "core/licensing.py",
+    "core/deploy_providers.py",
+    "Network isolation guards"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Fall back to standard on-prem edition profile.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-11-21T22:00:38.107308",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Specify and package the Sovereign Edition distribution capable of operating with 100% network isolation and local compute resources.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-21T22:00:37.881369"
+  },
+  "requester": "product:architect",
+  "api_impact": {
+    "reason": "Packaging, deployment, and verification CLI/core capability; no dedicated HTTP routes required",
+    "needs_api": false
+  },
+  "blocked_by": [],
+  "created_at": "2026-11-21T22:00:31.110810",
+  "updated_at": "2026-11-21T23:44:02.644703",
+  "external_id": "ARCH-AIR-GAPPED-SOVEREIGN-EDITION-05",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "Cloud multi-tenant telemetry",
+    "Online billing synchronization"
+  ],
+  "verification": [
+    "Air-gap network isolation test suite executing full workflow in simulated offline network namespace."
+  ],
+  "priority_rank": 2,
+  "affected_files": [
+    "core/packaging.py",
+    "config/sovereign-profile.json"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "AC-1: Sovereign edition distribution operates with zero outbound network egress, validated via fail-closed egress monitor.",
+    "AC-2: Embedded offline licensing engine validates cryptographically signed license keys without phoning home or requiring NTP clock sync.",
+    "AC-3: Local LLM runtime integrates embedded Ollama/llama.cpp inference socket with bundled domain model weights."
+  ],
+  "affected_components": [
+    "core/licensing.py",
+    "core/packaging.py",
+    "core/deploy_providers.py"
+  ]
+}

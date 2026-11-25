@@ -1,0 +1,193 @@
+{
+  "id": "BI-PF-1558",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rag-cag-knowledge-fabric:context-knowledge-router",
+  "label": "PF Backlog 693",
+  "title": "Context & Knowledge Router: query intent classification, retrieval mode selection, and budget routing",
+  "body": "## Problem / why\nAgents query knowledge monolithically or rely on full context dumps without understanding query intent or retrieval cost.\n\n## Goal & value\nBuild the Context/Knowledge Router that analyzes incoming agent queries and dynamically routes between prompt context, CAG cache, vector RAG, keyword BM25, and knowledge graphs.\n\n## Reference Documents\n- `docs/Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md#section-14`\n\n## In scope\n- Intent classifier for factual, architectural, operational, and code-pattern queries.\n- Dynamic mode selector: Prompt vs CAG vs Vector RAG vs Graph vs Keyword.\n- Fallback degradation: fallback to lexical or working memory if vector/graph services are unreachable.\n- Telemetry on query routing decisions and retrieval latencies.\n\n## Out of scope\n- Heavy ML classifiers requiring dedicated GPU inference.\n\n## Definition of Done\n- Unit and integration tests verify deterministic routing decisions.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-22T14:09:15.914710",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Agents query knowledge monolithically or rely on full context dumps without understanding query intent or retrieval cost.",
+    "what_adds": "Build the Context/Knowledge Router that analyzes incoming agent queries and dynamically routes between prompt context, CAG cache, vector RAG, keyword BM25, and knowledge graphs.",
+    "why": "Agents query knowledge monolithically or rely on full context dumps without understanding query intent or retrieval cost.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Build the Context/Knowledge Router that analyzes incoming agent queries and dynamically routes between prompt context, CAG cache, vector RAG, keyword BM25, and knowledge graphs.",
+  "acceptance_criteria": [
+    "AC-1: Router classifies query intent into factual, architectural, past_decision, procedural, or trace categories.",
+    "AC-2: Routes to the optimal retrieval substrate with configurable routing policies per pipeline stage.",
+    "AC-3: Automatically degrades to lexical search or working prompt memory if vector service is offline.",
+    "AC-4: Routing latency overhead is under 5ms for local operations."
+  ],
+  "in_scope": [
+    "Intent classifier for factual, architectural, operational, and code-pattern queries.",
+    "Dynamic mode selector: Prompt vs CAG vs Vector RAG vs Graph vs Keyword.",
+    "Fallback degradation: fallback to lexical or working memory if vector/graph services are unreachable.",
+    "Telemetry on query routing decisions and retrieval latencies."
+  ],
+  "out_of_scope": [
+    "Heavy ML classifiers requiring dedicated GPU inference."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "core/context_router.py",
+    "go/pfrag/router.go",
+    "go/pfrag/router_test.go"
+  ],
+  "approach": "Intent classifier for factual, architectural, operational, and code-pattern queries.; Dynamic mode selector: Prompt vs CAG vs Vector RAG vs Graph vs Keyword.; Fallback degradation: fallback to lexical or working memory if vector/graph services are unreachable.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Unit and integration tests verify deterministic routing decisions.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go, go/pfrag/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1558): sig:620e4ba690793a91 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "design:Product_Forge_RAG_CAG_Knowledge_Fabric_Integration.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1557",
+  "parent": "BI-PF-1557",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-22T14:09:15.598501",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/budget.py, core/budget_allocator.py, core/budget_conservation.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/budget.py",
+      "core/budget_allocator.py",
+      "core/budget_conservation.py",
+      "core/budget_planner.py",
+      "core/budget_protection.py",
+      "core/budget_tracker.py",
+      "core/business_models_kb.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/context",
+      "/api/v1/validation/artifact-contracts/budget"
+    ],
+    "existing_modules": [
+      "config/business-models-kb.json",
+      "config/context-policy.json",
+      "config/knowledge-registry.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-pricing.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "ad347cce52333ab0"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-22T14:09:15.758355"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-22T14:09:11.419717",
+  "updated_at": "2026-11-22T14:09:17.421689",
+  "score": 1.0,
+  "_note": "planned affected files + DoD (design)",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal Go/Python query routing; no public HTTP route required"
+  }
+}

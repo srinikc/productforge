@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1266",
+  "sha": "18576d8048a8",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T17:56:10.391266+00:00",
+  "review_scope": "delta",
+  "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Rollback depends on a \"projection freshness bound of 5 minutes\" to trigger degraded read-path state, yet neither `functional_spec.observability` nor `design_pack.observability` (both changed) defines a projection-age/freshness metric, alert, or detection owner \u2014 the rollback trigger is operationally undetectable."
+    ],
+    "MINOR": [
+      "`contracts.files` / `contract_surface_future` omit `events.jsonl` itself, although the invariants name it as the frozen read-only projection artifact and rollback keeps it live; CL-001 surface is incomplete for the artifact readers consume.",
+      "`failure_matrix` EVENT_CURSOR_INVALID expects \"Return empty or reject according to contract\" \u2014 a Gate whose AC is \"frozen contracts\" still leaves a caller-visible behavior as either/or.",
+      "`ownership_registration` defers single-writer registration evidence to BI-PF-1268/1269; at this gate the facade seam control is asserted but unverifiable (no registration artifact or test in `test_matrix` AC-2).",
+      "Disposition ledger not updated in this delta: prior MAJOR (interim outbox bound/cleanup/alert) and prior MINORs (Go-tool owner, BI-PF-1274 dependency, deferred store-registry qualifier, version 3) are addressed by these changed fields yet remain PENDING \u2014 CL-006 makes Gate 1 approval invalid until recorded."
+    ],
+    "NIT": [
+      "`risks` and `spec_pack` are listed in `changed_fields` but byte-identical to the surrounding context, extending scope noise for reviewers."
+    ],
+    "SUMMARY": [
+      "Design-only delta is sound: AC-1/AC-2 artifacts, frozen contracts, migration matrix, and resolved decisions are present, and the language rule is respected (docs only, no shipped code).",
+      "Top risks: rollback's freshness trigger has no corresponding observability row, ownership registration evidence is future-dated, and disposition ledger lag blocks a clean Gate 1."
+    ]
+  },
+  "rereview_reason": "Fourth design delta for prior 886051fa010e and 5e81d481897a findings",
+  "rereview_reason_sha256": "6de82e18dfdd466fb6c265e26ab0c457d5ec6f5521b773a5d00109b4bd7dbc6c"
+}

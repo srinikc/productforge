@@ -1,7 +1,7 @@
 ---
 description: "Future-looking insights, serendipity analysis, and alternative approach suggestions".
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: observer
 version: 1.0.0
 spec_version: "1.0"

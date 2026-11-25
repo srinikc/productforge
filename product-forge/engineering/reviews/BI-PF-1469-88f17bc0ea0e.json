@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "88f17bc0ea0e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:34:24.512033",
+  "findings": {
+    "BLOCKER": [
+      "`architect_review._ingest` writes evidence `at` with `datetime.now().isoformat()` (naive local time); `gate_predicates._parse_ts` treats naive as UTC, so the mandated `decision.at >= evidence.at` ordering invariant can silently pass for a decision captured BEFORE the evidence (integrity fail-open in the gate).",
+      "Forced completion is unusable and self-contradicting: `set_status(force=True)` records GATE_OVERRIDE locally, but the committed transition then always DENYs in `gate2_completion_check` (CI never permits force) \u2014 items closed via the audited override can never land, i.e. the AC's override path has no valid end state."
+    ],
+    "MAJOR": [
+      "`core/backlog.py` (shipped control plane) dynamically loads `scripts/dev/gate_decisions.py` via `importlib` path hack at the completion boundary; in any deployment where `scripts/dev` is not shipped, every completion fails closed with `GATE_ERROR` \u2014 a packaging/availability landmine hidden behind a \"lazy import\" comment.",
+      "`docs-only` determination uses `ar.changed_files()` (working-tree state) in both `gate2_completion_check` and `gate_decisions.gate2_status`, not the committed merge-base..HEAD diff \u2014 the same change can be docs-only locally and non-docs-only in CI, violating the deterministic/offline fail-closed requirement.",
+      "Baseline governance is inconsistent: `gate1_transition_check.main` hard-fails on `baseline_problems()`, but `gate2_completion_check.main` only prints them \u2014 malformed/expired baseline config cannot fail Gate 2 unless a specific item happens to be listed.",
+      "The force override decision records `findings_sha: \"\"` and no binding to the diff sha, so the audit trail does not identify what was overridden; combined with the self-asserted `by: \"hil:forced\"` it is weak evidence for an append-only audit.",
+      "`transitions()` (git diff scan + item parse) is duplicated verbatim in `gate1_transition_check.py` and `gate2_completion_check.py`, and the docs-only glob default list is repeated in three modules \u2014 the AC's \"single predicate reuse\" is honored for approval but not for the surrounding detection logic."
+    ],
+    "MINOR": [
+      "Authorization is convention-only: `record_gate_decision` accepts any `--by hil:<actor>` string with no binding to an actual HIL session identity; any automation can self-assert approval.",
+      "`--self-test` is baked into the `ci-cd-gates.json` cmd for gate2 (re-running the predicate matrix on every CI invocation) while gate1-transition has no equivalent \u2014 inconsistent wiring and test/gate conflation.",
+      "`config/store-registry.json` registers owner `core/gate_predicates.py`, but that file actually lives at `scripts/dev/gate_predicates.py`; ownership lookup will be wrong.",
+      "Core code reaches into dev tooling privates (`_gate2_tooling()._gp()`, `ar._get_item`) and `gate1_transition_check` imports `architect_review._get_item` \u2014 brittle coupling to underscore APIs across the core/dev boundary.",
+      "Old design-mode evidence files keyed by the previous diff-sha naming are orphaned by the `design_sha` rename; in-flight items silently become `NO_EVIDENCE`/`STALE_EVIDENCE` (mitigated only if baseline-listed)."
+    ],
+    "NIT": [
+      "Duplicate `import gate_predicates as gp` at module top and inside `_self_test` in `gate1_transition_check.py`; same pattern in `gate2_completion_check._self_test`.",
+      "`id-blocks.json` bumps `reserved_up_to` to 1469 while the new session starts at 1469, leaving id 1468 with no allocation record (possible gap or an allocation missing from this diff).",
+      "`set_status` fetches the item again for the Gate 2 check after the RCCA gate already loaded it."
+    ],
+    "SUMMARY": [
+      "Solid structure overall: shared `gate_predicates.approval`/`gate2_ready`, baseline governance, negative self-tests, docs, and fail-closed defaults largely meet the AC.",
+      "Two blockers undermine the enforcement guarantee: naive-local evidence timestamps can defeat the mandated decision-after-evidence ordering, and the audited force-override path is a dead end against the CI gate.",
+      "Top risks before merge: fix evidence `at` to UTC-aware, decide a coherent force/CI story, make docs-only detection diff-based, and hard-fail gate2 on baseline governance problems."
+    ]
+  }
+}

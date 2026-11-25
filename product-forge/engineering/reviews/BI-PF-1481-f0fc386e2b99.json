@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1481",
+  "sha": "f0fc386e2b99",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T07:45:49.722531+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC/implementation structure mismatch: AC + docs state `core/execution_trail.py` is a *thin adapter* over `scripts/dev/execution_trail.py`, but the diff puts all ~302 lines in `core/` and creates no `scripts/dev/execution_trail.py`; `docs/REVIEW-GUATES`\u2026 i.e. `docs/REVIEW-GATES-LIFECYCLE.md` (shipped in this same diff) asserts the opposite ownership \u2014 code and mandated documentation objectively contradict.",
+      "Broken failure path: in `gate_decisions.py`, `gate0_check.py`, and `architect_review._ingest` the `except` handler calls `trail.write_failure(...)` / references `stage` where `trail`/`stage` were bound *inside* the `try` \u2014 if the import (the most likely failure) throws, the handler raises `NameError`, so the AC-required `execution_trail_write_failed` evidence is never emitted precisely when trail writes fail."
+    ],
+    "MAJOR": [
+      "Unbounded duplicate events \u2192 permanent deadlock: `precheck._record_trail` appends `code_review`/`tests`/`precheck` on *every* run and `gate0_check` appends `planning`/`gate0` per run; at `MAX_EVENTS=5000` every subsequent `record()` raises, `write_failure` fires, and the item can never complete. No dedupe, rotation, or prune strategy for an \"unbounded\" retention store.",
+      "`engineering/trails/_failures.jsonl` is never cleared or resolved: a single historical transient write failure permanently fails any future completion of that item (`evaluate()` scans the whole file per item). Combined with `write_failure`'s bare `except Exception: pass`, failure evidence can also be silently lost.",
+      "Ordering enforcement is incomplete vs AC: `order_problems()` checks only 2 pairs (`design_review<gate1`, `diff_review<gate2`) \u2014 `gate1<implementation`, `implementation<code_review<diff_review<gate2`, `tests/precheck` ordering required by the AC is unchecked.",
+      "Gate wired three times (`precheck._GATES` entry with tier \"post\", an explicit trailing `subprocess.run`, and `ci-cd-gates.json`): if the tier loop also executes \"post\" gates it runs *before* `_record_trail` writes tests/precheck events, failing every completion for missing stages \u2014 the exact race the doc claims to avoid.",
+      "Scope is hardcoded to `product_forge`/`None` inside the core store (`_item`, `next_item`) and the check, while `backlog.set_status`/`set_delivery` fire trail writes for *any* scope/project \u2014 cross-project callers will create misleading trails or silently write to the wrong evidence set.",
+      "Lock design can break monotonic seq: 10s acquire timeout vs 60s stale-break means a live writer holding >10s makes peers fail (surfacing as completion-blocking write failures), while a stale break at 60s can steal a live lock and allow duplicate seq. No fsync; crash between `os.replace` and lock unlink is only recovered after 60s.",
+      "Language-rule governance change bundled silently: `core/execution_trail.py` (new shipped logic under `shipped_roots`) is self-added to `allow_new_python` in the same diff, though the config itself states root/allowlist changes are a governed change \u2014 no evidence of the required approval, and the logic is substantive (store, locking, redaction, CLI), not a thin adapter."
+    ],
+    "MINOR": [
+      "`show`'s `_review_table` shells out to `architect_review.py gate` (60s timeout) on every render instead of rendering the stored evidence referenced in `refs.evidence`/`review_sha` \u2014 slow, non-reproducible output, and makes the read path depend on a subprocess.",
+      "Redaction covers only `summary`/`actor`; `refs`, `tests`, and `usage` payloads are stored unredacted, so a secret echoed in refs lands in the trail verbatim.",
+      "`gate_decisions` builds the stage as `f\"gate{gate}\"` \u2014 if `gate` is ever \"1.5\"/\"2.5\" this yields an invalid stage, raising inside the already-fragile handler.",
+      "`precheck._record_trail` records `tests` status via `all(...)` over an empty list \u2014 a fast-tier run with no tests run records `tests: pass` with zero rows, weakening trail evidence integrity.",
+      "`execution_trail_check` reaches into `g2.ar._get_item` (private internals of another gate) \u2014 brittle coupling; extract a shared accessor.",
+      "No test asserts the check *fails* on out-of-order stages, on `_failures.jsonl` entries, or exercises the precheck wiring, though the AC requires the gate be self-tested; only happy/missing-path cases are covered."
+    ],
+    "NIT": [
+      "`language-rule.json` is fully reformatted (arrays exploded) in the same diff as the functional change \u2014 pure churn in a governance-reviewed config.",
+      "`f\"\\n=== precheck: execution-trail ===\"` unnecessary f-string; duplicate `import json` in `_record_trail`'s except; missing blank line between the two deferred tests; `test_deferred_followup_must_exist` largely duplicates `test_deferred_requires_follow_up_item`.",
+      "`_path` regex rejects non-`BI-<ALNUM>-<N>` ids, so `BI-TEST-*` / legacy ids can never carry a trail despite being first-class in the backlog allowlist."
+    ],
+    "SUMMARY": [
+      "Solid shape overall (append-only per-item store, seq monotonicity, redaction, failure sink, self-test scaffolding) and the store/registry/ADR wiring is thoughtful.",
+      "Top risks: the shipped doc contradicts the actual module layout vs the AC; trail-write failure handlers can themselves crash (NameError); unbounded duplicate events plus an irrevocable `_failures.jsonl` can permanently block any item's completion; and the gate is wired three times, risking a pre-evidence run that fails every completion.",
+      "Recommend: reconcile ownership/docs, dedupe/prune events with a resolution path for failures, enforce full stage ordering, single-source the gate invocation, and parameterize scope before this becomes load-bearing control-plane evidence."
+    ]
+  }
+}

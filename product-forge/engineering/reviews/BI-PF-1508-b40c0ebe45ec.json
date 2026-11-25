@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "b40c0ebe45ec",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-27T15:29:08.509860+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [
+      "AC-5 requires running the scope guard against `engineering/trails/BI-PF-1508-scope-baseline.txt`, but that baseline file is absent from `affected_files`; creating it either violates the guard or leaves the test unfailable (no baseline \u2192 guard passes trivially).",
+      "No CI/workflow wiring for the scope guard is declared in `affected_files`, yet AC-5 asserts the guard runs and rejects out-of-scope paths; without a wired job this is untestable in the pipeline."
+    ],
+    "MAJOR": [
+      "Alert rule `increase(edp_backlog_authority_errors_total[5m]) > 0` fires on a single transient 503 (e.g., one timeout during a DB failover), guaranteeing alert fatigue and eroding trust in the runbook; needs a sustained-error threshold or burn-rate style condition.",
+      "Startup fail-closed is one-shot: no periodic re-check after boot, so if authority is lost at runtime the process stays \"ready\" and only endpoint errors reveal it; defence-in-depth (checklist #2) needs a continuous/readiness re-probe.",
+      "`to_regclass` table-presence check and the subsequent query are non-atomic (separate statements/transactions possible); a dropped/renamed table between check and read yields an unmapped error path \u2014 must be provably mapped to the fixed 503 message, not a generic 500.",
+      "Startup authority check appears to duplicate the handler's query/orchestration logic rather than calling the same `BacklogStore.Authority` path with a test proving parity; drift would let startup pass while the endpoint 503s (or vice versa)."
+    ],
+    "MINOR": [
+      "Counter trigger covers INSERT/DELETE on `backlog_id_reservations` but not UPDATEs or TRUNCATE; if any path reassigns rows or truncates, `reservation_count` silently drifts with no reconciliation query.",
+      "No explicit migration-interrupted recovery test (lock_timeout abort mid-up) \u2014 rollback statement covers the down path but checklist #6 asks for interrupted-apply recovery (idempotent re-run of 0018 backfill).",
+      "`item_count` full count per request under RLS is unbounded table growth over time; tenant+status index mitigates filter but not COUNT cost \u2014 consider cached/thresholded counting or documenting cost budget.",
+      "Success path emits no dedicated authority gauge/timestamp (only error counter + startup flag); detecting \"stale but succeeding\" authority requires log scraping."
+    ],
+    "NIT": [
+      "The fixed 503 message does not distinguish \"migration missing\" vs \"row missing\" for operators; consider a redacted, non-sensitive detail code in logs only (already partially covered by \"redacted cause\").",
+      "`reservation_scope`/`item_scope` labels are constant strings; harmless but could be inferred from the contract doc.",
+      "Duplicate declaration of scope/AC lists across `design_pack.scope`, `requirements`, and `acceptance_criteria` risks divergence at Gate 1.5 (CL-006 evidence hygiene)."
+    ],
+    "SUMMARY": [
+      "Design is largely aligned: auth-first precedence, fail-closed 503, forced-RLS tenant scoping, Go language rule, and DB-trigger counter are sound and well-guarded.",
+      "Top risks: AC-5 scope guard is not wired with an in-scope baseline/CI hook (blocker), and alert/startup-check design lacks sustained-error thresholds and runtime re-probing (major).",
+      "Recommend resolving the baseline/CI declaration and alert tuning before Gate 1.5 approval."
+    ]
+  }
+}

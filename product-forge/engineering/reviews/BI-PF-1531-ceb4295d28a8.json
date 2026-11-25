@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "ceb4295d28a8",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-06T14:08:14.290789+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "d3c99eca551ee3897c6858b6268675f56ec52944",
+  "findings": {
+    "BLOCKER": [
+      "Migration 0021 changes the `backlog_items` primary key to `(tenant_id,id)` but names only the traceability FK; there is no inventory/rebuild order for all FKs, indexes, unique constraints, and triggers referencing `backlog_items.id` \u2014 a missed dependent object fails migration or leaves invalid references.",
+      "`PF_BACKLOG_DB` default-on is global in `config/env-flags.json`, but backfill/parity cover only PF-SB and PF-GP; no per-scope gating is defined in `core/backlog.py` or the runtime contract, so non-target backlog scopes can become DB-authoritative without parity evidence."
+    ],
+    "MAJOR": [
+      "`backlog_db_backfill.py` writes directly to PostgreSQL, bypassing edpsvc audit/authz; the audit claim covers only \u201cexisting edpsvc paths,\u201d leaving backfilled or parity-corrected rows without an audit record.",
+      "Mode-resolution precedence between code default, `config/env-flags.json`, and `PF_BACKLOG_DB` is undefined; `coverage` lists \u201cinvalid mode\u201d but no expected failure code or fail-closed behavior, so conflicting/invalid values can select the wrong authority.",
+      "`backup_restore` relies on EDP-23 for PITR/restore, but EDP-23 is absent from `dependencies` and `prerequisites`; preflight cannot verify availability of the backup/restore path it depends on.",
+      "Performance requirement \u201cCutover must not regress T1/T2 measured paths\u201d has no benchmark, test, or evidence entry in `test_matrix`, `coverage`, or `ac_evidence`.",
+      "File-to-DB backfill tenant attribution is unspecified; `backlog_items` PK/RLS require `tenant_id`, but no mapping or validation from PF-SB/PF-GP file projections to tenant is defined.",
+      "Parity is count-only (\u201c743/743, zero drift\u201d); no compared fields, normalization, ordering, or tolerance are defined, so parity can pass while content differs.",
+      "`structure.yml` and `full-sweep.yml` are in scope, but no enumeration/update of existing file-mode jobs/tests to set `PF_BACKLOG_DB=off` is defined; the default flip can make unrelated CI require DB/edpsvc."
+    ],
+    "MINOR": [
+      "`prerequisites` says \u201cMigrations through 0021 applied\u201d while `deployment_rollout` says \u201cApply 0021\u201d; operator ordering is contradictory.",
+      "`scripts/dev/backlog_migration_preflight.py` is in `affected_files` but omitted from `review_scope.files`; no test or evidence covers its backup/lock abort logic.",
+      "`test-framework/tests/test_backlog_migrations.py` is in scope but not mapped to any AC, `test_matrix` entry, or evidence; 0021 schema/down assertions are unproven.",
+      "`backlog-db.yml` is not stated as a required PR check or branch-protection gate; AC-2 proves a job exists, not that it blocks merges."
+    ],
+    "NIT": [
+      "`PF_BACKLOG_DB` is not added to `docs/GLOSSARY.md` despite CL-003 requiring terms to be defined before building."
+    ],
+    "SUMMARY": [
+      "The design still has new integrity and scope-control blockers around the PK migration dependency surface and global default-on behavior.",
+      "Backfill audit, mode precedence, backup dependency, performance, tenant attribution, and parity semantics remain underspecified.",
+      "Not ready for Gate 1.5 until these gaps and the prior blockers are resolved with test/evidence mapping."
+    ]
+  }
+}

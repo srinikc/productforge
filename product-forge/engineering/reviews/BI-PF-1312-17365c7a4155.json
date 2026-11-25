@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "17365c7a4155",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`audit_append_late`, `audit_mark_archived`, `audit_drop_partition`, `audit_approve_purge`, `audit_mark_purged` are all `SECURITY DEFINER` with default PUBLIC EXECUTE \u2014 any role (including `pf_app`) can insert arbitrary audit events, record fake archives, approve purges, or drop partitions, destroying audit integrity and causing data loss."
+    ],
+    "MAJOR": [
+      "`ObjectStore()` in `objectstore.go` panics instead of returning an error when `PF_OBJECT_ROOT` is unset \u2014 a library function must not panic.",
+      "`audit_provision` trigger checks only `to_regclass('public.' || v_name)` (canonical name); when the grace partition (`audit_grace_YYYYMM`) already covers the target range, the `CREATE TABLE ... PARTITION OF` fails with 23P01 which is not caught, so inserts into the grace month fail permanently.",
+      "`MetricHoldAfterPurge` is incremented when purge is refused due to an active hold, not when a hold is recorded against a purged month \u2014 the spoliation metric fires on the wrong event.",
+      "`AuditStore.Append` retries only once after `audit_ensure_partitions`; if a concurrent retention drop (AURE namespace) lands between the ensure and the retry, the event is lost \u2014 the AC guarantees \"no event is lost\" but AUDP and AURE locks do not serialize.",
+      "`audit_append_late` does not check for active holds on the target month; a late insert into a held month is never captured by the hold archive, violating hold completeness before a partition drop."
+    ],
+    "MINOR": [
+      "`audit_partition_config.updated_at` has no ON UPDATE trigger; it shows creation time, not last modification time.",
+      "`RestoreMonth` never drops the scratch table; lifecycle is undocumented and operators must clean up manually.",
+      "`audit_legal_hold_archive` has no index on `source_partition`; `VerifyHoldExtraction` full-scans on every call.",
+      "`Down` records its audit event after commit; a crash between commit and event write loses the permanent record of the down migration.",
+      "SQL primitives (`audit_mark_archived`, `audit_approve_purge`, `audit_mark_purged`, `audit_hold_extract`) write no audit event when called directly (bypassing Go), leaving a gap in the \"all actions write audit events\" guarantee.",
+      "`CheckSSE` rejects bare `aws:kms` while `DefaultSSE` returns it when `PF_S3_BUCKET` is set without `PF_S3_KMS_KEY` \u2014 the tool is unusable with S3 unless KMS is explicitly configured.",
+      "`VerifyHoldExtraction` uses `string_agg` over all held rows; for large hold archives this can exhaust memory or exceed `work_mem`.",
+      "`audit_partition_coverage.grace_month` is derived from `min(audit_YYYYMM) - 1 month`, not from the actual `audit_grace_YYYYMM` partition; the value diverges once hot partitions are dropped.",
+      "`hashtext`-based advisory lock keys are not guaranteed stable across PostgreSQL major versions; the constant-match test verifies string presence only, not hash equality.",
+      "`audit_restore_lock` name implies it takes a lock but it only writes an event; the actual lock is held by the CLI's AURE advisory lock.",
+      "`audit_partition_config` `updated_at` is never auto-refreshed when config values change (e.g., `purge_grace_days` update in tests).",
+      "`s3store.Put` with `size < 0` leaves `Checksum` empty; `backup()` doesn't verify integrity of the uploaded dump."
+    ],
+    "NIT": [
+      "`monthBounds` and `quoteDate` in `archive.go` are dead code in production paths (only exercised by unit tests).",
+      "`mustJSON` silently swallows `json.Marshal` errors, returning an empty string.",
+      "`audit_provision` catches `unique_violation` (23505) which cannot occur during `CREATE TABLE ... PARTITION OF` \u2014 only `duplicate_table` (42P07) is reachable.",
+      "`age` exit code is not checked explicitly in `backup()`; the error surfaces indirectly through the pipe error on `obj.Put`.",
+      "`PGPASSWORD` is passed via the process environment, readable in `/proc/<pid>/environ` on Linux \u2014 consider a `.pgpass` file or socket auth for defense in depth."
+    ],
+    "SUMMARY": []
+  }
+}

@@ -1,0 +1,13 @@
+# pfaudit retention cron (EDP-20 / BI-PF-1312). Install as /etc/cron.d/pfaudit-retention.
+# Environment: cron.d does not inherit a login shell. Set PF_DB_DSN / PF_OBJECT_ROOT (or PF_S3_*)
+# in /etc/environment (or a wrapper that sources /etc/pfaudit/retention.env) before enabling this file.
+# export/purge/reconcile hold the AURE advisory lock, so jobs never overlap.
+# Purge is intentionally NOT scheduled: it is irreversible and requires an explicit operator approval
+# (`pfaudit-retention purge --month audit_YYYYMM --actor ... --reason ...`).
+SHELL=/bin/sh
+PATH=/usr/local/bin:/usr/bin:/bin
+# Hourly: coverage + stale-rotation probe. Emits audit_partition_months_ahead,
+# audit_partition_low_coverage_total and audit_rotation_stale as one JSON line on stderr.
+17 * * * *  pfaudit pfaudit-retention check --max-age-hours 48 --strict >> /var/log/pfaudit-retention.log 2>&1
+# Daily: archive fully-old months, extract holds, then drop the hot partitions.
+23 3 * * *  pfaudit pfaudit-retention export --keep-months 13 --actor "${PF_OPERATOR:-retention}" --reason "scheduled retention" >> /var/log/pfaudit-retention.log 2>&1

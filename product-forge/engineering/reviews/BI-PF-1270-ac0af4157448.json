@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1270",
+  "sha": "ac0af4157448",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-19T11:48:49.308722+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0c578b06c682c22429fca8570227430aafd4ce8a",
+  "findings": {
+    "BLOCKER": [
+      "CL-015 unmet: every `ac_evidence`/`coverage`/`traceability` entry cites `docs/EVENT-TRANSPORTS-DESIDE.md` with no candidate SHA; design doc is used as its own proof, so AC evidence is unverifiable.",
+      "Language rule risk: `api_contract` artifact is `api/routers/events.py` for a new `POST /api/v1/notifications` endpoint; new shipped logic must be Go unless this is explicitly an edit to a shipped Python route (not stated).",
+      "CL-011/checklist-3 unmet: all five implementation controls record `tenant_test: N/A: transport receives tenant-scoped subscription` \u2014 no proof of boundary authz, tenant binding, or NOSUPERUSER/NOBYPASSRLS posture for the transport/registry path.",
+      "CL-013 not pinned: webhook HMAC verification does not specify constant-time comparison, nor per-subscription/tenant key binding (single `PF_WEBHOOK_HMAC_KEY` implies a shared secret)."
+    ],
+    "MAJOR": [
+      "Checklist 8 incomplete: `needs_api` is implied but only `route` is given; method, authn, authz, validation, and tenant-scoping for `POST /api/v1/notifications` are undefined, so the API contract cannot be kept in sync.",
+      "Contracts out of sync: functional_spec declares `PF_SMTP_*` while design_pack config lists `PF_WEBHOOK_HMAC_KEY, PF_NOTIFY_*`; email-threshold and SMTP keys are not reconciled to one config contract.",
+      "Checklist 1/6 incomplete: rollback is \"remove transports/endpoint\" with no handling of stranded DLQ entries, in-flight retries, or subscriptions referencing a removed transport; no verified backup/restore path stated.",
+      "Checklist 2 unaddressed: no on-startup defence-in-depth check, no statement of behaviour when dispatcher/worker/DB is down, and no alert lead-time for DLQ growth.",
+      "Checklist 10 under-specified: observability is only the phrase \"delivery metrics/logs\" \u2014 no named metrics, DLQ-depth signal, or redaction rule for secrets/targets in logs.",
+      "Failure classification incomplete relative to AC-2: `429` (and `Retry-After`) handling is absent from the failure matrix, and the \"4xx permanent except 401/403 bounded retry\" decision conflicts with \"permanent 4xx \u2192 DLQ\"."
+    ],
+    "MINOR": [
+      "Checklist 5: ordering/dedup invariant across transports is unstated \u2014 only `event_id` idempotency is given; no cross-transport duplicate-delivery rule or sequence/ordering test.",
+      "Checklist 9: retention/redaction for webhook target URLs, HMAC keys, and DLQ payloads is not specified beyond \"no secret logging\".",
+      "AC-1 evidence lists only `go test ./... and API tests` with no dispatcher-integration test named for the notify path (C-3's negative test reuses `notify_test.go`).",
+      "Config surface lacks a documented precedence/default for `PF_NOTIFY_EMAIL_MIN_PRIORITY` when unset (fail-open vs fail-closed)."
+    ],
+    "NIT": [
+      "`traceability.test` and `test_matrix.test` use globs (`go/eventtransport/*_test.go`) rather than concrete test files, weakening Gate-2 pinning.",
+      "`stop_conditions: ['SSE requested']` is a scope guard, not a delivery stop condition.",
+      "`affected_components` / `affected_files` / `risks` in Gate-1 context are \"Not specified\", leaving the blast-radius review without declared files."
+    ],
+    "SUMMARY": [
+      "Direction is sound (single Transport interface, dispatcher-owned retry/DLQ, reuse of notification_system), but the design is not Gate-1.5-ready: evidence lacks candidate SHAs (CL-015), tenant/RLS posture is explicitly N/A'd (CL-011), and constant-time HMAC/tenant key binding is unpinned (CL-013).",
+      "Top risks before proceeding: undefined API contract for the new notifications endpoint, unreconciled config contracts, and rollback that strands DLQ/in-flight events.",
+      "Recommend returning to Gate 1 to close BLOCKERs and the API/config/rollback MAJORs; do not advance to coding until dispositions are recorded per CL-006."
+    ]
+  }
+}

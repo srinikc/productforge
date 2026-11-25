@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "f0d3b38ac9fc",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T13:37:55.756723+00:00",
+  "base_sha": "c8a576d071c9e5753d1cde7f6968cdd43370e3f9",
+  "head_sha": "67d5ff7457f03f12013713c0f865acc07a2b1632",
+  "findings": {
+    "BLOCKER": [
+      "`design_pack.evaluate(item_id)` returns `[]` whenever the lookup yields nothing (`get_epic(...) or {}`), so an unknown/renamed item id, store mismatch, or empty record silently disables design-pack enforcement at Gate 1 instead of failing closed."
+    ],
+    "MAJOR": [
+      "Fail-open remains on parse: malformed or non-ISO `created_at`/`enforce_from` (e.g. `2026/10/05`, missing month leading zero, unexpected suffix after slicing `[:10]`) hits `except ValueError: return False`, skipping enforcement with no warning surfaced to the gate output.",
+      "The missing-`created_at` guard for `in_progress` items was added only to `main()`'s batch scan, not to `check()`/`evaluate()`; a per-item Gate 1 run on an in-progress item with no `created_at` still returns `[]` and passes, so the two enforcement paths disagree.",
+      "No new tests cover `evaluate()`, the `date.fromisoformat` fallback, or the `in_progress`-without-`created_at` finding; the only test change asserts a section-title rename, leaving the enforcement logic unverified."
+    ],
+    "MINOR": [
+      "`evaluate()` re-enters the backlog directly (`backlog.get_epic(\"product_forge\", None, item_id)`) while `gate1_check` previously used `ar._get_item`; two different item-resolution paths can diverge on tenant/scope defaults.",
+      "Renaming section 10 to \"Trail metrics (per stage)\" and replacing the numbered cross-reference with a prose pointer means any other parser/doc/test keying on \"## 10. Gate metrics\" or \"section 10\" silently breaks; no repo-wide reference updates appear in the diff.",
+      "`should_enforce` now silently returns `False` when `enforce_from` is unset or invalid, i.e. a broken enforcement config disables the gate with no diagnostic emitted anywhere."
+    ],
+    "NIT": [
+      "`from datetime import date` is imported inside `should_enforce` on a hot check path; hoist to module level alongside the other imports.",
+      "The `main()` `created_at` check appends a bare item-level message without the `: ` severity/context prefix used by surrounding problems, making mixed output inconsistent to parse."
+    ],
+    "SUMMARY": [
+      "Overall the diff is a narrow, well-scoped cleanup (API extraction, date parsing, section rename), but the enforcement entry point is fail-open: unknown items, malformed dates, and missing `enforce_from` all resolve to \"not enforced\" with no signal, and Gate 1 lacks the in-progress `created_at` guard that only the batch scan has.",
+      "Top risks: silent gate bypass via lookup/parse failures, enforcement-path divergence between scan and per-item Gate 1, and zero test coverage on the new evaluation logic."
+    ]
+  },
+  "rereview_reason": "prior sha 2bb34273d63f; evaluate/metrics fixes",
+  "rereview_reason_sha256": "951c1def49b9ac79fded23b818a06e952307691c66ce6694b59d25602addb2b8"
+}

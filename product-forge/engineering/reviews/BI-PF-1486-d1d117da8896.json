@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "d1d117da8896",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:36:49.406365+00:00",
+  "base_sha": "",
+  "head_sha": "09351857f834edf3ded572ef8bafe8080ec27e46",
+  "findings": {
+    "BLOCKER": [
+      "CL-006 violated: `gate1_5` records status \"dispositioned below\" but the design embeds no Gate 1.5 findings or dispositions; approval is invalid while any BLOCKER/MAJOR is PENDING.",
+      "Migration/grandfathering rule is non-deterministic: \"created before enforcement\" has no pinned cutoff (commit SHA or UTC timestamp). Without it, any legacy MATERIAL_CHANGE approval can be claimed as grandfathered, voiding the ordering invariant."
+    ],
+    "MAJOR": [
+      "AC-1 predicate undefined: \"cannot carry arbitrary executable content\" has no specified allowlist/deny mechanism (script tags, fenced code, include directives, links to executable paths). Without a content-class spec, the validation is implementer-interpreted and drift-prone.",
+      "Duplicate validation risk: derived-doc/excluded-content checks are spread across `review_budget.py`, `architect_review_check.py`, and `excluded_content_check.py` with no named shared owner; plan a single generator-authority helper to avoid divergent checks (guardrail 10).",
+      "Ancestry \"no review-relevant changes\" is asserted but the review-relevant path set is not pinned to the same source as the review budget/excluded-content config; divergence would silently weaken coverage.",
+      "Failure matrix omits two AC-required negatives (missing `at` timestamp, stale/older review evidence); only older approval and non-ancestor are enumerated \u2014 AC-4 incomplete in the pack."
+    ],
+    "MINOR": [
+      "Rollback inconsistency: item rollback says \"Revert the change\"; design_pack adds \"regenerate docs; re-run gates\" \u2014 state the full ordered rollback including doc regeneration.",
+      "`out_of_scope: ['Not specified.']` \u2014 needs explicit boundaries (e.g., no changes to review lifecycle docs, no Gate 2 tooling) to constrain review scope.",
+      "No test asserted for stability of the observability contract (`DERIVED_DOC_STALE`, `MATERIAL_APPROVAL_ORDER`, `REVIEW_HEAD_NOT_ANCESTOR`, `DESIGN_PACK_CONFIG`); error codes are a public contract and should be pinned by tests.",
+      "Security invariant weak: \"no tenant data\" is stated but derived docs are rendered into browsable output; state sanitization/escaping expectations for injected markup even in tooling docs."
+    ],
+    "NIT": [
+      "\"One 2.5 on the hardening candidate\" in requirements is a process note, not a requirement \u2014 move to acceptance_evidence.",
+      "Performance note \"bounded\" lacks a concrete bound (e.g., no network, O(files) with cap) for the docs generator check."
+    ],
+    "SUMMARY": [
+      "Design direction is sound (tooling-only, reversible, observability via failure codes) and satisfies the language rule (Python tooling/tests). Approval is blocked by the missing Gate-1.5 findings/dispositions embedding (CL-006) and a non-deterministic grandfathering cutoff that undermines the AC-2 invariant. Top risks: unenforceable back-compat rule, undefined executable-content predicate, and an incomplete negative-test matrix."
+    ]
+  },
+  "rereview_reason": "material design completion; HIL approved",
+  "rereview_reason_sha256": "ec14c7ccc2a11160502a4e2f7a268225dfcb3b9566b7ac25e28867f5ecdcb292"
+}

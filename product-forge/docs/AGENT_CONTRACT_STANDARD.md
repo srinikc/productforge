@@ -1,6 +1,11 @@
 # Agent Contract Standard
 
-All agent `.opencode/agent/*.md` files MUST follow this structure. The JSON Schema (`docs/schemas/agent-contract.v1.schema.json`) is the canonical source of truth.
+This is the runtime card/adaptor format, not Product Forge policy. Role behavior is owned by
+`docs/AGENT-ROLE-CONTRACTS.md` and gate behavior by `docs/REVIEW-GATES-LIFECYCLE.md`.
+
+All current runtime agent card files (the `.opencode/agent/*.md` adapter set in this installation)
+MUST follow this structure. The JSON Schema (`docs/schemas/agent-contract.v1.schema.json`) is the
+canonical source of truth for that adapter format.
 
 ---
 

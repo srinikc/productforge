@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1470",
+  "sha": "d959b0b7a055",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T23:29:13.730504",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`gate2_completion_check.check()` deleted all baseline handling (`baseline_state` ACTIVE-allow, EXPIRED/UNKNOWN hard-fail, `baseline_problems()` config validation) while the module docstring still asserts \"Expired/unknown baseline entries hard-fail\" \u2014 shipped behavior now contradicts its own contract, and BASELINE_CONFIG errors are silently dropped (no observability, no fail-closed path).",
+      "`test_bookkeeping_tier_runs_delivery_gates` is a source-string grep, not a wiring test: it never calls `_steps()`, so it cannot catch a wrong command, wrong ordering, or a `must` tuple that appears in a comment; the AC \"unit tests cover the bookkeeping-tier wiring\" is not actually satisfied.",
+      "In the docs-only path, if `gate_view_sha()` returns None (evidence file absent for the decision's sha), the code silently falls back to `ar.gate_view()` (latest evidence). The digest will then mismatch and surface as a generic `STALE_APPROVAL`/`NO_GATE_APPROVAL` instead of an explicit \"no evidence for named decision sha\" \u2014 misleading diagnosis and a hidden semantics change relative to the \"deterministic across checkouts\" claim."
+    ],
+    "MINOR": [
+      "`gate_view_sha` re-implements the view-assembly from `gate_view` (findings extraction, dispositions, pending_blocking counts) \u2014 duplicated logic that will drift; prefer an optional `sha` parameter on `gate_view`.",
+      "`approval()` still early-returns `UNAUTHORIZED_APPROVER` on the first non-`hil:` decision encountered in newest-first order, so it does not in fact \"evaluate every gate decision\"; a single untrusted/rejected entry permanently shadows older valid approvals (fail-closed, but should be an explicit, documented decision).",
+      "Docs-only decision selection picks the newest gate-2 entry by list position and only checks `g == 2` and non-`docs-only` sha; it does not filter on APPROVED status or use `seq`, so a REJECT/other-status entry can steer the evidence selection.",
+      "The new `STALE_EVIDENCE` check compares against `ar.diff_sha()` on the current checkout; evidence generated earlier in the same PR branch will now hard-fail, which may spuriously block multi-commit PRs \u2014 confirm this is intended.",
+      "`except Exception: return None` in `gate_view_sha` swallows all IO/parse errors with no log/counter, weakening observability on a gate path."
+    ],
+    "NIT": [
+      "Self-test message and matrix now cover `force` instead of baseline expiry; if baseline logic is intentionally retired, remove `gp.baseline_*`/`BASELINE` from `gate_predicates.py` too, else dead code lingers.",
+      "`int(d.get(\"gate\") or 0)` try/except is repeated in three places (gate_predicates, gate2_completion_check, presumably elsewhere) \u2014 extract a shared helper."
+    ],
+    "SUMMARY": [
+      "Sound direction: newest-first approval matching with STALE_APPROVAL semantics and gating data-only completion PRs are correct enterprise controls, and the digest-bound re-validation design is reasonable. Top risks are (1) baseline enforcement and its config validation were removed while docs still promise it, (2) the bookkeeping-tier \"test\" is a brittle grep rather than behavioral verification of `_steps()`, and (3) silent fallback in the docs-only evidence lookup turns a deterministic-evidence failure into a confusing stale-approval error. Recommend restoring/retiring the baseline contract explicitly and adding a real wiring test before merge."
+    ]
+  }
+}

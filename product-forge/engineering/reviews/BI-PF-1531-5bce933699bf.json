@@ -1,0 +1,48 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "5bce933699bf",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-07T06:51:13.039195+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "b2a1cdbdb4a54246489209fc95b7176f6170821c",
+  "findings": {
+    "BLOCKER": [
+      "AC evidence files (`failclosed-rollback-tests.txt`, `db-mode-tests.txt`, `parity.txt`, `backfill.txt`, `backfill-dry-run.txt`) are committed as binary and every `ac_evidence` row pins `sha: \"HEAD\"` instead of the frozen SHA mandated by `docs/SPEC-CHAIN.md` \u2014 none of AC-1..AC-5 is verifiable from this diff.",
+      "Tenant derivation for tools is not alias-normalized: `backlog_db_export.py` compares raw `project/scope` (so `factory`/`portfolio` rows abort with exit 1) and `backlog_db_backfill.tenant_for_item` runs its ownership pre-check against the raw tenant, while `_db_tenant`/parity `item_tenant` map aliases to `product_forge` \u2014 AC-5 rollback export and AC-3 backfill fail on exactly the legacy alias rows 0021 preserves.",
+      "On-mode `delete()` now unlinks `items/<id>.json` but skips `_write_indexes`, leaving `open.json`/`closed.json` referencing the deleted item; the DB-then-file two-phase delete has no compensation if `os.remove` raises after the DB row is gone.",
+      "Design/spec-pack observability contract (`edp_backlog_authority_startup_ok`, `edp_backlog_authority_errors_total` \"tests assert metrics\") has no metric emission or metric test anywhere in this diff \u2014 `edpsvc`/`edpdata` hunks add only error mapping, so the declared alert lead-time does not exist here.",
+      "The declared failure taxonomy is implemented only on the read path: `_load_all_from_db` maps to `BACKLOG_DB_*`, while `_mirror_item_to_db`/`_delete_item_from_db` still surface raw `urllib` errors, contradicting `design_pack.runtime_contract.failure_behavior` (\"ledger, list, get, put, and delete all map \u2026 to 503\"/`BACKLOG_DB_*`)."
+    ],
+    "MAJOR": [
+      "Undeclared shipped surface: `scripts/dev/{functional_spec,spec_pack,conformance_check,fix_guard,gate1_check,architect_review,design_pack}.py`, `templates/*`, `config/{functional-spec,spec-pack,fix-impact}.json`, `docs/SPEC-CHAIN.md`, `docs/FIX-IMPACT-CONTRACT.md`, `product-forge/conftest.py`, `test-framework/tests/{test_spec_chain,test_backlog_db_workflow}.py`, `data/backlog/items/BI-PF-1532.json` are absent from `affected_files` \u2014 BI-PF-1532's gate/spec-chain work (four new blocking precheck gates) ships inside BI-PF-1531.",
+      "Control/disposition evidence does not match the code: dispositions claim \"mode parsing lives only in `core/backlog_scope.mode()`\" and `current-sha-control.txt` claims an \"on-mode tenant cache with write/delete invalidation\", yet the diff shows parsing inline in `_backlog_db_mode()` and no cache.",
+      "Design decision \"structure.yml, full-sweep.yml, and **pf-gates.yml** set `PF_BACKLOG_DB=off`\" implements only two workflows, and `test_file_mode_workflows_pin_off` asserts only those two \u2014 the declared file-mode containment is incomplete.",
+      "`0022` uses `CREATE INDEX CONCURRENTLY` with no transaction wrapper while `0021`/`0023` declare `BEGIN/COMMIT`; a deploy runner that wraps migration files in a transaction hard-fails, and the mixed transaction strategy is undocumented (guardrail 6/rollback).",
+      "No CI step performs a real rollback export: AC-5 runs only `backlog_db_export.py --dry-run` plus a mocked-`psycopg` unit test, so the documented quiesce\u2192export\u2192parity\u2192`off` sequence is never executed end-to-end.",
+      "`backlog_db_export.py --prune`'s unlisted-tenant guard wraps `from core import backlog` in `except Exception: pass`, so an import failure silently disables the protection on the destructive path (guardrail 4 fail-open).",
+      "AC-2 verification is fail-open: if `PF_TEST_DB_MODE` is dropped, both `conftest.py` files force `off` and the DB job's pytest step stays green; no step asserts the resolved mode is actually `on` (the \"Assert file-mode backlog\" steps merely re-echo the env var just assigned).",
+      "`authority` readiness vs. docs: `BACKLOG-DB-SSOT.md` \"Migration\" section says apply through `0021` while the deploy-order section and `Authority()` require `0021/0022/0023` \u2014 an AC-1 \"docs are consistent\" miss for operators."
+    ],
+    "MINOR": [
+      "`.github/workflows/backlog-db.yml` `paths` omit the workflow file itself and `test-framework/tests/test_backlog_db_workflow.py`, so edits to the AC-2 job or its contract test never trigger the job.",
+      "Workflow hand-seeds `schema_migrations` rows (16,18-23) and hardcodes the 0021/0022/0023 skip list; any future migration silently desynchronizes the `Authority()` version set.",
+      "`engineering/evidence/BI-PF-1531/authority-db-test.txt` records `ok productforge/edpsvc (cached)` \u2014 a cached Go run is not fresh evidence for a DB+schema change.",
+      "No test pins `config/env-flags.json`'s `PF_BACKLOG_DB.default == \"on\"` directly; AC-1's config half is only covered indirectly through `env_flags.get`.",
+      "`product-forge/conftest.py` silently inverts an explicitly exported `PF_BACKLOG_DB=on` unless the undocumented `PF_TEST_DB_MODE=1` escape is set, with no log line."
+    ],
+    "NIT": [
+      "`_DB_WARNED_SCOPES` is an unbounded, unlocked process-global set that warns only once per process, hiding repeated unlisted-scope traffic.",
+      "`.env.example` ships `PF_BACKLOG_DB_SCOPES` as an active setting while the `PF_BACKLOG_DB` mode line stays commented.",
+      "Tests obfuscate literals (`\".\" + \"json\"`, `\"backlog-\" + \"db\" + _Y`, `\"full-\" + \"sweep\" + _Y`) to dodge content gates, obscuring intent from reviewers."
+    ],
+    "SUMMARY": [
+      "Direction matches the ACs (default-on, scoped allowlist, DB-mode workflow, fail-closed reads, migration/preflight/rollback tooling), but the delivery evidence is not reviewable: binary, `HEAD`-pinned AC artifacts plus dispositions citing code that is not in the diff.",
+      "Top risks: legacy alias tenant handling is inconsistent across backfill/export/parity (blocking AC-3/AC-5 on legacy data), on-mode delete leaves inconsistent file projections, and the declared observability/failure taxonomy is only partially implemented.",
+      "Governance: a large undeclared spec-chain/gate surface for BI-PF-1532 ships inside this item, and one of the three declared file-mode workflow pins is missing.",
+      "Verdict: not approvable until evidence is regenerated as readable text at a frozen SHA, the alias/tooling tenant derivation and on-mode delete/index defects are fixed with fail-able tests, and the undeclared scope is either declared-and-reviewed or split out."
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "eb7b86c9e1d6",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T13:06:48.183306+00:00",
+  "review_scope": "delta",
+  "base_sha": "7ab76d83dbdec683146d86718730d9f6ad58ae8c",
+  "head_sha": "a01c075bdae0634f1bb38c05040b58a2ae06a40b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Rollback now correctly removes AC-2 tests, but still asserts \"decision-validation/audit tests\" are retained \"so the suite stays green\" without stating they exercise `core.backlog.material_change_errors` rather than the removed route; the proof-plan test (`test_material_change_without_hil_is_rejected`) reads endpoint-oriented, so post-rollback suite state remains unverified.",
+      "`design_pack.affected_components` (re-stated in this delta) lists only `core/backlog.py` and `config/review-material-change.json`, while the same delta's `runtime_contract.entrypoint` (`api.routers.backlog.add_item_decision`) and `call_sites` (`architect_review`) name components absent from the row \u2014 component/file traceability gap inside the changed design_pack."
+    ],
+    "NIT": [
+      "`runtime_contract.adapter` mixes specificity levels: `core.backlog.material_change_errors` (module.symbol) vs `architect_review reviewed-head ancestry` and `review_budget.problems` (no file/function anchor), weakening precise traceability of AC-2 enforcement points."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior pending MAJOR (AC-2 SHA/--since enforcement is now traceable to `architect_review`/`review_budget` in `adapter`/`contract`) and the prior rollback MINOR (AC-2 tests explicitly listed for removal); prior path-mismatch NIT and top-level `affected_components` MINOR remain unchanged and correctly PENDING/[OUT_OF_SCOPE].",
+      "No blockers: auth, revision guard, fail-closed config, and ancestry+reviewed-head checks are stated and testable per ACs.",
+      "Top residual risks: rollback \"suite stays green\" claim unproven for retained decision-validation tests, and component-row vs runtime-contract traceability drift."
+    ]
+  },
+  "rereview_reason": "Delta for prior 88c7475bc408: runtime AC-2 ownership and rollback tests",
+  "rereview_reason_sha256": "e30ea1f3125c95587b9c9cc034f2dafab24a8d59dc278df12b0559dddc701646"
+}

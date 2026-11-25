@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "b08a3d228e71",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T07:38:01.695939+00:00",
+  "base_sha": "0cab65b4bc6d03d99f601053212bccc893e55bbf",
+  "head_sha": "918523bf91e6c3514e034211a339aa60ac0f3a6d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "In `review_budget.py`, the new `mode == \"diff\"` branch `continue`s the per-mode loop, so once any gate-2 decision exists, **all** subsequent diff-mode validation (budget count, `material_cutoff`, `material_expiry`, `enforce_from`) is skipped \u2014 the item is reported problem-free. If \"freeze\" is meant to *block* further diff reviews, the polarity is inverted; if it is meant to waive them, a post-gate-2 diff review silently bypasses material-expiry enforcement with no audit trace. This needs an explicit documented decision, not an inferred one.",
+      "The delta introduces new shipped logic (`freeze_diff_after_gate2`, incl. its `True` default when the key is absent from older configs) but leaves `test_review_budget.py` untouched, so there is no regression test for: flag=false path, key-absent default, and gate-2 detection via `int(d.get(\"gate\") or 0)` (e.g., gate stored as `\"2\"` or `2.0`). This is new untested behavior, distinct from the AC tests that exist at HEAD."
+    ],
+    "MINOR": [
+      "`REVIEW-GATES-LIFECYCLE.md` is in the candidate file list but not in this delta, so the two new config knobs (`freeze_design_after_gate1` already present, `freeze_diff_after_gate2` new) have no lifecycle documentation of when they engage or how to disable them \u2014 operators must read source to discover the default-on semantics.",
+      "The gate-freeze block is now copy-pasted per mode (design/gate-1, diff/gate-2); a small `{\"design\": 1, \"diff\": 2}` map keyed by flag name would eliminate the third and fourth copies when gate-3 freeze arrives."
+    ],
+    "NIT": [
+      "Config sets `\"freeze_diff_after_gate2\": true` explicitly while the code also defaults it to `True`; keeping only one source of truth (either default-off in code + explicit true in config, or default-on with the key omitted) would avoid divergence between deployed config files."
+    ],
+    "SUMMARY": [
+      "Delta is small, language-compliant (tooling Python), and does not regress the AC evidence verified at HEAD. Top risks: the diff-freeze `continue` appears to *permit* rather than *prevent* post-gate-2 diff reviews and skips all material-expiry checks along the way, and the new flag ships with zero delta test coverage or doc update. Confirm the intended freeze polarity and add a targeted test before merge."
+    ]
+  },
+  "rereview_reason": "prior sha 48535cbaf787; freeze budget after gates",
+  "rereview_reason_sha256": "1c9074578a4a46f0fae60b91395ed006ff324d19dc5bf4b746d486f2d9bd62f3"
+}

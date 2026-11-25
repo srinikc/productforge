@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "1bfb2402407f",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-16T10:57:52.513323+00:00",
+  "review_scope": "delta",
+  "base_sha": "c140aec362d4e334e3db4a04487dd4d3c67a86eb",
+  "head_sha": "ab3dfc82dda1dc45658e03d80f5efd4f86bf7a65",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "New failure_matrix row EVENT_OUTBOX_BOUND_EXCEEDED mandates \"enable backpressure\", but config_contract defines only EVENT_INLINE_PAYLOAD_LIMIT/EVENT_OUTBOX_ENABLED; no backpressure knob or owner is specified, so the control is unimplementable as written.",
+      "FR-1/FR-2 `requirements[].verification` still point solely to eventstore_pg_test.go while new controls (outbox prune, payload GC) are owned by 1268; requirements rows were not updated in this delta even though traceability was.",
+      "functional_spec.delta is otherwise byte-identical to the previously approved content, so no FR-level contract absorbed the prune/GC/RLS controls added in design_pack (prior finding only partially resolved via traceability rows).",
+      "functional_spec.traceability now has duplicate FR-1 and FR-2 rows with inconsistent `test` field formatting (\"file; file\" vs single file), mirroring the ambiguous evidence mapping already flagged in test_matrix.",
+      "[VERIFIED-PRIOR] EVENT_MIGRATION_BACKUP_REQUIRED still has no owner, coverage row, or test evidence in review_scope files; unchanged and remains unenforced at this gate."
+    ],
+    "NIT": [
+      "EVENT_INLINE_PAYLOAD_LIMIT `default: \"deployment\"` is not a concrete value; startup_validation \"required\" makes behavior deployment-dependent and hard to test deterministically.",
+      "FR-4 edge_case \"PostgreSQL down\" / error \"Projection stale marked\" does not state projection write atomicity (temp+rename) or staleness metric, though observability lists \"projection age\"."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior data-loss MAJOR: prune is now explicitly forbidden from deleting pending/claimed rows and the bound is enforced via backpressure/disable, preserving dispatch intent until BI-PF-1269.",
+      "Traceability rows now reference outbox-prune and payload-GC tests, partially closing the delta-rule mismatch, but FR requirements/verification rows remain stale.",
+      "Top residual risks: undefined backpressure mechanism for the outbox bound, and migration-down backup enforcement still lacking any test evidence."
+    ]
+  },
+  "rereview_reason": "Final design delta for prior deb5b55ac4d2 and d795e655e201",
+  "rereview_reason_sha256": "5fa6713be93f545138af046b890141a13b6b538d0bc496a88cf6bebfeba427a7"
+}

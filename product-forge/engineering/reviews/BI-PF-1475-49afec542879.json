@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "49afec542879",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:15:23.136176+00:00",
+  "findings": {
+    "BLOCKER": [
+      "STORE-DATAFLOW.md now asserts provider-keys.json and secrets.json as sensitivity=internal, retention=unbounded, recovery=standard, migration_status=migrated (was secret-ref/secret, policy, critical, deferred): a credential-classification downgrade committed as generated truth; must be reverted or explicitly justified before ship."
+    ],
+    "MAJOR": [
+      "Generated doc is unreconcilable with this diff: 232\u2192244 stores plus dozens of backend/tenant_scope/retention/migration_status flips (issues.json, pr-records.json, members.json, etc.) that no registry hunk in this review touches \u2014 unrelated changes bundled or doc stale, and the 11 intended changes are buried in the churn.",
+      "Acceptance-critical tests (idempotent re-ingest, RLS non-leakage, verify) self-skip unless PF_RUNTIME_DSN is set; no CI wiring appears in the diff, so the required proofs may never execute in the pipeline.",
+      "Cross-tenant test proves only metadata non-leakage; the object store is a shared local root with no per-tenant authorization and no test has tenant B read tenant A's object key \u2014 AC \"second tenant cannot read the artifact\" is unproven at the byte layer."
+    ],
+    "MINOR": [
+      "FileResult.Store = path.Base(name), so nested registry entries (intake-files/<source>/<name>, channel items.jsonl) are reported by basename, not the full store key AC asks --verify to name.",
+      "Dry-run emits a fifth status \"planned\" inside the same pf.intake-ingest/1 report; AC pins only written|skipped-unchanged|drift|failed \u2014 needs an explicit schema-versioning decision.",
+      "Verify short-circuits after source\u2194artifacts drift, so a simultaneously corrupted object store is never named in that run (\"names each store\" only partially satisfied).",
+      "Re-ingest after a soft-deleted artifact reports \"written\" while ON CONFLICT(id) DO NOTHING leaves the row deleted, masking a silent no-op that verify will later fail on.",
+      "gate0_check.py fail-closed change is unrelated scope creep for BI-PF-1475 (a behavior change in an unrelated gate).",
+      "Verify on an object larger than max-bytes reports \"failed\" rather than a distinguishable unsupported/too-large outcome."
+    ],
+    "NIT": [
+      "Eleven near-identical registry target blocks with copy-pasted command strings; no template or validation invites drift as stores are added.",
+      "preflightWritable creates an empty --report-file before the run, leaving a truncated report on early failure exits.",
+      "ContentTypeFor treats the flag default \"application/octet-stream\" as an implicit sentinel, so an explicitly passed octet-stream is silently overridden by extension heuristics.",
+      "Ingest buffers each file fully in memory (up to 256 MiB) and runs sequentially \u2014 fine for an operator tool, but an unstated scale ceiling.",
+      "Confirm migration_status=migrated was placed on the object AC intends (it sits beside the source/backend block, sibling to target in the diff)."
+    ],
+    "SUMMARY": [
+      "Code quality is solid (deterministic artifact ids, RLS-bound txns, fail-closed role posture, retry-safe revision allocation) and the 11 registry targets plus legacy exclusion match AC2 exactly.",
+      "Ship is blocked by the regenerated dataflow doc asserting a secrets-classification downgrade and large unreconciled store churn beyond this item's scope.",
+      "Top residual risks: acceptance tests are opt-in/skippable with no CI evidence, and tenant isolation is proven only at the metadata layer, not for object bytes."
+    ]
+  }
+}

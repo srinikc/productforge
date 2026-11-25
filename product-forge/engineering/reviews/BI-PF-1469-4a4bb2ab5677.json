@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "4a4bb2ab5677",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T19:10:16.784601",
+  "findings": {
+    "BLOCKER": [
+      "`core.backlog.set_status` never calls the shared predicate: `_gate2_tooling`/`_gate2_status` are dead code, so the AC \"set_status and gate2_completion_check both call gate2_ready()\" and the doc claim (\"and core.backlog.set_status\") are false \u2014 library callers/epic rollups can complete items with zero Gate 2 enforcement.",
+      "Force audit sink is entirely absent: `force_allowed()` has no callers, `set_status(force=...)` is not checked against PF_GATE_FORCE/PF_CI, and no `gate_override` decision is appended \u2014 force silently bypasses the gates with no append-only audit.",
+      "`gate2_completion_check` never compares the evidence sha against the current change sha (`ar.diff_sha()`): any older diff evidence plus a matching old approval passes completion, defeating the hard Gate 2.5 \"evidence for the change sha\" rule (gate1 has the STALE_EVIDENCE check; gate2 does not).",
+      "Baseline exemptions (`ACTIVE \u2192 ALLOW`) are applied to Gate 2 completion, but the baseline is defined as a Gate 1 *new\u2192in_progress* rollout device \u2014 this silently waives delivery approval for any baselined item."
+    ],
+    "MAJOR": [
+      "Shipped control-plane (`core/backlog.py`) now loads `scripts/dev/gate_predicates.py` by raw file path via `importlib` at runtime: core depends on dev-tooling layout, fails closed if `scripts/` is absent from a deployment, and bypasses normal import/package boundaries; the AC specified `core/gate_predicates.gate2_ready()`.",
+      "Fail-closed inconsistency: `gate1_transition_check` returns 1 on `baseline_problems()`, but `gate2_completion_check.main` only prints them and exits 0 \u2014 baseline governance violations are half-enforced.",
+      "`record_gate_decision` binds `findings_sha = design_sha(item)` while `gate_view` falls back to the newest review when no sha match exists, so a Gate 1 approval can be recorded against evidence for an older design, not the validated one.",
+      "Docs-only/skip-globs default list duplicated in three places (`gate2_completion_check._docs_only`, `gate_decisions` x2) instead of the single shared predicate the AC requires."
+    ],
+    "MINOR": [
+      "Evidence `at` is written with naive `datetime.now().isoformat()` while decisions use tz-aware UTC; `_parse_ts` assumes naive=UTC, making STALE_APPROVAL ordering timezone-dependent (non-deterministic across machines).",
+      "Negative self-tests are not all wired to the CI boundary: precheck runs `gate1-transition` without `--self-test`, and \"force without PF_GATE_FORCE fails\" has no gate self-test (only a pytest case).",
+      "`store-registry.json` records owner `core/gate_predicates.py`, a file that does not exist in this diff.",
+      "`gate2 self-test` mutates the module global `gp.BASELINE` \u2014 unsafe if tests ever run concurrently."
+    ],
+    "NIT": [
+      "`is_docs_only` imports `fnmatch` inside the function; `_gate2_tooling()` re-executes the module on every call with no `sys.modules` caching (repeated exec, distinct module identity).",
+      "`_DESIGN_KEYS` in `architect_review.py` duplicates the identical key tuple already in `_design_body`.",
+      "`id-blocks.json` session leaves id 1468 unallocated between sessions (1467 \u2192 1469) without an explanation."
+    ],
+    "SUMMARY": [
+      "Solid direction: shared predicates, --report dry-runs, structured ALLOW/DENY reason codes, baseline governance and docs are largely in place, but three AC pillars are unimplemented \u2014 set_status does not actually invoke the shared Gate 2 predicate, the force audit sink does not exist, and Gate 2 completion accepts stale evidence not bound to the current diff sha. Layering (core \u2192 scripts/dev path-loading) and baseline scope creep into Gate 2 are the top long-term risks; fix the dead-code/AC gaps before treating this as enforced."
+    ]
+  }
+}

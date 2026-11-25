@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "f13785f98352",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:10:23.220662",
+  "findings": {
+    "BLOCKER": [
+      "Both CI (`config/ci-cd-gates.json`) and `precheck.py` invoke `gate2_completion_check.py --self-test` only; the real completion-transition check never executes in enforcement paths, so the Gate 2 hard rule is vacuous wherever it is wired.",
+      "`record_gate_decision` records a gate=1 decision when `gate_view(item,\"design\")` is None \u2014 Gate 1 can be approved with zero Gate 1.5 evidence, directly violating the mandatory Gate 1.5-before-Gate 1 ordering (fail-open)."
+    ],
+    "MAJOR": [
+      "Gate 2 \"docs-only\" path is unverified: `record_gate_decision` (and `set_status` force fallback) writes `findings_sha:\"docs-only\"` whenever the diff view is None, without checking `is_docs_only`, letting a code change carry a docs-only approval.",
+      "Required negative self-test \"force without PF_GATE_FORCE fails\" is absent; `force_allowed` / override audit path has no test coverage in either self-test matrix.",
+      "`record_gate_decision` stamps `datetime.now()` (naive local) while `gate_predicates._parse_ts` assumes naive == UTC; on any non-UTC machine the `decision.at >= evidence.at` staleness predicate silently mis-orders approvals (valid stale, or invalidate fresh).",
+      "`gate2_completion_check.main` prints `baseline_problems()` but never fails on them, while `gate1_transition_check` returns 1 \u2014 inconsistent fail-closed baseline governance between the two checkers.",
+      "Duplicate predicates: `gate2_completion_check._docs_only` reimplements `gate_predicates.is_docs_only`, and `core/backlog._gate2_status` re-implements the view/sha/docs-only resolution already in `check()` \u2014 violates the \"single predicate, no duplicate logic\" AC and will drift.",
+      "No caller, CLI, or API in the diff exposes `record_gate_decision`; the required HIL decision-recording path (through `core.backlog.update`, control-plane) is unreachable/untested in practice.",
+      "`findings_digest` is skipped whenever `view is None` and evidence `at` is absent (pre-existing evidence files), so both digest and ordering staleness checks fail open for older evidence \u2014 undermining the STALE_APPROVAL guarantee."
+    ],
+    "MINOR": [
+      "Gate 1 self-test matrix never exercises `gate1_check.evaluate` for the \"missing design evidence\" case required by the AC; it only tests `gp.approval` with a synthetic None view.",
+      "`_DESIGN_KEYS` in `design_sha` duplicates the key tuple in `_design_body`; a future field added to one silently desynchronizes the design body from its hash.",
+      "Unused `import fnmatch as _fnmatch` in `core/backlog._gate2_status`.",
+      "`record_gate_decision` returns the unchanged `item` (not None) on refusal, indistinguishable from a successful no-op for callers.",
+      "Decision `seq` is computed as `len(dec)+1` at write time with no append-only enforcement in `update()`; any edit/removal breaks the `DECISION_ORDER_INVALID` invariant check.",
+      "A docs-only gate-2 approval never invalidates (no digest, fixed \"docs-only\" sha) \u2014 acceptable per AC but should be called out as a permanent blind spot in REVIEW-GATES-LIFECYCLE."
+    ],
+    "NIT": [
+      "`fnmatch` imported inside `is_docs_only` on every call; hoist to module scope like the other imports.",
+      "`gate1_transition_check --self-test` still executes the live transition scan afterward instead of exiting after the matrix, conflating two concerns in one flag."
+    ],
+    "SUMMARY": [
+      "The shared `gate_predicates` design (digest + sha + ordering + baseline) is the right architecture, but enforcement is currently broken at the wire: CI/precheck only run the gate-2 self-test, so completions are unchecked end-to-end.",
+      "Fail-open paths remain in decision recording (no design evidence, unverified docs-only, naive timestamps, skipped digest for view-less evidence), which undermines the fail-closed AC at the exact seams the gates exist to protect.",
+      "Top risks before merge: fix the CI/precheck wiring, gate record_gate_decision on evidence existence and docs-only verification, normalize timestamps to UTC, and add the missing force/baseline negative tests."
+    ]
+  }
+}

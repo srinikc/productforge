@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "6bc7402ee404",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:02:48.431418+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Regenerated `STORE-DATAFLOW.md` shows unrelated, out-of-scope state: `provider-keys.json` and `secrets.json` change from `deferred`/`secret-ref`/`critical` to `postgres`/`migrated` with `internal` sensitivity, and ~20 other stores flip backend/migration_status. Either the registry (not shown) changed silently in this item or the doc is generated from a dirty baseline \u2014 either way the secrets posture regression and 232\u2192244 store-count jump are not attributable to BI-PF-1475 and destroy the registry's audit integrity.",
+      "Acceptance test for RLS non-leakage and the runtime-role guard (`TestServiceIntegration`, `TestEnsureRuntimeRoleRefusesBypass`) silently `t.Skip` unless `PF_RUNTIME_DSN` is set; no CI wiring is included, so the required non-leakage proof can be vacuous in the default pipeline.",
+      "CLI `--verify` exit-code semantics are untested: `HasFailure()` (exit 2) vs drift (exit 1) and \"names each store\" for source/artifacts/object disagreement have no test; only the report marshalling is golden-tested.",
+      "The legacy skip path records `product_forge_context.json` as `Failed`, which forces `HasFailure()` \u2192 exit 2 on any run whose `--root` contains that file; an intentionally out-of-scope file should not poison operator/automation runs with a failure exit."
+    ],
+    "MINOR": [
+      "`Ingest` writes the immutable object before `register`; a metadata failure leaves an orphan object with no reconciliation other than the opt-in `--orphans` listing \u2014 consider an explicit repair path or documented cleanup.",
+      "`--content-type` is a single global flag; the walk mode applies `application/octet-stream` to every file regardless of store, so per-store MIME (e.g. `application/json`, `application/x-ndjson`) is lost in `stored_objects`.",
+      "`Orphans` builds the known-checksum set from `artifacts.checksum` via `LIKE $2` without escaping; safe today because buckets are validated literals, but it silently couples bucket naming to SQL pattern semantics.",
+      "`gate0_check._load` swallows every exception into `{}` \u2014 a corrupt or unreadable backlog item now silently skips the in-progress gate instead of failing closed, weakening the gate's integrity guarantee."
+    ],
+    "NIT": [
+      "`ArtifactID` truncates sha256 to 128 bits with no documented collision rationale in the schema it feeds (`artifacts.id`).",
+      "`collect` walks the entire tree with no file-count or depth bound before the per-file size cap applies.",
+      "`ObjectKey`/tenant prefix string is duplicated in `Orphans` (`\"tenant/\"+tenant+\"/\"+bucket+\"/\"`) instead of reusing `ObjectKey`."
+    ],
+    "SUMMARY": [
+      "Solid Go implementation: deterministic artifact IDs, RLS-bound transaction, retry-safe revision allocation, tenant-traversal rejection, and a pinned report schema \u2014 the core ingest/verify design is sound and language-rule compliant.",
+      "Top risks are (1) the regenerated dataflow doc silently reclassifies secrets stores and flips dozens of unrelated migration states, and (2) the acceptance-critical RLS and verify-exit-code tests are opt-in and can be vacuous in CI.",
+      "Resolve the registry/doc provenance question and wire the DSN-gated tests into the test pipeline before this can be accepted as evidence for the 11 store flips."
+    ]
+  }
+}

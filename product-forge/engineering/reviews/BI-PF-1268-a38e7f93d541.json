@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1268",
+  "sha": "a38e7f93d541",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-16T15:18:59.806545+00:00",
+  "review_scope": "delta",
+  "base_sha": "0070bac5bffa4a7d6fb2320808e61e0503b5bc58",
+  "head_sha": "12595182d904676aa3b7aa983915bd195ee4946e",
+  "findings": {
+    "BLOCKER": [
+      "AC-3/tenant isolation: `EventAppendOp` passes caller-supplied `payload[\"path\"]` straight into `RegenerateProjection` (pfcore hunk), so any A1 caller can redirect the writer to another tenant's JSONL (or any writable path) and overwrite it \u2014 projection path must be server-resolved, not wire-controlled.",
+      "AC-2 fail-closed gap introduced by the delta: offload runs `payloads.Put` before any DB write and, if `WithPayloads` was never configured (`inlineLimit==0`), `Append` silently writes large payloads inline to PostgreSQL instead of failing closed per the config contract."
+    ],
+    "MAJOR": [
+      "AC-4: new `EnforceOutboxBound` has no production call site \u2014 it is not invoked by `Append`, no job, and emits no metric/log, so the row-count limit remains dead code and outbox growth stays unobservable.",
+      "AC-3 integrity: `RegenerateProjection` runs after the event transaction commits; a projection failure makes `event_append` report failure for an already-persisted event, and the client's retry then fails on duplicate `event_id` \u2014 inconsistent authority reporting.",
+      "AC-3: projection refresh is conditional on the caller including `path`; an append without it commits to PostgreSQL but never regenerates `events.jsonl`, so legacy readers silently go stale.",
+      "Seq-conflict detection uses `strings.Contains(err.Error(), \"duplicate key\")` \u2014 message/driver dependent and untested; a duplicate `event_id` is retried 5\u00d7 pointlessly while non-`seq` unique violations also retrigger allocation."
+    ],
+    "MINOR": [
+      "`payloads.Put` precedes the transaction; a failed/aborted commit leaves an orphan object, and the new grace window only applies when callers pass `graceSeconds > 0` (existing test passes 0).",
+      "No fail-closed test for storage failure (`Put` error \u2192 `Append` error) or for sha256/size/content-type persistence in the row; `TestAppendUsesObjectStoreAboveThreshold` only asserts the ref string.",
+      "`TestOutboxBoundFailsClosed` asserts only `err != nil`, so an `ErrEventInvalid` validation failure would satisfy it instead of proving `ErrOutboxBound`.",
+      "Grace window silently degrades if a store returns `CreatedAt==0`: `now-0` always exceeds grace, so in-flight objects are deletable despite the TOCTOU guard.",
+      "`sharedEventStore` is an unclosable package-global (discarded `closeFn`), serializing all appends behind the first DB open and preventing clean shutdown/test reset.",
+      "[OUT_OF_SCOPE] `CorrelationID`/`CausationID`/`Actor`/`Version` still use `fmt.Sprint` and persist `\"<nil>\"` for missing fields; only `event_id`/`event_type` were fixed in this delta."
+    ],
+    "NIT": [
+      "Retry loop has no backoff/jitter across its 5 attempts under per-tenant seq contention.",
+      "Hard-coded 30s context timeout is not declared in the config contract (`EVENT_*` registry)."
+    ],
+    "SUMMARY": [
+      "Delta resolves most prior blockers (payload offload path, tenant-scoped GC, fail-closed outbox flag, seq retry, pooled store, role-posture test), but introduces a wire-controlled projection path (cross-tenant overwrite risk) and leaves AC-4's new bound unwired and unobserved.",
+      "Top risks: caller-controlled `RegenerateProjection` path, post-commit projection failure corrupting append semantics, and `inlineLimit<=0` silently reverting to inline PG payloads."
+    ]
+  },
+  "rereview_reason": "Delta for prior 86ea3ecb0516 findings",
+  "rereview_reason_sha256": "d4f48342ae73785f4fb4000e121351142cc9840acc2db9ee024b57148b238ee8"
+}

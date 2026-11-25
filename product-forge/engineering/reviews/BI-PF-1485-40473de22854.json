@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "40473de22854",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T15:17:21.908237+00:00",
+  "base_sha": "",
+  "head_sha": "4a1960d499c5d0a3956d2555fc3b30bb860d6924",
+  "findings": {
+    "BLOCKER": [
+      "empty_delta_rule excludes `data/backlog/**`, but item ACs, risk_tier, enforce flags, and design_pack live in backlog data; editing those via the data path keeps the review-relevant diff empty, so stale evidence \"passes\" while policy content changed \u2014 classify by content class (item AC/policy fields), not just path.",
+      "Design-pack validation is implied in both `gate1_check.py` and `precheck.py`; if each implements its own section/schema checks the gates will diverge. The design must mandate a single shared validator (design_pack.py) as the only enforcement path, with both gates calling it.",
+      "No invariant/test asserts delta-base continuity (prior evidence head_sha == next base_sha, or explicit gap handling); without it, out-of-order or deleted evidence silently degrades a re-review to a partial diff. Add invariant + fail-able test."
+    ],
+    "MAJOR": [
+      "evidence_compat relies on \"latest at\" wall-clock tie-break with no stated atomic write (temp+rename) or monotonic ordering; under the single-writer assumption this is untested \u2014 specify write protocol and an ordering test.",
+      "Empty-delta path (exit 0, no evidence written) is absent from the test_matrix; the no-model-call, last-reviewed-head-preserving behavior is the highest-risk shortcut and must be fail-ably tested.",
+      "Redaction says \"reason text is redacted\" but prior findings are replayed to the reviewer \u2014 state exactly which prior-disposition content is retained vs redacted, else re-reviews lose disambiguation context and auditability degrades.",
+      "Rollback claims \"generated design MDs deleted\" without stating whether `engineering/design/<ID>.md` is committed or ignored; if committed, reverting the generator orphans MDs. Specify artifact lifecycle (gitignore vs committed + cleanup step)."
+    ],
+    "MINOR": [
+      "Encoding gate should define byte-level BOM detection (EF BB BF pre-decode) and explicit binary/asset skip rules; decode-based detection misreports UTF-16 and creates false positives the risks already flag.",
+      "Excluded-path set (derived docs, baselines, id-blocks) should live in versioned config with a rationale per entry, not hardcoded, so future \"derived\" classification changes are reviewable and testable.",
+      "Observability lists \"final report gate metrics\" and \"stderr/exit codes\" but names no fields/events; specify a minimal stable event schema (item, mode, base, head, diff_sha, outcome, failure_code).",
+      "No test named for DELTA_BASE_INVALID / DESIGN_PACK_CONFIG / ENCODING_BOM in test_matrix (only three files listed); the failure matrix implies more coverage than the matrix commits to.",
+      "Provider findings stored in evidence have no retention/redaction policy for source-excerpt leakage; state scope (metadata+text classification) and retention for evidence files."
+    ],
+    "NIT": [
+      "Recurring: \"collisions resolve by latest at\" still uses wall-clock nanos; prefer diff_sha-keyed uniqueness only and drop time-based resolution.",
+      "enforce_items/enforce_from rollout (\"T1 applies to 1484/1485 only\") should include a golden test asserting the config matches the intended item set to prevent accidental broad enforcement.",
+      "Generated design MD check should include a render-drift assertion (re-render and diff) so hand-edited generated files fail fast."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped tooling-only change with clear invariants, failure codes, and guardrail coverage; language rule and authz/tenant N/A are correctly handled.",
+      "Top risks: the path-based empty-delta exclusion lets item AC/policy edits bypass re-review; design-pack validation must be single-sourced across Gate 1 and precheck; delta-base continuity is unasserted.",
+      "Address the three blockers and add empty-delta + failure-code tests before Gate 1.5; remaining items are hardening."
+    ]
+  },
+  "rereview_reason": "empty-delta/exclusion/concurrency rules + tests",
+  "rereview_reason_sha256": "e383105f0d7e2ecbc4fb347231a989e2fe8df1bff061fe65e56a341f8c077b6d"
+}

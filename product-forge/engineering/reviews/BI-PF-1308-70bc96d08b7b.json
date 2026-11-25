@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "70bc96d08b7b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:48:22.471025+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance-required lifecycle conformance tests are missing: no S3 ApplyLifecycle/ObjectLifecycle test skipped-without-endpoint, and local ErrUnsupported capability is only exercised indirectly via Put, not via ApplyLifecycle/ObjectLifecycle."
+    ],
+    "MAJOR": [
+      "Checksum mismatch is fail-open: comparison is skipped when either side's checksum is empty, so store-side checksum absence silently reports \"clean\" instead of flagging unknown/unverifiable objects.",
+      "LifecycleState omits versioning, which the AC explicitly lists as part of ObjectLifecycle(key); the capability contract is incomplete for long-term consumers.",
+      "Reconcile never calls ObjectStore.Head despite the AC specifying List/Head comparison; any field Head returns but List omits (e.g. checksum) can never be reconciled.",
+      "Security-boundary rejections (objpolicy ErrMethod/ErrTTL/ErrTenantKey/ErrUnsupported) and drift reports emit no structured logs/metrics, leaving the privilege boundary unobservable in production."
+    ],
+    "MINOR": [
+      "Manifest keys outside the prefix are counted as \"Missing\" rather than rejected as an invalid manifest, corrupting Expected/Missing counts and weakening report semantics.",
+      "`AllowedMethods` is an exported, mutable map: any package can add DELETE/POST at runtime, undermining the fixed allowlist guarantee.",
+      "Tenant guard does no key normalization: `tenant-a/../tenant-b/x` passes the prefix test; use path-clean comparison before minting.",
+      "`LegalHold=false` is a silent no-op \u2014 there is no release path for legal hold, and the one-way nature is undocumented at the interface level.",
+      "LocalStore implements LifecycleCapable but `Lifecycle()` reports capability=true for it, forcing every caller to also handle ErrUnsupported; consider a positive `ObjectLock` capability flag (S3 already advertises one).",
+      "Two new single-purpose Go modules with local `replace` directives add build-graph/module sprawl; weigh folding into an existing module or a shared workspace manifest."
+    ],
+    "NIT": [
+      "Duplicate manifest keys are appended twice to Missing and silently overwrite in `want`.",
+      "`ApplyLifecycle`/`ObjectLifecycle` on LocalStore ignore `ctx`/`key` parameters (minor lint/readability noise).",
+      "Error strings are duplicated verbatim across the two LocalStore lifecycle methods."
+    ],
+    "SUMMARY": [
+      "Solid overall shape: optional capability interface, fail-closed mint policy with typed errors, and a read-only deterministic scanner are the right primitives. Top risks are a missing acceptance-required test, a checksum fail-open path that can certify unverified data as clean, and an incomplete/observable-less lifecycle contract \u2014 all of which undercut the integrity and compliance goals of BI-PF-1308."
+    ]
+  }
+}

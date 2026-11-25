@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "c62d9e5ac577",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:54:57.820390+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Gate-1 context does not embed the latest Gate 1.5 findings + dispositions (CL-006); approval is invalid while any BLOCKER/MAJOR is PENDING \u2014 record them or state explicitly that none exist.",
+      "Duplicate residency type definitions (standalone Go types vs internal edpsvc types) duplicate the same contract with no single source of truth; a conformance test mitigates but does not remove drift risk. Prefer generating Go types from the JSON schema or sharing one package.",
+      "\"Identical pass/block from core.packaging.validate and cmd/pfresidency\" requires two implementations of the same rules; drift is guaranteed over time. Define which one is authoritative and make the other a thin call-through or clearly derived.",
+      "Warn-mode JSONL append (`engineering/residency-gate.jsonl`) has no stated rotation/size bound or concurrency safety; an unbounded append in CI becomes an availability and observability failure.",
+      "Alert lead-time / defence-in-depth for blocked builds is unspecified: when the gate flips from warn to block, how does a product team learn before the build fails? No on-startup or pre-merge signal mentioned.",
+      "Error-code and report schema stability is asserted but not versioned; no `schema_version`/`report_version` on the JSON report, so downstream consumers cannot evolve safely.",
+      "`backup.frequency` \"recognized\" set is not enumerated in the design; without an explicit closed list the validator's behavior is ambiguous and untestable at the boundary."
+    ],
+    "MINOR": [
+      "`retention.legal_hold` is required but its validation semantics (what values, does legal_hold=true relax the days<=policy bound?) are undefined.",
+      "No explicit statement that profile file reads are size/schema-bounded or that malformed profile JSON fails closed (only \"unknown/missing home\" is called out).",
+      "Observability is limited to a JSONL event; no metric/counter (blocks vs warns by error code) to measure rollout readiness before flipping to block.",
+      "Rollback mentions `gate_mode=warn` or revert, but not what happens to already-emitted manifests or cached `packaging-manifest.json` artifacts during rollback (stale residency sections).",
+      "Invariant \"allowed_regions includes home_region\" is validated in the Go path; ensure core.packaging.validate enforces the same invariant to satisfy the \"identical pass/block\" AC.",
+      "Guardrail 5 (invariants & ordering) and guardrail 9 (tenant isolation / redaction of the residency report) are not addressed in the design text."
+    ],
+    "NIT": [
+      "`store-registry.json` ownership registration should name the counsel role explicitly, not just \"registered with owners,\" to satisfy CL-001 route-by-kind.",
+      "Affected-files list omits the `engineering/residency-gate.jsonl` artifact and any docs cross-links (ENGINEERING_OPERATING_STANDARD).",
+      "The \"IN\" template default should be justified (or called out as placeholder) so no reviewer mistakes it for a counsel decision."
+    ],
+    "SUMMARY": [
+      "Solid, standards-aligned design: fail-closed home_region, Go-first validator, profile-owned policy, warn-then-block rollout, and reversible gate_mode. Top risks are duplicated residency contracts across two implementations (drift), absence of embedded Gate-1.5 findings/dispositions per CL-006, and unbounded/unversioned observability artifacts."
+    ]
+  },
+  "rereview_reason": "prior design sha ea4b3daf15ef; policy bounds, failure semantics, registry and conformance added",
+  "rereview_reason_sha256": "a39de074cb89f9680f3e300e9f500942c7bd6c5cabf78d092cb056c67500c6ba"
+}

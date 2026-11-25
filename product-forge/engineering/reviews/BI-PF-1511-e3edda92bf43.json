@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "e3edda92bf43",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T08:14:21.000503+00:00",
+  "review_scope": "delta",
+  "base_sha": "b97926709886e83786f3f7f27db8016394742d39",
+  "head_sha": "29c6b9d270c1483c158383c36856d4cba4b9fcb9",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta only demonstrates `authorityReasonBounded` usage in tests; the metric emission path in `backlogAuthority` is not shown to route reasons through the allowlist, so AC-1's \"only bounded reasons\" is enforced by assertion rather than by a fail-closed sanitizer at emit time \u2014 confirm production emits a fixed fallback (e.g. `internal_error`) for unbounded reasons.",
+      "Bounded reason set now lives as a second definition in `edpsvc` while the reason codes originate in `edpdata`; without a single exported source of truth the producer/consumer lists can drift and silently drop a legitimately new reason at the gauge.",
+      "`authorityReasons` is a mutable package-level `var`; any future `init`/test mutation changes runtime label policy globally. Prefer an immutable `switch`/`map` returned by an unexported accessor."
+    ],
+    "NIT": [
+      "Only a single-level `%w` wrap of `*pgconn.PgError{57014}` is added; a doubly wrapped chain or an `errors.As`-only wrapper is still untested, so the structured-timeout assumption remains partially proven.",
+      "The new emission-count guard asserts at least one reason line exists but not that the failure classified as the expected `internal_error`; asserting the exact reason would catch misclassification regressions that the allowlist check still passes.",
+      "Dropped/unbounded reasons (if sanitized) have no counter, so operators cannot see that a label was rewritten \u2014 a small observability gap for diagnosing new error classes."
+    ],
+    "SUMMARY": [
+      "Delta is narrow and resolves the prior three findings as claimed: shared allowlist, non-vacuous emission assertion, and wrapped pgconn coverage.",
+      "Remaining risks are about enforcement placement (test-time allowlist vs emit-time sanitization) and duplicated reason definitions across `edpdata`/`edpsvc`, not correctness of the delta.",
+      "No blockers or majors introduced; approve with the allowlist-wiring and single-source-of-truth items tracked as follow-ups."
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "8bfa1fd73c8d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "Required tests are absent: no test proves tenant isolation survives the restore round-trip, none proves retention (AURE) does not block the insert slow path, and the integration suite asserts no PostgreSQL 16 requirement (AC explicitly demands all three).",
+      "EDP service startup coverage check and the ops cron wiring (emitting `audit_partition_months_ahead` / `audit_partition_low_coverage_total` + stale-job alert) do not exist anywhere in the diff; the AC is unimplemented outside the two CLIs.",
+      "`pfaudit Down` takes no advisory lock or ACCESS EXCLUSIVE: concurrent app inserts during the down window land in the (renamed) shadow and become invisible to readers of the flat `audit` \u2014 silent data loss on the emergency rollback path.",
+      "0014 \u00a717 runs `SELECT min(at) FROM audit` with no `to_regclass('audit')` guard: on any database where the legacy `audit` table does not yet exist the DDL-only migration aborts, contradicting the \"fresh-install (empty audit)\" AC and the ensure-based contract."
+    ],
+    "MAJOR": [
+      "`audit_ensure_partitions` (the Append 23514 heal) does not take the AUDP advisory lock and never creates months older than `now - horizon`, so a concurrent 42P07 race or a rotated-away past month is not healed \u2014 \"no event is lost\" is not guaranteed; the Go retry also swallows nothing on the second failure.",
+      "`audit_hold_after_purge_total` is incremented for the wrong condition (active-hold purge refusal) in `pfaudit-retention`, and the actual spoliation path (`audit_hold_guard` RAISE) emits no metric at all \u2014 AC unmet and the alert signal is misleading.",
+      "`audit_migration_state` invariant broken: `runPrestage` upserts the copy cursor directly into the projection table, bypassing `audit_migration_state_events`, so the \"rebuildable projection of append-only events\" property is false.",
+      "Every 0014 function is SECURITY DEFINER with `search_path = pg_catalog, public`: any role with CREATE on `public` can shadow functions/types relied upon by these definer-rights paths (classic escalation). `public` must not be in a definer search_path.",
+      "`AuditStore.Append` couples the domain data plane to `pgconn`/SQLSTATE details, breaking the datastore-port abstraction, and treats any 23514 as out-of-range \u2014 a CHECK-constraint 23514 on `audit` would spuriously route every failing insert into the DDL provisioning path.",
+      "`pg_dump` is invoked with the DSN as an argv element (`backup()`), exposing credentials to the process list of any host user; pass via `PGPASSWORD`/`.pgpass` instead.",
+      "`PF_AUDIT_FREEZE_BUDGET_SECONDS` only prints a WARNING; the AC says the budget is asserted, so an over-budget freeze passes the gate silently.",
+      "Cold archives default to SSE-AES256 (`DefaultSSE`), not the SSE-KMS the AC mandates, and the KMS key id is never required or validated when `PF_AUDIT_SSE=aws:kms`.",
+      "`audit_mark_purged` records `purged_at` before object deletion; a mid-purge crash leaves the month refusing restore while objects still exist, with no tool-supported reconciliation path (stranded recoverable data).",
+      "`runPrestage` state is written to `audit_migration_state` but no append-only event is recorded for prestage/verify/close progress steps, weakening the audit trail of the migration itself."
+    ],
+    "MINOR": [
+      "`RestoreMonth` panics on short month strings (`month[len(month)-6:]`): `validTable` accepts `audit`, so `restore --month audit` crashes rather than erroring.",
+      "Restore leaves `audit_restore_YYYYMM` scratch tables in `public` forever \u2014 unbounded accumulation, no cleanup or lifecycle story.",
+      "Down migration on a post-swap DB runs `DROP SEQUENCE IF EXISTS audit_id_seq` still referenced by live `audit` (2BP01), so `0014.down` cannot even roll back cleanly; the guard should refuse rather than half-apply.",
+      "TRUNCATE is only revoked from `PUBLIC`, and ALTER/ATTACH are not explicitly revoked from `pf_app`/`pf_runtime`; the AC's literal \"revoked from every role\" is unmet (safety currently relies only on ownership).",
+      "`runSwap` increments `audit_attach_unhardened_total` when post-swap verification fails \u2014 a false positive for the hardening alert.",
+      "Several declared metrics (`audit_provision_seconds`, `audit_insert_out_of_range_total`, `audit_drop_total`, `audit_late_insert_total`, `audit_hold_extract_failed_total`) are never emitted anywhere \u2014 dashboards wired to them will read zero forever.",
+      "No test exercises the restore-rehearsal (`age -d | pg_restore -l`) or the freeze-budget assertion, both AC-required proofs."
+    ],
+    "NIT": [
+      "`audit_partition_coverage` declares `v_lead` (lead_months) and never uses it \u2014 `lead_months` is dead config despite being part of the coverage contract.",
+      "`TableChecksums` comment claims an \"order-independent, constant-memory aggregate of row hashes\" but the code is an order-dependent streaming hash \u2014 misleading documentation.",
+      "`audit_provision`'s `TG_TABLE_NAME <> audit_parent()` early return is dead code: the trigger is never cloned onto leaves.",
+      "`architect_review.py` raises the diff budget to 400000 chars and `max_tokens` to 16000, materially increasing per-gate cost without a stated cap rationale."
+    ],
+    "SUMMARY": [
+      "Solid architectural shape: SQL primitives vs Go orchestration split, catalog-driven resumable swap, enforce-by-privilege hardening, and two-stage retention with holds are the right long-term choices, and the Go/SQL language rule is respected.",
+      "Top risks are completeness, not design: the AC-mandated PG16/resume/isolation/non-blocking tests, the EDP startup + cron coverage wiring, and the unlocked `Down` path that can silently strand live audit rows.",
+      "Operational integrity gaps (wrong spoliation metric, projection not events-backed, budget only warned, KMS vs AES256, plaintext DSN in argv) need fixing before this is enterprise-grade."
+    ]
+  }
+}

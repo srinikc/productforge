@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "f5803be2a2e0",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T17:54:33.618713",
+  "findings": {
+    "BLOCKER": [
+      "Authorization boundary is unenforced (checklist 3): `by` is merely asserted, PF_GATE_FORCE is spoofable by any local process, and the gate_override append goes through agent-reachable `core.backlog.update` \u2014 the implementing process can fabricate its own Gate 1/Gate 2 approval and force-override, defeating the human-gate invariant. Convention (\"HIL session only\") is not enforcement; a boundary check is required.",
+      "Decisions are not verifiably human-authored: the design states decisions are \"never auto-approved\" but provides no mechanism (allowlisted approver identity, session attestation, or CI-side verification) preventing an automated writer from emitting `{gate:1/2, by:<human>}` records. Without this the gate proves only that a JSON field was written."
+    ],
+    "MAJOR": [
+      "CL-006 decision-time predicate missing: the design must state that *recording* a Gate 1/Gate 2 decision itself verifies zero PENDING BLOCKER/MAJOR at that moment, not only at transition/completion re-check time.",
+      "Affected files/components are incomplete: `core/gate_predicates.py`, `config/gate-baseline.json`, and the negative self-test file are absent from the lists, so the single-predicate and self-test ACs cannot be traced or reviewed (traceability gap in the committed design).",
+      "Ordering via wall clock (`decision.at >= evidence.at`) is not deterministic proof: equal-second granularity, NTP skew, or cross-machine clocks break ordering. Use a monotonic authority (git commit order / append index) as the ordering predicate.",
+      "`evidence.at` semantics undefined: if every re-run refreshes `at`, an identical design re-run spuriously invalidates approvals (sha unchanged \u2192 churn); if never refreshed, stale-approval detection weakens. Define first-recorded vs recomputed explicitly.",
+      "design_sha canonicalization unspecified: field order, AC ordering, whitespace, and normalization are undefined, so the sha is not reproducible across writers \u2014 spurious STALE_APPROVAL or divergent evidence for the same design.",
+      "\"Append-only decisions committed to git\" is convention only: decisions live in mutable item state with last-write-wins concurrency. Define append-only enforcement (journal + verification check) and a single-writer rule (CL-001).",
+      "Force/CI reconciliation undefined: `set_status(force)` can mark completed locally while CI/precheck \"always refuse force\", leaving the item permanently red with no defined path (baseline entry? forced-item revert?)."
+    ],
+    "MINOR": [
+      "Availability/SPOF (checklist 2) unaddressed: behavior when `config/gate-baseline.json` is missing/corrupt, or when the git commit for the force audit fails, must be explicit fail-closed DENY with an alert/metric lead time.",
+      "Sha truncated to 48 bits (`[:12]`) is a weak binding for a security-relevant approval; use full sha256 (or \u226516 bytes).",
+      "Baseline semantics ambiguous: clarify that \"expired/unknown entries DENY\" means deny-the-grandfathering (block the transition), not deny-the-run, and specify how unknown entries are reported.",
+      "Observability: structured reason codes exist, but no minimum metrics/counters for gate allow/deny/force per run are specified (checklist 10).",
+      "Decision storage locus and schema validation unspecified: where decisions live on the item, field name, JSON schema, and the stable machine-readable `--report` output contract are undefined.",
+      "Baseline governance incomplete: who may edit `config/gate-baseline.json` and whether edits require the same human `by` binding as decisions is unstated (self-granting risk)."
+    ],
+    "NIT": [
+      "Precedence between force, baseline, and allow-list is not stated; document an explicit resolution order.",
+      "Self-test matrix omits the equal-timestamp ordering case and the re-run-identical-sha (should-not-invalidate) case.",
+      "Rollback line is terse; a plain revert leaves in-flight items newly blocked \u2014 link the baseline as the documented unblock path in the rollback note."
+    ],
+    "SUMMARY": [
+      "Verdict: deterministic, fail-closed, reuse-first intent is sound (shared `gate2_ready`/`gate1_check.evaluate`, sha binding, baseline with expiry), but the design is not Gate-1.5 ready.",
+      "Top risks: unauthenticated human approvals and spoofable force (blocker defeating the gate's core guarantee); wall-clock ordering and undefined sha canonicalization making the predicate nondeterministic; incomplete affected-files/test traceability; undefined force-vs-CI reconciliation and non-enforced append-only audit.",
+      "Required before approval: enforce a real authorization boundary for decisions and force (identity attestation or CI-side verification), and make evidence/decision ordering, hashing, and audit history reproducible and verifiable."
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1481",
+  "sha": "db39a08040f2",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T07:27:08.246149+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC/owner mismatch: AC requires `owner core/execution_trail.py` and `python -m core.execution_trail show`, but the design ships `scripts/dev/execution_trail.py`; `python -m core.execution_trail` cannot resolve. AC 1 and 2 are not met as written.",
+      "Silent best-effort hook: a failed trail write drops required evidence (e.g. `delivery`/`completion`) with no failure signal, yet the completion gate then fails the item \u2014 gate outcome becomes dependent on an unlogged side channel rather than a checked contract."
+    ],
+    "MAJOR": [
+      "Dependency inversion: `core/backlog.py` (shipped core) invoking a `scripts/dev` hook makes core depend on dev tooling; failure coupling and reload/ordering semantics are undefined.",
+      "No stated invariant for `seq` uniqueness/monotonicity across concurrent writers; a per-item lock alone does not prove ordering, and no concurrency/append test is listed.",
+      "Completion gate enforces only a subset (`gate0/design_review/gate1/diff_review/gate2/tests`); `planning`, `pr`, `merge`, `delivery`, `completion`, `implementation`, `code_review`, `precheck` are in the AC stage list but unenforced \u2014 out-of-order or absent late stages pass the gate.",
+      "No observability plan for trail writes (metric/log/counter on append failure, hook miss, lock contention); without it, \"best-effort\" is undiagnosable in production runs.",
+      "Test scope covers only `test_execution_trail.py` happy path; recurring review findings call out missing coverage for render/disposition helpers and check failure paths (`DEFERRED` without follow-up, out-of-order detection).",
+      "`architect_review.render_gate_view` reuse appears to reach into private helpers (`_render_review`, `_item_dispositions`) \u2014 cross-module reuse of private API is a maintainability and contract risk."
+    ],
+    "MINOR": [
+      "No redaction/retention policy for `refs`/`summary`/token usage persisted in the durable trail store (checklist items 9, 4).",
+      "Append-only JSON has no size bound, rotation, or compaction; long-lived items grow unbounded.",
+      "Usage \"not captured\" vs. zero semantics not defined for partially captured sessions (mixed sources in one trail).",
+      "\"next backlog item\" and \"total time\" in the final table have no defined behavior for partial/legacy/incomplete trails.",
+      "Rollback leaves `config/store-registry.json` and `config/ci-cd-gates.json` referencing a removed tool \u2014 restore path for config not stated."
+    ],
+    "NIT": [
+      "Checklist guardrail questions (backup/restore before any destructive step, SPOF/alert lead-time, needs_api) are not explicitly answered in the design text even though the design guardrails require it.",
+      "Naming: item in_scope says `scripts/dev/*` while AC says `core/*`; pick one and align all three of AC, in_scope, and affected_files."
+    ],
+    "SUMMARY": [
+      "Solid direction: append-only registered store, tool-written evidence, and a fail-able completion check are the right shape, and reuse of `architect_review` render + store registry is good.",
+      "Top risks: (1) AC module path/owner is contradicted by the design, (2) best-effort writes silently corrupt gate evidence with no observability, (3) the completion gate enforces only ~6 of 14 mandated stages, so ordering integrity is not actually guaranteed.",
+      "Must resolve the owner mismatch and define the write-failure contract (log/metric + gate behavior) before Gate 1.5."
+    ]
+  }
+}

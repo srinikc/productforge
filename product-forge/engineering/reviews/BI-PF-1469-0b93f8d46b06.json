@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "0b93f8d46b06",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:56:18.341373",
+  "findings": {
+    "BLOCKER": [
+      "Gate decisions are plain JSON fields in the item; nothing enforces \"recorded only by the HIL session\" \u2014 any agent/script can write {gate, decision, by, findings_sha, at} and self-approve, defeating fail-closed and never-auto-approved claims.",
+      "`by` is asserted and `at` client-supplied (SSO out-of-scope), so both the ordering predicate (decision.at >= evidence.at) and human-approval proof are forgeable; STALE_APPROVAL is not a real integrity control.",
+      "set_status/gate1 enforcement is only at precheck/CI on the committed diff; in-process library/epic-rollup transitions have no gate1 predicate (only gate2_ready named), leaving a control-plane bypass window between runs."
+    ],
+    "MAJOR": [
+      "Rollback is only \"Revert the change\": no handling for decision records/baseline entries already appended, or for items left blocked after revert; checklist guardrail 1/6 not actually answered.",
+      "No stated defence-in-depth or alerting: baseline expiry flips entries to DENY with no lead-time alert, and no metric/log is specified for DENY/override rates (checklist 2 and 10 unanswered).",
+      "Force override auditability is not closed: PF_GATE_FORCE run appends a gate_override record, but nothing guarantees the local run commits it before the bypass takes effect; PF_CI-unset check is trivially defeated by shell env.",
+      "Design-sha covers mutable body fields (components/files/risks/rollback) but the design does not pin canonical serialization/ordering of the hashed fields, risking sha mismatch across edits/reformats.",
+      "Design does not explicitly answer checklist items 3/9/RLS scope beyond a one-line \"control-plane, non-tenant\"; no test asserts decision records are excluded from tenant queries."
+    ],
+    "MINOR": [
+      "CL-001 single-writer question unresolved: decisions flow through core.backlog.update while status flows through set_status \u2014 two write paths for one aggregate with no stated ownership arbitration.",
+      "--report exit-0 mode has no stated guard against being used as the pass signal in scripts (reason codes printed but no machine-readable schema/version specified).",
+      "Baseline entries edited in the same PR that expires them are \"ordinary reviewed changes\" with no conflict-of-interest or independent-approver rule.",
+      "No positive-path self-test listed (only allow + deny x5), so a checker that always DENYs could pass the negative suite."
+    ],
+    "NIT": [
+      "diff_sha[:12]/design_sha[:12] truncation collisions are theoretical but worth a documented full-sha reference alongside the short form.",
+      "Language-rule rationale is recorded only in the item; a pointer in docs/ARCHITECTURE-DECISIONS.md would prevent re-litigation."
+    ],
+    "SUMMARY": [
+      "Verdict: predicate reuse and fail-closed intent are sound, but the gate's trust anchor is convention, not enforcement \u2014 decisions and timestamps are forgeable, so Gate 1/2 can be self-satisfied despite the schema.",
+      "Top risks: (1) HIL-only decision writes are unenforced, (2) forgeable `by`/`at` invalidates the ordering predicate, (3) rollback/observability guardrails from the checklist are not actually answered in the design.",
+      "Address the trust boundary (write-path enforcement or cryptographic/CI-verified attestation) before Gate 1 approval."
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "9d06b5db9be1",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T11:09:11.657408+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "4278f9c859dbd59aeab0f487942ac28d3edefedf",
+  "findings": {
+    "BLOCKER": [
+      "Design contract violated: approved design says `non_goals: ['No schema change.']` and `db: ['Existing backlog_items/id allocation tables.']`, yet `0021_backlog_scoped_uniqueness` changes the PK and the traceability FK; the change is out of contract and needs design re-approval, not just code review.",
+      "Invariant broken at the storage layer: `invariants: ['PF-SB and PF-GP share global ID authority.']` is now enforced only by the allocator \u2014 `PRIMARY KEY (tenant_id, id)` means the DB accepts duplicate IDs across tenants, so any allocator bypass/race/file-mode write silently creates a second \"global\" ID.",
+      "`0021_...down.sql` is deliberately irreversible (`RAISE EXCEPTION` on legacy duplicates) and no verified backup/restore path or table-retention procedure is documented; guardrail 1 (reversibility) is unmet for the schema step.",
+      "AC-2 CI half still unmet: `.github/workflows/structure.yml` / `full-sweep.yml` are in `affected_files` but absent from the diff, so no DB-mode integration job runs with `on`; the `disposition=ACTIONED` for that AC is wrong."
+    ],
+    "MAJOR": [
+      "Tenant scoping is asymmetric: `Put` trusts the `$2` tenant_id argument while `Get`/`Delete` filter on `current_setting('app.tenant_id', true)`; if they diverge, writes land but reads/deletes silently return nothing (NULL GUC \u21d2 predicate false) instead of failing closed.",
+      "Missing tenant context degrades to \"not found\"/0-rows-affected rather than an explicit error, and no `BACKLOG_DB_UNAVAILABLE` code from the `failure_matrix` is emitted anywhere in the diff \u2014 on-mode DB unavailability is indistinguishable from an absent item.",
+      "No session-level `off` default for the test suite ships in this diff (only `precheck.main()` sets it); every other pytest run still defaults to `on` and any backlog-touching test will attempt DB \u2014 the containment blocker is not actually closed.",
+      "`_db_for(scope)` flip is not evidenced as scope-limited; if it returns true for all scopes, every tenant/scope silently moves to DB and hits the tenant/GUC asymmetry above (blast radius beyond PF-SB/PF-GP).",
+      "AC-3 evidence incomplete: `backlog_db_parity.py` globs only `data/backlog/items`, never `products/*/data/backlog/items` that the backfill does scan, so generated-product parity cannot be produced; docs show only `--tenant product_forge`.",
+      "Parity is not trustworthy as evidence: it compares the raw file dict against the `data` JSONB column (`drows[i] != fitems[i]`), not a full-row projection, and `BACKLOG_DB_PARITY_DRIFT` is wired to no CI gate \u2014 drift is detected only if a human runs the script.",
+      "Tenant derivation is undefined: `item_tenant()` uses `project \u2192 scope \u2192 product_forge`, unverified against stored `tenant_id`; parity can pass for the wrong reason and PF-GP items can be written under a mis-derived tenant (guardrail 9, CL-003 \"define terms before building\").",
+      "Backfill entrypoint is inconsistent: script validates `PF_EDP_API_URL` and `PF_EDP_TOKEN|PF_ADMIN_TOKEN`, but the mirror path reads `PF_BACKLOG_API` (per tests) and the docstring says `PF_API_TOKEN` \u2014 operators can target the wrong endpoint/token and get partial or misdirected writes.",
+      "Backfill posts via private `backlog._mirror_item_to_db` and inherits its field whitelist; no per-item read-back verification, so a \"successful\" backfill can still leave parity mismatches.",
+      "No test for migration 0021: duplicate-ID acceptance, `ON CONFLICT (tenant_id,id)` upsert, FK re-point, and the down-migration guard are untested \u2014 the riskiest change in the item has zero fail-able coverage (guardrail 6).",
+      "AC-5 test is cosmetic: `test_rollback_off_restores_file_mode` only asserts flag resolution (`_backlog_db_mode()==\"off\"`, `_db_for(...) is False`); it never proves an off-mode write reaches the legacy file/Git path \u2014 disposition \"ACTIONED\" is wrong.",
+      "AC-5 documentation half unmet: `BACKLOG-DB-SSOT.md` still has no rollback procedure (steps, verification, table retention), only \"set it to off only for explicit legacy/offline tooling\".",
+      "Migration robustness unverified: 0021 assumes `traceability.tenant_id` exists, is populated, and type-matches `backlog_items.tenant_id`, and that no other FK/index references `backlog_items(id)`; any such dependency makes the PK drop/re-add fail at deploy.",
+      "Availability: dropping and re-adding the PK takes ACCESS EXCLUSIVE on the shared `backlog_items` table and rebuilds the index with no maintenance window, lock-timeout, or sizing note.",
+      "Flag parsing has no validation: `true`/`1`/`enabled` silently resolve to off, and an empty `PF_BACKLOG_DB=` silently resolves to on \u2014 a typo silently flips storage authority in either direction.",
+      "`test_on_mode_fails_closed_without_db` only asserts an exception type propagates; it does not assert that no file/Git fallback result or write occurred, so \"no silent fallback\" is not actually proven."
+    ],
+    "MINOR": [
+      "`backlog_db_parity.py` connects with a raw `PF_DB_DSN` and no RLS-scoped session or read-only role; cross-tenant read is intended for tooling but the privilege level is undocumented (guardrail 3).",
+      "`precheck.main()` mutates `os.environ` process-wide instead of passing an explicit env to the gates it spawns, hiding on-mode from every gate it runs.",
+      "`Get`/`Delete` duplicate the RLS `tenant_isolation` predicate in SQL \u2014 two sources of truth for tenant scoping that will drift.",
+      "Backfill has a magic `time.sleep(0.12)` throttle but no `--limit`, resume marker, or structured output artifact, so long runs are unbounded and non-resumable (guardrail 4).",
+      "`Put` accepts a blank/empty `tenant_id` with no normalization, creating an empty-tenant bucket that the parity/backfill tools will never attribute."
+    ],
+    "NIT": [
+      "Backfill docstring says `PF_API_TOKEN=...` and \"upserts by item id\"; the script checks `PF_EDP_TOKEN|PF_ADMIN_TOKEN` and the real key is `(tenant_id, id)`.",
+      "`Authority()` hard-codes `IN (16,18,19,20,21) HAVING count(*)=5`; every future migration must edit this line or the service reports unhealthy.",
+      "`config/env-flags.json` purpose sentence keeps growing; splitting owner/behaviour fields would reduce the drift class this item exists to fix."
+    ],
+    "SUMMARY": [
+      "Direction is right (default on, explicit off, scoped keys), but the change has escaped its approved design: a schema change and a weakened global-ID invariant ship inside an item whose contract said \"no schema change\".",
+      "Highest risks: DB-level uniqueness no longer protects the shared ID authority, and the read/write tenant-scoping asymmetry can make committed backlog items silently invisible or undeletable.",
+      "Evidence is weaker than claimed: no DB-mode CI job, PF-GP parity cannot be produced by the shipped tool, and the rollback test/doc only prove flag parsing, not file-mode restoration.",
+      "Recommend splitting migration 0021 into its own design-gated item, then re-running AC-2/AC-3/AC-5 with committed evidence before flipping the default."
+    ]
+  }
+}

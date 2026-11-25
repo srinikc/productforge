@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1408",
+  "sha": "f160e8d9ca38",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`apply()` flips object-store targets to `exists` because `ref in tables` matched an unrelated Postgres table named `artifacts`; `ref in tables or (kind==\"object-store\" and ref in tables)` is the same expression twice, so object-store \"existence\" is proven by a coincidental table-name collision.",
+      "`check()` validates only `kind==\"table\"` targets against migrations; object-store `exists`/`migrated` claims are never verified, so the gate certifies unverified migration state.",
+      "Derived `migration_status` silently overwrites deliberate `retained` classifications for file-backed stores to `migrated` and ignores `backend` entirely; no invariant ties `backend` to `target.kind`/status.",
+      "`RELATIONSHIPS` is a second source of truth duplicated between the script constant and `store-registry.json`; `--apply` regenerates and silently discards any relationship added directly to the registry.",
+      "New blocking gate ships with no automated negative test in the diff despite the acceptance criteria requiring negative-test evidence (exit 1).",
+      "SQL is parsed with regex (`CREATE TABLE ... \\((.*?)\\);`): nested `CHECK(...)`/`numeric(...)` bodies, `PARTITION OF`, and comments can truncate or miss tables, producing false FAILs or silently empty column sets."
+    ],
+    "MINOR": [
+      "A `planned` target under a completed owner can fail `check()` while `apply()` cannot flip it (ref not in `tables`), leaving the gate permanently red with only a manual edit as escape hatch.",
+      "`REQUIRED_TRIGGERS` hardcodes four audit trigger names; any migration refactor/rename breaks the gate with no provenance to the discovering item.",
+      "`_trigger_names()` is re-globbed and re-reads all `*.up.sql` once per required trigger (4x per run) instead of being cached alongside `_tables()`.",
+      "All relationships carry `owner_item: BI-PF-1309` rather than the owning EDP item (EDP-15/18/19/20/21), weakening slice/domain traceability required by Slice C.",
+      "Failure output truncates to 20 problems without a flag or full-report path, complicating triage in CI logs."
+    ],
+    "NIT": [
+      "`verified` in the JSON is a stored assertion redundant with checks the gate already performs; recomputed on `--apply`, so it can only ever be `true` in a passing registry.",
+      "`--registry <path>` still resolves migrations/backlog items from `ROOT`, making the alternate-registry option only half-parameterized.",
+      "Counts (`migrated/retained/pending`) are computed even on the failure path but only printed on success."
+    ],
+    "SUMMARY": [
+      "Solid structural direction: a fail-closed relationship/migration gate wired into both precheck fast and ci-cd-gates, with registry data kept consistent by `--apply`.",
+      "Top risks: object-store \"exists\"/\"migrated\" evidence is derived from a coincidental table-name match and never independently verified; regex SQL parsing and a duplicated canonical relationship list threaten long-term integrity and maintainability.",
+      "Recommend hardening before relying on the gate as compliance evidence: real object-store verification, single source of truth for relationships, backend\u2194target coherence rule, and committed negative tests."
+    ]
+  }
+}

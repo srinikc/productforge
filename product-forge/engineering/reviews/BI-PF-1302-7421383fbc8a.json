@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "7421383fbc8a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T04:37:59.804675+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`/admin/migrations/*` claims a 150s budget, but the request-timeout middleware (30s, nothing non-exempt bypasses it) cancels `r.Context()` first, so `migrationCtx`'s 150s is unreachable and the documented knob is dead code; migrations will 504 at 30s.",
+      "Graceful drain is `max(WriteTimeout,30s)` = 180s by default, contradicting the acceptance criterion \"drains in-flight work on graceful shutdown (30s)\"; the doc silently redefines the AC instead of flagging an approved AC change.",
+      "`isExempt` (health/ready/metrics) also bypasses the role gate and body limit, so a closed/failed runtime-role guard still serves `/metrics` with pool gauges \u2014 observability leaking past a fail-closed posture; exempting quota alone would match the AC.",
+      "`s.fail` forwards raw `err.Error()` to clients for all 4xx (JSON decode errors echo request fragments, objpolicy errors echo key material); the narrow redaction regex does not make \"messages are redacted\" true for these paths."
+    ],
+    "MINOR": [
+      "`EnvelopeFallback`'s `fallbackWriter` intercepts *every* 404/405 `WriteHeader`, discarding handler-specific messages (\"artifact not found\" \u2192 \"not found\") and silently swallowing the original body write \u2014 a fragile double-envelope path.",
+      "`recoverMiddleware` writes a 500 envelope after headers may already be committed (`statusWriter` suppresses the status change), yielding mixed bodies and no reliable 500 signal.",
+      "AC says `/metrics` is \"counters only\"; implementation ships histograms and gauges and the doc was amended to match \u2014 align AC or trim output rather than drifting the contract.",
+      "`statusWriter`/`fallbackWriter` implement only `Flush`+`Unwrap`; a future streaming/SSE or hijacking route will fail silently behind this chain.",
+      "`peekJSONTenant` buffers up to 1 MiB of every JSON POST purely to read one field; a bounded prefix read would avoid the per-request copy.",
+      "Tenant from a JSON body is never cross-checked against `X-Tenant-Id`/query (header silently wins), so attribution can be steered \u2014 tolerable only because the global bucket is the control; state this explicitly in the doc.",
+      "DB-role recheck tolerates 1 silent failure before closing the guard (`failures >= 2`); a single failed recheck leaves a potentially-demoted role serving traffic for another full interval."
+    ],
+    "NIT": [
+      "`config/env-flags.json` was fully re-indented, making the registry diff unreviewable and polluting blame; keep formatting churn out of functional changes.",
+      "Doc line `\"- **Rollback:** ...` has a stray leading quote, rendering broken markdown.",
+      "`subtle.ConstantTimeCompare` short-circuits on unequal lengths, leaking admin-token length; compare digests if this matters.",
+      "`weakTokens` is bypassed by trivial variants; the \u226524-char rule plus a charset/entropy check would be more robust than an 8-word denylist.",
+      "Two divergent boolean parsing styles in one package: strict `boolean()` for limits flags, permissive `flagEnabled()` for dev/anon flags (the latter is correct fail-closed, but document why they differ)."
+    ],
+    "SUMMARY": [
+      "Solid overall shape: single shared pool, env-driven validated config, token bucket + concurrency caps with injected clock, versioned envelope, and DB-gated role guard all land with reasonable test coverage, and the language rule is respected.",
+      "Top risks: the 150s migration timeout is unreachable behind the 30s request deadline (silent misconfiguration), the 30s-vs-180s drain drifts from the AC without approval, and raw 4xx error strings leak past the redaction guarantee.",
+      "Secondary: the 404/405 interception wrapper is a maintainability trap, and the role-gate exemption scope is broader than the AC requires."
+    ]
+  }
+}

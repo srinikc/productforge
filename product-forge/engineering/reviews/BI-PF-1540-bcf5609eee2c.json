@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1540",
+  "sha": "bcf5609eee2c",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-17T15:10:43.725250+00:00",
+  "review_scope": "delta",
+  "base_sha": "5a25e4c14cc809655e0d023072c2d4c8ff5fa4c2",
+  "head_sha": "c097c9c6f6b667faef37bc965e1249d212060f7d",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`guardrail_answers.8_api_contract` defines method/path/authz/validation/tenant-scoping but omits the authn mechanism (token validation and how the fixed HIL actor binds to the authenticated token), which checklist item 8 explicitly requires.",
+      "`guardrail_answers.5_invariants_ordering` omits where scope-resolved item lookup (404 NOT_FOUND) sits relative to revision (409) and HIL (400) checks, leaving precedence and out-of-scope item behavior unstated for tests.",
+      "`proof_plan` names no delta-side test for AC-2's \"reason must cite the latest review SHA\" clause; `test_material_change_reason_must_cite_latest_review` reads as API/FR-1 scoped, so AC-2 reason-citation evidence is ambiguous.",
+      "Prior ordering and rollback-boundary findings are now satisfied in the delta (delta-base sequence stated; `test_valid_delta_base_*` removed vs `test_material_change_*` retained is explicit) \u2014 verified, not reopened."
+    ],
+    "NIT": [
+      "`guardrail_answers.10_observability` defers all metric emission to BI-PF-1541 with no in-scope minimum signal (e.g., log/event on successful decision append or budget exemption); diagnosis relies solely on the error envelope and item trail."
+    ],
+    "SUMMARY": [
+      "Delta is sound: guardrail answers cover reversibility, availability, authz posture (CL-011), blast radius, language rule, and rollback boundaries; proof plan red/green evidence now covers AC-1/2/3 symmetrically.",
+      "Top risks: undefined authn/HIL-token binding in the API contract row, unstated 404-vs-409 precedence in the invariant ordering, and ambiguous AC-2 reason-citation test evidence \u2014 all MINOR, none blocking Gate 1.5."
+    ]
+  },
+  "rereview_reason": "Delta for prior 777a37413b14: delta-base ordering and rollback test boundary",
+  "rereview_reason_sha256": "26a0163609dd7525d563b9ee15f01961e94976de29ad5a9435a115b8615267db"
+}
