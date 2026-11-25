@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,8 +15,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// DefaultEmbeddedFS embeds pre-compiled console distribution assets at build time (AC-2).
+//
+//go:embed dist/*
+var DefaultEmbeddedFS embed.FS
 
 // ConsoleConfig defines configuration for the embedded web console server.
 type ConsoleConfig struct {
@@ -86,15 +93,14 @@ func ResolveConsoleFileSystem(embeddedFS fs.FS, distSubdir string, externalDir s
 }
 
 // VerifyAssetIntegrity verifies files against checksums.txt in the target filesystem.
+// Fails closed if checksums.txt is missing, if any file is unlisted, or if hashes mismatch.
 func VerifyAssetIntegrity(sys fs.FS) error {
 	data, err := fs.ReadFile(sys, "checksums.txt")
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-		return fmt.Errorf("%s: failed to read checksums.txt: %w", ErrCodeAssetIntegrityMismatch, err)
+		return fmt.Errorf("%s: checksums.txt missing: integrity attestation failed closed: %w", ErrCodeAssetIntegrityMismatch, err)
 	}
 
+	manifest := make(map[string]string)
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -107,10 +113,14 @@ func VerifyAssetIntegrity(sys fs.FS) error {
 		}
 		expectedHash := parts[0]
 		relPath := strings.TrimPrefix(parts[1], "./")
+		manifest[relPath] = expectedHash
+	}
+
+	// Verify all listed files exist and match hash
+	for relPath, expectedHash := range manifest {
 		if relPath == "checksums.txt" {
 			continue
 		}
-
 		fileBytes, err := fs.ReadFile(sys, relPath)
 		if err != nil {
 			return fmt.Errorf("%s: missing expected asset %s: %w", ErrCodeAssetIntegrityMismatch, relPath, err)
@@ -122,6 +132,28 @@ func VerifyAssetIntegrity(sys fs.FS) error {
 				ErrCodeAssetIntegrityMismatch, relPath, expectedHash, actualHash)
 		}
 	}
+
+	// Fail closed on any file in the filesystem not listed in checksums.txt
+	err = fs.WalkDir(sys, ".", func(p string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		cleanPath := strings.TrimPrefix(filepath.ToSlash(p), "./")
+		if cleanPath == "checksums.txt" {
+			return nil
+		}
+		if _, listed := manifest[cleanPath]; !listed {
+			return fmt.Errorf("%s: unlisted asset detected in bundle: %s", ErrCodeAssetIntegrityMismatch, cleanPath)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -143,6 +175,18 @@ func NewConsoleHandler(embeddedFS fs.FS, distSubdir string, cfg ConsoleConfig) (
 		isExternal: isExt,
 		config:     cfg,
 	}, nil
+}
+
+// NewEmbeddedConsoleHandler constructs a console handler using the default embedded distribution assets.
+func NewEmbeddedConsoleHandler(cfg ...ConsoleConfig) (*ConsoleHandler, error) {
+	c := ConsoleConfig{DistSubdir: "dist"}
+	if len(cfg) > 0 {
+		c = cfg[0]
+		if c.DistSubdir == "" {
+			c.DistSubdir = "dist"
+		}
+	}
+	return NewConsoleHandler(DefaultEmbeddedFS, c.DistSubdir, c)
 }
 
 // isPrecompressedType returns true for binary assets that gain negligible benefit from gzip.
@@ -240,14 +284,23 @@ func (h *ConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.serveFileContent(w, r, "index.html", indexFile, stat)
 }
 
+var contentHashPattern = regexp.MustCompile(`[-.][a-f0-9]{6,}\.[a-zA-Z0-9]+$`)
+
+// isContentHashedAsset verifies if a static asset carries a content hash in its filename.
+func isContentHashedAsset(filename string) bool {
+	return strings.HasPrefix(filename, "assets/") && contentHashPattern.MatchString(filename)
+}
+
 func (h *ConsoleHandler) serveFileContent(w http.ResponseWriter, r *http.Request, filename string, rdr io.Reader, stat fs.FileInfo) {
 	// Set Cache-Control
 	if filename == "index.html" {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
-	} else if strings.HasPrefix(filename, "assets/") || strings.Contains(filename, ".") {
+	} else if isContentHashedAsset(filename) {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=3600, must-revalidate")
 	}
 
 	acceptsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")

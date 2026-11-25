@@ -259,3 +259,113 @@ func TestConsoleHandler_ExternalDirRollback(t *testing.T) {
 		t.Fatalf("expected content from external dir, got: %s", rec.Body.String())
 	}
 }
+
+func TestNewEmbeddedConsoleHandler(t *testing.T) {
+	handler, err := NewEmbeddedConsoleHandler()
+	if err != nil {
+		t.Fatalf("unexpected error creating embedded console handler: %v", err)
+	}
+	if handler == nil {
+		t.Fatal("expected non-nil handler")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from embedded handler, got %d", rec.Code)
+	}
+}
+
+func TestNewConsoleHandler_MissingChecksumsFailsClosed(t *testing.T) {
+	fsys := mockConsoleFS()
+	delete(fsys, "checksums.txt")
+
+	_, err := NewConsoleHandler(fsys, "", ConsoleConfig{})
+	if err == nil {
+		t.Fatal("expected error when checksums.txt is missing, got nil")
+	}
+	if !strings.Contains(err.Error(), ErrCodeAssetIntegrityMismatch) {
+		t.Fatalf("expected ErrCodeAssetIntegrityMismatch, got: %v", err)
+	}
+}
+
+func TestNewConsoleHandler_UnlistedAssetFailsClosed(t *testing.T) {
+	fsys := mockConsoleFS()
+	fsys["assets/unlisted.js"] = &fstest.MapFile{Data: []byte("console.log('rogue');")}
+
+	_, err := NewConsoleHandler(fsys, "", ConsoleConfig{})
+	if err == nil {
+		t.Fatal("expected error for unlisted asset in bundle, got nil")
+	}
+	if !strings.Contains(err.Error(), "unlisted asset detected") {
+		t.Fatalf("expected unlisted asset error, got: %v", err)
+	}
+}
+
+func TestConsoleHandler_UncompressedClient(t *testing.T) {
+	fsys := mockConsoleFS()
+	handler, err := NewConsoleHandler(fsys, "", ConsoleConfig{})
+	if err != nil {
+		t.Fatalf("failed to create handler: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/main.1a2b3c.js", nil)
+	// No Accept-Encoding header set
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if rec.Header().Get("Content-Encoding") != "" {
+		t.Fatalf("expected no Content-Encoding for uncompressed client, got: %s", rec.Header().Get("Content-Encoding"))
+	}
+	if !strings.Contains(rec.Body.String(), "Product Forge Web Console Initialized") {
+		t.Fatalf("expected uncompressed body content")
+	}
+}
+
+func TestConsoleHandler_InvalidExternalDirFails(t *testing.T) {
+	_, err := NewConsoleHandler(mockConsoleFS(), "", ConsoleConfig{
+		ExternalDir: "/nonexistent/static/path/that/cannot/exist",
+	})
+	if err == nil {
+		t.Fatal("expected error for non-existent external dir, got nil")
+	}
+}
+
+func TestConsoleHandler_CacheHeaderDistinction(t *testing.T) {
+	fsys := mockConsoleFS()
+	handler, err := NewConsoleHandler(fsys, "", ConsoleConfig{})
+	if err != nil {
+		t.Fatalf("failed to create handler: %v", err)
+	}
+
+	// 1. Content-hashed asset -> immutable
+	req1 := httptest.NewRequest(http.MethodGet, "/assets/main.1a2b3c.js", nil)
+	rec1 := httptest.NewRecorder()
+	handler.ServeHTTP(rec1, req1)
+	cc1 := rec1.Header().Get("Cache-Control")
+	if !strings.Contains(cc1, "immutable") {
+		t.Errorf("expected immutable cache header for hashed asset, got %s", cc1)
+	}
+
+	// 2. Non-hashed asset -> must-revalidate
+	req2 := httptest.NewRequest(http.MethodGet, "/assets/icon.png", nil)
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+	cc2 := rec2.Header().Get("Cache-Control")
+	if !strings.Contains(cc2, "must-revalidate") || strings.Contains(cc2, "immutable") {
+		t.Errorf("expected must-revalidate (not immutable) for non-hashed asset, got %s", cc2)
+	}
+
+	// 3. index.html -> no-cache
+	req3 := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec3 := httptest.NewRecorder()
+	handler.ServeHTTP(rec3, req3)
+	cc3 := rec3.Header().Get("Cache-Control")
+	if !strings.Contains(cc3, "no-cache") {
+		t.Errorf("expected no-cache for index.html, got %s", cc3)
+	}
+}

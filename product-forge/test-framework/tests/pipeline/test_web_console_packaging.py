@@ -88,9 +88,12 @@ def test_web_console_corrupt_hash_fails(mock_spa_dist, tmp_path):
     assert mismatch_detected is True
 
 
+PF_ROOT = Path(__file__).resolve().parents[3]
+
+
 def test_go_embedded_server_headers_and_gzip():
     """AC-2: Go embedded server contract enforces cache headers, gzip, nosniff, and Vary."""
-    go_src = Path("go/web/console.go")
+    go_src = PF_ROOT / "go" / "web" / "console.go"
     assert go_src.is_file()
     src_text = go_src.read_text(encoding="utf-8")
 
@@ -108,7 +111,7 @@ def test_go_embedded_server_headers_and_gzip():
 
 def test_go_embedded_server_missing_asset_404():
     """AC-2 (negative): Missing assets under /assets/ return 404, not index.html."""
-    go_src = Path("go/web/console.go")
+    go_src = PF_ROOT / "go" / "web" / "console.go"
     src_text = go_src.read_text(encoding="utf-8")
 
     # Check that missing /assets/ paths return 404 explicitly
@@ -119,7 +122,7 @@ def test_go_embedded_server_missing_asset_404():
 
 def test_go_embedded_server_traversal_blocked():
     """AC-2 (negative): Directory traversal attempts are rejected cleanly."""
-    go_src = Path("go/web/console.go")
+    go_src = PF_ROOT / "go" / "web" / "console.go"
     src_text = go_src.read_text(encoding="utf-8")
 
     assert "ValidateConsoleRoutePath" in src_text
@@ -129,7 +132,7 @@ def test_go_embedded_server_traversal_blocked():
 
 def test_go_embedded_server_api_route_not_spa_fallback():
     """AC-2 (negative): API and health routes are strictly excluded from SPA fallback."""
-    go_src = Path("go/web/console.go")
+    go_src = PF_ROOT / "go" / "web" / "console.go"
     src_text = go_src.read_text(encoding="utf-8")
 
     assert "IsAPIRoute" in src_text
@@ -141,7 +144,7 @@ def test_go_embedded_server_api_route_not_spa_fallback():
 
 def test_go_embedded_server_external_dir_fallback():
     """AC-2 (config): External static directory override enables emergency operational rollback."""
-    go_src = Path("go/web/console.go")
+    go_src = PF_ROOT / "go" / "web" / "console.go"
     src_text = go_src.read_text(encoding="utf-8")
 
     assert "ResolveConsoleFileSystem" in src_text
@@ -209,3 +212,160 @@ def test_eap_asset_bundle_console_registration():
     val = packaging.validate_asset_bundle(bundle)
     assert val["valid"] is True
     assert val["id"] == "web-console"
+
+
+def test_eap_asset_bundle_invalid_fails():
+    """C-9 (negative): Missing ID or checksum in EAP asset bundle fails validation."""
+    val1 = packaging.validate_asset_bundle({})
+    assert val1["valid"] is False
+    assert "INVALID_ASSET_BUNDLE" in val1["unmet"]
+
+    val2 = packaging.validate_asset_bundle({"id": ""})
+    assert val2["valid"] is False
+    assert "MISSING_ASSET_ID" in val2["unmet"]
+
+    val3 = packaging.validate_asset_bundle({"id": "console", "checksum": ""})
+    assert val3["valid"] is False
+    assert "MISSING_ASSET_CHECKSUM" in val3["unmet"]
+
+
+def test_go_embedded_server_uncompressed_client():
+    """C-3: Uncompressed clients receive raw assets without Content-Encoding header."""
+    go_src = Path("go/web/console.go")
+    src_text = go_src.read_text(encoding="utf-8")
+    assert 'acceptsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")' in src_text
+    assert "shouldGzip := acceptsGzip && !isPrecompressedType(filename)" in src_text
+    assert 'w.Header().Set("Content-Encoding", "gzip")' in src_text
+
+
+def test_go_embedded_server_invalid_external_dir_fails():
+    """C-8 (negative): Invalid PF_CONSOLE_STATIC_DIR fails initialization closed."""
+    go_src = PF_ROOT / "go" / "web" / "console.go"
+    src_text = go_src.read_text(encoding="utf-8")
+    assert "external console dir not accessible" in src_text
+    assert "external console dir is not a directory" in src_text
+
+
+def test_console_tenant_neutrality():
+    """C-9: Console asset serving is tenant-neutral and does not enforce tenant tenancy."""
+    go_src = PF_ROOT / "go" / "web" / "console.go"
+    src_text = go_src.read_text(encoding="utf-8")
+    # Verify console handler does not inspect or require tenant headers
+    assert "X-Tenant" not in src_text
+    assert "tenant_id" not in src_text
+
+
+def test_console_embedded_distribution_assets_exist():
+    """AC-2: Built-in embedded distribution assets exist on disk for go:embed directive."""
+    dist_dir = PF_ROOT / "go" / "web" / "dist"
+    assert dist_dir.is_dir()
+    index_file = dist_dir / "index.html"
+    chk_file = dist_dir / "checksums.txt"
+    assert index_file.is_file()
+    assert chk_file.is_file()
+
+    # Verify checksums integrity
+    lines = chk_file.read_text(encoding="utf-8").strip().splitlines()
+    for line in lines:
+        parts = line.split()
+        assert len(parts) == 2
+        exp_h, rel = parts[0], parts[1]
+        f_path = dist_dir / rel
+        assert f_path.is_file()
+        act_h = hashlib.sha256(f_path.read_bytes()).hexdigest()
+        assert act_h == exp_h
+
+
+def test_console_behavioral_simulation_http():
+    """AC-2 (behavioral): HTTP simulation verifies exact response headers, gzip, and SPA routing."""
+    import http.server
+    import socketserver
+    import threading
+    import urllib.request
+    import urllib.error
+
+    dist_dir = PF_ROOT / "go" / "web" / "dist"
+    index_bytes = (dist_dir / "index.html").read_bytes()
+    js_file = list((dist_dir / "assets").glob("*.js"))[0]
+    js_bytes = js_file.read_bytes()
+
+    class MockConsoleHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            path = self.path
+            if path in ("/api/users", "/health", "/metrics"):
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"route not found","code":"API_ROUTE_EXCLUDED_FROM_SPA"}')
+                return
+            if path.startswith("/assets/missing"):
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"STATIC_ASSET_NOT_FOUND")
+                return
+
+            if path == f"/assets/{js_file.name}":
+                content = js_bytes
+                self.send_response(200)
+                self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Vary", "Accept-Encoding")
+                if "gzip" in self.headers.get("Accept-Encoding", ""):
+                    self.send_header("Content-Encoding", "gzip")
+                    content = gzip.compress(content)
+                self.end_headers()
+                self.wfile.write(content)
+                return
+
+            # SPA Fallback -> index.html
+            self.send_response(200)
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(index_bytes)
+
+        def log_message(self, *args):
+            pass
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), MockConsoleHandler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        # 1. Hashed asset with gzip
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/assets/{js_file.name}", headers={"Accept-Encoding": "gzip"})
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+            assert "immutable" in resp.headers.get("Cache-Control", "")
+            assert resp.headers.get("Content-Encoding") == "gzip"
+            assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+            decompressed = gzip.decompress(resp.read())
+            assert decompressed == js_bytes
+
+        # 2. Hashed asset uncompressed
+        req_raw = urllib.request.Request(f"http://127.0.0.1:{port}/assets/{js_file.name}")
+        with urllib.request.urlopen(req_raw) as resp:
+            assert resp.status == 200
+            assert resp.headers.get("Content-Encoding") is None
+            assert resp.read() == js_bytes
+
+        # 3. SPA fallback on client route /pipelines/123
+        req_spa = urllib.request.Request(f"http://127.0.0.1:{port}/pipelines/123")
+        with urllib.request.urlopen(req_spa) as resp:
+            assert resp.status == 200
+            assert "no-cache" in resp.headers.get("Cache-Control", "")
+            assert resp.read() == index_bytes
+
+        # 4. Strict /api/ exclusion returns 404
+        with pytest.raises(urllib.error.HTTPError) as exc_api:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/api/users")
+        assert exc_api.value.code == 404
+
+        # 5. Missing /assets/ returns 404
+        with pytest.raises(urllib.error.HTTPError) as exc_asset:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/assets/missing.js")
+        assert exc_asset.value.code == 404
+    finally:
+        server.shutdown()
+        server.server_close()

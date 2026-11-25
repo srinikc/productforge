@@ -475,31 +475,49 @@ def validate_customer_package(package_dir: str, edition: str) -> dict[str, Any]:
     return {"valid": True, "edition": edition}
 
 
-def compile_web_console(source_dir: str, output_dist_dir: str, generate_checksums: bool = True) -> dict[str, Any]:
-    """Bundle compiled web console assets with deterministic SHA256 checksums manifest (AC-1)."""
+def compile_web_console(source_dir: str, output_dist_dir: str, generate_checksums: bool = True, hash_assets: bool = True) -> dict[str, Any]:
+    """Bundle compiled web console assets with content hashing and deterministic SHA256 checksums (AC-1)."""
     if not os.path.isdir(source_dir):
         return {"ok": False, "error": "EMBED_DIR_NOT_FOUND", "path": source_dir}
     os.makedirs(output_dist_dir, exist_ok=True)
-    chk_lines = []
+    asset_renames: dict[str, str] = {}
+    collected: list[tuple[str, str, bytes, str]] = []
     for root, _, files in os.walk(source_dir):
         for f in sorted(files):
             if f == "checksums.txt":
                 continue
             src_file = os.path.join(root, f)
             rel = os.path.relpath(src_file, source_dir).replace("\\", "/")
-            dest_file = os.path.join(output_dist_dir, rel)
-            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
             with open(src_file, "rb") as rf:
                 content = rf.read()
-            with open(dest_file, "wb") as wf:
-                wf.write(content)
             h = hashlib.sha256(content).hexdigest()
-            chk_lines.append(f"{h}  {rel}\n")
+            target_rel = rel
+            if hash_assets and rel.startswith("assets/") and not re.search(r"[-.][a-f0-9]{6,}\.[a-zA-Z0-9]+$", f):
+                base, ext = os.path.splitext(rel)
+                target_rel = f"{base}.{h[:8]}{ext}"
+                asset_renames[rel] = target_rel
+                asset_renames[f"/{rel}"] = f"/{target_rel}"
+            collected.append((rel, target_rel, content, h))
+
+    chk_lines = []
+    for rel, target_rel, content, h in collected:
+        dest_file = os.path.join(output_dist_dir, target_rel)
+        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+        if target_rel == "index.html" and asset_renames:
+            text = content.decode("utf-8", errors="replace")
+            for old_p, new_p in asset_renames.items():
+                text = text.replace(old_p, new_p)
+            content = text.encode("utf-8")
+            h = hashlib.sha256(content).hexdigest()
+        with open(dest_file, "wb") as wf:
+            wf.write(content)
+        chk_lines.append(f"{h}  {target_rel}\n")
+
     if generate_checksums:
         chk_path = os.path.join(output_dist_dir, "checksums.txt")
         with open(chk_path, "w", encoding="utf-8") as f:
             f.writelines(chk_lines)
-    return {"ok": True, "output_dir": output_dist_dir, "file_count": len(chk_lines)}
+    return {"ok": True, "output_dir": output_dist_dir, "file_count": len(chk_lines), "hashed": bool(asset_renames)}
 
 
 def validate_asset_bundle(asset_bundle: dict[str, Any]) -> dict[str, Any]:
