@@ -66,6 +66,35 @@ Output format (exact headings, bullet findings):
 """
 
 
+REVIEW_DISCIPLINE = """REVIEW DISCIPLINE (binding rules for reviewer):
+- For every BLOCKER or MAJOR finding, you MUST state the explicit runtime consequence if ignored (data loss? security breach? broken contract?). If you cannot state a verifiable runtime consequence, downgrade to MINOR or NIT.
+- Do NOT re-raise findings that appear in PRIOR REVIEW HISTORY unless the fix made them worse.
+- Do NOT raise findings on code lines that were NOT changed in this diff.
+- MINOR and NIT findings are ADVISORY ONLY — do not block approval."""
+
+
+def _build_prior_history(item_id: str, mode: str) -> str:
+    """Build a summary of prior-cycle dispositions to inject into re-review prompt (Fix R2/R7)."""
+    rev = _latest_review(item_id, mode)
+    if not rev:
+        return ""
+    disp = _item_dispositions(item_id, mode)
+    f = rev.get("findings") or {}
+    lines = ["PRIOR REVIEW HISTORY (do NOT re-raise findings already resolved/dispositioned):"]
+    count = 0
+    for n, (sev, text) in enumerate(iter_findings(f), 1):
+        d = _disp_for(disp, n, text)
+        st = (d.get("status") or "PENDING").upper()
+        if _is_resolved(d):
+            count += 1
+            note = d.get("note") or d.get("response") or "resolved"
+            lines.append(f"- [{sev}] sig:{finding_sig(text)[:10]} -> STATUS: {st} ({note})")
+            lines.append(f"  Finding text: {text[:140]}")
+    if count == 0:
+        return ""
+    return "\n".join(lines)
+
+
 def _config() -> dict:
     """Provider/model-agnostic config (config/architect-review.json). Any model id is valid."""
     try:
@@ -214,6 +243,15 @@ def _build_prompt(item: dict, item_id: str, mode: str) -> str:
             if cl:
                 prompt += ("\n\nDesign pre-check checklist (verify each is addressed; report a finding for any gap):\n"
                            + "\n".join(f"- {q}" for q in cl))
+
+    # Fix R2/R7: inject prior-cycle dispositions so reviewer does not re-raise settled findings
+    prior_history = _build_prior_history(item_id, mode)
+    if prior_history:
+        prompt += "\n\n" + prior_history
+
+    # Fix R4: reviewer discipline — concrete consequence required for BLOCKER/MAJOR
+    prompt += "\n\n" + REVIEW_DISCIPLINE
+
     return prompt
 
 
