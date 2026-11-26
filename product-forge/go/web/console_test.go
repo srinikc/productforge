@@ -238,6 +238,11 @@ func TestConsoleHandler_ExternalDirRollback(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmpDir, "index.html"), externalHTML, 0644); err != nil {
 		t.Fatalf("failed to write external index.html: %v", err)
 	}
+	hIndex := sha256.Sum256(externalHTML)
+	chkManifest := fmt.Sprintf("%s  index.html\n", hex.EncodeToString(hIndex[:]))
+	if err := os.WriteFile(filepath.Join(tmpDir, "checksums.txt"), []byte(chkManifest), 0644); err != nil {
+		t.Fatalf("failed to write external checksums.txt: %v", err)
+	}
 
 	handler, err := NewConsoleHandler(mockConsoleFS(), "", ConsoleConfig{
 		ExternalDir: tmpDir,
