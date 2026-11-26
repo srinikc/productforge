@@ -1,7 +1,6 @@
 package web
 
 import (
-	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
@@ -76,7 +75,7 @@ func TestConsoleHandler_SPAFallback(t *testing.T) {
 		t.Fatalf("failed to create handler: %v", err)
 	}
 
-	routes := []string{"/", "/dashboard", "/pipelines/view", "/settings/auth"}
+	routes := []string{"/", "/console", "/pipelines/view", "/settings/auth"}
 	for _, route := range routes {
 		req := httptest.NewRequest(http.MethodGet, route, nil)
 		rec := httptest.NewRecorder()
