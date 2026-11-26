@@ -35,11 +35,11 @@ func mockConsoleFS() fstest.MapFS {
 	)
 
 	return fstest.MapFS{
-		"index.html":              {Data: indexHTML},
-		"assets/main.1a2b3c.js":   {Data: mainJS},
-		"assets/main.4d5e6f.css":  {Data: mainCSS},
-		"assets/icon.png":         {Data: iconPNG},
-		"checksums.txt":           {Data: []byte(checksums)},
+		"index.html": {Data: indexHTML},
+		"assets/main.1a2b3c.js": {Data: mainJS},
+		"assets/main.4d5e6f.css": {Data: mainCSS},
+		"assets/icon.png": {Data: iconPNG},
+		"checksums.txt": {Data: []byte(checksums)},
 	}
 }
 
