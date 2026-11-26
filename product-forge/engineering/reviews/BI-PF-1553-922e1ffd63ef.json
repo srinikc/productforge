@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1553",
+  "sha": "922e1ffd63ef",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-25T15:24:04.469420+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cada800e74e33493b79ea119e1968418f2c552a3",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "in_scope declares \"EAP manifest asset bundle integration\" and config_contract names config/eap-registry.json, but neither affected_files nor affected_components includes it (CL-016); the approved in-scope change is outside the declared file set.",
+      "SPA fallback precedence vs API routing unspecified: without an explicit mount/prefix contract excluding API paths, unknown /api/* requests can return index.html 200 instead of JSON 404, silently breaking downstream API error contracts.",
+      "[OUT_OF_SCOPE] Prior MAJOR/BLOCKER items remain disposition=PENDING; per CL-006, Gate 1 approval is invalid until they are addressed \u2014 noted here only as a gate status, not re-reported."
+    ],
+    "MINOR": [
+      "Rollback path PF_CONSOLE_STATIC_DIR serves from disk; parity of traversal protection, cache/gzip headers, and integrity verification with the embedded path is unspecified, so the rollback can weaken AC-2 guarantees.",
+      "Packaging validator exposes only fail-closed exit-1 behavior; no report-only/dry-run mode for local developers (guardrail 4: blast radius/dry-run for build-time gates).",
+      "No stated binary-size budget or CI size check despite the declared size-increase risk; embed growth is unbounded without a threshold.",
+      "No surfaced console bundle build metadata (version/SHA in EAP manifest or a health/readiness field) to correlate a running binary with a specific asset bundle during support and incident triage."
+    ],
+    "NIT": [
+      "SPA_FALLBACK_OK logged per request can be high-volume; prefer debug-level or sampled logging for fallback successes.",
+      "\"500 for internal read error\" is effectively unreachable with embed.FS (reads fail only as not-found); clarify the 404-vs-500 mapping to avoid a dead/untestable branch."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound (Go embed, fail-closed IP guard, deterministic hashed assets) and AC traceability is largely complete, but Gate 1 cannot proceed: the EAP-manifest in-scope change is missing from declared files, SPA-fallback route precedence against the API mux is unspecified (API error-contract risk), and all prior PENDING findings still block approval under CL-006.",
+      "Top risks to close: scope declaration for config/eap-registry.json, fallback/API route ordering, and behavioral parity of the rollback external-directory path."
+    ]
+  }
+}

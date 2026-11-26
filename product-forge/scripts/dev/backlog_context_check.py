@@ -53,6 +53,8 @@ def _problems_for(scope, project, items, all_items):
     probs = []
     ids = {str(i.get("id")) for i in all_items}
     for it in items:
+        if it.get("status") in ("rejected", "closed", "completed", "cancelled"):
+            continue
         eid = str(it.get("id"))
         if str(it.get("created_at") or "") < _BASELINE_AT:
             continue  # grandfathered (pre-existing; only new items are enforced)

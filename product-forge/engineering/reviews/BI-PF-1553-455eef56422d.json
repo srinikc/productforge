@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1553",
+  "sha": "455eef56422d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-25T18:06:39.202315+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cada800e74e33493b79ea119e1968418f2c552a3",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Startup attestation is fail-closed for the whole binary: one corrupted embedded asset prevents boot of APIs/health too, with no degraded mode, no precedence vs `PF_CONSOLE_STATIC_DIR`, and no alert lead-time (guardrails 2/4) \u2014 scope the failure to the console subsystem or state the operator recovery path.",
+      "Rollback path is not executable in the field: AC-3 packages ship only the binary, yet the external-dir rollback needs a verified console bundle on the host; design defines no source, integrity check, or restore procedure for it (guardrails 1/6).",
+      "`design_pack.tooling: False` contradicts DEC-1553-03's \"build-time asset compilation is tooling\" justification for `core/packaging.py:compile_web_console`; language-rule compliance (guardrail 7) is unresolvable until one authoritative classification is pinned.",
+      "Declared `go/web/console_test.go` has zero traceability/test_matrix entries; AC-2 proof rests on a single pipeline pytest whose relationship to the real Go handler (build+invoke vs reimplement) is unstated, leaving CL-001 single-writer/test-integrity unproven."
+    ],
+    "MINOR": [
+      "EAP asset-bundle registration (`config/eap-registry.json`) has no version/skew contract: nothing states the embedded bundle version must match the platform/API version or that an external-dir bundle is version-checked before serving.",
+      "No readiness/health signal distinguishes console-asset failure from API failure for operators (guardrail 2 alert lead-time); current observability is request logs plus packaging exit codes only.",
+      "Route ownership/registration point of `ServeConsoleMux` inside the existing server mux is unspecified (CL-001 \"register it\"); design names the handler but not the owning mux or route-by-kind class."
+    ],
+    "NIT": [
+      "`index.html` is `no-cache` but no revalidation mechanism (ETag/Last-Modified) is specified, forcing full re-download of the entry document on every navigation.",
+      "Gzip threshold/min-size is unstated, so small JSON/JS payloads pay compression latency without payload benefit against the sub-millisecond NFR."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound (embed.FS, fail-closed IP guard, SPA/API route separation) but Gate 1.5 cannot approve: fail-closed startup blast radius, a rollback path that cannot run in the field, contradictory tooling/language-rule metadata, and missing Go-side test evidence must be resolved first.",
+      "Per CL-006, all previously reported PENDING MAJORs must carry dispositions before approval; top risks are availability regression at boot and unproven AC-2 evidence."
+    ]
+  }
+}

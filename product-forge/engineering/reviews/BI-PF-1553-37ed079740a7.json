@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1553",
+  "sha": "37ed079740a7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-26T15:31:49.519571+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cffce389aadec6dc55393f4d7388f63ea5fa3616",
+  "findings": {
+    "BLOCKER": [
+      "AC-1 still unmet and prior disposition wrong: `compile_web_console` only copies + SHA256-hashes inputs \u2014 no vite/npm/pnpm compile or minify step exists anywhere in the diff, so \"optimized HTML/JS/CSS\" is never produced; the \"ACTIONED (content-hashing)\" note does not address compilation. Runtime: the AC-1 contract never executes in the pipeline.",
+      "AC-2 still unmet and prior disposition wrong: `go/web/dist` remains a hand-written placeholder (`console.log(\"Product Forge Web Console Initialized\")`), no step wires `compile_web_console` output into `go/web/dist` (config declares `dist/console`), and no platform-server call site mounts `ServeConsoleMux`/`NewEmbeddedConsoleHandler` (separate `productforge/web` module, nothing imports it). Runtime: shipped binary serves a placeholder console; the \"ACTIONED\" note cites index.html rewriting, not wiring."
+    ],
+    "MAJOR": [
+      "AC-2 pytest evidence never executes the Go handler: tests are source-greps (`assert \"...\" in src_text`) plus `test_console_behavioral_simulation_http`, which runs a Python `BaseHTTPRequestHandler` re-implementation. Runtime: any Go regression (headers, gzip, routing, traversal) ships with a green pipeline while `go test` may not run in CI.",
+      "`compile_web_console` still never cleans `output_dist_dir` (prior disposition claims it does): stale hashed assets from earlier builds persist, get embedded, and `VerifyAssetIntegrity`'s unlisted-asset fail-closed rule trips. Runtime: server refuses to boot after any rebuild that leaves a leftover file.",
+      "Hash renaming still rewrites only `index.html`; `url(...)`/dynamic-import references inside CSS/JS keep pre-rename filenames. Prior disposition cited `isContentHashedAsset` (caching), not rewriting \u2014 disposition wrong. Runtime: real SPA bundle 404s its own fonts/chunks on first load.",
+      "`test_console_embedded_distribution_assets_exist` normalizes CRLF before hashing (`replace(b\"\\r\\n\", b\"\\n\")`), masking line-ending drift. Runtime: test passes on a CRLF checkout while Go's integrity check hash-mismatches and the server fails closed at startup."
+    ],
+    "MINOR": [
+      "External rollback (`PF_CONSOLE_STATIC_DIR`) also requires a complete `checksums.txt` manifest or `NewConsoleHandler` fails closed \u2014 the documented flag-only hotfix procedure will not boot without shipping a manifest first.",
+      "`IsAPIRoute` prefix-matches `/health` and `/metrics`, swallowing legitimate SPA routes like `/health-dashboard` as API 404 JSON.",
+      "`ValidateConsoleRoutePath` rejects `..` but not backslash/`%5c` sequences; with `os.DirFS` on Windows external dirs this is a traversal defense-in-depth gap.",
+      "Per-request full-file read + gzip with no `.gz` precompression or response cache contradicts the sub-millisecond NFR under concurrent load, despite `SkipGzipCompressed`'s \"precompressed\" naming.",
+      "`validate_customer_package` scans only loose files; `node_modules` or `.ts`/`.tsx` shipped inside `.zip`/`.tar.gz` archives pass validation \u2014 AC-3 guard is bypassable.",
+      "Delta adds ~85 lines to `core/packaging.py` vs DEC-1553-03's claimed \u226460-line growth threshold \u2192 claimed Rule-17 compliance is unsupported by the diff.",
+      "No runtime observability: handler emits no log/metric for `STATIC_ASSET_NOT_FOUND`, `PATH_TRAVERSAL_BLOCKED`, or integrity failures (only response bodies) \u2192 spec's \"standard HTTP access metrics\" unmet."
+    ],
+    "NIT": [
+      "`strings.Fields` in `VerifyAssetIntegrity` breaks on filenames containing spaces, while `compile_web_console` writes them unescaped \u2192 integrity mismatch on such assets.",
+      "`ValidateConsoleRoutePath` rejects any path containing `..`, false-positiving legitimate names like `app..js`.",
+      "`ServeHTTP` comment numbering jumps from step 2 to step 4 (missing step 3)."
+    ],
+    "SUMMARY": [
+      "Verdict: not approvable \u2014 AC-1 and AC-2 remain objectively unmet (no SPA compile step, placeholder `go/web/dist`, no wiring into the platform server), and the prior ACTIONED dispositions do not match the code in this diff.",
+      "Top risks: a placeholder console ships as \"compiled frontend\"; fail-closed integrity can brick startup on stale or CRLF-normalized assets; AC-2 verification tests Python mocks rather than the shipped Go handler; AC-3 guard is archive-bypassable."
+    ]
+  }
+}

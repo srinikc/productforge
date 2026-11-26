@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1553",
+  "sha": "c83375d04da2",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-25T15:30:45.798565+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "cada800e74e33493b79ea119e1968418f2c552a3",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Integrity gap between FR-1 and AC-2: design does not state an ordering/attestation guarantee that the bytes verified by the checksum manifest are the bytes passed to go:embed (dist can be rebuilt or tampered between `validate` and Go compile); no embed-time re-verification is specified.",
+      "NFR 'deterministic' has no toolchain pinning contract (Node/vite/lockfile versions, build env normalization), so content hashes can diverge between CI, local, and release builds, invalidating AC-1 checksum verification and immutable cache keys.",
+      "Language rule: `core/packaging.py:compile_web_console` is new packaging build logic in shipped code; DEC-1553-03 justifies it via an unstated \"60-line growth threshold\" that is not part of the stated rule (new shipped logic -> Go; tooling Python OK). Pin the governing clause/exception in the design or reclassify the compile step as tooling."
+    ],
+    "MINOR": [
+      "Traceability/coverage evidence lists only the 3 positive tests; the 7 negative/config tests in test_matrix (corrupt hash, traversal, external-dir, API exclusion, sourcemaps, etc.) carry no candidate_sha evidence, weakening AC proof completeness.",
+      "Static SPA responses specify Cache-Control/gzip but no baseline security headers (CSP, X-Content-Type-Options, Referrer-Policy) on index.html delivery.",
+      "Reuse not established: design does not state whether existing go/web static-file/gzip middleware (if any) is reused or whether `ServeEmbeddedSPA` duplicates compression/header logic (CL-001 single-writer).",
+      "Observability is log-only for asset serving; no counter for static 404s or SPA-fallback rate to detect broken asset deploys or routing regressions post-release.",
+      "AC-3 guard deny-list covers `.ts/.tsx/.jsx`, `node_modules`, `*.map` but not other Node artifacts (`.mjs/.cjs/.mts`, `package.json`, lockfiles), leaving AC-3 enforcement partial."
+    ],
+    "NIT": [
+      "Per-request runtime gzip recompresses already-compressed types (images/fonts/wasm); skip or precompress these in the build for the stated sub-millisecond NFR.",
+      "`config_contract` names `env:PF_CONSOLE_STATIC_DIR` but does not state precedence relative to other config sources or whether it is read once at startup only (C-8 says startup; contract should match)."
+    ],
+    "SUMMARY": [
+      "Design direction (embed.FS + fail-closed packaging guard) is sound and matches AC-2/AC-3 intent, but the integrity chain from verified manifest to embedded bytes is not closed, and determinism/toolchain pinning for AC-1 is unspecified \u2014 both must be resolved before Gate 1.5.",
+      "Secondary risks: language-rule justification for new Python packaging logic is asserted rather than cited, and proof coverage records only positive tests.",
+      "Prior PENDING MAJORs (CL-016 scope, SPA/API fallback precedence, CL-006 gate status) remain outstanding per ledger; not re-reported."
+    ]
+  }
+}
