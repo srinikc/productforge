@@ -30,16 +30,93 @@
   "review": {
     "impact_review": [
       {
+        "claim": "LANGUAGE CHECK",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/language_rule_review.py",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/api_first_check.py",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "AC",
+        "verdict": "aligned",
+        "evidence": "acceptance_criteria",
+        "recommendation": "approve"
+      },
+      {
         "claim": "Console packaging",
         "verdict": "aligned",
         "evidence": "core/packaging.py",
         "recommendation": "approve"
       }
     ],
-    "reconciliation": [
+    "reconciliation": {
+      "prior_decisions": "BI-PF-0397, BI-PF-0398, AGENTS.md Rule 4",
+      "existing_path": "core/packaging.py:build_compiled_package(), go/edpsvc",
+      "assumptions": "Web console compiles into standard dist/ with hashed assets and index.html",
+      "divergences": "none",
+      "open_questions": "none"
+    },
+    "reviewed_by": "architect",
+    "at": "2026-11-25T13:30:00+00:00",
+    "dispositions": [
       {
-        "topic": "Embedded web assets",
-        "status": "settled"
+        "finding": "Language rule on core/packaging.py",
+        "severity": "BLOCKER",
+        "disposition": "ACTIONED",
+        "response": "Confirmed OK via language_rule_review.py: core/packaging.py edits are under 60-line threshold; new runtime HTTP logic is Go in go/web/console.go."
+      },
+      {
+        "finding": "Vary Accept-Encoding and cache headers",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Added Vary: Accept-Encoding, X-Content-Type-Options: nosniff, and immutable cache headers to Go handler and tests."
+      },
+      {
+        "finding": "Source maps (*.map) IP leakage",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Added SOURCE_MAP_DETECTED to packaging validator failure matrix and test_customer_package_rejects_sourcemaps."
+      },
+      {
+        "finding": "Rollback flag absent from config_contract",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Declared external_static_dir (PF_CONSOLE_STATIC_DIR) in config_contract and added test_go_embedded_server_external_dir_fallback."
+      },
+      {
+        "finding": "config/eap-registry.json missing from affected_files",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Added config/eap-registry.json to affected_files, affected_components, and design_pack.scope."
+      },
+      {
+        "finding": "SPA fallback precedence vs API routing unspecified",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Specified strict exclusion of /api/*, /health, /metrics from SPA fallback; added Control C-10 and test_go_embedded_server_api_route_not_spa_fallback."
+      },
+      {
+        "finding": "Integrity gap between FR-1 and AC-2 (embed-time attestation)",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Specified NewConsoleHandler embed-time verification of embedded assets against embedded checksums.txt on server initialization."
+      },
+      {
+        "finding": "NFR deterministic toolchain pinning",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Pinned build toolchain to Node.js 20 LTS, frozen lockfile (npm ci / pnpm --frozen-lockfile), and SOURCE_DATE_EPOCH=0 in functional_spec.nfr."
+      },
+      {
+        "finding": "Language rule governing clause citation",
+        "severity": "MAJOR",
+        "disposition": "ACTIONED",
+        "response": "Explicitly cited AGENTS.md Rule 17 in DEC-1553-03 authorizing core/packaging.py edits under 60-line threshold while all runtime code is Go."
       }
     ]
   },
@@ -102,14 +179,15 @@
     "test-framework/tests/pipeline/test_web_console_packaging.py"
   ],
   "in_scope": [
-    "dashboard/web/",
-    "Go server asset embedding",
-    "Build automation",
-    "EAP integration"
+    "Go server asset embedding via embed.FS",
+    "Transparent gzip and immutable caching HTTP handlers",
+    "Web console compilation pipeline and checksum manifest",
+    "Fail-closed customer package IP protection guard",
+    "EAP manifest asset bundle integration"
   ],
   "priority": "P2",
   "revision": 2,
-  "rollback": "Serve web console from external static directory via configuration flag.",
+  "rollback": "Serve web console from external static directory via configuration flag env:PF_CONSOLE_STATIC_DIR without binary rebuild.",
   "approvals": [],
   "decisions": [
     {
@@ -117,6 +195,16 @@
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)",
       "decision": "APPROVE"
+    },
+    {
+      "gate": 1,
+      "decision": "MATERIAL_CHANGE",
+      "by": "hil:user",
+      "at": "2026-11-25T17:59:04.916687+00:00",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "Operator authorized material specification restructuring to replace empty template with canonical machine specification contract.",
+      "seq": 1
     }
   ],
   "execution": {
@@ -155,12 +243,15 @@
     "Third-party CDN management"
   ],
   "verification": [
-    "Build tests asserting binary asset embedding, HTTP 200 SPA route resolution, and zero node_modules in output packages."
+    "Build tests asserting binary asset embedding, HTTP 200 SPA route resolution, and zero node_modules in customer packages."
   ],
   "priority_rank": 2,
   "affected_files": [
+    "go/web/console.go",
+    "go/web/console_test.go",
     "core/packaging.py",
-    "cmd/pf-core/main.go"
+    "config/eap-registry.json",
+    "test-framework/tests/pipeline/test_web_console_packaging.py"
   ],
   "priority_class": "P2",
   "target_release": "",
@@ -170,8 +261,1211 @@
     "AC-3: Shipped customer packages contain zero Node.js runtime dependencies or raw TypeScript/JSX source files."
   ],
   "affected_components": [
-    "dashboard/web/",
-    "cmd/pf-core/",
-    "core/packaging.py"
+    "go/web/",
+    "core/packaging.py",
+    "config/"
+  ],
+  "functional_spec": {
+    "version": 1,
+    "status": "in_progress",
+    "owner": "eng:frontend",
+    "source": "BI-PF-1553",
+    "outcome": "Securely bundle and serve modern SPA console distribution directly from Go platform binary with zero customer Node.js runtime and zero source IP leakage.",
+    "actors": [
+      "platform_engineer",
+      "frontend_engineer",
+      "customer_admin",
+      "local_developer"
+    ],
+    "scope": [
+      "asset compilation pipeline",
+      "Go embed.FS HTTP server",
+      "customer package IP validation guard",
+      "EAP manifest integration"
+    ],
+    "non_goals": [
+      "Server-side rendering (SSR)",
+      "Third-party CDN edge management",
+      "Modifying legacy frozen dashboard modules"
+    ],
+    "assumptions": [
+      "SPA compiles into standard distribution directory with content-hashed assets and index.html"
+    ],
+    "dependencies": [
+      "BI-PF-0397",
+      "BI-PF-0398"
+    ],
+    "domain": "packaging and web delivery",
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "SPA asset compilation and content-hash integrity verification",
+        "priority": "P0",
+        "source": "BI-PF-1553",
+        "preconditions": "Web console source assets are compiled into distribution directory.",
+        "trigger": "Build pipeline executes web console asset bundling.",
+        "inputs": [
+          "source_dir",
+          "output_dist_dir"
+        ],
+        "outputs": [
+          "content_hashed_assets",
+          "checksums.txt manifest"
+        ],
+        "errors": [
+          "ASSET_INTEGRITY_MISMATCH",
+          "EMBED_DIR_NOT_FOUND"
+        ],
+        "auth": "build pipeline only",
+        "idempotency": "deterministic content hashing",
+        "data_rules": [
+          "all static chunks carry sha256 checksums"
+        ],
+        "edge_cases": [
+          "zero-byte asset files",
+          "deeply nested asset directories"
+        ],
+        "acceptance": [
+          "Given compiled web console assets, when the build pipeline packages them, content hashing and checksum manifest verify 100% integrity.",
+          "Go server startup validates embedded asset SHA256 hashes against embedded checksums.txt manifest before serving."
+        ],
+        "verification": [
+          "pytest test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_build_and_integrity"
+        ]
+      },
+      {
+        "id": "FR-2",
+        "title": "Go embedded platform server with gzip, caching, and SPA fallback",
+        "priority": "P0",
+        "source": "BI-PF-1553",
+        "preconditions": "Platform server Go binary built with embedded asset filesystem.",
+        "trigger": "Inbound HTTP GET request for web console routes.",
+        "inputs": [
+          "http.Request"
+        ],
+        "outputs": [
+          "http.Response with embedded asset or index.html"
+        ],
+        "errors": [
+          "404 for missing static asset under /assets/",
+          "500 for internal read error"
+        ],
+        "auth": "unauthenticated public web assets; downstream session auth",
+        "idempotency": "read-only immutable embedded filesystem",
+        "data_rules": [
+          "Cache-Control immutable for hashed assets; no-cache for index.html"
+        ],
+        "edge_cases": [
+          "client does not accept gzip",
+          "client requests non-existent asset path"
+        ],
+        "acceptance": [
+          "Given an inbound HTTP request, Go server serves embedded assets with transparent gzip, immutable caching, and client-side SPA fallback.",
+          "Unmatched /api/* requests return 404 JSON and never fall back to index.html."
+        ],
+        "verification": [
+          "pytest test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip"
+        ]
+      },
+      {
+        "id": "FR-3",
+        "title": "Fail-closed customer package IP protection guard",
+        "priority": "P0",
+        "source": "BI-PF-1553",
+        "preconditions": "Customer edition package assembled.",
+        "trigger": "Package verification executes during packaging build.",
+        "inputs": [
+          "package_output_dir",
+          "edition"
+        ],
+        "outputs": [
+          "validation result with unmet list"
+        ],
+        "errors": [
+          "RAW_FRONTEND_SOURCE_DETECTED",
+          "NODE_MODULES_DETECTED"
+        ],
+        "auth": "packaging pipeline authority",
+        "idempotency": "read-only filesystem scan",
+        "data_rules": [
+          "zero .ts, .tsx, .jsx, or node_modules/ allowed in customer editions"
+        ],
+        "edge_cases": [
+          "nested node_modules inside dependencies",
+          "hidden .tsx files"
+        ],
+        "acceptance": [
+          "Given customer edition distribution, validator fails closed if any raw frontend source or node_modules is present."
+        ],
+        "verification": [
+          "pytest test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources"
+        ]
+      }
+    ],
+    "operation_matrix": [
+      {
+        "operation": "compile_web_console",
+        "owner": "core/packaging.py",
+        "failure": "fail closed"
+      },
+      {
+        "operation": "ServeEmbeddedSPA",
+        "owner": "go/web/console.go",
+        "failure": "404 on missing asset, 200 on SPA fallback"
+      },
+      {
+        "operation": "validate_customer_package",
+        "owner": "core/packaging.py",
+        "failure": "fail closed and block release"
+      }
+    ],
+    "config_contract": {
+      "console_dist_dir": "dist/console",
+      "embed_fs_seam": "go/web/console.go",
+      "eap_registry": "config/eap-registry.json",
+      "external_static_dir": "env:PF_CONSOLE_STATIC_DIR"
+    },
+    "nfr": [
+      "deterministic: build toolchain pinned to Node.js 20 LTS, frozen lockfile (npm ci / pnpm --frozen-lockfile), and SOURCE_DATE_EPOCH=0 for reproducible content hashing",
+      "sub-millisecond static response: in-memory embed.FS static delivery",
+      "zero runtime Node.js: runtime platform binary requires no Node.js or npm packages"
+    ],
+    "data_lifecycle": "build-time compiled asset bundle; immutable read-only runtime",
+    "compatibility": "additive embedded web console handler",
+    "rollback": "Serve web console from external static directory via configuration flag env:PF_CONSOLE_STATIC_DIR without binary rebuild.",
+    "observability": "HTTP access logs and structured package verification failure codes",
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1553.md",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_build_and_integrity",
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ],
+        "candidate_sha": "cada800e"
+      },
+      {
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1553.md",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ],
+        "candidate_sha": "cada800e"
+      },
+      {
+        "fr": "FR-3",
+        "design": "engineering/design/BI-PF-1553.md",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources",
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ],
+        "candidate_sha": "cada800e"
+      }
+    ],
+    "open_questions": [],
+    "dod": [
+      "All unit and contract tests pass",
+      "Zero raw frontend source in customer editions",
+      "Clean Gate 2.5 review"
+    ],
+    "functional_sha": "cada800e"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "in_progress",
+    "functional_ref": "engineering/specs/BI-PF-1553.md",
+    "design_ref": "engineering/design/BI-PF-1553.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Next-gen web console embedded packaging and distribution architecture",
+        "artifact": "engineering/design/BI-PF-1553.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1553.md"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1553",
+        "reason": "Static SPA asset delivery and package validation; no REST API endpoints added"
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "BI-PF-1553",
+        "reason": "No database schema additions; embedded static assets are immutable files"
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "EAP manifest registry and embedded console asset bundle configuration",
+        "artifact": "config/eap-registry.json",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "config/eap-registry.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Sub-millisecond memory asset serving and transparent gzip transfer performance",
+        "artifact": "engineering/design/BI-PF-1553.md",
+        "sections": [
+          "performance"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1553.md"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Zero source code leakage guard and traversal boundary protection",
+        "artifact": "engineering/design/BI-PF-1553.md",
+        "sections": [
+          "security"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1553.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "BI-PF-1553",
+        "reason": "Additive packaging feature; no database migrations or data backfill"
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Configuration fallback to external static directory if embed serving fails",
+        "artifact": "engineering/design/BI-PF-1553.md",
+        "sections": [
+          "rollback"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1553.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Structured failure tokens and build integrity logging",
+        "artifact": "engineering/design/BI-PF-1553.md",
+        "sections": [
+          "observability"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1553.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "BI-PF-1553",
+        "reason": "Packaging layer specification; frontend UI UX accessibility governed separately"
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "BI-PF-1553",
+        "reason": "No PII or customer personal data processed in packaging pipeline"
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Three-phase implementation of Go handler, packaging validator, and tests",
+        "artifact": "engineering/design/BI-PF-1553.md",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "engineering/design/BI-PF-1553.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "BI-PF-1553",
+        "reason": "Automated test suite verifying AC-1, AC-2, and AC-3 with candidate SHA pinning",
+        "artifact": "test-framework/tests/pipeline/test_web_console_packaging.py",
+        "sections": [
+          "tests"
+        ],
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ]
+      }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/go/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "requirements": [
+      "AC-1: Web console build pipeline compiles SPA frontend into optimized HTML/JS/CSS assets with content hashing and integrity checks.",
+      "AC-2: Go platform server embeds compiled frontend assets via go:embed and serves them with HTTP cache headers and gzip compression.",
+      "AC-3: Shipped customer packages contain zero Node.js runtime dependencies or raw TypeScript/JSX source files."
+    ],
+    "scope": [
+      "go/web/console.go",
+      "go/web/console_test.go",
+      "core/packaging.py",
+      "config/eap-registry.json",
+      "test-framework/tests/pipeline/test_web_console_packaging.py"
+    ],
+    "non_goals": [
+      "Server-side rendering (SSR)",
+      "Third-party CDN management",
+      "Modifying legacy frozen dashboard"
+    ],
+    "invariants": [
+      "SPA history fallback serves index.html for client-side routing while missing static assets return 404.",
+      "Hashed static chunks receive immutable cache headers; index.html receives no-cache headers.",
+      "Customer editions fail closed if any raw source (.ts, .tsx, .jsx, .mts, .cts), source maps (*.map), Node manifests (package.json, lockfiles), or node_modules directory is present.",
+      "SPA fallback strictly excludes /api/*, /health, and /metrics paths; unmatched API requests return 404 JSON, preserving downstream API error contracts.",
+      "Embed-time integrity attestation: NewConsoleHandler verifies embedded asset SHA256 hashes against embedded checksums.txt on startup, failing closed on tampering."
+    ],
+    "contracts": {
+      "api": {
+        "status": "N/A",
+        "reason": "Static SPA web asset delivery via embed.FS; no new JSON REST API endpoints"
+      },
+      "db": "N/A: no persisted database schema additions",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go",
+        "core/packaging.py",
+        "config/eap-registry.json",
+        "test-framework/tests/pipeline/test_web_console_packaging.py"
+      ],
+      "config": {
+        "console_dist_dir": "dist/console",
+        "embed_fs_seam": "go/web/console.go",
+        "eap_registry": "config/eap-registry.json",
+        "external_static_dir": "env:PF_CONSOLE_STATIC_DIR"
+      }
+    },
+    "failure_matrix": [
+      {
+        "case": "raw frontend source in customer package",
+        "expected": "fail closed and block package assembly",
+        "code": "RAW_FRONTEND_SOURCE_DETECTED"
+      },
+      {
+        "case": "node_modules directory in customer package",
+        "expected": "fail closed and block package assembly",
+        "code": "NODE_MODULES_DETECTED"
+      },
+      {
+        "case": "source maps (*.map) in customer package",
+        "expected": "fail closed and block package assembly",
+        "code": "SOURCE_MAP_DETECTED"
+      },
+      {
+        "case": "path traversal attempt in web server",
+        "expected": "HTTP 400 Bad Request or 404 Not Found",
+        "code": "PATH_TRAVERSAL_BLOCKED"
+      },
+      {
+        "case": "asset checksum mismatch",
+        "expected": "fail closed on manifest verification",
+        "code": "ASSET_INTEGRITY_MISMATCH"
+      },
+      {
+        "case": "missing static asset under /assets/",
+        "expected": "HTTP 404 Not Found",
+        "code": "STATIC_ASSET_NOT_FOUND"
+      },
+      {
+        "case": "client route request",
+        "expected": "HTTP 200 OK with index.html SPA fallback",
+        "code": "SPA_FALLBACK_OK"
+      },
+      {
+        "case": "Node build artifact or manifest (.mjs, .cjs, package.json, lockfile) in customer package",
+        "expected": "fail closed and block package assembly",
+        "code": "NODE_BUILD_ARTIFACT_DETECTED"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-0397",
+      "BI-PF-0398"
+    ],
+    "security": "Guarantees zero proprietary source code disclosure and zero Node.js runtime vulnerabilities by compiling frontend to immutable minified chunks embedded in Go binary with traversal boundary protection.",
+    "observability": "Standard HTTP access metrics, structured packaging failure codes (RAW_FRONTEND_SOURCE_DETECTED, NODE_MODULES_DETECTED, ASSET_INTEGRITY_MISMATCH), and checksum manifests.",
+    "performance": "Sub-millisecond static response times from in-memory embed.FS and 65-80% payload reduction via transparent gzip compression.",
+    "rollout": "Shipped in Go platform binary with additive EAP manifest registration.",
+    "rollback": "Serve web console from external static directory via configuration flag env:PF_CONSOLE_STATIC_DIR without binary rebuild.",
+    "decisions": [
+      "DEC-1553-01: Go standard library embed.FS selected as canonical binary asset embedding mechanism.",
+      "DEC-1553-02: Hard fail-closed rejection of node_modules, source maps (*.map), and .ts/.tsx in customer packaging to protect intellectual property.",
+      "DEC-1553-03: Language rule compliance under AGENTS.md Rule 17: Extending existing shipped Python module core/packaging.py is permitted under the 60-line growth threshold, while all new shipped runtime logic and HTTP handling is authored in Go (go/web/console.go). Build-time asset compilation is tooling/packaging orchestration."
+    ],
+    "guardrails": [
+      "1. Reversibility/backup: Revert commit; optional configuration flag allows serving static assets from external directory without rebuilding binary.",
+      "2. SPOF: Go embed.FS is in-memory and stateless; static asset serving cannot crash server or block API routing.",
+      "3. Authz/RLS: Embedded assets are public web bundle; authenticated API routes handle session verification downstream.",
+      "4. Blast radius: Strictly scoped to web console static asset delivery and customer package validation; zero impact on existing API endpoints.",
+      "5. Invariants: Missing assets under /assets/ return 404; deep client links return index.html; customer packages must contain zero .ts/.jsx/node_modules.",
+      "6. Tests/rollback: Contract tests in test_web_console_packaging.py verify positive and negative failure cases. External directory serving verified.",
+      "7. API decision: needs_api=false; static asset HTTP file server and packaging validator only. No database or REST routers added.",
+      "8. Tenant isolation: N/A: embedded console assets are identical across all tenants; tenant isolation enforced at session/API layer.",
+      "9. Observability: Structured failure codes emitted during package validation with exit code 1; standard HTTP status logging.",
+      "10. Reuse: Extends existing core/packaging.py validation pipeline and standard Go net/http library."
+    ],
+    "design_areas": [
+      {
+        "area": "packaging-distribution",
+        "status": "APPLICABLE",
+        "reason": "web console bundling and customer packaging IP guard",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "core/packaging.py",
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ]
+      },
+      {
+        "area": "go-web-platform",
+        "status": "APPLICABLE",
+        "reason": "embedded SPA HTTP file serving with gzip and fallback routing",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "go/web/console.go"
+        ]
+      },
+      {
+        "area": "ip-protection",
+        "status": "APPLICABLE",
+        "reason": "fail-closed rejection of raw frontend source in customer editions",
+        "sections": [
+          "all"
+        ],
+        "evidence": [
+          "core/packaging.py"
+        ]
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1553.md",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "pipeline",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_build_and_integrity"
+      },
+      {
+        "ac": "AC-1",
+        "kind": "negative",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_corrupt_hash_fails"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "integration",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "negative",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_missing_asset_404"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "negative",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_traversal_blocked"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "config",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_external_dir_fallback"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "contract",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "negative",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_rejects_raw_typescript"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "negative",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_rejects_sourcemaps"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "negative",
+        "test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_api_route_not_spa_fallback"
+      }
+    ],
+    "coverage": [
+      {
+        "fr": "FR-1",
+        "tests": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_build_and_integrity",
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ],
+        "candidate_sha": "cada800e"
+      },
+      {
+        "fr": "FR-2",
+        "tests": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ],
+        "candidate_sha": "cada800e"
+      },
+      {
+        "fr": "FR-3",
+        "tests": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources",
+        "evidence": [
+          "test-framework/tests/pipeline/test_web_console_packaging.py"
+        ],
+        "candidate_sha": "cada800e"
+      }
+    ],
+    "runtime_contract": {
+      "trigger": "Inbound HTTP GET request for web console routes",
+      "entrypoint": "go/web:NewConsoleHandler",
+      "call_sites": [
+        "Server mux -> console handler -> embed.FS lookup / gzip writer"
+      ],
+      "adapter": "net/http.Handler",
+      "contract": "Inbound http.Request -> Outbound embedded asset or index.html",
+      "failure_behavior": "404 for missing asset under /assets/, 500 for internal read error",
+      "observable_result": "HTTP 200 with correct Content-Type, Content-Encoding, Cache-Control"
+    },
+    "proof_plan": {
+      "failing_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "red_evidence": "raw .tsx or node_modules passes customer packaging validation",
+      "green_evidence": "raw .tsx and node_modules fail closed with error code"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_build_and_integrity",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "ac": "AC-2",
+        "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "ac": "AC-3",
+        "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources",
+        "candidate_sha": "cada800e"
+      }
+    ],
+    "stop_conditions": [
+      "Detection of raw TypeScript, JSX, or TSX in customer package directory",
+      "Failure of embedded asset gzip compression or cache-control header verification"
+    ],
+    "implementation_controls": [
+      {
+        "id": "C-1",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "config",
+        "control": "web console build produces content-hashed assets and checksum manifest",
+        "symbol": "core/packaging.py:compile_web_console",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_build_and_integrity",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_web_console_corrupt_hash_fails",
+        "tenant_test": "N/A: build-time asset compilation is tenant-agnostic",
+        "concurrency_test": "N/A: build asset compilation runs sequentially during package build",
+        "observability": "ASSET_INTEGRITY_MISMATCH",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-2",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "failure",
+        "control": "Go embedded handler serves static assets and SPA fallback with 404 on missing assets",
+        "symbol": "go/web:NewConsoleHandler",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_missing_asset_404",
+        "tenant_test": "N/A: static web assets are identical across all tenants",
+        "concurrency_test": "N/A: Go embed.FS and net/http are thread-safe and immutable by design",
+        "observability": "STATIC_ASSET_NOT_FOUND",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-3",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "observability",
+        "control": "Vary Accept-Encoding, transparent gzip, and immutable cache-control headers on static assets",
+        "symbol": "go/web:ServeEmbeddedSPA",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_uncompressed_client",
+        "tenant_test": "N/A: HTTP cache and compression headers are tenant-agnostic",
+        "concurrency_test": "N/A: gzip writer operates on per-request stream",
+        "observability": "HTTP_GZIP_ENCODING_APPLIED",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-4",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "security",
+        "control": "customer package validator fails closed if raw TypeScript or JSX is detected",
+        "symbol": "core/packaging.py:validate_customer_package",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_rejects_raw_typescript",
+        "tenant_test": "N/A: packaging verification executes at distribution release boundary",
+        "concurrency_test": "N/A: validator performs sequential package directory scan",
+        "observability": "RAW_FRONTEND_SOURCE_DETECTED",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-5",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "security",
+        "control": "customer package validator fails closed if node_modules directory is present",
+        "symbol": "core/packaging.py:validate_customer_package_node_modules",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_rejects_node_modules",
+        "tenant_test": "N/A: packaging verification executes at distribution release boundary",
+        "concurrency_test": "N/A: validator performs sequential package directory scan",
+        "observability": "NODE_MODULES_DETECTED",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-6",
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "kind": "security",
+        "control": "customer package validator fails closed if source maps (*.map) are present",
+        "symbol": "core/packaging.py:validate_customer_package_sourcemaps",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_zero_nodejs_and_raw_sources",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_customer_package_rejects_sourcemaps",
+        "tenant_test": "N/A: packaging verification executes at distribution release boundary",
+        "concurrency_test": "N/A: validator performs sequential package directory scan",
+        "observability": "SOURCE_MAP_DETECTED",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-7",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "security",
+        "control": "path traversal attempts in web console routes are rejected cleanly",
+        "symbol": "go/web:ValidateConsoleRoutePath",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_traversal_blocked",
+        "tenant_test": "N/A: path boundary restrictions apply identically across all requests",
+        "concurrency_test": "N/A: route path validation is pure stateless function",
+        "observability": "PATH_TRAVERSAL_BLOCKED",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-8",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "config",
+        "control": "configuration flag PF_CONSOLE_STATIC_DIR enables hotfix rollback to external static directory",
+        "symbol": "go/web:ResolveConsoleFileSystem",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_external_dir_fallback",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_invalid_external_dir_fails",
+        "tenant_test": "N/A: external directory serving configuration is tenant-agnostic",
+        "concurrency_test": "N/A: configuration resolved at server startup",
+        "observability": "EXTERNAL_CONSOLE_DIR_ACTIVE",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-9",
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "kind": "tenant",
+        "control": "web console bundle integration in EAP manifest preserves tenant neutrality",
+        "symbol": "core/packaging.py:validate_asset_bundle",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_eap_asset_bundle_console_registration",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_eap_asset_bundle_invalid_fails",
+        "tenant_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_console_tenant_neutrality",
+        "concurrency_test": "N/A: EAP asset bundle metadata is read-only manifest configuration",
+        "observability": "EAP_ASSET_BUNDLE_VERIFIED",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      },
+      {
+        "id": "C-10",
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "kind": "failure",
+        "control": "SPA fallback strictly excludes /api/* routes, returning 404 JSON instead of index.html",
+        "symbol": "go/web:ServeConsoleMux",
+        "positive_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_headers_and_gzip",
+        "negative_test": "test-framework/tests/pipeline/test_web_console_packaging.py::test_go_embedded_server_api_route_not_spa_fallback",
+        "tenant_test": "N/A: API route boundary applies identically across all requests",
+        "concurrency_test": "N/A: route prefix matching is stateless",
+        "observability": "API_ROUTE_EXCLUDED_FROM_SPA",
+        "evidence": "pytest test-framework/tests/pipeline/test_web_console_packaging.py @cada800e",
+        "candidate_sha": "cada800e"
+      }
+    ],
+    "tech_stack_evidence": [
+      "go-embed-fs",
+      "gzip-compression",
+      "no-raw-sources"
+    ],
+    "tooling": false,
+    "learnings": [
+      "Embedding SPA assets via standard Go embed.FS provides zero-dependency deployment while customer package guards protect source IP."
+    ]
+  },
+  "review_dispositions": {
+    "design": {
+      "1": {
+        "status": "ACTIONED",
+        "response": "Embed-time attestation added: NewConsoleHandler verifies embedded assets against embedded checksums.txt on startup, failing closed on tampering."
+      },
+      "2": {
+        "status": "ACTIONED",
+        "response": "Pinned build toolchain to Node.js 20 LTS, frozen lockfile (npm ci / pnpm --frozen-lockfile), and SOURCE_DATE_EPOCH=0 in functional_spec.nfr."
+      },
+      "3": {
+        "status": "ACTIONED",
+        "response": "Cited AGENTS.md Rule 17 in DEC-1553-03: core/packaging.py edits are under 60-line threshold; all new shipped runtime logic is in Go (go/web/console.go)."
+      },
+      "4": {
+        "status": "ACTIONED",
+        "response": "Added all 10 positive, negative, and config tests across FR-1..FR-3 in test_matrix and implementation_controls with candidate SHA."
+      },
+      "5": {
+        "status": "ACTIONED",
+        "response": "Added X-Content-Type-Options: nosniff, Vary: Accept-Encoding, and Referrer-Policy to Go HTTP handler."
+      },
+      "6": {
+        "status": "ACTIONED",
+        "response": "Established single-writer ownership in go/web: go/web/console.go is the single Go platform web console handler."
+      },
+      "7": {
+        "status": "ACTIONED",
+        "response": "Added structured observability tokens (STATIC_ASSET_NOT_FOUND, SPA_FALLBACK_OK, API_ROUTE_EXCLUDED_FROM_SPA) and standard HTTP access logging."
+      },
+      "8": {
+        "status": "ACTIONED",
+        "response": "Expanded deny-list in failure matrix and validator to reject all Node artifacts: .ts, .tsx, .jsx, .mts, .cts, *.map, package.json, lockfiles, and node_modules."
+      },
+      "9": {
+        "status": "ACTIONED",
+        "response": "Handler checks Content-Type and skips gzip for precompressed binary assets (images, woff2, zip, gz)."
+      },
+      "10": {
+        "status": "ACTIONED",
+        "response": "Specified that PF_CONSOLE_STATIC_DIR is read once at startup with precedence over embedded assets for emergency operational rollback."
+      }
+    },
+    "diff": {
+      "1": {
+        "status": "ACTIONED",
+        "response": "Embedded pre-compiled console distribution assets in go/web/dist directly into Go platform binary via //go:embed dist/* and provided NewEmbeddedConsoleHandler() constructor."
+      },
+      "2": {
+        "status": "ACTIONED",
+        "response": "Added content-hashing pipeline logic in core/packaging.py:compile_web_console to hash static chunks and update references in index.html."
+      },
+      "3": {
+        "status": "ACTIONED",
+        "response": "Closed fail-open gap in VerifyAssetIntegrity: returns error on missing checksums.txt and walks filesystem to fail closed on any unlisted asset."
+      },
+      "4": {
+        "status": "ACTIONED",
+        "response": "Implemented isContentHashedAsset regex check; only content-hashed assets receive immutable cache headers; non-hashed assets receive must-revalidate."
+      },
+      "5": {
+        "status": "ACTIONED",
+        "response": "Implemented all 4 design-mandated tests: test_go_embedded_server_uncompressed_client, test_go_embedded_server_invalid_external_dir_fails, test_console_tenant_neutrality, and test_eap_asset_bundle_invalid_fails."
+      },
+      "6": {
+        "status": "ACTIONED",
+        "response": "Added behavioral HTTP server simulation test executing actual HTTP requests, testing status codes, headers, and gzip decompression."
+      },
+      "7": {
+        "status": "ACTIONED",
+        "response": "Wired ConsoleConfig.SkipGzipCompressed into compression evaluation logic in serveFileContent."
+      },
+      "8": {
+        "status": "ACTIONED",
+        "response": "Added .mjs and .cjs to raw file deny-list in validate_customer_package."
+      },
+      "9": {
+        "status": "ACTIONED",
+        "response": "Ensured clean output distribution directory before writing compiled bundle."
+      },
+      "10": {
+        "status": "ACTIONED",
+        "response": "Packaging edits stay within line growth threshold and adhere to Rule 17."
+      },
+      "11": {
+        "status": "ACTIONED",
+        "response": "Added structured log codes and standardized error returns for integrity verification."
+      },
+      "12": {
+        "status": "ACTIONED",
+        "response": "Centralized API 404 JSON writing helper writeAPIExcludedResponse."
+      },
+      "13": {
+        "status": "ACTIONED",
+        "response": "Strict dot-dot exclusion in ValidateConsoleRoutePath is fail-closed defense-in-depth against directory traversal."
+      },
+      "14": {
+        "status": "ACTIONED",
+        "response": "Standard route prefix matching for platform management routes."
+      },
+      "15": {
+        "status": "ACTIONED",
+        "response": "Moved baseline security headers to precede route validation in ServeHTTP."
+      },
+      "16": {
+        "status": "ACTIONED",
+        "response": "Fixed test paths to use PF_ROOT anchoring from file location."
+      }
+    }
+  },
+  "fix_evidence": [
+    {
+      "finding_sig": "fdc4cd8ca7e07727",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "5887a467aa65e172",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "4ea19bf989699d0c",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "18c9d926af39ac58",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "58ff7a5d3f8214d5",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "abb6883dc56120a9",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "afedc680fe1f6009",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "c9f23b063858ceb4",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "76a5db6cb60f983f",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "bd3e0a1c6cf0c92b",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "e1c3a82fd241d5a5",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "d0c044288ebcefd7",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "a11f5087518bd4a4",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "f41031fd59acd574",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "f3526d12ac794cec",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    },
+    {
+      "finding_sig": "0972c8045e33951c",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "controls_rerun": [
+        "C-1",
+        "C-2",
+        "C-3",
+        "C-4",
+        "C-5",
+        "C-6",
+        "C-7",
+        "C-8",
+        "C-9",
+        "C-10"
+      ],
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
+    }
   ]
 }
