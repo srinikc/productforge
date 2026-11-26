@@ -43,6 +43,7 @@ TOP = {
     "PRODUCT-FORGE-ARCHITECTURE-AND-OPERATIONAL-REFERENCE.md": ("Reference", "Product Forge architecture and operational reference", 100),
     "productforge_full_architecture.md": ("SSOT", "Architecture & design SSOT - start here", 100),
     "STRUCTURE-CONTRACT.md": ("Implemented", "Binding repo structure contract (folders + owners)", 100),
+    "BACKLOG-EXECUTION-QUICKREF.md": ("SSOT", "Authoritative short guide for backlog item execution protocol (BI-PF-XXXX)", 100),
     "CONSTITUTION.md": ("Implemented", "Constitution: governance + non-negotiables", 100),
     "ADDING-TO-PRODUCT-FORGE.md": ("Implemented", "Recipes/checklists to add anything", 100),
     "AGENT_CONTRACT_STANDARD.md": ("Implemented", "AgentSpec / agent-card contract standard", 100),

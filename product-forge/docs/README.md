@@ -59,6 +59,7 @@
 | [`BACKLOG-AUTHORITY-RUNBOOK.md`](BACKLOG-AUTHORITY-RUNBOOK.md) | Implemented | 100% | EDP backlog authority endpoint operation, triage, and rollback | — | — |
 | [`BACKLOG-DB-SSOT.md`](BACKLOG-DB-SSOT.md) | Implemented | 100% | Backlog DB system-of-record cutover and fallback rules | — | — |
 | [`BACKLOG-DOC-INGEST.md`](BACKLOG-DOC-INGEST.md) | Tooling | 100% | Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396) | — | — |
+| [`BACKLOG-EXECUTION-QUICKREF.md`](BACKLOG-EXECUTION-QUICKREF.md) | SSOT | 100% | Authoritative short guide for backlog item execution protocol (BI-PF-XXXX) | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
 | [`BASELINE-GATE-REMEDIATION-DESIGN.md`](BASELINE-GATE-REMEDIATION-DESIGN.md) | Design | 100% | BI-PF-1611 terminal gate skip remediation | — | — |
 | [`BIIS-LEARNING.md`](BIIS-LEARNING.md) | Implemented | 100% | BIIS tiering, review-loop learning, and convergence rules | — | — |
