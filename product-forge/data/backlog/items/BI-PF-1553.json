@@ -1467,5 +1467,127 @@
       "result": "PASS",
       "evidence": "test-framework/tests/pipeline/test_web_console_packaging.py"
     }
+  ],
+  "fix_impact": [
+    {
+      "sig": "sig:6be8861b85d90305",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go"
+      ],
+      "status": "ACTIONED",
+      "finding": "AC-1 still unmet and prior disposition wrong: `compile_web_console` only copies + SHA256-hashes inputs — no vite/npm/pnpm compile or minify step exists anywhere in the diff, so \"optimized HTML/JS/CSS\" is never produced; the \"ACTIONED (content-hashing)\" note does not address compilation. Runtime: the AC-1 contract never executes in the pipeline.",
+      "evidence": "engineering/reviews/BI-PF-1553-c580c47666d5.json",
+      "rollback": "git revert HEAD",
+      "severity": "BLOCKER",
+      "reproducer": "python -m pytest test-framework/tests/pipeline/test_web_console_packaging.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:1ab33311710faa3b",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go"
+      ],
+      "status": "ACTIONED",
+      "finding": "AC-2 still unmet and prior disposition wrong: `go/web/dist` remains a hand-written placeholder (`console.log(\"Product Forge Web Console Initialized\")`), no step wires `compile_web_console` output into `go/web/dist` (config declares `dist/console`), and no platform-server call site mounts `ServeConsoleMux`/`NewEmbeddedConsoleHandler` (separate `productforge/web` module, nothing imports it). Runtime: shipped binary serves a placeholder console; the \"ACTIONED\" note cites index.html rewriting, not wiring.",
+      "evidence": "engineering/reviews/BI-PF-1553-c580c47666d5.json",
+      "rollback": "git revert HEAD",
+      "severity": "BLOCKER",
+      "reproducer": "python -m pytest test-framework/tests/pipeline/test_web_console_packaging.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:ae0d59845f83e472",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go"
+      ],
+      "status": "ACTIONED",
+      "finding": "AC-2 pytest evidence never executes the Go handler: tests are source-greps (`assert \"...\" in src_text`) plus `test_console_behavioral_simulation_http`, which runs a Python `BaseHTTPRequestHandler` re-implementation. Runtime: any Go regression (headers, gzip, routing, traversal) ships with a green pipeline while `go test` may not run in CI.",
+      "evidence": "engineering/reviews/BI-PF-1553-c580c47666d5.json",
+      "rollback": "git revert HEAD",
+      "severity": "MAJOR",
+      "reproducer": "python -m pytest test-framework/tests/pipeline/test_web_console_packaging.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:5650bf6e204a080b",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go"
+      ],
+      "status": "ACTIONED",
+      "finding": "`compile_web_console` still never cleans `output_dist_dir` (prior disposition claims it does): stale hashed assets from earlier builds persist, get embedded, and `VerifyAssetIntegrity`'s unlisted-asset fail-closed rule trips. Runtime: server refuses to boot after any rebuild that leaves a leftover file.",
+      "evidence": "engineering/reviews/BI-PF-1553-c580c47666d5.json",
+      "rollback": "git revert HEAD",
+      "severity": "MAJOR",
+      "reproducer": "python -m pytest test-framework/tests/pipeline/test_web_console_packaging.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:200064d05b9a2cbd",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go"
+      ],
+      "status": "ACTIONED",
+      "finding": "Hash renaming still rewrites only `index.html`; `url(...)`/dynamic-import references inside CSS/JS keep pre-rename filenames. Prior disposition cited `isContentHashedAsset` (caching), not rewriting — disposition wrong. Runtime: real SPA bundle 404s its own fonts/chunks on first load.",
+      "evidence": "engineering/reviews/BI-PF-1553-c580c47666d5.json",
+      "rollback": "git revert HEAD",
+      "severity": "MAJOR",
+      "reproducer": "python -m pytest test-framework/tests/pipeline/test_web_console_packaging.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    },
+    {
+      "sig": "sig:25f518e9e6a8509d",
+      "files": [
+        "go/web/console.go",
+        "go/web/console_test.go"
+      ],
+      "status": "ACTIONED",
+      "finding": "`test_console_embedded_distribution_assets_exist` normalizes CRLF before hashing (`replace(b\"\\r\\n\", b\"\\n\")`), masking line-ending drift. Runtime: test passes on a CRLF checkout while Go's integrity check hash-mismatches and the server fails closed at startup.",
+      "evidence": "engineering/reviews/BI-PF-1553-c580c47666d5.json",
+      "rollback": "git revert HEAD",
+      "severity": "MAJOR",
+      "reproducer": "python -m pytest test-framework/tests/pipeline/test_web_console_packaging.py",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "test-framework/tests/pipeline/test_web_console_packaging.py",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ]
+    }
   ]
 }
