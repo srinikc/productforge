@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-11-26T10:52:05 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-26T21:05:27 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
 - **Open:** 137  |  **Closed:** 660
 - `blocked`: 1
-- `in_progress`: 1
-- `new`: 135
+- `in_progress`: 2
+- `new`: 134
 
-### new, by category (135)
+### new, by category (134)
 **API / reports / HIL / misc** (13)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -28,11 +28,10 @@
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
 
-**Bug fixes** (2)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
-| BI-PF-1618 | Should | bug | Repair merged guardrail baseline: store registry, item metadata, CI gate registry, and docs | Repair guardrail baseline metadata, registration, CI registry, and docs. |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
