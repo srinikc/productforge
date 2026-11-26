@@ -462,7 +462,7 @@ def validate_customer_package(package_dir: str, edition: str) -> dict[str, Any]:
     sm = validate_customer_package_sourcemaps(package_dir)
     if not sm.get("valid"):
         return {"valid": False, "error": sm["error"], "detail": sm.get("file")}
-    raw_exts = (".ts", ".tsx", ".jsx", ".mts", ".cts", ".py")
+    raw_exts = (".ts", ".tsx", ".jsx", ".mts", ".cts", ".mjs", ".cjs", ".py")
     raw_files = ("package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")
     for root, _, files in os.walk(package_dir):
         for f in files:

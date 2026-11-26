@@ -200,6 +200,16 @@ func isPrecompressedType(filePath string) bool {
 	}
 }
 
+// writeAPIExcludedResponse sends standard JSON 404 for excluded API routes.
+func writeAPIExcludedResponse(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error": "api route not found",
+		"code":  ErrCodeAPIRouteExcluded,
+	})
+}
+
 // ServeConsoleMux routes requests between API endpoints and embedded web console.
 func ServeConsoleMux(apiHandler http.Handler, consoleHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -207,12 +217,7 @@ func ServeConsoleMux(apiHandler http.Handler, consoleHandler http.Handler) http.
 			if apiHandler != nil {
 				apiHandler.ServeHTTP(w, r)
 			} else {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusNotFound)
-				_ = json.NewEncoder(w).Encode(map[string]string{
-					"error": "api route not found",
-					"code":  ErrCodeAPIRouteExcluded,
-				})
+				writeAPIExcludedResponse(w)
 			}
 			return
 		}
@@ -222,6 +227,11 @@ func ServeConsoleMux(apiHandler http.Handler, consoleHandler http.Handler) http.
 
 // ServeHTTP handles static asset serving, gzip compression, caching, and client-side SPA fallback.
 func (h *ConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Baseline security headers apply to all responses
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	w.Header().Set("Vary", "Accept-Encoding")
+
 	cleanPath, err := ValidateConsoleRoutePath(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -230,12 +240,7 @@ func (h *ConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Strict API route boundary protection (CL-016 / Invariant 4)
 	if IsAPIRoute(cleanPath) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": "route not found",
-			"code":  ErrCodeAPIRouteExcluded,
-		})
+		writeAPIExcludedResponse(w)
 		return
 	}
 
@@ -244,11 +249,6 @@ func (h *ConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "source maps forbidden", http.StatusNotFound)
 		return
 	}
-
-	// 3. Set baseline security headers
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-	w.Header().Set("Vary", "Accept-Encoding")
 
 	// 4. Check if exact asset exists in filesystem
 	reqFile := strings.TrimPrefix(cleanPath, "/")
@@ -304,7 +304,7 @@ func (h *ConsoleHandler) serveFileContent(w http.ResponseWriter, r *http.Request
 	}
 
 	acceptsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
-	shouldGzip := acceptsGzip && !isPrecompressedType(filename)
+	shouldGzip := acceptsGzip && !h.config.SkipGzipCompressed && !isPrecompressedType(filename)
 
 	content, err := io.ReadAll(rdr)
 	if err != nil {
