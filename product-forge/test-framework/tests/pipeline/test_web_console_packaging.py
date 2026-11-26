@@ -231,10 +231,10 @@ def test_eap_asset_bundle_invalid_fails():
 
 def test_go_embedded_server_uncompressed_client():
     """C-3: Uncompressed clients receive raw assets without Content-Encoding header."""
-    go_src = Path("go/web/console.go")
+    go_src = PF_ROOT / "go" / "web" / "console.go"
     src_text = go_src.read_text(encoding="utf-8")
     assert 'acceptsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")' in src_text
-    assert "shouldGzip := acceptsGzip && !isPrecompressedType(filename)" in src_text
+    assert "shouldGzip := acceptsGzip && !h.config.SkipGzipCompressed && !isPrecompressedType(filename)" in src_text
     assert 'w.Header().Set("Content-Encoding", "gzip")' in src_text
 
 
@@ -272,7 +272,7 @@ def test_console_embedded_distribution_assets_exist():
         exp_h, rel = parts[0], parts[1]
         f_path = dist_dir / rel
         assert f_path.is_file()
-        act_h = hashlib.sha256(f_path.read_bytes()).hexdigest()
+        act_h = hashlib.sha256(f_path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
         assert act_h == exp_h
 
 
